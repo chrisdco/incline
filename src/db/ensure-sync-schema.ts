@@ -10,6 +10,8 @@ const UUID_TABLES = [
   'set_entries',
   'user_profile',
   'bodyweight_entries',
+  'body_measurements',
+  'workout_photos',
 ] as const;
 
 /**
@@ -19,6 +21,7 @@ const UUID_TABLES = [
  */
 export async function ensureSyncSchema(db: SQLiteDatabase): Promise<void> {
   for (const table of UUID_TABLES) {
+    if (!(await hasTable(db, table))) continue;
     if (!(await hasColumn(db, table, 'uuid'))) {
       await db.execAsync(`ALTER TABLE ${table} ADD COLUMN uuid TEXT`);
     }
@@ -35,6 +38,15 @@ export async function ensureSyncSchema(db: SQLiteDatabase): Promise<void> {
     await db.execAsync('ALTER TABLE bodyweight_entries ADD COLUMN updated_at INTEGER');
     await db.execAsync(
       'UPDATE bodyweight_entries SET updated_at = created_at WHERE updated_at IS NULL',
+    );
+  }
+  if (
+    (await hasTable(db, 'body_measurements')) &&
+    !(await hasColumn(db, 'body_measurements', 'updated_at'))
+  ) {
+    await db.execAsync('ALTER TABLE body_measurements ADD COLUMN updated_at INTEGER');
+    await db.execAsync(
+      'UPDATE body_measurements SET updated_at = created_at WHERE updated_at IS NULL',
     );
   }
   if (!(await hasColumn(db, 'template_exercises', 'updated_at'))) {
@@ -86,4 +98,14 @@ export async function ensureSyncSchema(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_bodyweight_uuid ON bodyweight_entries(uuid)',
   );
+  if (await hasTable(db, 'body_measurements')) {
+    await db.execAsync(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_body_measurements_uuid ON body_measurements(uuid)',
+    );
+  }
+  if (await hasTable(db, 'workout_photos')) {
+    await db.execAsync(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_workout_photos_uuid ON workout_photos(uuid)',
+    );
+  }
 }

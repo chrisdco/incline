@@ -49,6 +49,7 @@ function createSyncReadyDb() {
       target_reps_max INTEGER NOT NULL,
       rest_seconds INTEGER NOT NULL DEFAULT 90,
       notes TEXT NOT NULL DEFAULT '',
+      superset_group INTEGER,
       uuid TEXT,
       updated_at INTEGER,
       deleted_at INTEGER
@@ -77,6 +78,9 @@ function createSyncReadyDb() {
       reps INTEGER NOT NULL DEFAULT 0,
       completed INTEGER NOT NULL DEFAULT 0,
       rest_seconds INTEGER,
+      superset_group INTEGER,
+      set_type TEXT NOT NULL DEFAULT 'working',
+      rpe INTEGER,
       uuid TEXT,
       deleted_at INTEGER,
       created_at INTEGER NOT NULL,
@@ -96,6 +100,17 @@ function createSyncReadyDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       weight REAL NOT NULL,
       unit TEXT NOT NULL DEFAULT 'kg',
+      recorded_at INTEGER NOT NULL,
+      uuid TEXT,
+      deleted_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE body_measurements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      metric TEXT NOT NULL,
+      value REAL NOT NULL,
+      unit TEXT NOT NULL,
       recorded_at INTEGER NOT NULL,
       uuid TEXT,
       deleted_at INTEGER,
@@ -207,6 +222,7 @@ describe('sync readiness', () => {
     db.exec('DELETE FROM workout_photos');
     db.exec('DELETE FROM workout_logs');
     db.exec('DELETE FROM bodyweight_entries');
+    db.exec('DELETE FROM body_measurements');
     db.exec('DELETE FROM user_profile');
     db.exec(`DELETE FROM template_exercises WHERE template_id IN (SELECT id FROM workout_templates WHERE is_custom = 1)`);
     db.exec('DELETE FROM workout_templates WHERE is_custom = 1');
@@ -223,6 +239,20 @@ describe('sync readiness', () => {
     expect(exercises).toEqual([{ id: 1, is_custom: 0 }]);
     expect(templates).toEqual([{ id: 1, is_custom: 0 }]);
     expect(outbox.c).toBe(0);
+    db.close();
+  });
+
+  it('account wipe removes circumference entries', () => {
+    const db = createSyncReadyDb();
+    const now = Date.now();
+    db.prepare(
+      `INSERT INTO body_measurements (metric, value, unit, recorded_at, uuid, created_at, updated_at)
+       VALUES ('waist', 82, 'cm', ?, ?, ?, ?)`,
+    ).run(now, randomUUID(), now, now);
+
+    db.exec('DELETE FROM body_measurements');
+    const left = db.prepare('SELECT COUNT(*) as c FROM body_measurements').get() as { c: number };
+    expect(left.c).toBe(0);
     db.close();
   });
 

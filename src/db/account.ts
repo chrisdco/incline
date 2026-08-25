@@ -38,6 +38,12 @@ export async function bindLocalAccount(clerkUserId: string): Promise<{ switched:
 
   await resetUserData();
   useActiveWorkout.getState().clear();
+  try {
+    const { resetAccountPreferences } = await import('@/store/settings-store');
+    resetAccountPreferences();
+  } catch {
+    // settings optional at bind time
+  }
   await db.runAsync(
     'INSERT INTO schema_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
     OWNER_KEY,

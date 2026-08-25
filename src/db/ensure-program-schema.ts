@@ -25,6 +25,17 @@ export async function ensureProgramBuilderSchema(db: SQLiteDatabase): Promise<vo
   if (!(await hasColumn(db, 'program_workouts', 'deleted_at'))) {
     await db.execAsync('ALTER TABLE program_workouts ADD COLUMN deleted_at INTEGER');
   }
+  if (!(await hasColumn(db, 'program_workouts', 'updated_at'))) {
+    await db.execAsync('ALTER TABLE program_workouts ADD COLUMN updated_at INTEGER');
+    await db.execAsync(
+      `UPDATE program_workouts SET updated_at = (
+         SELECT updated_at FROM programs WHERE programs.id = program_workouts.program_id
+       ) WHERE updated_at IS NULL`,
+    );
+    await db.execAsync(
+      `UPDATE program_workouts SET updated_at = ${Date.now()} WHERE updated_at IS NULL`,
+    );
+  }
 
   await db.execAsync('CREATE UNIQUE INDEX IF NOT EXISTS idx_programs_uuid ON programs(uuid)');
   await db.execAsync(

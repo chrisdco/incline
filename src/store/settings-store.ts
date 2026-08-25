@@ -7,6 +7,14 @@ import type { Settings, Unit, ThemeMode, AccentTheme, CalendarHeatMetric, WeekSt
 import { isCalendarHeatMetric, isWeekStartsOn, DEFAULT_ENABLED_BODY_METRICS } from '@/db/types';
 import { DEFAULT_ACCENT_THEME, isAccentTheme } from '@/lib/accent-themes';
 import { sanitizeEnabledBodyMetrics } from '@/lib/body-metrics';
+import {
+  ACCOUNT_PREF_DEFAULTS,
+  ACCOUNT_PREFS_ROW,
+  ACCOUNT_PREFS_UPDATED_AT_KEY,
+  accountPrefsChanged,
+  pickAccountPrefs,
+} from '@/sync/account-prefs';
+import { enqueueSync } from '@/sync/outbox';
 
 interface SettingsState extends Settings {
   setUnit: (unit: Unit) => void;
@@ -31,6 +39,7 @@ interface SettingsState extends Settings {
   toggleBodyMetric: (metric: BodyMetric) => void;
   setWeeklyWorkoutGoal: (goal: number) => void;
   dismissAnnouncement: (id: string) => void;
+  setShowSessionGhost: (enabled: boolean) => void;
 }
 
 const DEFAULT_REST_OPTIONS = [30, 60, 90, 120] as const;
@@ -86,6 +95,8 @@ function sanitizeDismissedIds(ids: unknown): string[] {
  * Minimal global settings store. The only genuinely cross-screen, persisted
  * global state in the app. Persisted to the SQLite kv table (no AsyncStorage).
  */
+let suppressPrefSync = false;
+
 export const useSettings = create<SettingsState>()(
   persist(
     (set) => ({
@@ -112,6 +123,7 @@ export const useSettings = create<SettingsState>()(
       enabledBodyMetrics: [...DEFAULT_ENABLED_BODY_METRICS],
       weeklyWorkoutGoal: 4,
       dismissedAnnouncementIds: [],
+      showSessionGhost: true,
       setUnit: (unit) => set({ unit }),
       setThemeMode: (themeMode) => set({ themeMode }),
       setAccentTheme: (accentTheme) => set({ accentTheme }),
@@ -155,6 +167,7 @@ export const useSettings = create<SettingsState>()(
         set((s) => ({
           dismissedAnnouncementIds: sanitizeDismissedIds([...s.dismissedAnnouncementIds, id]),
         })),
+      setShowSessionGhost: (showSessionGhost) => set({ showSessionGhost }),
     }),
     {
       name: STORAGE_KEYS.settings,
@@ -183,6 +196,7 @@ export const useSettings = create<SettingsState>()(
         enabledBodyMetrics: s.enabledBodyMetrics,
         weeklyWorkoutGoal: s.weeklyWorkoutGoal,
         dismissedAnnouncementIds: s.dismissedAnnouncementIds,
+        showSessionGhost: s.showSessionGhost,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<Settings>;
@@ -210,10 +224,89 @@ export const useSettings = create<SettingsState>()(
           enabledBodyMetrics: sanitizeEnabledBodyMetrics(p.enabledBodyMetrics),
           weeklyWorkoutGoal: sanitizeWeeklyGoal(p.weeklyWorkoutGoal),
           dismissedAnnouncementIds: sanitizeDismissedIds(p.dismissedAnnouncementIds),
+          showSessionGhost: typeof p.showSessionGhost === 'boolean' ? p.showSessionGhost : true,
+        };
+      },
+      onRehydrateStorage: () => {
+        suppressPrefSync = true;
+        return () => {
+          suppressPrefSync = false;
         };
       },
     },
   ),
 );
+
+useSettings.subscribe((state, prev) => {
+  if (suppressPrefSync) return;
+  if (!accountPrefsChanged(state as unknown as Record<string, unknown>, prev as unknown as Record<string, unknown>)) {
+    return;
+  }
+  const updatedAt = Date.now();
+  void (async () => {
+    await kvStorage.setItem(ACCOUNT_PREFS_UPDATED_AT_KEY, String(updatedAt));
+    await enqueueSync(
+      'user_preferences',
+      ACCOUNT_PREFS_ROW,
+      'upsert',
+      {
+        ...pickAccountPrefs(state as unknown as Record<string, unknown>),
+        updated_at: updatedAt,
+        deleted_at: null,
+      },
+    );
+  })().catch(() => {});
+});
+
+/** Reset synced account keys on account switch. Device-local settings stay. */
+export function resetAccountPreferences(): void {
+  suppressPrefSync = true;
+  try {
+    useSettings.setState({
+      themeMode: ACCOUNT_PREF_DEFAULTS.themeMode as Settings['themeMode'],
+      accentTheme: isAccentTheme(ACCOUNT_PREF_DEFAULTS.accentTheme)
+        ? ACCOUNT_PREF_DEFAULTS.accentTheme
+        : DEFAULT_ACCENT_THEME,
+      calendarHeatMetric: 'volume',
+      weekStartsOn: 'monday',
+      weeklyWorkoutGoal: ACCOUNT_PREF_DEFAULTS.weeklyWorkoutGoal,
+      enabledBodyMetrics: sanitizeEnabledBodyMetrics(ACCOUNT_PREF_DEFAULTS.enabledBodyMetrics),
+      showWarmUpSets: ACCOUNT_PREF_DEFAULTS.showWarmUpSets,
+      showRpe: ACCOUNT_PREF_DEFAULTS.showRpe,
+      autoStartRest: ACCOUNT_PREF_DEFAULTS.autoStartRest,
+      defaultRestSeconds: ACCOUNT_PREF_DEFAULTS.defaultRestSeconds,
+      showSessionGhost: ACCOUNT_PREF_DEFAULTS.showSessionGhost,
+    });
+  } finally {
+    suppressPrefSync = false;
+  }
+  void kvStorage.removeItem(ACCOUNT_PREFS_UPDATED_AT_KEY);
+}
+
+export function applyRemoteAccountPrefs(payload: Record<string, unknown>): void {
+  const prefs = pickAccountPrefs(payload);
+  suppressPrefSync = true;
+  try {
+    useSettings.setState({
+      themeMode: prefs.themeMode === 'light' || prefs.themeMode === 'dark' || prefs.themeMode === 'system'
+        ? prefs.themeMode
+        : 'system',
+      accentTheme: isAccentTheme(prefs.accentTheme) ? prefs.accentTheme : DEFAULT_ACCENT_THEME,
+      calendarHeatMetric: isCalendarHeatMetric(prefs.calendarHeatMetric)
+        ? prefs.calendarHeatMetric
+        : 'volume',
+      weekStartsOn: isWeekStartsOn(prefs.weekStartsOn) ? prefs.weekStartsOn : 'monday',
+      weeklyWorkoutGoal: prefs.weeklyWorkoutGoal,
+      enabledBodyMetrics: sanitizeEnabledBodyMetrics(prefs.enabledBodyMetrics),
+      showWarmUpSets: prefs.showWarmUpSets,
+      showRpe: prefs.showRpe,
+      autoStartRest: prefs.autoStartRest,
+      defaultRestSeconds: prefs.defaultRestSeconds,
+      showSessionGhost: prefs.showSessionGhost,
+    });
+  } finally {
+    suppressPrefSync = false;
+  }
+}
 
 export { DEFAULT_REST_OPTIONS };

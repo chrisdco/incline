@@ -22,6 +22,9 @@ import {
   type SetRow,
   type TemplateExerciseRow,
 } from './helpers';
+import { ghostWorkingSql, type SessionGhost } from '@/lib/session-ghost';
+
+export type { SessionGhost };
 
 export interface MuscleSplit {
   muscle: MuscleGroup;
@@ -579,6 +582,56 @@ export async function getPreviousTemplateVolume(
     deltaPct = Math.round(((current.total_volume - previousVolume) / previousVolume) * 100);
   }
   return { previousVolume, deltaPct };
+}
+
+export async function getSessionGhost(opts: {
+  templateId?: number | null;
+  name?: string | null;
+  beforeStartedAt?: number;
+  excludeLogId?: number;
+}): Promise<SessionGhost | null> {
+  const db = await openDatabase();
+  const before = opts.beforeStartedAt ?? Date.now();
+  const exclude = opts.excludeLogId ?? -1;
+
+  let prev: { id: number; started_at: number; duration_seconds: number } | null = null;
+  if (opts.templateId) {
+    prev = await db.getFirstAsync(
+      `SELECT id, started_at, duration_seconds FROM workout_logs
+       WHERE template_id = ? AND id != ? AND ended_at IS NOT NULL AND deleted_at IS NULL
+         AND started_at < ?
+       ORDER BY started_at DESC LIMIT 1`,
+      opts.templateId,
+      exclude,
+      before,
+    );
+  } else if (opts.name) {
+    prev = await db.getFirstAsync(
+      `SELECT id, started_at, duration_seconds FROM workout_logs
+       WHERE template_id IS NULL AND name = ? AND id != ? AND ended_at IS NOT NULL AND deleted_at IS NULL
+         AND started_at < ?
+       ORDER BY started_at DESC LIMIT 1`,
+      opts.name,
+      exclude,
+      before,
+    );
+  }
+  if (!prev) return null;
+
+  const stats = await db.getFirstAsync<{ v: number; c: number }>(
+    `SELECT COALESCE(SUM(s.weight * s.reps), 0) as v, COUNT(*) as c
+     FROM set_entries s
+     WHERE s.workout_log_id = ? AND ${ghostWorkingSql()}`,
+    prev.id,
+  );
+
+  return {
+    logId: prev.id,
+    startedAt: prev.started_at,
+    durationSeconds: prev.duration_seconds,
+    workingVolume: stats?.v ?? 0,
+    workingSetCount: stats?.c ?? 0,
+  };
 }
 
 export async function deleteWorkout(logId: number): Promise<void> {

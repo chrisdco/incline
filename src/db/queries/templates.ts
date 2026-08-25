@@ -149,6 +149,7 @@ async function enqueueTemplateExerciseUpsert(teId: number): Promise<void> {
     target_reps_max: te.target_reps_max,
     rest_seconds: te.rest_seconds,
     notes: te.notes,
+    superset_group: te.superset_group ?? null,
     updated_at: te.updated_at,
     deleted_at: te.deleted_at,
   });

@@ -13,6 +13,8 @@ import { migration011 } from './011_set_type';
 import { migration012 } from './012_warmup_backfill';
 import { migration013 } from './013_workout_photos';
 import { migration014 } from './014_set_rpe';
+import { migration015 } from './015_program_workouts_updated_at';
+import { migration016 } from './016_photo_sync_metadata';
 import type { Migration } from './types';
 
 export type { Migration } from './types';
@@ -33,6 +35,8 @@ export const MIGRATIONS: Migration[] = [
   migration012,
   migration013,
   migration014,
+  migration015,
+  migration016,
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 1;

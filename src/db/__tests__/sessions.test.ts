@@ -145,4 +145,50 @@ describe('session query SQL', () => {
     expect(byExercise.map((r) => r.name)).toEqual(['Push']);
     db.close();
   });
+
+  it('matches last finished template session and ignores warm-ups in ghost volume', () => {
+    const db = createSessionDb();
+    db.exec(`ALTER TABLE workout_logs ADD COLUMN deleted_at INTEGER`);
+    db.exec(`ALTER TABLE set_entries ADD COLUMN deleted_at INTEGER`);
+    db.exec(`ALTER TABLE set_entries ADD COLUMN set_type TEXT NOT NULL DEFAULT 'working'`);
+    const now = Date.now();
+    const insertLog = db.prepare(
+      `INSERT INTO workout_logs (template_id, name, started_at, ended_at, duration_seconds, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 3600, ?, ?)`,
+    );
+    const older = Number(insertLog.run(1, 'Push', now - 2000, now - 1500, now, now).lastInsertRowid);
+    const last = Number(insertLog.run(1, 'Push', now - 1000, now - 500, now, now).lastInsertRowid);
+    Number(insertLog.run(1, 'Push', now, null, now, now).lastInsertRowid);
+
+    const insertSet = db.prepare(
+      `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, set_type, created_at)
+       VALUES (?, 1, 0, ?, ?, 1, ?, ?)`,
+    );
+    insertSet.run(older, 80, 5, 'working', now);
+    insertSet.run(last, 40, 8, 'warmup', now);
+    insertSet.run(last, 100, 5, 'working', now);
+
+    const prev = db
+      .prepare(
+        `SELECT id FROM workout_logs
+         WHERE template_id = 1 AND id != ? AND ended_at IS NOT NULL AND deleted_at IS NULL
+           AND started_at < ?
+         ORDER BY started_at DESC LIMIT 1`,
+      )
+      .get(0, now) as { id: number };
+    expect(prev.id).toBe(last);
+
+    const stats = db
+      .prepare(
+        `SELECT COALESCE(SUM(s.weight * s.reps), 0) as v, COUNT(*) as c
+         FROM set_entries s
+         WHERE s.workout_log_id = ?
+           AND (s.set_type IS NULL OR s.set_type = 'working')
+           AND s.weight > 0 AND s.reps > 0 AND s.completed = 1 AND s.deleted_at IS NULL`,
+      )
+      .get(last) as { v: number; c: number };
+    expect(stats.v).toBe(500);
+    expect(stats.c).toBe(1);
+    db.close();
+  });
 });

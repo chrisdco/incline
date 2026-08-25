@@ -85,7 +85,7 @@ Celebration surfaces (toast, summary, recap, feed badge, achievements) use heavi
 
 | Layer | Path |
 |-------|------|
-| Schema | migration `014_set_rpe` — nullable integer on `set_entries` |
+| Schema | migration `016_photo_sync_metadata` — photo metadata + blob queue; `015_program_workouts_updated_at` before that |
 | RPE | [`src/coaching/rpe.ts`](../src/coaching/rpe.ts); last-set ≥ 9 holds load |
 | Readiness | [`src/coaching/readiness.ts`](../src/coaching/readiness.ts) + kv store; Home check-in; `tired` softens suggestions |
 | Program diffs | [`src/coaching/program-plan.ts`](../src/coaching/program-plan.ts); confirm UI [`program-adjust`](../src/app/(app)/program-adjust.tsx) |

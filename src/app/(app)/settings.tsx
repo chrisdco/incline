@@ -3,7 +3,7 @@ import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Moon, Sun, Smartphone, Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette,
-  Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, ChevronRight, Sparkles,
+  Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, ChevronRight, Sparkles, History,
 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
@@ -106,11 +106,13 @@ export default function SettingsScreen() {
   const {
     unit, themeMode, accentTheme, hapticsEnabled,
     restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe,
+    showSessionGhost,
     aiExplanationsEnabled,
     calendarHeatMetric, weekStartsOn, keepScreenAwake, weeklyWorkoutGoal,
     workoutRemindersEnabled, workoutReminderDays, workoutReminderHour, workoutReminderMinute,
     weeklyDigestEnabled, weeklyDigestHour, weeklyDigestMinute,
     setUnit, setThemeMode, setAccentTheme, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe,
+    setShowSessionGhost,
     setAiExplanationsEnabled,
     setCalendarHeatMetric, setWeekStartsOn, setKeepScreenAwake, setWeeklyWorkoutGoal,
     setWorkoutRemindersEnabled, setWorkoutReminderDays, setWorkoutReminderTime,
@@ -270,6 +272,17 @@ export default function SettingsScreen() {
           <View className="h-px bg-border/60" />
           <Row icon={<Icon icon={METRIC_ICONS.rpe} size={18} color="muted-foreground" />} title="RPE after working sets" subtitle="Optional 1–10. Never required to complete a set">
             <Switch value={showRpe} onValueChange={setShowRpe} accessibilityLabel="RPE after working sets" />
+          </Row>
+          <View className="h-px bg-border/60" />
+          <Row
+            icon={<Icon icon={History} size={18} color="muted-foreground" />}
+            title="Last-session comparison"
+            subtitle="Show last time on the workout preview and live session">
+            <Switch
+              value={showSessionGhost}
+              onValueChange={setShowSessionGhost}
+              accessibilityLabel="Last-session comparison"
+            />
           </Row>
           <View className="h-px bg-border/60" />
           <Row

@@ -87,9 +87,11 @@ export {
   listWorkoutFeedLogs,
   getWorkoutFeedForDay,
   getPreviousTemplateVolume,
+  getSessionGhost,
   deleteWorkout,
   clearWorkoutHistory,
   type MuscleSplit,
+  type SessionGhost,
   type SetPatch,
   type WorkoutLogFilters,
 } from './sessions';

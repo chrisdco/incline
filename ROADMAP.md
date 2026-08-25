@@ -2,7 +2,7 @@
 
 Status: **pre-alpha**. Core loop (onboarding → log → finish → progress) is local-first and working.
 
-**Agents:** After pulling, read [docs/HANDOFF.md](docs/HANDOFF.md) for current state and next issues.
+**Agents:** After pulling, read [docs/HANDOFF.md](docs/HANDOFF.md) for current state and [docs/SPRINT-2026-08.md](docs/SPRINT-2026-08.md) for the current two-week plan.
 
 Tracking lives in **GitHub milestones** (architecture notes are on each milestone description):
 

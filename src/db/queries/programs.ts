@@ -2,6 +2,8 @@ import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
 import { kvStorage } from '../kv';
 import { startOfDay, weekdayMon1 } from '../calc';
+import { enqueueSync } from '@/sync/outbox';
+import { templateRefForId } from '@/sync/template-ref';
 import type { MuscleGroup, Program, ProgramWorkout } from '../types';
 import {
   type ProgramRow,
@@ -10,7 +12,7 @@ import {
 
 export { weekdayMon1 };
 
-const ACTIVE_PROGRAM_KEY = 'active_program';
+export const ACTIVE_PROGRAM_KEY = 'active_program';
 
 export interface ActiveProgramState {
   programId: number;
@@ -27,6 +29,72 @@ export interface TodayProgramSlot {
   muscles: MuscleGroup[];
   /** True when this calendar day has no programmed session. */
   isRestDay: boolean;
+}
+
+async function enqueueProgramUpsert(programId: number): Promise<void> {
+  const db = await openDatabase();
+  const p = await db.getFirstAsync<ProgramRow>(
+    'SELECT * FROM programs WHERE id = ? AND is_custom = 1',
+    programId,
+  );
+  if (!p?.uuid) return;
+  await enqueueSync('user_programs', p.uuid, p.deleted_at ? 'delete' : 'upsert', {
+    name: p.name,
+    description: p.description,
+    weeks: p.weeks,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+    deleted_at: p.deleted_at,
+  });
+}
+
+async function enqueueProgramWorkoutUpsert(slotId: number): Promise<void> {
+  const db = await openDatabase();
+  const row = await db.getFirstAsync<
+    ProgramWorkoutRow & { program_uuid: string | null; is_custom: number }
+  >(
+    `SELECT pw.*, p.uuid as program_uuid, p.is_custom as is_custom
+     FROM program_workouts pw
+     JOIN programs p ON p.id = pw.program_id
+     WHERE pw.id = ?`,
+    slotId,
+  );
+  if (!row?.uuid || !row.is_custom || !row.program_uuid) return;
+  const templateRef = await templateRefForId(row.template_id);
+  if (templateRef.ref === 'unknown') return;
+  await enqueueSync('user_program_workouts', row.uuid, row.deleted_at ? 'delete' : 'upsert', {
+    program_uuid: row.program_uuid,
+    template_ref: templateRef,
+    week: row.week,
+    day: row.day,
+    sort_order: row.sort_order,
+    updated_at: row.updated_at ?? Date.now(),
+    deleted_at: row.deleted_at,
+  });
+}
+
+async function enqueueActiveProgramSync(state: ActiveProgramState | null): Promise<void> {
+  const now = Date.now();
+  if (!state) {
+    await enqueueSync('user_active_program', 'active', 'delete', {
+      updated_at: now,
+      deleted_at: now,
+    });
+    return;
+  }
+  const db = await openDatabase();
+  const p = await db.getFirstAsync<ProgramRow>(
+    'SELECT * FROM programs WHERE id = ? AND deleted_at IS NULL',
+    state.programId,
+  );
+  if (!p) return;
+  await enqueueSync('user_active_program', 'active', 'upsert', {
+    custom_program_uuid: p.is_custom ? p.uuid : null,
+    seed_program_id: p.is_custom ? null : p.id,
+    started_at: state.startedAt,
+    updated_at: now,
+    deleted_at: null,
+  });
 }
 
 function mapProgram(p: ProgramRow, workouts?: ProgramWorkout[]): Program {
@@ -107,7 +175,9 @@ export async function createProgram(name: string, description: string, weeks = 4
     now,
     now,
   );
-  return res.lastInsertRowId as number;
+  const id = res.lastInsertRowId as number;
+  await enqueueProgramUpsert(id);
+  return id;
 }
 
 export async function updateProgram(
@@ -138,12 +208,24 @@ export async function updateProgram(
 
   if (patch.weeks !== undefined) {
     const weeks = Math.max(1, Math.min(16, patch.weeks));
-    // Soft-delete slots beyond the new week count
-    await db.runAsync(
-      'UPDATE program_workouts SET deleted_at = ? WHERE program_id = ? AND week > ? AND deleted_at IS NULL',
-      Date.now(), id, weeks,
+    const extra = await db.getAllAsync<{ id: number }>(
+      'SELECT id FROM program_workouts WHERE program_id = ? AND week > ? AND deleted_at IS NULL',
+      id,
+      weeks,
     );
+    const now = Date.now();
+    await db.runAsync(
+      'UPDATE program_workouts SET deleted_at = ?, updated_at = ? WHERE program_id = ? AND week > ? AND deleted_at IS NULL',
+      now,
+      now,
+      id,
+      weeks,
+    );
+    for (const slot of extra) {
+      await enqueueProgramWorkoutUpsert(slot.id);
+    }
   }
+  await enqueueProgramUpsert(id);
 }
 
 export async function deleteProgram(id: number): Promise<void> {
@@ -154,14 +236,22 @@ export async function deleteProgram(id: number): Promise<void> {
     id,
   );
   if (!row) return;
-  await db.runAsync(
-    'UPDATE program_workouts SET deleted_at = ? WHERE program_id = ? AND deleted_at IS NULL',
-    now, id,
+  const slots = await db.getAllAsync<{ id: number }>(
+    'SELECT id FROM program_workouts WHERE program_id = ? AND deleted_at IS NULL',
+    id,
   );
+  await db.runAsync(
+    'UPDATE program_workouts SET deleted_at = ?, updated_at = ? WHERE program_id = ? AND deleted_at IS NULL',
+    now, now, id,
+  );
+  for (const slot of slots) {
+    await enqueueProgramWorkoutUpsert(slot.id);
+  }
   await db.runAsync(
     'UPDATE programs SET deleted_at = ?, updated_at = ? WHERE id = ?',
     now, now, id,
   );
+  await enqueueProgramUpsert(id);
   const active = await getActiveProgramState();
   if (active?.programId === id) await clearActiveProgram();
 }
@@ -186,29 +276,42 @@ export async function setProgramDay(
   );
   if (existing) {
     await db.runAsync(
-      'UPDATE program_workouts SET template_id = ? WHERE id = ?',
-      templateId, existing.id,
+      'UPDATE program_workouts SET template_id = ?, updated_at = ? WHERE id = ?',
+      templateId, now, existing.id,
     );
+    await enqueueProgramWorkoutUpsert(existing.id);
   } else {
-    await db.runAsync(
-      `INSERT INTO program_workouts (program_id, template_id, week, day, sort_order, uuid)
-       VALUES (?, ?, ?, ?, 0, ?)`,
-      programId, templateId, week, day, newUuid(),
+    const res = await db.runAsync(
+      `INSERT INTO program_workouts (program_id, template_id, week, day, sort_order, uuid, updated_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?)`,
+      programId, templateId, week, day, newUuid(), now,
     );
+    await enqueueProgramWorkoutUpsert(res.lastInsertRowId as number);
   }
   await db.runAsync('UPDATE programs SET updated_at = ? WHERE id = ?', now, programId);
+  await enqueueProgramUpsert(programId);
 }
 
 export async function clearProgramDay(programId: number, week: number, day: number): Promise<void> {
   const db = await openDatabase();
   const now = Date.now();
-  await db.runAsync(
-    `UPDATE program_workouts SET deleted_at = ?
+  const slots = await db.getAllAsync<{ id: number }>(
+    `SELECT id FROM program_workouts
      WHERE program_id = ? AND week = ? AND day = ? AND deleted_at IS NULL
        AND program_id IN (SELECT id FROM programs WHERE is_custom = 1)`,
-    now, programId, week, day,
+    programId, week, day,
   );
+  await db.runAsync(
+    `UPDATE program_workouts SET deleted_at = ?, updated_at = ?
+     WHERE program_id = ? AND week = ? AND day = ? AND deleted_at IS NULL
+       AND program_id IN (SELECT id FROM programs WHERE is_custom = 1)`,
+    now, now, programId, week, day,
+  );
+  for (const slot of slots) {
+    await enqueueProgramWorkoutUpsert(slot.id);
+  }
   await db.runAsync('UPDATE programs SET updated_at = ? WHERE id = ? AND is_custom = 1', now, programId);
+  await enqueueProgramUpsert(programId);
 }
 
 /** Copy week 1 slots onto weeks 2..N (custom programs). */
@@ -218,20 +321,29 @@ export async function applyWeek1ToAllWeeks(programId: number): Promise<void> {
   const week1 = (program.workouts ?? []).filter((w) => w.week === 1);
   const now = Date.now();
   const db = await openDatabase();
-  await db.runAsync(
-    'UPDATE program_workouts SET deleted_at = ? WHERE program_id = ? AND week > 1 AND deleted_at IS NULL',
-    now, programId,
+  const oldSlots = await db.getAllAsync<{ id: number }>(
+    'SELECT id FROM program_workouts WHERE program_id = ? AND week > 1 AND deleted_at IS NULL',
+    programId,
   );
+  await db.runAsync(
+    'UPDATE program_workouts SET deleted_at = ?, updated_at = ? WHERE program_id = ? AND week > 1 AND deleted_at IS NULL',
+    now, now, programId,
+  );
+  for (const slot of oldSlots) {
+    await enqueueProgramWorkoutUpsert(slot.id);
+  }
   for (let week = 2; week <= program.weeks; week++) {
     for (const slot of week1) {
-      await db.runAsync(
-        `INSERT INTO program_workouts (program_id, template_id, week, day, sort_order, uuid)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        programId, slot.templateId, week, slot.day, slot.sortOrder, newUuid(),
+      const res = await db.runAsync(
+        `INSERT INTO program_workouts (program_id, template_id, week, day, sort_order, uuid, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        programId, slot.templateId, week, slot.day, slot.sortOrder, newUuid(), now,
       );
+      await enqueueProgramWorkoutUpsert(res.lastInsertRowId as number);
     }
   }
   await db.runAsync('UPDATE programs SET updated_at = ? WHERE id = ?', now, programId);
+  await enqueueProgramUpsert(programId);
 }
 
 export async function getActiveProgramState(): Promise<ActiveProgramState | null> {
@@ -251,11 +363,17 @@ export async function setActiveProgram(programId: number): Promise<void> {
     programId,
     startedAt: startOfDay(Date.now()),
   };
-  await kvStorage.setItem(ACTIVE_PROGRAM_KEY, JSON.stringify(state));
+  await kvStorage.setItem(
+    ACTIVE_PROGRAM_KEY,
+    JSON.stringify({ ...state, updatedAt: Date.now() }),
+  );
+  await enqueueActiveProgramSync(state);
 }
 
-export async function clearActiveProgram(): Promise<void> {
+export async function clearActiveProgram(opts?: { sync?: boolean }): Promise<void> {
   await kvStorage.removeItem(ACTIVE_PROGRAM_KEY);
+  if (opts?.sync === false) return;
+  await enqueueActiveProgramSync(null);
 }
 
 /**

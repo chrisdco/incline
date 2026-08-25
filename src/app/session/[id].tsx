@@ -32,6 +32,7 @@ import {
   getLastSetsForExercises,
   getRestDefaultsForSession,
   getTemplateSuggestions,
+  getSessionGhost,
   getWorkoutLog,
   getExerciseSubstitutes,
   removeSet,
@@ -56,6 +57,7 @@ import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
 
 import type { Exercise, MuscleGroup, SetEntry } from '@/db/types';
 import type { TrainingSuggestion } from '@/coaching/types';
+import type { SessionGhost } from '@/db/queries';
 
 interface Group {
   exerciseId: number;
@@ -71,7 +73,7 @@ export default function SessionScreen() {
   const { toast } = useToast();
   const { impact, notify } = useHaptics();
   const clear = useActiveWorkout((s) => s.clear);
-  const { unit, setUnit, restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe, keepScreenAwake } = useSettings();
+  const { unit, setUnit, restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe, keepScreenAwake, showSessionGhost } = useSettings();
   const rest = useRestTimer({ notify: restSoundEnabled });
   const restSound = useRestTimerSound();
 
@@ -98,6 +100,7 @@ export default function SessionScreen() {
   const [lastSetsMap, setLastSetsMap] = useState<Record<number, SetEntry[]>>({});
   const [prMap, setPrMap] = useState<Record<number, ExercisePRSummary>>({});
   const [suggestionMap, setSuggestionMap] = useState<Record<number, TrainingSuggestion>>({});
+  const [ghost, setGhost] = useState<SessionGhost | null>(null);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
   const groupRefs = useRef<(View | null)[]>([]);
@@ -134,16 +137,25 @@ export default function SessionScreen() {
     }
     // PR / last-session assist is secondary — load after the set list is interactive.
     void (async () => {
-      const [lastMap, prEntries, templateSug] = await Promise.all([
+      const [lastMap, prEntries, templateSug, ghostRow] = await Promise.all([
         getLastSetsForExercises(exIds),
         Promise.all(exIds.map(async (eid) => [eid, await getExercisePRSummary(eid)] as const)),
         s.templateId ? getTemplateSuggestions(s.templateId, unit) : Promise.resolve([]),
+        showSessionGhost
+          ? getSessionGhost({
+              templateId: s.templateId,
+              name: s.templateId ? null : s.name,
+              beforeStartedAt: s.startedAt,
+              excludeLogId: s.id,
+            })
+          : Promise.resolve(null),
       ]);
       setLastSetsMap(lastMap);
       setPrMap(Object.fromEntries(prEntries));
       setSuggestionMap(Object.fromEntries(templateSug.map((sug) => [sug.exerciseId, sug])));
+      setGhost(ghostRow);
     })();
-  }, [logId, unit]);
+  }, [logId, unit, showSessionGhost]);
 
   useEffect(() => {
     load();
@@ -494,6 +506,9 @@ export default function SessionScreen() {
           {pausedAt ? (
             <Caption className="mt-0.5 text-amber-500">Paused</Caption>
           ) : null}
+          {ghost && showSessionGhost ? (
+            <Caption className="mt-0.5">Last time {formatClock(ghost.durationSeconds)}</Caption>
+          ) : null}
         </Pressable>
         <Pressable
           onPress={() => {
@@ -506,10 +521,16 @@ export default function SessionScreen() {
           className="flex-1 items-center">
           <Caption>Volume · {unit === 'metric' ? 'kg' : 'lb'}</Caption>
           <Body className="mt-0.5 font-semibold text-foreground">{formatVolume(totalVolume, unit)}</Body>
+          {ghost && showSessionGhost ? (
+            <Caption className="mt-0.5">Last time {formatVolume(ghost.workingVolume, unit)}</Caption>
+          ) : null}
         </Pressable>
         <View className="flex-1 items-center">
           <Caption>Sets</Caption>
           <Body className="mt-0.5 font-semibold text-foreground">{completedSets}/{totalSets}</Body>
+          {ghost && showSessionGhost ? (
+            <Caption className="mt-0.5">Last time {ghost.workingSetCount}</Caption>
+          ) : null}
         </View>
       </View>
 

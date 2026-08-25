@@ -109,6 +109,11 @@ export async function resetUserData(): Promise<void> {
   const db = await openDatabase();
   await db.execAsync('DELETE FROM set_entries');
   await db.execAsync('DELETE FROM workout_photos');
+  try {
+    await db.execAsync('DELETE FROM photo_blob_queue');
+  } catch {
+    // table added in v16
+  }
   await db.execAsync('DELETE FROM workout_logs');
   await db.execAsync('DELETE FROM bodyweight_entries');
   await db.execAsync('DELETE FROM body_measurements');
@@ -160,7 +165,7 @@ export async function resetUserData(): Promise<void> {
   await resetSyncState();
   try {
     const { clearActiveProgram } = await import('./programs');
-    await clearActiveProgram();
+    await clearActiveProgram({ sync: false });
   } catch {
     // ignore
   }

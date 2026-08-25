@@ -4,6 +4,8 @@ import { PAGINATION } from '@/constants/config';
 import { newUuid } from '@/lib/uuid';
 import type { ProgressPhoto, WorkoutPhoto } from '../types';
 import { openDatabase } from '../client';
+import { enqueueSync } from '@/sync/outbox';
+import { checksumFile, compressPhotoToJpeg, enqueuePhotoBlob, localPhotoPath } from '@/sync/photo-blobs';
 
 export const MAX_SESSION_PHOTOS = 6;
 
@@ -37,13 +39,53 @@ export async function listWorkoutPhotos(logId: number): Promise<WorkoutPhoto[]> 
   return rows.map(mapPhoto);
 }
 
-async function persistPhotoFile(logId: number, sourceUri: string): Promise<string> {
+async function persistPhotoFile(logId: number, sourceUri: string, photoUuid: string): Promise<{
+  uri: string;
+  byteSize: number;
+  checksum: string;
+}> {
+  const compressed = await compressPhotoToJpeg(sourceUri);
+  const dest = localPhotoPath(logId, photoUuid);
   const dir = `${documentDirectory}workout-photos/${logId}/`;
   await makeDirectoryAsync(dir, { intermediates: true });
-  const ext = sourceUri.toLowerCase().includes('.png') ? 'png' : 'jpg';
-  const dest = `${dir}${Date.now()}_${Math.floor(Math.random() * 1e6)}.${ext}`;
-  await copyAsync({ from: sourceUri, to: dest });
-  return dest;
+  await copyAsync({ from: compressed, to: dest });
+  const meta = await checksumFile(dest);
+  return { uri: dest, byteSize: meta.byteSize, checksum: meta.checksum };
+}
+
+async function enqueuePhotoMetadata(photoId: number): Promise<void> {
+  const db = await openDatabase();
+  const row = await db.getFirstAsync<{
+    uuid: string | null;
+    log_uuid: string | null;
+    storage_path: string | null;
+    content_type: string | null;
+    byte_size: number | null;
+    checksum: string | null;
+    sort_order: number;
+    created_at: number;
+    updated_at: number;
+    deleted_at: number | null;
+  }>(
+    `SELECT p.uuid, p.storage_path, p.content_type, p.byte_size, p.checksum, p.sort_order,
+            p.created_at, p.updated_at, p.deleted_at, w.uuid as log_uuid
+     FROM workout_photos p
+     JOIN workout_logs w ON w.id = p.workout_log_id
+     WHERE p.id = ?`,
+    photoId,
+  );
+  if (!row?.uuid || !row.log_uuid) return;
+  await enqueueSync('workout_photos', row.uuid, row.deleted_at ? 'delete' : 'upsert', {
+    workout_log_uuid: row.log_uuid,
+    storage_path: row.storage_path,
+    content_type: row.content_type ?? 'image/jpeg',
+    byte_size: row.byte_size,
+    checksum: row.checksum,
+    sort_order: row.sort_order,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
+  });
 }
 
 export async function addWorkoutPhotos(logId: number, sourceUris: string[]): Promise<WorkoutPhoto[]> {
@@ -57,24 +99,30 @@ export async function addWorkoutPhotos(logId: number, sourceUris: string[]): Pro
   const added: WorkoutPhoto[] = [];
 
   for (const uri of sourceUris.slice(0, room)) {
-    const localUri = await persistPhotoFile(logId, uri);
+    const uuid = newUuid();
+    const local = await persistPhotoFile(logId, uri, uuid);
     const res = await db.runAsync(
-      `INSERT INTO workout_photos (workout_log_id, uri, sort_order, uuid, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO workout_photos (workout_log_id, uri, sort_order, uuid, created_at, updated_at, content_type, byte_size, checksum)
+       VALUES (?, ?, ?, ?, ?, ?, 'image/jpeg', ?, ?)`,
       logId,
-      localUri,
+      local.uri,
       sort,
-      newUuid(),
+      uuid,
       now,
       now,
+      local.byteSize,
+      local.checksum,
     );
+    const photoId = Number(res.lastInsertRowId);
     added.push({
-      id: Number(res.lastInsertRowId),
+      id: photoId,
       workoutLogId: logId,
-      uri: localUri,
+      uri: local.uri,
       sortOrder: sort,
       createdAt: now,
     });
+    await enqueuePhotoMetadata(photoId);
+    void enqueuePhotoBlob(uuid, 'upload').catch(() => {});
     sort += 1;
   }
   return [...existing, ...added];
@@ -82,8 +130,8 @@ export async function addWorkoutPhotos(logId: number, sourceUris: string[]): Pro
 
 export async function deleteWorkoutPhoto(photoId: number): Promise<void> {
   const db = await openDatabase();
-  const row = await db.getFirstAsync<PhotoRow>(
-    'SELECT id, workout_log_id, uri, sort_order, created_at FROM workout_photos WHERE id = ? AND deleted_at IS NULL',
+  const row = await db.getFirstAsync<PhotoRow & { uuid: string | null; storage_path: string | null }>(
+    'SELECT id, workout_log_id, uri, sort_order, created_at, uuid, storage_path FROM workout_photos WHERE id = ? AND deleted_at IS NULL',
     photoId,
   );
   const now = Date.now();
@@ -100,11 +148,19 @@ export async function deleteWorkoutPhoto(photoId: number): Promise<void> {
       /* file may already be gone */
     }
   }
+  await enqueuePhotoMetadata(photoId);
+  if (row?.uuid) {
+    void enqueuePhotoBlob(row.uuid, 'delete', row.storage_path).catch(() => {});
+  }
 }
 
 export async function deletePhotosForWorkout(logId: number): Promise<void> {
   const photos = await listWorkoutPhotos(logId);
   const db = await openDatabase();
+  const queued = await db.getAllAsync<{ id: number; uuid: string | null; storage_path: string | null }>(
+    'SELECT id, uuid, storage_path FROM workout_photos WHERE workout_log_id = ? AND deleted_at IS NULL',
+    logId,
+  );
   const now = Date.now();
   await db.runAsync(
     'UPDATE workout_photos SET deleted_at = ?, updated_at = ? WHERE workout_log_id = ? AND deleted_at IS NULL',
@@ -119,6 +175,11 @@ export async function deletePhotosForWorkout(logId: number): Promise<void> {
     } catch {
       /* ignore */
     }
+  }
+  for (const row of queued) {
+    if (!row.uuid) continue;
+    await enqueuePhotoMetadata(row.id);
+    void enqueuePhotoBlob(row.uuid, 'delete', row.storage_path).catch(() => {});
   }
 }
 

@@ -8,7 +8,7 @@
  * `runMigrations` in `client.ts`. Keep SCHEMA_VERSION in sync with the latest
  * migration version.
  */
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 16;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -119,6 +119,7 @@ export const SCHEMA_STATEMENTS: string[] = [
     sort_order INTEGER NOT NULL,
     uuid TEXT,
     deleted_at INTEGER,
+    updated_at INTEGER,
     FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
     FOREIGN KEY (template_id) REFERENCES workout_templates(id) ON DELETE CASCADE
   )`,
@@ -148,7 +149,21 @@ export const SCHEMA_STATEMENTS: string[] = [
     uuid TEXT,
     deleted_at INTEGER,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL DEFAULT 0
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    storage_path TEXT,
+    content_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    byte_size INTEGER,
+    checksum TEXT
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS photo_blob_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    photo_uuid TEXT NOT NULL,
+    op TEXT NOT NULL,
+    storage_path TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
   )`,
 
   `CREATE TABLE IF NOT EXISTS set_entries (

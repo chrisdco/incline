@@ -19,8 +19,9 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
-import { startWorkout, discardWorkout, getTemplateSuggestions } from '@/db/queries';
-import { formatWeight } from '@/db/calc';
+import { startWorkout, discardWorkout, getTemplateSuggestions, getSessionGhost } from '@/db/queries';
+import { formatWeight, formatVolume } from '@/db/calc';
+import type { SessionGhost } from '@/db/queries';
 import { DIFFICULTY_LABELS, EQUIPMENT_LABELS } from '@/lib/labels';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import type { MuscleGroup } from '@/db/types';
@@ -34,8 +35,9 @@ export default function WorkoutPreviewScreen() {
   const { toast } = useToast();
   const { impact } = useHaptics();
   const { data: template, loading, error, refetch } = useTemplate(templateId);
-  const { unit } = useSettings();
+  const { unit, showSessionGhost } = useSettings();
   const [suggestions, setSuggestions] = useState<TrainingSuggestion[]>([]);
+  const [ghost, setGhost] = useState<SessionGhost | null>(null);
   const { session } = useActiveSession();
   const clear = useActiveWorkout((s) => s.clear);
   const [starting, setStarting] = useState(false);
@@ -48,7 +50,12 @@ export default function WorkoutPreviewScreen() {
   useEffect(() => {
     if (!template) return;
     void getTemplateSuggestions(template.id, unit).then(setSuggestions);
-  }, [template, unit]);
+    if (showSessionGhost) {
+      void getSessionGhost({ templateId: template.id }).then(setGhost);
+    } else {
+      setGhost(null);
+    }
+  }, [template, unit, showSessionGhost]);
 
   const doStart = async () => {
     if (!template) return;
@@ -138,6 +145,16 @@ export default function WorkoutPreviewScreen() {
               </View>
             ))}
           </View>
+        </Card>
+      ) : null}
+
+      {ghost ? (
+        <Card className="mt-4">
+          <Caption>Last time</Caption>
+          <Body className="mt-1 text-foreground">
+            {formatVolume(ghost.workingVolume, unit)} · {ghost.workingSetCount} working sets ·{' '}
+            {Math.max(1, Math.round(ghost.durationSeconds / 60))} min
+          </Body>
         </Card>
       ) : null}
 

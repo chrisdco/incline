@@ -1,55 +1,43 @@
 # Agent handoff — read this after `git pull`
 
-Last updated: **2026-08-17** (#99 coach-narrate + #23 photo compare).
+Last updated: **2026-08-18** (two-week plan in [SPRINT-2026-08.md](./SPRINT-2026-08.md)).
 
 ## Current product state
 
-- **Branch:** `main`
-- **Schema version:** 14 (`014_set_rpe`)
-- **Status:** Pre-alpha; offline-first logger with Stage A–C coaching; local photo compare; optional AI wording (deploy required)
+- **Branch:** `feat/sync-fidelity` (not yet on main)
+- **Schema version:** 16 (`016_photo_sync_metadata`)
+- **Status:** Pre-alpha; offline-first logger. Core workout/profile sync plus RPE/set type/supersets, circumference, custom programs, account preferences, last-session ghost, and private photo backup (deploy + two-device restore still required)
 
-## What was just shipped
+## What landed on this branch
 
-### [#99](https://github.com/ChrisDc777/incline/issues/99) coach-narrate
-- Settings **AI explanations** default **off**; rules still own every number
-- Client builds hashed `FeaturePackV1`; function never reads `workout_logs` for the prompt
-- Summary / Home idle only — **session logging never awaits AI**
-- Stub mode when `COACH_NARRATE_STUB=1` or `OPENAI_API_KEY` missing
-- **Deploy:** run `supabase/coach-narrate.sql`, deploy function, set secrets (`OPENAI_API_KEY`, optional model/stub, Clerk JWKS / `CLERK_JWKS_URL`)
+- **#119 / #120** — set `set_type` / `rpe` / `superset_group` round-trip; unknown outbox tables retry instead of ack-drop; `body_measurements` outbox + LWW
+- **#121** — custom programs + slots; seed templates referenced by stable integer id; active program as UUID or seed id; pull cursor does not advance past a blocked child
+- **#122** — account preferences (theme, rest defaults, ghost flag, …). Device-local: haptics, reminders, screen-awake, AI opt-in
+- **#38** — “Last time” on workout preview + live session (working-set volume; extra warm-ups cannot win)
+- **#123 / #124** — private `workout-photos` bucket, metadata JSON sync (no bytes in outbox), compressed JPEG persist, durable blob queue drained after JSON sync
 
-### [#23](https://github.com/ChrisDc777/incline/issues/23) progress photos
-- Progress tab → Photos screen (earliest vs latest); Mon/Sun week labels
-- Capture stays on workout summary; files stay on-device until [#109](https://github.com/ChrisDc777/incline/issues/109)
+## Deploy required
 
-Also on main: FeaturePack [#115](https://github.com/ChrisDc777/incline/pull/115), quality gate + CI [#114](https://github.com/ChrisDc777/incline/pull/114), photos [#116](https://github.com/ChrisDc777/incline/pull/116).
+Re-run `supabase/sync-schema.sql` (new tables: `body_measurements`, `user_programs`, `user_program_workouts`, `user_active_program`, `user_preferences`, `workout_photos`, private Storage bucket). Confirm live `set_entries` already has `set_type` / `rpe` / `superset_group`.
 
-## Recommended next work (priority order)
+**#99 coach-narrate** dashboard deploy is still required from earlier work.
 
-1. **Deploy #99** — SQL + function + secrets; smoke stub then live model
-2. **[#109](https://github.com/ChrisDc777/incline/issues/109)** — photo Storage (before public/friends [#78](https://github.com/ChrisDc777/incline/issues/78))
+## Recommended next work
 
-Later: [#112](https://github.com/ChrisDc777/incline/issues/112) native Google sheet (P4), [#94](https://github.com/ChrisDc777/incline/issues/94) measurement goals, #57 follow-ups.
+Plan and small-agent slices: **[docs/SPRINT-2026-08.md](./SPRINT-2026-08.md)** (18–31 Aug).
 
-## Key code paths
-
-```
-src/coaching/feature-pack.ts
-src/coaching/narrate-client.ts
-supabase/functions/coach-narrate
-src/app/(app)/progress-photos.tsx
-src/components/progress/photo-compare.tsx
-src/db/queries/photos.ts
-src/hooks/use-home-coaching-context.ts
-src/sync/engine.ts
-```
+1. Deploy the SQL above; two-device matrix for workouts, programs, prefs, photos
+2. Close #57 / #109 / #38 after that matrix (do not close on merge alone)
+3. Week 2: pick **one** track in the sprint doc (session alerts, #126 volume, or #99 polish)
+4. Later: signed photo URLs (#125) after #78; native Google (#112)
 
 ## Architecture constraints (do not break)
 
 - Auth is **Clerk** (JWT template `supabase` for cloud). Do not reintroduce Supabase Auth.
 - SQLite + outbox = source of truth; coaching is **recomputed**, not synced
-- Rules own load/reps; LLM may only narrate — never invent numbers
-- Session logging must never await network or AI
-- Photos stay on-device until #109; comparison must not block on network
+- Session logging must never await network, AI, or photo upload
+- Photo `uri` is a local file path only — never `getPublicUrl` / signed URLs in SQLite
+- Seed program/template UUIDs are random per device — never FK those
 
 ## Verify locally
 
@@ -59,15 +47,10 @@ npm run lint
 npm run test
 ```
 
-CI runs the same checks on push/PR to `main` (`.github/workflows/ci.yml`).
-
 ## Deferred (explicit)
 
+- #83 GC / field-level LWW / SyncClient
 - Chat coach / program generation / model keys in app
-- Photo cloud sync + public share of body photos
-- Advanced pinch-zoom / editing for compare
+- Public/friends (#78) and signed photo delivery (#125)
 - Native Google account sheet (#112)
-
-## USP (product north star)
-
-**Explainable progressive overload coach** — offline-first, cites your history, suggests next load with reasons.
+- Changing stored `total_volume` analytics (#126)

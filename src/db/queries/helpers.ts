@@ -87,6 +87,7 @@ export interface ProgramWorkoutRow {
   sort_order: number;
   uuid: string | null;
   deleted_at: number | null;
+  updated_at: number | null;
 }
 
 export interface LogRow {

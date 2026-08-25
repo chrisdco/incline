@@ -1,5 +1,6 @@
 import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
+import { enqueueSync } from '@/sync/outbox';
 import type { BodyMeasurementEntry, BodyMetric } from '../types';
 
 type CircumferenceMetric = Exclude<BodyMetric, 'bodyweight'>;
@@ -23,7 +24,15 @@ export async function addBodyMeasurement(
     now,
     now,
   );
-  // Cloud outbox for this table is deferred until sync schema covers it (#57 follow-up).
+  await enqueueSync('body_measurements', uuid, 'upsert', {
+    metric,
+    value,
+    unit,
+    recorded_at: now,
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
+  });
 }
 
 export async function getBodyMeasurements(
@@ -55,6 +64,10 @@ export async function getBodyMeasurements(
 
 export async function deleteBodyMeasurement(id: number): Promise<void> {
   const db = await openDatabase();
+  const row = await db.getFirstAsync<{ uuid: string | null }>(
+    'SELECT uuid FROM body_measurements WHERE id = ?',
+    id,
+  );
   const now = Date.now();
   await db.runAsync(
     'UPDATE body_measurements SET deleted_at = ?, updated_at = ? WHERE id = ?',
@@ -62,4 +75,10 @@ export async function deleteBodyMeasurement(id: number): Promise<void> {
     now,
     id,
   );
+  if (row?.uuid) {
+    await enqueueSync('body_measurements', row.uuid, 'delete', {
+      updated_at: now,
+      deleted_at: now,
+    });
+  }
 }

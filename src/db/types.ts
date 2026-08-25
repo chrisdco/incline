@@ -228,6 +228,8 @@ export interface Settings {
   weeklyWorkoutGoal: number;
   /** Dismissed in-app announcement ids (#90). */
   dismissedAnnouncementIds: string[];
+  /** Show last-session comparison on workout preview and live session. */
+  showSessionGhost: boolean;
 }
 
 /** Trackable body metrics on the Measures screen. */
