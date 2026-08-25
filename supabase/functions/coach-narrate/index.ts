@@ -111,13 +111,18 @@ function useStub(): boolean {
   return !Deno.env.get('OPENAI_API_KEY');
 }
 
+function llmBaseUrl(): string {
+  const raw = Deno.env.get('COACH_NARRATE_BASE_URL') ?? 'https://api.openai.com/v1';
+  return raw.replace(/\/+$/, '');
+}
+
 async function completeNarration(pack: FeaturePackV1): Promise<unknown> {
   const model = Deno.env.get('COACH_NARRATE_MODEL') ?? 'gpt-4o-mini';
   const key = Deno.env.get('OPENAI_API_KEY') ?? '';
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(`${llmBaseUrl()}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${key}`,

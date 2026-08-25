@@ -20,7 +20,7 @@ Last updated: **2026-08-25** (two-week plan in [SPRINT-2026-08.md](./SPRINT-2026
 
 Re-run `supabase/sync-schema.sql` (new tables: `body_measurements`, `user_programs`, `user_program_workouts`, `user_active_program`, `user_preferences`, `workout_photos`, private Storage bucket). Confirm live `set_entries` already has `set_type` / `rpe` / `superset_group`.
 
-**#99 coach-narrate** dashboard deploy is still required from earlier work.
+**#99 coach-narrate** dashboard deploy is still required from earlier work. Any OpenAI-compatible provider works: set `OPENAI_API_KEY` to that provider's key, plus optional `COACH_NARRATE_BASE_URL` (e.g. `https://openrouter.ai/api/v1`) and `COACH_NARRATE_MODEL` (e.g. an OpenRouter `:free` slug). Leave both unset (or `COACH_NARRATE_STUB=1`) for the safe stub path.
 
 ## Recommended next work
 
