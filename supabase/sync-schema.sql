@@ -1,4 +1,5 @@
 -- Incline user-data sync tables (run in Supabase SQL Editor after catalog schema).
+-- Idempotent: safe to re-run. Tables/indexes use IF NOT EXISTS; policies are dropped then recreated.
 -- RLS: Clerk JWT `sub` must equal user_id. Configure Clerk as a Supabase third-party
 -- JWT provider (or JWT template) so auth.jwt()->>'sub' is the Clerk user id.
 
@@ -154,41 +155,49 @@ ALTER TABLE bodyweight_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE body_measurements ENABLE ROW LEVEL SECURITY;
 
 -- Clerk JWT sub == user_id
+DROP POLICY IF EXISTS "profiles_own" ON profiles;
 CREATE POLICY "profiles_own" ON profiles
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "user_exercises_own" ON user_exercises;
 CREATE POLICY "user_exercises_own" ON user_exercises
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "user_templates_own" ON user_templates;
 CREATE POLICY "user_templates_own" ON user_templates
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "user_template_exercises_own" ON user_template_exercises;
 CREATE POLICY "user_template_exercises_own" ON user_template_exercises
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "workout_logs_own" ON workout_logs;
 CREATE POLICY "workout_logs_own" ON workout_logs
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "set_entries_own" ON set_entries;
 CREATE POLICY "set_entries_own" ON set_entries
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "bodyweight_entries_own" ON bodyweight_entries;
 CREATE POLICY "bodyweight_entries_own" ON bodyweight_entries
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "body_measurements_own" ON body_measurements;
 CREATE POLICY "body_measurements_own" ON body_measurements
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
@@ -238,16 +247,19 @@ ALTER TABLE user_programs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_program_workouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_active_program ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "user_programs_own" ON user_programs;
 CREATE POLICY "user_programs_own" ON user_programs
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "user_program_workouts_own" ON user_program_workouts;
 CREATE POLICY "user_program_workouts_own" ON user_program_workouts
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
   WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
+DROP POLICY IF EXISTS "user_active_program_own" ON user_active_program;
 CREATE POLICY "user_active_program_own" ON user_active_program
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
@@ -262,6 +274,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "user_preferences_own" ON user_preferences;
 CREATE POLICY "user_preferences_own" ON user_preferences
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
@@ -287,6 +300,7 @@ CREATE INDEX IF NOT EXISTS idx_workout_photos_log
 
 ALTER TABLE workout_photos ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "workout_photos_own" ON workout_photos;
 CREATE POLICY "workout_photos_own" ON workout_photos
   FOR ALL TO authenticated
   USING (user_id = auth.jwt() ->> 'sub')
@@ -296,6 +310,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('workout-photos', 'workout-photos', false)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "workout_photos_storage_own" ON storage.objects;
 CREATE POLICY "workout_photos_storage_own" ON storage.objects
   FOR ALL TO authenticated
   USING (
