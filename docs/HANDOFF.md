@@ -1,14 +1,14 @@
 # Agent handoff — read this after `git pull`
 
-Last updated: **2026-08-18** (two-week plan in [SPRINT-2026-08.md](./SPRINT-2026-08.md)).
+Last updated: **2026-08-25** (two-week plan in [SPRINT-2026-08.md](./SPRINT-2026-08.md)).
 
 ## Current product state
 
-- **Branch:** `feat/sync-fidelity` (not yet on main)
+- **Branch:** `main` — sync-fidelity work merged via [#127](https://github.com/chrisdco/incline/pull/127); lockfile regenerated so `npm ci` works on Linux CI
 - **Schema version:** 16 (`016_photo_sync_metadata`)
 - **Status:** Pre-alpha; offline-first logger. Core workout/profile sync plus RPE/set type/supersets, circumference, custom programs, account preferences, last-session ghost, and private photo backup (deploy + two-device restore still required)
 
-## What landed on this branch
+## What landed via #127
 
 - **#119 / #120** — set `set_type` / `rpe` / `superset_group` round-trip; unknown outbox tables retry instead of ack-drop; `body_measurements` outbox + LWW
 - **#121** — custom programs + slots; seed templates referenced by stable integer id; active program as UUID or seed id; pull cursor does not advance past a blocked child
