@@ -53,6 +53,7 @@ Offline-first strength training app for React Native + Expo. Log sets in the gym
 | Doc | Purpose |
 |-----|---------|
 | [docs/HANDOFF.md](docs/HANDOFF.md) | **Start here after `git pull`** — current state, next issues |
+| [docs/SPRINT-2026-08.md](docs/SPRINT-2026-08.md) | Two-week plan (prove sync) + small-agent slices |
 | [docs/P1-P2-COACHING.md](docs/P1-P2-COACHING.md) | P1 habit closeout + P2 coaching (Stages A–C) |
 | [ROADMAP.md](ROADMAP.md) | Milestones P0–P4 |
 | [AGENTS.md](AGENTS.md) | Agent entry (Expo SDK 57 + doc pointers) |
@@ -65,7 +66,7 @@ Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
 |-------|------------|
 | App | Expo SDK 57, React Native 0.86, Expo Router |
 | UI | NativeWind v4, Reanimated, Lucide, Gifted Charts, FlashList, Geist |
-| Local data | expo-sqlite (schema v11), Zustand + SQLite `kv` |
+| Local data | expo-sqlite (schema v16, incl. photo metadata), Zustand + SQLite `kv` |
 | Auth | Clerk (`@clerk/clerk-expo`) |
 | Cloud | Supabase (exercise catalog + user sync tables / RLS) |
 | Coaching | Pure TypeScript rules in `src/coaching/` (no model keys in the app) |

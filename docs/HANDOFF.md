@@ -1,6 +1,6 @@
 # Agent handoff — read this after `git pull`
 
-Last updated: **2026-08-17** (sync completion + last-session ghost; photo backup on this branch).
+Last updated: **2026-08-18** (two-week plan in [SPRINT-2026-08.md](./SPRINT-2026-08.md)).
 
 ## Current product state
 
@@ -24,9 +24,12 @@ Re-run `supabase/sync-schema.sql` (new tables: `body_measurements`, `user_progra
 
 ## Recommended next work
 
+Plan and small-agent slices: **[docs/SPRINT-2026-08.md](./SPRINT-2026-08.md)** (18–31 Aug).
+
 1. Deploy the SQL above; two-device matrix for workouts, programs, prefs, photos
 2. Close #57 / #109 / #38 after that matrix (do not close on merge alone)
-3. Later: signed photo URLs (#125) after #78; stored vs working volume (#126); native Google (#112)
+3. Week 2: pick **one** track in the sprint doc (session alerts, #126 volume, or #99 polish)
+4. Later: signed photo URLs (#125) after #78; native Google (#112)
 
 ## Architecture constraints (do not break)
 
