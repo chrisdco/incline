@@ -41,6 +41,13 @@ export type AccentTheme = 'indigo' | 'teal' | 'copper' | 'coral' | 'emerald' | '
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 
+/** Which artwork to render for exercise demonstrations. */
+export type ExerciseMediaStyle = 'auto' | 'gif' | 'illustration';
+/** Whether multi-frame illustrations cycle or hold a static pose. */
+export type ExerciseMediaAnimation = 'cycle' | 'static';
+/** __DEV__-only override for testing media strategies. */
+export type DevExerciseMediaOverride = 'off' | 'auto' | 'gif' | 'illustration';
+
 export interface Exercise {
   id: number;
   name: string;
@@ -230,6 +237,12 @@ export interface Settings {
   dismissedAnnouncementIds: string[];
   /** Show last-session comparison on workout preview and live session. */
   showSessionGhost: boolean;
+  /** Exercise demonstration artwork source preference. */
+  exerciseMediaStyle: ExerciseMediaStyle;
+  /** Cycle illustration frames on the detail screen vs a single static pose. */
+  exerciseMediaAnimation: ExerciseMediaAnimation;
+  /** Dev-only forced media strategy; never synced, testing only. */
+  devExerciseMediaOverride: DevExerciseMediaOverride;
 }
 
 /** Trackable body metrics on the Measures screen. */
