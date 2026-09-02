@@ -408,10 +408,15 @@ export interface MonthlyRecap {
   sessions: number;
   totalVolume: number;
   totalSets: number;
+  durationSeconds: number;
   streak: number;
   trainedDays: number;
   volumeDeltaPct: number | null;
   sessionsDeltaPct: number | null;
+  previousSessions: number;
+  previousVolume: number;
+  previousSets: number;
+  previousDurationSeconds: number;
   prs: PR[];
   muscles: MuscleDistribution[];
   previousMuscles: MuscleDistribution[];
@@ -419,6 +424,18 @@ export interface MonthlyRecap {
   /** Local midnight timestamps for days with ≥1 finished session. */
   trainedDayMs: number[];
   insightLine: string;
+  /** Last 12 calendar months ending at this recap month (inclusive). */
+  yearSeries: MonthSeriesPoint[];
+}
+
+export interface MonthSeriesPoint {
+  monthKey: string;
+  monthStartMs: number;
+  label: string;
+  sessions: number;
+  durationSeconds: number;
+  volume: number;
+  sets: number;
 }
 
 export interface SearchHit {

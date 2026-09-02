@@ -1,82 +1,93 @@
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Share, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Share2 } from 'lucide-react-native';
-import ViewShot, { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
+import { ArrowLeft } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
-import { Body, Caption } from '@/components/common/text';
+import { Body } from '@/components/common/text';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
-import { Chip } from '@/components/common/chip';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { ShareActionBar } from '@/components/share/share-action-bar';
+import { ShareCardPager } from '@/components/share/share-card-pager';
 import {
   MonthShareCoverSlide,
-  MonthShareMusclesSlide,
+  MonthShareDaysSlide,
+  MonthShareGroupsSlide,
   MonthSharePrsSlide,
+  MonthShareRadarSlide,
   MonthShareStatsSlide,
   MonthShareTopSlide,
 } from '@/components/report/month-share-slides';
-import { formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
+import { formatDuration, formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
 import { useProfile, useMonthlyRecap } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
-import type { MuscleGroup } from '@/db/types';
+import {
+  captureSharePng,
+  downloadSharePng,
+  nextShareBackgroundId,
+  shareBackgroundById,
+  shareHandleFromName,
+  sharePngOrMessage,
+  type ShareBackgroundId,
+} from '@/lib/share-export';
 
-type SlideId = 'cover' | 'stats' | 'prs' | 'muscles' | 'top';
+type SlideId = 'stats' | 'prs' | 'days' | 'radar' | 'groups' | 'top' | 'cover';
 
-const SLIDES: { id: SlideId; label: string }[] = [
-  { id: 'cover', label: 'Cover' },
-  { id: 'stats', label: 'Stats' },
-  { id: 'prs', label: 'PRs' },
-  { id: 'muscles', label: 'Muscles' },
-  { id: 'top', label: 'Top' },
-];
+const SLIDE_IDS: SlideId[] = ['stats', 'prs', 'days', 'radar', 'groups', 'top', 'cover'];
 
 export default function ShareMonthScreen() {
   const { monthStartMs: monthStartParam } = useLocalSearchParams<{ monthStartMs?: string }>();
   const defaultStart = previousMonthStart();
   const monthStartMs = monthStartParam ? Number(monthStartParam) : defaultStart;
+  const resolvedStart = Number.isFinite(monthStartMs) ? monthStartMs : defaultStart;
   const router = useRouter();
   const { toast } = useToast();
-  const { unit } = useSettings();
+  const { unit, weekStartsOn } = useSettings();
   const { data: profile } = useProfile();
-  const { data: recap, loading } = useMonthlyRecap(
-    Number.isFinite(monthStartMs) ? monthStartMs : defaultStart,
-  );
-  const [slide, setSlide] = useState<SlideId>('cover');
-  const [sharing, setSharing] = useState(false);
-  const shareRef = useRef<View>(null);
+  const { data: recap, loading } = useMonthlyRecap(resolvedStart);
+  const [index, setIndex] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [bgId, setBgId] = useState<ShareBackgroundId>('navy');
+  const captureRef = useRef<View>(null);
 
   const athleteName = profile?.name?.trim() || 'Athlete';
-  const monthLabel = formatMonthLabel(Number.isFinite(monthStartMs) ? monthStartMs : defaultStart);
-  const muscles = useMemo(
-    () => (recap?.muscles ?? []).map((m) => m.muscle) as MuscleGroup[],
-    [recap?.muscles],
+  const handle = shareHandleFromName(athleteName);
+  const monthLabel = formatMonthLabel(resolvedStart);
+  const prevLabel = formatMonthLabel(previousMonthStart(resolvedStart));
+  const bg = shareBackgroundById(bgId);
+  const chrome = useMemo(
+    () => ({ backgroundColor: bg.card, handle }),
+    [bg.card, handle],
   );
 
-  const shareMonth = async () => {
-    if (!recap || sharing) return;
-    setSharing(true);
-    const message = [`My month on Incline (${monthLabel})`, recap.insightLine, '', 'Train with me on Incline'].join('\n');
+  const message = recap
+    ? [`My month on Incline (${monthLabel})`, recap.insightLine, '', 'Train with me on Incline'].join('\n')
+    : 'My month on Incline';
+
+  const run = async (mode: 'stories' | 'more' | 'download') => {
+    if (!recap || busy) return;
+    setBusy(true);
     try {
-      const canShareFile = await Sharing.isAvailableAsync();
-      let uri: string | null = null;
-      try {
-        uri = await captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' });
-      } catch {
-        uri = null;
-      }
-      if (canShareFile && uri) {
-        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share monthly report' });
+      const uri = await captureSharePng(captureRef);
+      if (mode === 'download') {
+        await downloadSharePng({
+          uri,
+          filename: `incline-month-${recap.monthKey}.png`,
+          title: 'Save monthly report',
+          message,
+        });
       } else {
-        await Share.share({ message, title: 'My month on Incline' });
+        await sharePngOrMessage({
+          uri,
+          title: mode === 'stories' ? 'Share to Stories' : 'Share monthly report',
+          message,
+        });
       }
     } catch {
       toast({ title: 'Could not share month', variant: 'destructive' });
     } finally {
-      setSharing(false);
+      setBusy(false);
     }
   };
 
@@ -88,50 +99,92 @@ export default function ShareMonthScreen() {
     );
   }
 
+  const durationLabel = formatDuration(recap.durationSeconds);
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <View className="flex-row items-center justify-between px-4 pb-2 pt-3">
         <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
           <Icon icon={ArrowLeft} size={24} color="foreground" />
         </Pressable>
-        <Body className="text-base font-semibold text-foreground">Share month</Body>
-        <View className="w-8" />
+        <Body className="text-base font-semibold text-foreground">Share</Body>
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
+          <Body className="text-primary">Cancel</Body>
+        </Pressable>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}>
-        <Caption className="mb-3">Pick a slide, then share an image.</Caption>
-        <View className="mb-4 flex-row flex-wrap gap-1.5">
-          {SLIDES.map((s) => (
-            <Chip key={s.id} size="sm" label={s.label} selected={slide === s.id} onPress={() => setSlide(s.id)} />
-          ))}
-        </View>
-
-        <ViewShot options={{ format: 'png', quality: 1, result: 'tmpfile' }}>
-          <View ref={shareRef} collapsable={false}>
-            {slide === 'cover' ? (
-              <MonthShareCoverSlide athleteName={athleteName} monthLabel={monthLabel} insightLine={recap.insightLine} />
-            ) : null}
-            {slide === 'stats' ? (
-              <MonthShareStatsSlide
-                sessions={recap.sessions}
-                volumeLabel={formatVolume(recap.totalVolume, unit)}
-                trainedDays={recap.trainedDays}
-                sets={recap.totalSets}
+      <View className="flex-1 justify-center">
+        <ShareCardPager
+          data={SLIDE_IDS}
+          index={index}
+          onIndexChange={setIndex}
+          captureRef={captureRef}
+          pageBackground={bg.page}
+          renderCard={(slide) => {
+            if (slide === 'cover') {
+              return (
+                <MonthShareCoverSlide
+                  athleteName={athleteName}
+                  monthLabel={monthLabel}
+                  insightLine={recap.insightLine}
+                  chrome={chrome}
+                />
+              );
+            }
+            if (slide === 'stats') {
+              return (
+                <MonthShareStatsSlide
+                  sessions={recap.sessions}
+                  volumeLabel={formatVolume(recap.totalVolume, unit)}
+                  durationLabel={durationLabel}
+                  sets={recap.totalSets}
+                  chrome={chrome}
+                />
+              );
+            }
+            if (slide === 'prs') return <MonthSharePrsSlide prs={recap.prs} unit={unit} chrome={chrome} />;
+            if (slide === 'days') {
+              return (
+                <MonthShareDaysSlide
+                  monthStartMs={recap.monthStartMs}
+                  trainedDayMs={recap.trainedDayMs}
+                  weekStartsOn={weekStartsOn}
+                  chrome={chrome}
+                />
+              );
+            }
+            if (slide === 'radar') {
+              return (
+                <MonthShareRadarSlide
+                  current={recap.muscles}
+                  previous={recap.previousMuscles}
+                  currentLabel={monthLabel}
+                  previousLabel={prevLabel}
+                  chrome={chrome}
+                />
+              );
+            }
+            if (slide === 'groups') return <MonthShareGroupsSlide muscles={recap.muscles} chrome={chrome} />;
+            return (
+              <MonthShareTopSlide
+                exercises={recap.topExercises}
+                unit={unit}
+                formatVolumeFn={formatVolume}
+                chrome={chrome}
               />
-            ) : null}
-            {slide === 'prs' ? <MonthSharePrsSlide prs={recap.prs} unit={unit} /> : null}
-            {slide === 'muscles' ? <MonthShareMusclesSlide muscles={muscles} /> : null}
-            {slide === 'top' ? (
-              <MonthShareTopSlide exercises={recap.topExercises} unit={unit} formatVolumeFn={formatVolume} />
-            ) : null}
-          </View>
-        </ViewShot>
-      </ScrollView>
+            );
+          }}
+        />
+      </View>
 
       <View className="px-4 pb-4">
-        <Button leftIcon={<Icon icon={Share2} size={16} color="primary-foreground" />} onPress={() => void shareMonth()} disabled={sharing}>
-          {sharing ? 'Sharing…' : 'Share slide'}
-        </Button>
+        <ShareActionBar
+          busy={busy}
+          onBackground={() => setBgId((id) => nextShareBackgroundId(id))}
+          onStories={() => void run('stories')}
+          onMore={() => void run('more')}
+          onDownload={() => void run('download')}
+        />
       </View>
     </SafeAreaView>
   );
