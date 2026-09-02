@@ -1,4 +1,4 @@
-import { formatMonthLabel, formatVolume, previousMonthStart, startOfWeek } from '@/db/calc';
+import { formatMonthLabel, formatVolume, monthKey, previousMonthStart, startOfWeek } from '@/db/calc';
 import type { ProgressStats, Unit } from '@/db/types';
 import type { Announcement } from '@/lib/announcements/types';
 import { weekInsightFromStats } from '@/lib/week-insight';
@@ -61,7 +61,17 @@ function isMondayLocal(now: number): boolean {
 }
 
 function isEarlyMonth(now: number): boolean {
-  return new Date(now).getDate() <= 7;
+  return new Date(now).getDate() <= 14;
+}
+
+function lastMonthHadSessions(stats: ProgressStats, now: number): boolean {
+  const last = previousMonthStart(now);
+  const lastMonth = new Date(last).getMonth();
+  const lastYear = new Date(last).getFullYear();
+  return (stats.weeklyVolume ?? []).some((w) => {
+    const d = new Date(`${w.weekStart}T00:00:00`);
+    return d.getFullYear() === lastYear && d.getMonth() === lastMonth && w.sessions > 0;
+  });
 }
 
 function daysSince(ms: number | null | undefined, now: number): number | null {
@@ -101,17 +111,22 @@ export function buildHomeContextCards(input: HomeContextInput, maxCards = 2): Ho
   const hasData = (stats?.totalSessions ?? 0) >= minSessions;
   const cards: HomeContextCard[] = [];
 
-  if (hasData && isEarlyMonth(now)) {
+  if (hasData && isEarlyMonth(now) && lastMonthHadSessions(stats!, now)) {
     const lastMonthStartMs = previousMonthStart(now);
-    cards.push({
-      id: 'report-month',
-      kind: 'report_month',
-      priority: 10,
-      title: 'Your month',
-      subtitle: `${formatMonthLabel(lastMonthStartMs)} report is ready`,
-      href: `/(app)/report/month?monthStartMs=${lastMonthStartMs}`,
-      icon: 'calendar',
-    });
+    const monthLabel = formatMonthLabel(lastMonthStartMs);
+    const dismissKey = `report-month-${monthKey(lastMonthStartMs)}`;
+    if (!input.dismissedAnnouncementIds.includes(dismissKey)) {
+      cards.push({
+        id: 'report-month',
+        kind: 'report_month',
+        priority: 8,
+        title: `Your ${monthLabel} monthly report is ready!`,
+        subtitle: 'Overview of workouts, PRs, and how your training shifted vs last month.',
+        href: `/(app)/report/month?monthStartMs=${lastMonthStartMs}`,
+        dismissKey,
+        icon: 'calendar',
+      });
+    }
   }
 
   if (hasData && isMondayLocal(now)) {

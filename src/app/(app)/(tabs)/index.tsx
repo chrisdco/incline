@@ -17,6 +17,7 @@ import { ActiveSessionConflictDialog } from '@/components/workout/active-session
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { CardSkeleton } from '@/components/common/skeleton';
 import { HomeContextCard } from '@/components/home/home-context-card';
+import { MonthlyReportPromo } from '@/components/home/monthly-report-promo';
 import { useProfile, useSuggestedTemplate, useProgressStats, useWorkoutFeedLogs, useTodayProgramSlot } from '@/hooks/use-data';
 import { useActiveSession } from '@/hooks/use-active-session';
 import { useHomeCoachingContext } from '@/hooks/use-home-coaching-context';
@@ -179,14 +180,23 @@ export default function HomeScreen() {
 
       {contextCards.length > 0 ? (
         <View className="mt-4 gap-3">
-          {contextCards.map((card, i) => (
-            <HomeContextCard
-              key={card.id}
-              card={card}
-              index={i}
-              onDismiss={card.dismissKey ? dismissAnnouncement : undefined}
-            />
-          ))}
+          {contextCards.map((card, i) =>
+            card.kind === 'report_month' ? (
+              <MonthlyReportPromo
+                key={card.id}
+                card={card}
+                index={i}
+                onDismiss={card.dismissKey ? dismissAnnouncement : undefined}
+              />
+            ) : (
+              <HomeContextCard
+                key={card.id}
+                card={card}
+                index={i}
+                onDismiss={card.dismissKey ? dismissAnnouncement : undefined}
+              />
+            ),
+          )}
           {narrationHeadline ? (
             <Caption className="text-muted-foreground">{narrationHeadline}</Caption>
           ) : null}
