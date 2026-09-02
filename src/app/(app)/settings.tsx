@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Moon, Sun, Smartphone, Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette,
   Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, ChevronRight, Sparkles, History,
+  Film, FlaskConical,
 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
@@ -111,12 +112,14 @@ export default function SettingsScreen() {
     calendarHeatMetric, weekStartsOn, keepScreenAwake, weeklyWorkoutGoal,
     workoutRemindersEnabled, workoutReminderDays, workoutReminderHour, workoutReminderMinute,
     weeklyDigestEnabled, weeklyDigestHour, weeklyDigestMinute,
+    exerciseMediaStyle, exerciseMediaAnimation, devExerciseMediaOverride,
     setUnit, setThemeMode, setAccentTheme, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe,
     setShowSessionGhost,
     setAiExplanationsEnabled,
     setCalendarHeatMetric, setWeekStartsOn, setKeepScreenAwake, setWeeklyWorkoutGoal,
     setWorkoutRemindersEnabled, setWorkoutReminderDays, setWorkoutReminderTime,
     setWeeklyDigestEnabled, setWeeklyDigestTime,
+    setExerciseMediaStyle, setExerciseMediaAnimation, setDevExerciseMediaOverride,
   } = useSettings();
   const router = useRouter();
   const { data: profile, refetch } = useProfile();
@@ -499,6 +502,52 @@ export default function SettingsScreen() {
             </View>
           </View>
         </Card>
+
+        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Exercise media</Caption>
+        <Card>
+          <StackedRow
+            icon={<Icon icon={Film} size={18} color="muted-foreground" />}
+            title="Demonstration images"
+            subtitle="Auto uses GIFs first, illustrations fill the gaps">
+            <View className="flex-row flex-wrap gap-2">
+              <Chip label="Auto" selected={exerciseMediaStyle === 'auto'} onPress={() => setExerciseMediaStyle('auto')} />
+              <Chip label="GIFs" selected={exerciseMediaStyle === 'gif'} onPress={() => setExerciseMediaStyle('gif')} />
+              <Chip label="Illustrations" selected={exerciseMediaStyle === 'illustration'} onPress={() => setExerciseMediaStyle('illustration')} />
+            </View>
+          </StackedRow>
+          <View className="h-px bg-border/60" />
+          <Row
+            icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
+            title="Illustration motion"
+            subtitle="Cycle frames like an animation, or hold one pose">
+            <View className="flex-row gap-2">
+              <Chip label="Cycle" selected={exerciseMediaAnimation === 'cycle'} onPress={() => setExerciseMediaAnimation('cycle')} />
+              <Chip label="Static" selected={exerciseMediaAnimation === 'static'} onPress={() => setExerciseMediaAnimation('static')} />
+            </View>
+          </Row>
+          <Caption className="pb-3 pt-1 text-[11px]">
+            Illustrations by Bryl Lim / Everkinetic · CC BY-SA 4.0
+          </Caption>
+        </Card>
+
+        {__DEV__ ? (
+          <>
+            <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Dev tools</Caption>
+            <Card>
+              <StackedRow
+                icon={<Icon icon={FlaskConical} size={18} color="muted-foreground" />}
+                title="Force media source"
+                subtitle="Overrides the preference above — testing only">
+                <View className="flex-row flex-wrap gap-2">
+                  <Chip label="Off" selected={devExerciseMediaOverride === 'off'} onPress={() => setDevExerciseMediaOverride('off')} />
+                  <Chip label="Auto" selected={devExerciseMediaOverride === 'auto'} onPress={() => setDevExerciseMediaOverride('auto')} />
+                  <Chip label="GIFs" selected={devExerciseMediaOverride === 'gif'} onPress={() => setDevExerciseMediaOverride('gif')} />
+                  <Chip label="Illustrations" selected={devExerciseMediaOverride === 'illustration'} onPress={() => setDevExerciseMediaOverride('illustration')} />
+                </View>
+              </StackedRow>
+            </Card>
+          </>
+        ) : null}
 
         <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Feedback</Caption>
         <Card>

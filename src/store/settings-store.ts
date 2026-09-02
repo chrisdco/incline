@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 import { STORAGE_KEYS } from '@/constants/config';
 import { kvStorage } from '@/db/kv';
-import type { Settings, Unit, ThemeMode, AccentTheme, CalendarHeatMetric, WeekStartsOn, BodyMetric } from '@/db/types';
+import type { Settings, Unit, ThemeMode, AccentTheme, CalendarHeatMetric, WeekStartsOn, BodyMetric, ExerciseMediaStyle, ExerciseMediaAnimation, DevExerciseMediaOverride } from '@/db/types';
 import { isCalendarHeatMetric, isWeekStartsOn, DEFAULT_ENABLED_BODY_METRICS } from '@/db/types';
 import { DEFAULT_ACCENT_THEME, isAccentTheme } from '@/lib/accent-themes';
 import { sanitizeEnabledBodyMetrics } from '@/lib/body-metrics';
@@ -40,6 +40,25 @@ interface SettingsState extends Settings {
   setWeeklyWorkoutGoal: (goal: number) => void;
   dismissAnnouncement: (id: string) => void;
   setShowSessionGhost: (enabled: boolean) => void;
+  setExerciseMediaStyle: (style: ExerciseMediaStyle) => void;
+  setExerciseMediaAnimation: (animation: ExerciseMediaAnimation) => void;
+  setDevExerciseMediaOverride: (override: DevExerciseMediaOverride) => void;
+}
+
+const EXERCISE_MEDIA_STYLES: readonly ExerciseMediaStyle[] = ['auto', 'gif', 'illustration'];
+const EXERCISE_MEDIA_ANIMATIONS: readonly ExerciseMediaAnimation[] = ['cycle', 'static'];
+const DEV_MEDIA_OVERRIDES: readonly DevExerciseMediaOverride[] = ['off', 'auto', 'gif', 'illustration'];
+
+export function isExerciseMediaStyle(v: unknown): v is ExerciseMediaStyle {
+  return typeof v === 'string' && (EXERCISE_MEDIA_STYLES as readonly string[]).includes(v);
+}
+
+export function isExerciseMediaAnimation(v: unknown): v is ExerciseMediaAnimation {
+  return typeof v === 'string' && (EXERCISE_MEDIA_ANIMATIONS as readonly string[]).includes(v);
+}
+
+export function isDevExerciseMediaOverride(v: unknown): v is DevExerciseMediaOverride {
+  return typeof v === 'string' && (DEV_MEDIA_OVERRIDES as readonly string[]).includes(v);
 }
 
 const DEFAULT_REST_OPTIONS = [30, 60, 90, 120] as const;
@@ -124,6 +143,9 @@ export const useSettings = create<SettingsState>()(
       weeklyWorkoutGoal: 4,
       dismissedAnnouncementIds: [],
       showSessionGhost: true,
+      exerciseMediaStyle: 'auto',
+      exerciseMediaAnimation: 'cycle',
+      devExerciseMediaOverride: 'off',
       setUnit: (unit) => set({ unit }),
       setThemeMode: (themeMode) => set({ themeMode }),
       setAccentTheme: (accentTheme) => set({ accentTheme }),
@@ -168,6 +190,9 @@ export const useSettings = create<SettingsState>()(
           dismissedAnnouncementIds: sanitizeDismissedIds([...s.dismissedAnnouncementIds, id]),
         })),
       setShowSessionGhost: (showSessionGhost) => set({ showSessionGhost }),
+      setExerciseMediaStyle: (exerciseMediaStyle) => set({ exerciseMediaStyle }),
+      setExerciseMediaAnimation: (exerciseMediaAnimation) => set({ exerciseMediaAnimation }),
+      setDevExerciseMediaOverride: (devExerciseMediaOverride) => set({ devExerciseMediaOverride }),
     }),
     {
       name: STORAGE_KEYS.settings,
@@ -197,6 +222,9 @@ export const useSettings = create<SettingsState>()(
         weeklyWorkoutGoal: s.weeklyWorkoutGoal,
         dismissedAnnouncementIds: s.dismissedAnnouncementIds,
         showSessionGhost: s.showSessionGhost,
+        exerciseMediaStyle: s.exerciseMediaStyle,
+        exerciseMediaAnimation: s.exerciseMediaAnimation,
+        devExerciseMediaOverride: s.devExerciseMediaOverride,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<Settings>;
@@ -225,6 +253,13 @@ export const useSettings = create<SettingsState>()(
           weeklyWorkoutGoal: sanitizeWeeklyGoal(p.weeklyWorkoutGoal),
           dismissedAnnouncementIds: sanitizeDismissedIds(p.dismissedAnnouncementIds),
           showSessionGhost: typeof p.showSessionGhost === 'boolean' ? p.showSessionGhost : true,
+          exerciseMediaStyle: isExerciseMediaStyle(p.exerciseMediaStyle) ? p.exerciseMediaStyle : 'auto',
+          exerciseMediaAnimation: isExerciseMediaAnimation(p.exerciseMediaAnimation)
+            ? p.exerciseMediaAnimation
+            : 'cycle',
+          devExerciseMediaOverride: isDevExerciseMediaOverride(p.devExerciseMediaOverride)
+            ? p.devExerciseMediaOverride
+            : 'off',
         };
       },
       onRehydrateStorage: () => {
