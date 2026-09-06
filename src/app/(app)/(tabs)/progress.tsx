@@ -4,7 +4,7 @@ import { PrimaryActivityIndicator } from '@/components/common/primary-activity-i
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
-import { Camera, ChevronRight, Dumbbell, TrendingUp } from 'lucide-react-native';
+import { Camera, CalendarRange, ChevronRight, Dumbbell, TrendingUp } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Caption, Body } from '@/components/common/text';
@@ -27,7 +27,7 @@ import {
 } from '@/components/progress/history-filters';
 import { usePeriodStats, useWorkoutLogs } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
-import { formatVolume } from '@/db/calc';
+import { formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
 import { MUSCLE_LABELS } from '@/lib/labels';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
@@ -189,6 +189,26 @@ export default function ProgressScreen() {
                           <Body className="font-semibold text-foreground">Photos</Body>
                         </View>
                         <Caption className="mt-1">Week vs week, on this device</Caption>
+                      </View>
+                      <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+                    </View>
+                  </Card>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => router.push('/(app)/report/month' as Href)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open monthly reports">
+                  <Card>
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-1 pr-3">
+                        <View className="flex-row items-center gap-2">
+                          <Icon icon={CalendarRange} size={16} color="muted-foreground" />
+                          <Body className="font-semibold text-foreground">Monthly reports</Body>
+                        </View>
+                        <Caption className="mt-1">
+                          {formatMonthLabel(previousMonthStart())} recap · kept even when dismissed
+                        </Caption>
                       </View>
                       <Icon icon={ChevronRight} size={18} color="muted-foreground" />
                     </View>

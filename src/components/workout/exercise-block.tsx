@@ -112,6 +112,10 @@ export function ExerciseBlock({
   const hasAssist =
     lastSets.length > 0 || prWeight != null || best1RM != null;
 
+  /** Standalone assist icon only when no tappable info text exists to open the sheet. */
+  const showAssistIcon =
+    hasAssist && lastSets.length === 0 && !(loadSuggestion && loadSuggestion.weight > 0);
+
   const fatigue = useMemo(() => detectSetFatigue(sets, unit), [sets, unit]);
 
   const applyAndClose = (weight: number, reps?: number) => {
@@ -133,14 +137,30 @@ export function ExerciseBlock({
             {onOpenExercise ? <Icon icon={ChevronRight} size={16} color="muted-foreground" /> : null}
           </Pressable>
           <View className="mt-1 flex-row items-center gap-2">
-            <PreviousBestBadge lastSets={lastSets} unit={unit} />
+            <PreviousBestBadge
+              lastSets={lastSets}
+              unit={unit}
+              onPress={hasAssist ? () => setAssistOpen(true) : undefined}
+            />
             {alreadyBeating ? (
-              <Text className="text-xs font-medium text-primary">PR pace</Text>
+              <Pressable
+                onPress={() => setAssistOpen(true)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Exercise targets and shortcuts">
+                <Text className="text-xs font-medium text-primary">PR pace</Text>
+              </Pressable>
             ) : null}
             {loadSuggestion && loadSuggestion.weight > 0 ? (
-              <Text className="text-xs font-medium text-primary">
-                Suggested {formatWeight(loadSuggestion.weight, unit)} × {loadSuggestion.reps}
-              </Text>
+              <Pressable
+                onPress={() => setAssistOpen(true)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Use suggested load">
+                <Text className="text-xs font-medium text-primary">
+                  Suggested {formatWeight(loadSuggestion.weight, unit)} × {loadSuggestion.reps}
+                </Text>
+              </Pressable>
             ) : null}
             {onSwap ? (
               <Pressable
@@ -151,7 +171,7 @@ export function ExerciseBlock({
                 <Icon icon={ArrowLeftRight} size={14} color="muted-foreground" />
               </Pressable>
             ) : null}
-            {hasAssist ? (
+            {showAssistIcon ? (
               <Pressable
                 onPress={() => setAssistOpen(true)}
                 hitSlop={10}
