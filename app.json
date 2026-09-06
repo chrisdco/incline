@@ -50,7 +50,10 @@
         {
           "color": "#6D5DF6"
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
