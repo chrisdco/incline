@@ -24,6 +24,7 @@ export function SetRow({
   previousWeight,
   previousReps,
   completed,
+  isNext = false,
   unit,
   onChangeWeight,
   onChangeReps,
@@ -39,6 +40,8 @@ export function SetRow({
   previousWeight?: number;
   previousReps?: number;
   completed: boolean;
+  /** True for the next incomplete set — gets the primary CTA treatment. */
+  isNext?: boolean;
   unit: Unit;
   onChangeWeight: (v: number) => void;
   onChangeReps: (v: number) => void;
@@ -54,6 +57,12 @@ export function SetRow({
   useImperativeHandle(ref, () => ({ focusWeight: () => weightRef.current?.focus() }), []);
 
   const hasPrevious = previousWeight !== undefined && previousWeight > 0;
+
+  const toggleClass = cn(
+    'h-11 w-11 items-center justify-center rounded-full',
+    completed ? 'bg-success' : isNext ? 'border-2 border-primary bg-primary/10' : 'border-2 border-border',
+  );
+  const toggleIconColor = completed ? 'success-foreground' : isNext ? 'primary' : 'muted-foreground';
 
   const row = (
     <View
@@ -109,18 +118,11 @@ export function SetRow({
             accessibilityState={{ checked: completed }}
             onPress={onToggleComplete}
             hitSlop={8}
-            className={cn(
-              'h-11 w-11 items-center justify-center rounded-full',
-              completed ? 'bg-success' : 'border-2 border-border',
-            )}>
-            <Icon icon={Check} size={18} color={completed ? 'success-foreground' : 'muted-foreground'} />
+            className={toggleClass}>
+            <Icon icon={Check} size={18} color={toggleIconColor} />
           </Pressable>
         ) : (
-          <View
-            className={cn(
-              'h-11 w-11 items-center justify-center rounded-full',
-              completed ? 'bg-success' : 'border-2 border-border',
-            )}>
+          <View className={toggleClass}>
             {completed ? <Icon icon={Check} size={18} color="success-foreground" /> : null}
           </View>
         )}

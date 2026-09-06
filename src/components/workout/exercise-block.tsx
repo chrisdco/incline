@@ -227,6 +227,7 @@ export function ExerciseBlock({
               previousWeight={lastSets[i]?.weight}
               previousReps={lastSets[i]?.reps}
               completed={s.completed}
+              isNext={!s.completed && activeSet?.id === s.id}
               unit={unit}
               onChangeWeight={(v) => onChangeWeight(s.id, v)}
               onChangeReps={(v) => onChangeReps(s.id, v)}

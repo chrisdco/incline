@@ -100,6 +100,7 @@ export function NumberStepper({
           textAlign: 'center',
           fontSize: 16,
           fontWeight: '600',
+          fontVariant: ['tabular-nums'],
         }}
         className="rounded-lg bg-muted/60 px-1 text-foreground"
       />

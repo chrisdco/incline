@@ -203,7 +203,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={SCREEN_CONTENT}>
-        <Caption className="mb-1 mt-1 font-semibold uppercase tracking-wide">Cloud sync</Caption>
+        <Caption className="mb-2 mt-1 font-semibold uppercase tracking-wide">Cloud sync</Caption>
         <Card>
           <Row
             icon={<Icon icon={Cloud} size={18} color="muted-foreground" />}
@@ -220,7 +220,7 @@ export default function SettingsScreen() {
           </Row>
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Export</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Export</Caption>
         <Card>
           <Pressable
             onPress={() => router.push('/(app)/export' as Href)}
@@ -238,7 +238,7 @@ export default function SettingsScreen() {
           </Pressable>
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Units</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Units</Caption>
         <Card>
           <Row icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Measurement" subtitle="Displayed across workouts and stats">
             <View className="flex-row gap-2">
@@ -248,7 +248,7 @@ export default function SettingsScreen() {
           </Row>
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Workout</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Workout</Caption>
         <Card>
           <Row icon={<Icon icon={Zap} size={18} color="muted-foreground" />} title="Auto-start rest timer" subtitle="Begin countdown when you finish a set">
             <Switch value={autoStartRest} onValueChange={setAutoStartRest} accessibilityLabel="Auto-start rest timer" />
@@ -293,7 +293,7 @@ export default function SettingsScreen() {
           </Row>
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Coaching</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Coaching</Caption>
         <Card>
           <Row
             icon={<Icon icon={Sparkles} size={18} color="muted-foreground" />}
@@ -307,7 +307,7 @@ export default function SettingsScreen() {
           </Row>
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Reminders</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Reminders</Caption>
         <Card>
           <Row
             icon={<Icon icon={Bell} size={18} color="muted-foreground" />}
@@ -359,7 +359,7 @@ export default function SettingsScreen() {
           ) : null}
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Weekly digest</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Weekly digest</Caption>
         <Card>
           <Row
             icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
@@ -394,7 +394,7 @@ export default function SettingsScreen() {
           ) : null}
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Calendar</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Calendar</Caption>
         <Card>
           <StackedRow
             icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
@@ -448,7 +448,7 @@ export default function SettingsScreen() {
           </StackedRow>
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Appearance</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Appearance</Caption>
         <Card>
           <StackedRow
             icon={themeMode === 'dark' ? <Icon icon={Moon} size={18} color="muted-foreground" /> : themeMode === 'light' ? <Icon icon={Sun} size={18} color="muted-foreground" /> : <Icon icon={Smartphone} size={18} color="muted-foreground" />}
@@ -500,7 +500,7 @@ export default function SettingsScreen() {
           </View>
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Feedback</Caption>
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Feedback</Caption>
         <Card>
           <Row icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
             <Switch value={hapticsEnabled} onValueChange={setHaptics} accessibilityLabel="Haptics" />

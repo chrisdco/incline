@@ -16,6 +16,7 @@ import { TemplatePickerSheet } from '@/components/workout/template-picker-sheet'
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { CardSkeleton } from '@/components/common/skeleton';
+import { SectionHeader } from '@/components/common/section-header';
 import { HomeContextCard } from '@/components/home/home-context-card';
 import { MonthlyReportPromo } from '@/components/home/monthly-report-promo';
 import { useProfile, useSuggestedTemplate, useProgressStats, useWorkoutFeedLogs, useTodayProgramSlot } from '@/hooks/use-data';
@@ -174,10 +175,6 @@ export default function HomeScreen() {
         <Caption className="mt-2 text-foreground/80">{weekInsightLine}</Caption>
       ) : null}
 
-      <View className="mt-4">
-        <ReadinessCheckIn value={readiness} onChange={(level) => { void onReadiness(level); }} />
-      </View>
-
       {contextCards.length > 0 ? (
         <View className="mt-4 gap-3">
           {contextCards.map((card, i) =>
@@ -287,6 +284,10 @@ export default function HomeScreen() {
         ) : null}
       </View>
 
+      <View className="mt-4">
+        <ReadinessCheckIn value={readiness} onChange={(level) => { void onReadiness(level); }} />
+      </View>
+
       {hasData ? (
         <View className="mt-6 flex-row gap-3">
           <StatCard label="This week" value={goalLabel ?? weekSessions} icon={<Icon icon={METRIC_ICONS.sessions} size={16} color="muted-foreground" />} />
@@ -305,7 +306,7 @@ export default function HomeScreen() {
             <View className="h-14 w-14 items-center justify-center rounded-3xl bg-muted">
               <Icon icon={Dumbbell} size={26} color="muted-foreground" />
             </View>
-            <Body className="mt-4 text-center font-semibold text-foreground">No workouts yet 🏋️</Body>
+            <Body className="mt-4 text-center font-semibold text-foreground">No workouts yet</Body>
             <Caption className="mt-1 text-center">
               Finish your first session and your history, streaks, and progress will all show up here.
             </Caption>
@@ -348,7 +349,7 @@ export default function HomeScreen() {
       )}
 
       {hasData && feed.items.length > 0 ? (
-        <Caption className="mb-3 mt-6 text-base font-semibold text-foreground">Recent workouts</Caption>
+        <SectionHeader title="Recent workouts" className="mb-3 mt-6" />
       ) : null}
     </View>
   );
