@@ -199,7 +199,7 @@ function SummaryTab({
       {/* Personal Records */}
       {prSummary && prSummary.heaviestWeight > 0 ? (
         <Card className="mb-4">
-          <CardHeader>
+          <CardHeader className="justify-start">
             <Icon icon={Trophy} size={18} color="warning" />
             <CardTitle>Personal Records</CardTitle>
           </CardHeader>

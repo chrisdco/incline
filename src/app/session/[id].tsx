@@ -543,7 +543,7 @@ export default function SessionScreen() {
         automaticallyAdjustKeyboardInsets>
         {sessionMuscleDistribution.length > 0 ? (
           <View className="mb-3 items-center rounded-3xl bg-card py-2">
-            <MuscleBodyMap distribution={sessionMuscleDistribution} compact />
+            <MuscleBodyMap distribution={sessionMuscleDistribution} compact scale={0.72} />
           </View>
         ) : null}
 
