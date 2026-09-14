@@ -19,12 +19,17 @@ export const MuscleRadar = memo(function MuscleRadar({
   previous,
   className,
   comparePrevious = true,
+  chartSize = 280,
+  currentLabel = 'This period',
+  previousLabel = 'Previous period',
 }: {
   current: MuscleDistribution[];
   previous: MuscleDistribution[];
   className?: string;
-  /** When false (e.g. all-time), only the current series is drawn. */
   comparePrevious?: boolean;
+  chartSize?: number;
+  currentLabel?: string;
+  previousLabel?: string;
 }) {
   const colors = useThemeHex();
   const scheme = useAppColorScheme();
@@ -74,7 +79,7 @@ export const MuscleRadar = memo(function MuscleRadar({
         labels={labels}
         maxValue={maxValue}
         noOfSections={3}
-        chartSize={280}
+        chartSize={chartSize}
         chartContainerProps={{ backgroundColor: 'transparent' }}
         labelConfig={{
           fontSize: 11,
@@ -99,12 +104,12 @@ export const MuscleRadar = memo(function MuscleRadar({
       <View className="flex-row flex-wrap items-center justify-center gap-4">
         <View className="flex-row items-center gap-2">
           <View className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colors.primary }} />
-          <Caption>This period</Caption>
+          <Caption>{currentLabel}</Caption>
         </View>
         {showPrevious ? (
           <View className="flex-row items-center gap-2">
             <View className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: previousColor }} />
-            <Caption>Previous period</Caption>
+            <Caption>{previousLabel}</Caption>
           </View>
         ) : null}
       </View>

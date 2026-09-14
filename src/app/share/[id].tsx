@@ -1,24 +1,32 @@
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, Share, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Share2 } from 'lucide-react-native';
-import ViewShot, { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
+import { ArrowLeft } from 'lucide-react-native';
+import ViewShot from 'react-native-view-shot';
 
 import { Icon } from '@/components/common/icon';
-import { Body, Caption } from '@/components/common/text';
+import { Body } from '@/components/common/text';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { Button } from '@/components/ui/button';
+import { ShareActionBar } from '@/components/share/share-action-bar';
 import { ShareSummaryCard } from '@/components/workout/share-summary-card';
 import { getWorkoutLog, getWorkoutPrCount, getWorkoutMuscleSplit, type SessionWorkout } from '@/db/queries';
 import { useProfile } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
 import { formatDuration, formatVolume } from '@/db/calc';
+import {
+  captureSharePng,
+  downloadSharePng,
+  nextShareBackgroundId,
+  shareBackgroundById,
+  shareHandleFromName,
+  sharePngOrMessage,
+  type ShareBackgroundId,
+} from '@/lib/share-export';
 import type { MuscleGroup } from '@/db/types';
 
-/** Invite line for WhatsApp / Messages — public workouts / friends come later. */
 function buildShareMessage(opts: {
   workoutName: string;
   durationSeconds: number;
@@ -51,7 +59,8 @@ export default function ShareWorkoutScreen() {
   const [prCount, setPrCount] = useState(0);
   const [muscles, setMuscles] = useState<MuscleGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sharing, setSharing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [bgId, setBgId] = useState<ShareBackgroundId>('navy');
   const shareRef = useRef<View>(null);
 
   useFocusEffect(
@@ -76,12 +85,14 @@ export default function ShareWorkoutScreen() {
   );
 
   const athleteName = profile?.name?.trim() || 'Athlete';
+  const handle = shareHandleFromName(athleteName);
   const volumeLabel = log ? formatVolume(log.totalVolume, unit) : '';
   const completedSets = log?.sets.filter((s) => s.completed).length ?? 0;
+  const bg = shareBackgroundById(bgId);
 
-  const shareWorkout = async () => {
-    if (!log || sharing) return;
-    setSharing(true);
+  const run = async (mode: 'stories' | 'more' | 'download') => {
+    if (!log || busy) return;
+    setBusy(true);
     const message = buildShareMessage({
       workoutName: log.name,
       durationSeconds: log.durationSeconds,
@@ -90,25 +101,25 @@ export default function ShareWorkoutScreen() {
       prCount,
     });
     try {
-      const canShareFile = await Sharing.isAvailableAsync();
-      let uri: string | null = null;
-      try {
-        uri = await captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' });
-      } catch {
-        uri = null;
-      }
-      if (canShareFile && uri) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'image/png',
-          dialogTitle: 'Share workout',
+      const uri = await captureSharePng(shareRef);
+      if (mode === 'download') {
+        await downloadSharePng({
+          uri,
+          filename: `incline-workout-${log.id}.png`,
+          title: 'Save workout card',
+          message,
         });
       } else {
-        await Share.share({ message, title: log.name });
+        await sharePngOrMessage({
+          uri,
+          title: mode === 'stories' ? 'Share to Stories' : 'Share workout',
+          message,
+        });
       }
     } catch {
       toast({ title: 'Could not share workout', variant: 'destructive' });
     } finally {
-      setSharing(false);
+      setBusy(false);
     }
   };
 
@@ -136,39 +147,37 @@ export default function ShareWorkoutScreen() {
           <Icon icon={ArrowLeft} size={24} color="foreground" />
         </Pressable>
         <Body className="text-base font-semibold text-foreground">Share</Body>
-        <View className="w-8" />
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
+          <Body className="text-primary">Cancel</Body>
+        </Pressable>
       </View>
 
       <View className="flex-1 px-4 pt-4">
-        <Caption className="mb-3">
-          Preview your card. More layouts and public workout links come later.
-        </Caption>
         <ViewShot options={{ format: 'png', quality: 1, result: 'tmpfile' }}>
-          <View ref={shareRef} collapsable={false}>
+          <View ref={shareRef} collapsable={false} style={{ backgroundColor: bg.page, padding: 12, borderRadius: 28 }}>
             <ShareSummaryCard
               athleteName={athleteName}
+              handle={handle}
               workoutName={log.name}
               durationSeconds={log.durationSeconds}
               volumeLabel={volumeLabel}
               completedSets={completedSets}
               prCount={prCount}
               muscles={muscles}
+              backgroundColor={bg.card}
             />
           </View>
         </ViewShot>
-
-        <Caption className="mt-4 text-muted-foreground">
-          Shared messages include a short invite to join Incline.
-        </Caption>
       </View>
 
       <View className="px-4 pb-4">
-        <Button
-          leftIcon={<Icon icon={Share2} size={16} color="primary-foreground" />}
-          onPress={() => void shareWorkout()}
-          disabled={sharing}>
-          {sharing ? 'Sharing…' : 'Share'}
-        </Button>
+        <ShareActionBar
+          busy={busy}
+          onBackground={() => setBgId((id) => nextShareBackgroundId(id))}
+          onStories={() => void run('stories')}
+          onMore={() => void run('more')}
+          onDownload={() => void run('download')}
+        />
       </View>
     </SafeAreaView>
   );

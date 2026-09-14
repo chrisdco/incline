@@ -10,13 +10,16 @@ type SlideShellProps = {
   children: React.ReactNode;
 };
 
-function SlideShell({ children }: SlideShellProps) {
+function SlideShell({
+  children,
+  backgroundColor,
+}: SlideShellProps & { backgroundColor?: string }) {
   const colors = useThemeHex();
   return (
     <View
       collapsable={false}
       className="w-full overflow-hidden rounded-3xl border border-border p-5"
-      style={{ backgroundColor: colors.surface1, borderColor: colors.border, minHeight: 360 }}>
+      style={{ backgroundColor: backgroundColor ?? colors.surface1, borderColor: colors.border, minHeight: 360 }}>
       {children}
     </View>
   );
@@ -26,14 +29,16 @@ export function WeekShareCoverSlide({
   athleteName,
   rangeLabel,
   insightLine,
+  backgroundColor,
 }: {
   athleteName: string;
   rangeLabel: string;
   insightLine: string;
+  backgroundColor?: string;
 }) {
   const colors = useThemeHex();
   return (
-    <SlideShell>
+    <SlideShell backgroundColor={backgroundColor}>
       <Caption style={{ color: colors.mutedForeground }}>INCLINE · WEEKLY</Caption>
       <Body className="mt-3 text-2xl font-bold" style={{ color: colors.foreground }}>
         Your week
@@ -60,12 +65,14 @@ export function WeekShareStatsSlide({
   sets,
   streak,
   volumeDeltaPct,
+  backgroundColor,
 }: {
   sessions: number;
   volumeLabel: string;
   sets: number;
   streak: number;
   volumeDeltaPct: number | null;
+  backgroundColor?: string;
 }) {
   const colors = useThemeHex();
   const delta =
@@ -73,7 +80,7 @@ export function WeekShareStatsSlide({
       ? '—'
       : `${volumeDeltaPct > 0 ? '+' : ''}${volumeDeltaPct}% vs last week`;
   return (
-    <SlideShell>
+    <SlideShell backgroundColor={backgroundColor}>
       <Caption style={{ color: colors.mutedForeground }}>INCLINE · STATS</Caption>
       <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
         Week at a glance
@@ -100,10 +107,18 @@ export function WeekShareStatsSlide({
   );
 }
 
-export function WeekSharePrsSlide({ prs, unit }: { prs: PR[]; unit: Unit }) {
+export function WeekSharePrsSlide({
+  prs,
+  unit,
+  backgroundColor,
+}: {
+  prs: PR[];
+  unit: Unit;
+  backgroundColor?: string;
+}) {
   const colors = useThemeHex();
   return (
-    <SlideShell>
+    <SlideShell backgroundColor={backgroundColor}>
       <Caption style={{ color: colors.mutedForeground }}>INCLINE · PRS</Caption>
       <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
         Records this week
@@ -130,10 +145,16 @@ export function WeekSharePrsSlide({ prs, unit }: { prs: PR[]; unit: Unit }) {
   );
 }
 
-export function WeekShareMusclesSlide({ muscles }: { muscles: MuscleGroup[] }) {
+export function WeekShareMusclesSlide({
+  muscles,
+  backgroundColor,
+}: {
+  muscles: MuscleGroup[];
+  backgroundColor?: string;
+}) {
   const colors = useThemeHex();
   return (
-    <SlideShell>
+    <SlideShell backgroundColor={backgroundColor}>
       <Caption style={{ color: colors.mutedForeground }}>INCLINE · MUSCLES</Caption>
       <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
         What you trained

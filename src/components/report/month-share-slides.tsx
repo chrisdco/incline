@@ -1,19 +1,31 @@
 import { View } from 'react-native';
 
 import { Body, Caption } from '@/components/common/text';
-import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
+import { MonthDayGrid } from '@/components/report/month-day-grid';
+import { MuscleSetBars } from '@/components/report/muscle-set-bars';
+import { MuscleRadar } from '@/components/progress/muscle-radar';
 import { formatWeight } from '@/db/calc';
 import { useThemeHex } from '@/lib/theme';
-import type { MuscleGroup, PR, TopExerciseStat, Unit } from '@/db/types';
+import type { MuscleDistribution, PR, TopExerciseStat, Unit, WeekStartsOn } from '@/db/types';
 
-function SlideShell({ children }: { children: React.ReactNode }) {
+type Chrome = { backgroundColor?: string; handle: string };
+
+function SlideShell({ children, chrome }: { children: React.ReactNode; chrome: Chrome }) {
   const colors = useThemeHex();
   return (
     <View
       collapsable={false}
       className="w-full overflow-hidden rounded-3xl border border-border p-5"
-      style={{ backgroundColor: colors.surface1, borderColor: colors.border, minHeight: 360 }}>
+      style={{
+        backgroundColor: chrome.backgroundColor ?? colors.surface1,
+        borderColor: colors.border,
+        minHeight: 360,
+      }}>
       {children}
+      <View className="mt-auto flex-row items-end justify-between pt-8">
+        <Caption style={{ color: colors.mutedForeground }}>INCLINE</Caption>
+        <Caption style={{ color: colors.mutedForeground }}>{chrome.handle}</Caption>
+      </View>
     </View>
   );
 }
@@ -22,30 +34,26 @@ export function MonthShareCoverSlide({
   athleteName,
   monthLabel,
   insightLine,
+  chrome,
 }: {
   athleteName: string;
   monthLabel: string;
   insightLine: string;
+  chrome: Chrome;
 }) {
   const colors = useThemeHex();
   return (
-    <SlideShell>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · MONTHLY</Caption>
+    <SlideShell chrome={chrome}>
+      <Caption style={{ color: colors.mutedForeground }}>{monthLabel.toUpperCase()}</Caption>
       <Body className="mt-3 text-2xl font-bold" style={{ color: colors.foreground }}>
         Your month
       </Body>
-      <Caption className="mt-1" style={{ color: colors.mutedForeground }}>
-        {monthLabel}
-      </Caption>
       <Caption className="mt-1" style={{ color: colors.mutedForeground }}>
         {athleteName}
       </Caption>
       <Body className="mt-8 text-base" style={{ color: colors.foreground }}>
         {insightLine}
       </Body>
-      <Caption className="mt-auto pt-10 text-center" style={{ color: colors.mutedForeground }}>
-        Train with me on Incline
-      </Caption>
     </SlideShell>
   );
 }
@@ -53,33 +61,35 @@ export function MonthShareCoverSlide({
 export function MonthShareStatsSlide({
   sessions,
   volumeLabel,
-  trainedDays,
+  durationLabel,
   sets,
+  chrome,
 }: {
   sessions: number;
   volumeLabel: string;
-  trainedDays: number;
+  durationLabel: string;
   sets: number;
+  chrome: Chrome;
 }) {
   const colors = useThemeHex();
   return (
-    <SlideShell>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · STATS</Caption>
-      <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
-        Month at a glance
+    <SlideShell chrome={chrome}>
+      <Caption style={{ color: colors.mutedForeground }}>{chrome.handle}</Caption>
+      <Body className="mt-1 text-3xl font-extrabold" style={{ color: colors.foreground }}>
+        Workouts
       </Body>
-      <View className="mt-6 gap-4">
+      <View className="mt-6 flex-row flex-wrap">
         {(
           [
-            ['Sessions', String(sessions)],
-            ['Training days', String(trainedDays)],
+            ['Workouts', String(sessions)],
+            ['Duration', durationLabel],
             ['Volume', volumeLabel],
             ['Sets', String(sets)],
           ] as const
         ).map(([label, value]) => (
-          <View key={label} className="flex-row items-center justify-between">
+          <View key={label} className="mb-5 w-1/2 pr-2">
             <Caption style={{ color: colors.mutedForeground }}>{label}</Caption>
-            <Body className="font-semibold" style={{ color: colors.foreground }}>
+            <Body className="mt-1 text-3xl font-extrabold" style={{ color: colors.foreground }}>
               {value}
             </Body>
           </View>
@@ -89,27 +99,27 @@ export function MonthShareStatsSlide({
   );
 }
 
-export function MonthSharePrsSlide({ prs, unit }: { prs: PR[]; unit: Unit }) {
+export function MonthSharePrsSlide({ prs, unit, chrome }: { prs: PR[]; unit: Unit; chrome: Chrome }) {
   const colors = useThemeHex();
   return (
-    <SlideShell>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · PRS</Caption>
-      <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
-        New records
+    <SlideShell chrome={chrome}>
+      <Caption style={{ color: colors.mutedForeground }}>PERSONAL RECORDS</Caption>
+      <Body className="mt-2 text-xl font-bold" style={{ color: colors.foreground }}>
+        {prs.length} new PR{prs.length === 1 ? '' : 's'}
       </Body>
       {prs.length === 0 ? (
         <Body className="mt-8" style={{ color: colors.mutedForeground }}>
           No new records this month.
         </Body>
       ) : (
-        <View className="mt-6 gap-3">
-          {prs.slice(0, 5).map((pr) => (
-            <View key={pr.exerciseId} className="flex-row items-center justify-between gap-3">
-              <Body className="flex-1 font-medium" style={{ color: colors.foreground }} numberOfLines={1}>
+        <View className="mt-6 gap-4">
+          {prs.slice(0, 4).map((pr) => (
+            <View key={pr.exerciseId}>
+              <Body className="font-medium" style={{ color: colors.foreground }} numberOfLines={1}>
                 {pr.exerciseName}
               </Body>
-              <Caption style={{ color: colors.mutedForeground }}>
-                {formatWeight(pr.maxWeight, unit)}
+              <Caption className="mt-0.5" style={{ color: colors.mutedForeground }}>
+                1RM {formatWeight(pr.estimated1RM, unit)} · Vol {formatWeight(pr.bestSetVolume, unit)}
               </Caption>
             </View>
           ))}
@@ -119,23 +129,80 @@ export function MonthSharePrsSlide({ prs, unit }: { prs: PR[]; unit: Unit }) {
   );
 }
 
-export function MonthShareMusclesSlide({ muscles }: { muscles: MuscleGroup[] }) {
+export function MonthShareDaysSlide({
+  monthStartMs,
+  trainedDayMs,
+  weekStartsOn,
+  chrome,
+}: {
+  monthStartMs: number;
+  trainedDayMs: number[];
+  weekStartsOn: WeekStartsOn;
+  chrome: Chrome;
+}) {
   const colors = useThemeHex();
   return (
-    <SlideShell>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · MUSCLES</Caption>
-      <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
-        What you trained
+    <SlideShell chrome={chrome}>
+      <Caption style={{ color: colors.mutedForeground }}>WORKOUT DAYS LOG</Caption>
+      <Body className="mt-2 text-xl font-bold" style={{ color: colors.foreground }}>
+        {trainedDayMs.length} day{trainedDayMs.length === 1 ? '' : 's'} trained
       </Body>
-      {muscles.length === 0 ? (
-        <Body className="mt-8" style={{ color: colors.mutedForeground }}>
-          No completed sets this month.
-        </Body>
-      ) : (
-        <View className="mt-4 items-center">
-          <MuscleBodyMap muscles={muscles} compact scale={0.75} showToggle={false} />
-        </View>
-      )}
+      <View className="mt-4">
+        <MonthDayGrid
+          monthStartMs={monthStartMs}
+          trainedDayMs={trainedDayMs}
+          weekStartsOn={weekStartsOn}
+          compact
+        />
+      </View>
+    </SlideShell>
+  );
+}
+
+export function MonthShareRadarSlide({
+  current,
+  previous,
+  currentLabel,
+  previousLabel,
+  chrome,
+}: {
+  current: MuscleDistribution[];
+  previous: MuscleDistribution[];
+  currentLabel: string;
+  previousLabel: string;
+  chrome: Chrome;
+}) {
+  return (
+    <SlideShell chrome={chrome}>
+      <Caption className="text-muted-foreground">MUSCLE DISTRIBUTION</Caption>
+      <View className="mt-2 items-center">
+        <MuscleRadar
+          current={current}
+          previous={previous}
+          chartSize={220}
+          currentLabel={currentLabel}
+          previousLabel={previousLabel}
+        />
+      </View>
+    </SlideShell>
+  );
+}
+
+export function MonthShareGroupsSlide({
+  muscles,
+  chrome,
+}: {
+  muscles: MuscleDistribution[];
+  chrome: Chrome;
+}) {
+  const colors = useThemeHex();
+  return (
+    <SlideShell chrome={chrome}>
+      <Caption style={{ color: colors.mutedForeground }}>MAIN MUSCLE GROUPS</Caption>
+      <Body className="mt-2 mb-4 text-xl font-bold" style={{ color: colors.foreground }}>
+        Sets this month
+      </Body>
+      <MuscleSetBars muscles={muscles} />
     </SlideShell>
   );
 }
@@ -144,19 +211,18 @@ export function MonthShareTopSlide({
   exercises,
   unit,
   formatVolumeFn,
+  chrome,
 }: {
   exercises: TopExerciseStat[];
   unit: Unit;
   formatVolumeFn: (v: number, u: Unit) => string;
+  chrome: Chrome;
 }) {
   const colors = useThemeHex();
   return (
-    <SlideShell>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · TOP</Caption>
-      <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
-        Most volume
-      </Body>
-      <View className="mt-6 gap-3">
+    <SlideShell chrome={chrome}>
+      <Caption style={{ color: colors.mutedForeground }}>TOP EXERCISES</Caption>
+      <View className="mt-4 gap-3">
         {exercises.length === 0 ? (
           <Body style={{ color: colors.mutedForeground }}>Nothing logged yet.</Body>
         ) : (
@@ -166,7 +232,7 @@ export function MonthShareTopSlide({
                 {ex.exerciseName}
               </Body>
               <Caption style={{ color: colors.mutedForeground }}>
-                {formatVolumeFn(ex.volume, unit)}
+                {ex.sets} sets · {formatVolumeFn(ex.volume, unit)}
               </Caption>
             </View>
           ))

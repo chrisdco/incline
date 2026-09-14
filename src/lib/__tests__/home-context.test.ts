@@ -115,4 +115,37 @@ describe('buildHomeContextCards', () => {
     expect(cards.some((c) => c.kind === 'coaching')).toBe(true);
     expect(cards[0]?.kind).toBe('coaching');
   });
+
+  it('promotes last month report in the first two weeks with a dismiss key', () => {
+    const cards = buildHomeContextCards({
+      stats: baseStats,
+      unit: 'metric',
+      weeklyGoal: 0,
+      sessionsThisWeek: 2,
+      goalMet: true,
+      sessionsToGoal: 0,
+      dismissedAnnouncementIds: [],
+      announcements: [],
+      now: Date.parse('2026-09-03T12:00:00'),
+    });
+    const month = cards.find((c) => c.kind === 'report_month');
+    expect(month?.href).toContain('monthStartMs=');
+    expect(month?.dismissKey).toBe('report-month-2026-08');
+    expect(month?.title).toMatch(/August/i);
+  });
+
+  it('hides monthly report after dismiss', () => {
+    const cards = buildHomeContextCards({
+      stats: baseStats,
+      unit: 'metric',
+      weeklyGoal: 0,
+      sessionsThisWeek: 2,
+      goalMet: true,
+      sessionsToGoal: 0,
+      dismissedAnnouncementIds: ['report-month-2026-08'],
+      announcements: [],
+      now: Date.parse('2026-09-03T12:00:00'),
+    });
+    expect(cards.some((c) => c.kind === 'report_month')).toBe(false);
+  });
 });

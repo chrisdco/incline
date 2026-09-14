@@ -1,32 +1,107 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import type { ReactNode } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Share2 } from 'lucide-react-native';
+import { ArrowLeft, Award, ChevronRight, Share2 } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Hero } from '@/components/common/text';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
-import { StatCard } from '@/components/common/stat-card';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PRCard } from '@/components/progress/pr-card';
-import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
-import { formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
-import { useMonthlyRecap } from '@/hooks/use-data';
+import { SegmentedControl } from '@/components/common/segmented-control';
+import { MuscleRadar } from '@/components/progress/muscle-radar';
+import { MonthDayGrid } from '@/components/report/month-day-grid';
+import { MonthSparkBars } from '@/components/report/month-spark-bars';
+import { MuscleSetBars } from '@/components/report/muscle-set-bars';
+import {
+  formatDuration,
+  formatMonthLabel,
+  formatVolume,
+  formatWeight,
+  previousMonthStart,
+} from '@/db/calc';
+import { useMonthlyRecap, useProfile } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
-import { SCREEN_CONTENT } from '@/lib/layout';
+import { SCREEN_CONTENT_CTA } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
-import type { MuscleGroup } from '@/db/types';
+import { cn } from '@/lib/cn';
+import { shareHandleFromName } from '@/lib/share-chrome';
+import type { MonthSeriesPoint, Unit } from '@/db/types';
+
+type SparkMetric = 'sessions' | 'duration' | 'volume' | 'sets';
+
+const SPARK_TABS: { value: SparkMetric; label: string }[] = [
+  { value: 'sessions', label: 'Workouts' },
+  { value: 'duration', label: 'Duration' },
+  { value: 'volume', label: 'Volume' },
+  { value: 'sets', label: 'Sets' },
+];
+
+function sparkValue(p: MonthSeriesPoint, metric: SparkMetric): number {
+  if (metric === 'sessions') return p.sessions;
+  if (metric === 'duration') return p.durationSeconds;
+  if (metric === 'volume') return p.volume;
+  return p.sets;
+}
+
+function formatSparkValue(metric: SparkMetric, n: number, unit: Unit): string {
+  if (metric === 'sessions' || metric === 'sets') return String(n);
+  if (metric === 'duration') return formatDuration(n);
+  return formatVolume(n, unit);
+}
+
+function DeltaLine({
+  current,
+  previous,
+  format,
+}: {
+  current: number;
+  previous: number;
+  format: (n: number) => string;
+}) {
+  const d = current - previous;
+  const up = d >= 0;
+  return (
+    <Caption className={cn('text-sm font-semibold', up ? 'text-success' : 'text-muted-foreground')}>
+      {up ? '↑' : '↓'} {format(Math.abs(d))}
+    </Caption>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  delta,
+}: {
+  label: string;
+  value: string;
+  delta: ReactNode;
+}) {
+  return (
+    <View className="min-h-[108px] flex-1 rounded-2xl border border-border px-4 py-4">
+      <Caption className="text-[13px]">{label}</Caption>
+      <Hero className="mt-2 text-[28px] leading-8">{value}</Hero>
+      <View className="mt-1">{delta}</View>
+    </View>
+  );
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return <Caption className="mb-3 mt-10 text-[15px]">{children}</Caption>;
+}
 
 export default function MonthReportScreen() {
   const { monthStartMs: monthStartParam } = useLocalSearchParams<{ monthStartMs?: string }>();
   const defaultStart = previousMonthStart();
   const monthStartMs = monthStartParam ? Number(monthStartParam) : defaultStart;
   const router = useRouter();
-  const { unit } = useSettings();
+  const { unit, weekStartsOn } = useSettings();
+  const { data: profile } = useProfile();
   const { data: recap, loading } = useMonthlyRecap(
     Number.isFinite(monthStartMs) ? monthStartMs : defaultStart,
   );
+  const [sparkMetric, setSparkMetric] = useState<SparkMetric>('sessions');
 
   if (loading || !recap) {
     return (
@@ -37,13 +112,17 @@ export default function MonthReportScreen() {
   }
 
   const label = formatMonthLabel(recap.monthStartMs);
-  const volumeLabel = formatVolume(recap.totalVolume, unit);
-  const muscles = recap.muscles.map((m) => m.muscle) as MuscleGroup[];
-  const delta =
-    recap.volumeDeltaPct === null
-      ? null
-      : `${recap.volumeDeltaPct > 0 ? '+' : ''}${recap.volumeDeltaPct}% vs prior month`;
+  const prevLabel = formatMonthLabel(previousMonthStart(recap.monthStartMs));
   const shareHref = `/share/month?monthStartMs=${recap.monthStartMs}` as Href;
+  const handle = shareHandleFromName(profile?.name?.trim() || '');
+  const displayName = profile?.name?.trim() || handle.replace('@', '');
+  const currentPoint = recap.yearSeries.find((p) => p.monthKey === recap.monthKey) ?? recap.yearSeries.at(-1);
+  const sparkPoints = recap.yearSeries.map((p) => ({
+    key: p.monthKey,
+    label: p.label,
+    value: sparkValue(p, sparkMetric),
+    active: p.monthKey === recap.monthKey,
+  }));
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -51,76 +130,184 @@ export default function MonthReportScreen() {
         <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
           <Icon icon={ArrowLeft} size={24} color="foreground" />
         </Pressable>
-        <Body className="text-base font-semibold text-foreground">Monthly report</Body>
-        <Pressable onPress={() => router.push(shareHref)} className="p-1" accessibilityRole="button" accessibilityLabel="Share month">
-          <Icon icon={Share2} size={22} color="foreground" />
-        </Pressable>
+        <Body className="text-lg font-semibold text-foreground">{label.replace(/ \d+$/, '')} Report</Body>
+        <View className="w-8" />
       </View>
 
-      <ScrollView contentContainerStyle={SCREEN_CONTENT} showsVerticalScrollIndicator={false}>
-        <Caption>{label}</Caption>
-        <Hero className="mt-1">Your month</Hero>
-        <Body className="mt-2 text-muted-foreground">{recap.insightLine}</Body>
-        {delta ? <Caption className="mt-1 text-foreground/80">{delta}</Caption> : null}
+      <ScrollView contentContainerStyle={SCREEN_CONTENT_CTA} showsVerticalScrollIndicator={false}>
+        <Hero className="text-[32px] leading-10">{label}</Hero>
+        {currentPoint ? (
+          <View className="mt-2 flex-row items-end gap-2">
+            <Hero className="text-[34px] leading-10">{formatSparkValue(sparkMetric, sparkValue(currentPoint, sparkMetric), unit)}</Hero>
+            <View className="mb-1">
+              <DeltaLine
+                current={sparkValue(currentPoint, sparkMetric)}
+                previous={
+                  sparkMetric === 'sessions'
+                    ? recap.previousSessions
+                    : sparkMetric === 'duration'
+                      ? recap.previousDurationSeconds
+                      : sparkMetric === 'volume'
+                        ? recap.previousVolume
+                        : recap.previousSets
+                }
+                format={(n) => formatSparkValue(sparkMetric, n, unit)}
+              />
+            </View>
+          </View>
+        ) : null}
 
-        <View className="mt-6 flex-row gap-3">
-          <StatCard label="Sessions" value={recap.sessions} icon={<Icon icon={METRIC_ICONS.sessions} size={16} color="muted-foreground" />} />
-          <StatCard label="Volume" value={volumeLabel} icon={<Icon icon={METRIC_ICONS.volume} size={16} color="info" />} />
-          <StatCard label="Days" value={recap.trainedDays} icon={<Icon icon={METRIC_ICONS.streak} size={16} color="warning" />} />
+        <View className="mt-5">
+          <MonthSparkBars points={sparkPoints} />
+        </View>
+        <View className="mt-4">
+          <SegmentedControl values={SPARK_TABS} value={sparkMetric} onChange={setSparkMetric} />
         </View>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Sets</Caption>
-        <Card>
-          <Body className="font-semibold text-foreground">{recap.totalSets} completed sets</Body>
-          <Caption className="mt-1">{recap.trainedDays} training day{recap.trainedDays === 1 ? '' : 's'} this month</Caption>
-        </Card>
+        <SectionLabel>Summary</SectionLabel>
+        <View className="gap-3">
+          <View className="flex-row gap-3">
+            <Kpi
+              label="Workouts"
+              value={String(recap.sessions)}
+              delta={<DeltaLine current={recap.sessions} previous={recap.previousSessions} format={(n) => String(n)} />}
+            />
+            <Kpi
+              label="Duration"
+              value={formatDuration(recap.durationSeconds)}
+              delta={
+                <DeltaLine
+                  current={recap.durationSeconds}
+                  previous={recap.previousDurationSeconds}
+                  format={(n) => formatDuration(n)}
+                />
+              }
+            />
+          </View>
+          <View className="flex-row gap-3">
+            <Kpi
+              label="Volume"
+              value={formatVolume(recap.totalVolume, unit)}
+              delta={
+                <DeltaLine
+                  current={recap.totalVolume}
+                  previous={recap.previousVolume}
+                  format={(n) => formatVolume(n, unit)}
+                />
+              }
+            />
+            <Kpi
+              label="Sets"
+              value={String(recap.totalSets)}
+              delta={<DeltaLine current={recap.totalSets} previous={recap.previousSets} format={(n) => String(n)} />}
+            />
+          </View>
+        </View>
 
-        {recap.topExercises.length > 0 ? (
+        <SectionLabel>Personal Records</SectionLabel>
+        <View className="flex-row items-center gap-3">
+          <Icon icon={Award} size={28} color="warning" />
+          <Hero className="text-[22px] leading-7">
+            {recap.prs.length} new PR{recap.prs.length === 1 ? '' : 's'}
+          </Hero>
+        </View>
+        {recap.prs.length > 0 ? (
+          <View className="mt-4 gap-4">
+            {recap.prs.slice(0, 6).map((pr) => (
+              <Pressable
+                key={pr.exerciseId}
+                onPress={() => router.push(`/exercise/${pr.exerciseId}` as Href)}
+                accessibilityRole="button"
+                accessibilityLabel={pr.exerciseName}
+                className="gap-2">
+                <View className="flex-row items-center justify-between">
+                  <Body className="flex-1 text-base font-semibold text-foreground" numberOfLines={1}>
+                    {pr.exerciseName}
+                  </Body>
+                  <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+                </View>
+                <View className="flex-row items-center gap-2">
+                  <Icon icon={Award} size={14} color="warning" />
+                  <Caption className="text-foreground">1RM · {formatWeight(pr.estimated1RM, unit)}</Caption>
+                </View>
+                <View className="flex-row items-center gap-2">
+                  <Icon icon={Award} size={14} color="warning" />
+                  <Caption className="text-foreground">Volume · {formatWeight(pr.bestSetVolume, unit)}</Caption>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <Caption className="mt-2">No new records this month.</Caption>
+        )}
+
+        <SectionLabel>Workout Days Log</SectionLabel>
+        <View className="mb-4 flex-row items-center gap-3">
+          <Icon icon={METRIC_ICONS.streak} size={22} color="destructive" />
+          <Hero className="text-[22px] leading-7">{recap.streak} week streak</Hero>
+        </View>
+        <MonthDayGrid
+          monthStartMs={recap.monthStartMs}
+          trainedDayMs={recap.trainedDayMs}
+          weekStartsOn={weekStartsOn}
+        />
+
+        {recap.muscles.some((m) => m.sets > 0) ? (
           <>
-            <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Top exercises</Caption>
-            <Card>
-              <View className="gap-3">
-                {recap.topExercises.map((ex) => (
-                  <View key={ex.exerciseId} className="flex-row items-center justify-between gap-3">
-                    <Body className="min-w-0 flex-1 font-medium text-foreground" numberOfLines={1}>
-                      {ex.exerciseName}
-                    </Body>
-                    <Caption>
-                      {ex.sets} sets · {formatVolume(ex.volume, unit)}
-                    </Caption>
-                  </View>
-                ))}
-              </View>
-            </Card>
+            <SectionLabel>Muscle Distribution</SectionLabel>
+            <MuscleRadar
+              current={recap.muscles}
+              previous={recap.previousMuscles}
+              currentLabel={label}
+              previousLabel={prevLabel}
+            />
+            <SectionLabel>Main Muscle Groups</SectionLabel>
+            <MuscleSetBars muscles={recap.muscles} />
           </>
         ) : null}
 
-        {recap.prs.length > 0 ? (
+        {recap.topExercises.length > 0 ? (
           <>
-            <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Records</Caption>
-            <View className="gap-2">
-              {recap.prs.slice(0, 6).map((pr) => (
-                <PRCard key={pr.exerciseId} pr={pr} unit={unit} />
+            <SectionLabel>Top Exercises</SectionLabel>
+            <View>
+              {recap.topExercises.map((ex, i) => (
+                <Pressable
+                  key={ex.exerciseId}
+                  onPress={() => router.push(`/exercise/${ex.exerciseId}` as Href)}
+                  accessibilityRole="button"
+                  accessibilityLabel={ex.exerciseName}
+                  className={cn('flex-row items-center gap-3 py-3.5', i > 0 && 'border-t border-border/70')}>
+                  <View className="min-w-0 flex-1">
+                    <Body className="text-base font-semibold text-foreground" numberOfLines={1}>
+                      {ex.exerciseName}
+                    </Body>
+                    <Caption className="mt-0.5">
+                      {ex.sets} time{ex.sets === 1 ? '' : 's'}
+                    </Caption>
+                  </View>
+                  <Icon icon={ChevronRight} size={20} color="muted-foreground" />
+                </Pressable>
               ))}
             </View>
           </>
         ) : null}
 
-        {muscles.length > 0 ? (
-          <>
-            <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Muscles</Caption>
-            <Card>
-              <View className="items-center py-2">
-                <MuscleBodyMap muscles={muscles} compact />
-              </View>
-            </Card>
-          </>
-        ) : null}
-
-        <Button className="mt-8" leftIcon={<Icon icon={Share2} size={16} color="primary-foreground" />} onPress={() => router.push(shareHref)}>
-          Share slides
-        </Button>
+        <Hero className="mt-12 text-center text-[22px] leading-8">
+          Congrats on a great month {displayName}! 👏
+        </Hero>
+        <Caption className="mt-2 text-center text-[15px] leading-5">
+          Celebrate your achievements and motivate others by sharing your journey!
+        </Caption>
       </ScrollView>
+
+      <View className="border-t border-border/60 bg-background px-4 pb-8 pt-3">
+        <Button
+          size="lg"
+          leftIcon={<Icon icon={Share2} size={18} color="primary-foreground" />}
+          onPress={() => router.push(shareHref)}>
+          Share
+        </Button>
+      </View>
     </SafeAreaView>
   );
 }

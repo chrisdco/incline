@@ -21,9 +21,21 @@ export const ShareSummaryCard = forwardRef<
     completedSets: number;
     prCount: number;
     muscles?: MuscleGroup[];
+    backgroundColor?: string;
+    handle?: string;
   }
 >(function ShareSummaryCard(
-  { athleteName, workoutName, durationSeconds, volumeLabel, completedSets, prCount, muscles = [] },
+  {
+    athleteName,
+    workoutName,
+    durationSeconds,
+    volumeLabel,
+    completedSets,
+    prCount,
+    muscles = [],
+    backgroundColor,
+    handle,
+  },
   ref,
 ) {
   const colors = useThemeHex();
@@ -33,13 +45,13 @@ export const ShareSummaryCard = forwardRef<
       ref={ref}
       collapsable={false}
       className="w-full overflow-hidden rounded-3xl border border-border p-5"
-      style={{ backgroundColor: colors.surface1, borderColor: colors.border }}>
+      style={{ backgroundColor: backgroundColor ?? colors.surface1, borderColor: colors.border }}>
       <Caption style={{ color: colors.mutedForeground }}>INCLINE</Caption>
       <Body className="mt-2 text-xl font-bold" style={{ color: colors.foreground }}>
         {workoutName}
       </Body>
       <Caption className="mt-1" style={{ color: colors.mutedForeground }}>
-        {athleteName}
+        {handle ?? athleteName}
       </Caption>
       {muscles.length > 0 ? (
         <View className="mt-4 items-center">
