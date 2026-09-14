@@ -195,13 +195,31 @@ export default function SettingsScreen() {
     setWeeklyDigestEnabled(true);
   };
 
+  const isSyncError = status?.status === 'error' && !!status?.lastError;
   const syncSubtitle = !enabled
     ? 'Configure Supabase + Clerk JWT to enable backup'
     : status?.lastError
-      ? status.lastError
+      ? pending > 0
+        ? `${status.lastError} • ${pending} waiting — tap retry`
+        : status.lastError
       : pending > 0
         ? `${pending} change${pending === 1 ? '' : 's'} waiting to upload`
         : `Last synced ${formatSyncTime(status?.lastPullAt ?? status?.lastPushAt)}`;
+
+  const handleSyncPress = async () => {
+    const result = await syncNow();
+    if (result.ok) {
+      toast({
+        title: 'Synced',
+        description: result.pushed > 0 ? `${result.pushed} pushed` : 'Up to date',
+        variant: 'success',
+      });
+    } else if (result.error) {
+      toast({ title: 'Sync failed', description: result.error, variant: 'destructive' });
+    } else if (status?.lastError) {
+      toast({ title: 'Sync failed', description: status.lastError, variant: 'destructive' });
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -209,16 +227,16 @@ export default function SettingsScreen() {
         <Caption className="mb-2 mt-1 font-semibold uppercase tracking-wide">Cloud sync</Caption>
         <Card>
           <Row
-            icon={<Icon icon={Cloud} size={18} color="muted-foreground" />}
-            title={syncing ? 'Syncing…' : status?.status === 'error' ? 'Sync error' : 'Backup & restore'}
+            icon={<Icon icon={Cloud} size={18} color={isSyncError ? 'destructive' : 'muted-foreground'} />}
+            title={syncing ? 'Syncing…' : isSyncError ? 'Sync error' : 'Backup & restore'}
             subtitle={syncSubtitle}>
             <Button
               size="icon"
               variant="tonal"
               disabled={!enabled || syncing}
-              onPress={() => void syncNow()}
-              accessibilityLabel="Sync now">
-              <Icon icon={RefreshCw} size={16} color="primary" />
+              onPress={() => void handleSyncPress()}
+              accessibilityLabel={isSyncError ? 'Retry sync' : 'Sync now'}>
+              <Icon icon={RefreshCw} size={16} color={isSyncError ? 'destructive' : 'primary'} />
             </Button>
           </Row>
         </Card>
