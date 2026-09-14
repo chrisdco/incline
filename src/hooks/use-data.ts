@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { impactAsync, ImpactFeedbackStyle } from 'expo-haptics';
 
 import { useAsync } from './use-async';
 import {
@@ -191,11 +190,4 @@ export function useWorkoutLog(id: number) {
   return useAsync<SessionWorkout | null>(() => getWorkoutLog(id), [id]);
 }
 
-/* ---- haptics ---- */
-export function useHaptics() {
-  const { hapticsEnabled } = useSettings();
-  const impact = useCallback(() => {
-    if (hapticsEnabled) impactAsync(ImpactFeedbackStyle.Medium);
-  }, [hapticsEnabled]);
-  return { impact };
-}
+

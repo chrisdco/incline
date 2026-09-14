@@ -5,7 +5,7 @@
  * discriminator so deep-link handling stays one place.
  */
 export type NotificationPayload =
-  | { type: 'rest_complete' }
+  | { type: 'rest_complete'; sessionId?: number }
   | { type: 'workout_reminder' }
   | { type: 'weekly_digest'; weekStart?: string }
   | { type: 'monthly_recap'; monthKey?: string };

@@ -8,13 +8,16 @@ import {
 } from '@/lib/notifications/types';
 
 /** Schedule (or replace) a local alert that fires when rest should end. */
-export async function scheduleRestCompleteNotification(seconds: number): Promise<void> {
+export async function scheduleRestCompleteNotification(
+  seconds: number,
+  opts?: { sessionId?: number },
+): Promise<void> {
   if (seconds < 1) return;
   const mod = await prepareNotifications(NOTIFICATION_CHANNELS.restTimer);
   if (!mod) return;
   try {
     await cancelNotification(NOTIFICATION_IDS.restComplete);
-    const data: NotificationPayload = { type: 'rest_complete' };
+    const data: NotificationPayload = { type: 'rest_complete', sessionId: opts?.sessionId } as NotificationPayload;
     await mod.scheduleNotificationAsync({
       identifier: NOTIFICATION_IDS.restComplete,
       content: {

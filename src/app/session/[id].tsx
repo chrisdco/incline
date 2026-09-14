@@ -74,7 +74,7 @@ export default function SessionScreen() {
   const { impact, notify } = useHaptics();
   const clear = useActiveWorkout((s) => s.clear);
   const { unit, setUnit, restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe, keepScreenAwake, showSessionGhost } = useSettings();
-  const rest = useRestTimer({ notify: restSoundEnabled });
+  const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId });
   const restSound = useRestTimerSound();
 
   useEffect(() => {
@@ -122,6 +122,20 @@ export default function SessionScreen() {
   const [restKind, setRestKind] = useState<'set' | 'superset'>('set');
   const pausedAtRef = useRef<number | null>(null);
   const seededRestRef = useRef(false);
+
+  // Pause keep-awake while the workout is paused
+  useEffect(() => {
+    if (!keepScreenAwake) return;
+    if (pausedAt !== null) {
+      void import('expo-keep-awake').then(({ deactivateKeepAwake }) => {
+        deactivateKeepAwake('incline-session');
+      });
+    } else {
+      void import('expo-keep-awake').then(({ activateKeepAwakeAsync }) => {
+        void activateKeepAwakeAsync('incline-session');
+      });
+    }
+  }, [keepScreenAwake, pausedAt]);
 
   const load = useCallback(async () => {
     const s = await getWorkoutLog(logId);
@@ -305,7 +319,7 @@ export default function SessionScreen() {
       toast({ title: 'Could not save set', description: 'Please try again.', variant: 'destructive' });
       reload();
     });
-    impact();
+    // Haptics handled in SetRow (Medium + Success on complete, Light on uncheck)
     if (next) {
       // Celebrate only a genuine record: heavier weight or better estimated
       // 1RM than the best ever logged for this exercise. Requires prior
@@ -430,6 +444,7 @@ export default function SessionScreen() {
 
   const finish = async () => {
     setFinishOpen(false);
+    rest.stop();
     if (notes.trim()) await updateWorkoutNotes(logId, notes.trim());
     const pauseBonus = pausedAt ? Date.now() - pausedAt : 0;
     const pausedMs = totalPausedMsRef.current + pauseBonus;
@@ -440,6 +455,7 @@ export default function SessionScreen() {
   };
   const discard = async () => {
     setDiscardOpen(false);
+    rest.stop();
     await discardWorkout(logId);
     clear();
     router.replace('/(app)/(tabs)');

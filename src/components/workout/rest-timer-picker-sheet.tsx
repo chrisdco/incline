@@ -10,6 +10,7 @@ import { Caption } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
 import { REST_PRESETS } from '@/constants/rest-presets';
 import { updateExerciseDefaultRest } from '@/db/queries';
+import { useToast } from '@/components/ui/toast';
 
 export function RestTimerPickerSheet({
   open,
@@ -25,11 +26,17 @@ export function RestTimerPickerSheet({
   onSelect: (seconds: number) => void;
 }) {
   const [configuringDefault, setConfiguringDefault] = useState(false);
+  const { toast } = useToast();
 
   const handleSetDefault = async (seconds: number) => {
     if (!exerciseId) return;
-    await updateExerciseDefaultRest(exerciseId, seconds);
-    setConfiguringDefault(false);
+    try {
+      await updateExerciseDefaultRest(exerciseId, seconds);
+      toast({ title: 'Default rest updated', description: `Default set to ${seconds === 0 ? 'Off' : `${seconds}s`}`, variant: 'success' });
+      setConfiguringDefault(false);
+    } catch (e) {
+      toast({ title: 'Could not save default', description: e instanceof Error ? e.message : 'Try again.', variant: 'destructive' });
+    }
   };
 
   return (

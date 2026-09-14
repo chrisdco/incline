@@ -6,6 +6,8 @@ import { cn } from '@/lib/cn';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/common/icon';
 import { Check, Trash2 } from 'lucide-react-native';
+import { useHaptics } from '@/hooks/use-haptics';
+import * as Haptics from 'expo-haptics';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
 import { SET_COL, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
@@ -56,6 +58,8 @@ export function SetRow({
 
   useImperativeHandle(ref, () => ({ focusWeight: () => weightRef.current?.focus() }), []);
 
+  const { impact, selection, notify } = useHaptics();
+
   const hasPrevious = previousWeight !== undefined && previousWeight > 0;
 
   const toggleClass = cn(
@@ -79,7 +83,10 @@ export function SetRow({
         style={{ width: SET_COL.prev }}
         className="items-center justify-center"
         disabled={!hasPrevious || !onApplyPrevious}
-        onPress={onApplyPrevious}
+        onPress={() => {
+          selection();
+          onApplyPrevious?.();
+        }}
         accessibilityRole={hasPrevious ? 'button' : undefined}
         accessibilityLabel={hasPrevious ? 'Use previous weight and reps' : undefined}
         hitSlop={6}>
@@ -116,7 +123,15 @@ export function SetRow({
             accessibilityRole="button"
             accessibilityLabel={completed ? 'Mark incomplete' : 'Complete set'}
             accessibilityState={{ checked: completed }}
-            onPress={onToggleComplete}
+            onPress={() => {
+              if (completed) {
+                impact(Haptics.ImpactFeedbackStyle.Light);
+              } else {
+                impact(Haptics.ImpactFeedbackStyle.Medium);
+              }
+              if (!completed) notify(Haptics.NotificationFeedbackType.Success);
+              onToggleComplete();
+            }}
             hitSlop={8}
             className={toggleClass}>
             <Icon icon={Check} size={18} color={toggleIconColor} />
@@ -141,6 +156,7 @@ export function SetRow({
       renderRightActions={() => (
         <Pressable
           onPress={() => {
+            notify(Haptics.NotificationFeedbackType.Warning);
             swipeRef.current?.close();
             onRemove();
           }}

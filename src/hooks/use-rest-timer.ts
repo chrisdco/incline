@@ -13,8 +13,9 @@ import {
  * Handles backgrounding via wall-clock deadlines, and schedules a local
  * notification so rest completion still alerts when the user leaves the session.
  */
-export function useRestTimer(opts?: { notify?: boolean }) {
+export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
   const notify = opts?.notify !== false;
+  const sessionId = opts?.sessionId;
   const [remaining, setRemaining] = useState(0);
   const [total, setTotal] = useState(0);
   const [running, setRunning] = useState(false);
@@ -31,9 +32,9 @@ export function useRestTimer(opts?: { notify?: boolean }) {
         await cancelRestCompleteNotification();
         return;
       }
-      await scheduleRestCompleteNotification(seconds);
+      await scheduleRestCompleteNotification(seconds, { sessionId });
     },
-    [notify],
+    [notify, sessionId],
   );
 
   const start = useCallback(
@@ -60,11 +61,17 @@ export function useRestTimer(opts?: { notify?: boolean }) {
     (delta: number) => {
       setRemaining((r) => {
         const next = Math.max(0, r + delta);
-        deadlineRef.current = Date.now() + next * 1000;
-        void syncNotification(next > 0 ? next : null);
+        if (next === 0) {
+          deadlineRef.current = 0;
+          void syncNotification(null);
+          setRunning(false);
+        } else {
+          deadlineRef.current = Date.now() + next * 1000;
+          void syncNotification(next);
+          setRunning(true);
+        }
         return next;
       });
-      setRunning(true);
     },
     [syncNotification],
   );
