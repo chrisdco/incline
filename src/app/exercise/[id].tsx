@@ -168,8 +168,8 @@ function SummaryTab({
 }) {
   return (
     <View>
-      {/* Exercise GIF */}
-      <ExerciseMedia uri={exercise.imageUrl} height={200} />
+      {/* Exercise GIF / illustration */}
+      <ExerciseMedia name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} height={200} />
 
       {/* Muscle info */}
       <View className="mb-4 flex-row flex-wrap gap-2">
@@ -363,8 +363,8 @@ function HistoryTab({
 function HowToTab({ exercise }: { exercise: Exercise }) {
   return (
     <View>
-      {/* Exercise GIF */}
-      <ExerciseMedia uri={exercise.imageUrl} height={220} />
+      {/* Exercise GIF / illustration */}
+      <ExerciseMedia name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} height={220} />
 
       <Heading style={{ fontSize: 18, marginBottom: 12 }}>{exercise.name}</Heading>
 

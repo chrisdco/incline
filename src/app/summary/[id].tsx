@@ -459,7 +459,7 @@ export default function SummaryScreen() {
                   className="mb-2 flex-row items-center gap-3"
                   accessibilityRole="button"
                   accessibilityLabel={`Open ${b.exerciseName} details`}>
-                  <ExerciseThumb uri={b.imageUrl} />
+                  <ExerciseThumb name={b.exerciseName} imageUrl={b.imageUrl} />
                   <Body className="flex-1 text-base font-semibold text-foreground">{b.exerciseName}</Body>
                   <Caption>{b.sets.length} sets</Caption>
                 </Pressable>

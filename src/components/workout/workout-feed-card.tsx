@@ -113,7 +113,7 @@ export function WorkoutFeedCard({
             className="flex-row items-center gap-3"
             accessibilityRole="button"
             accessibilityLabel={`Open ${ex.exerciseName} details`}>
-            <ExerciseThumb uri={ex.imageUrl} />
+            <ExerciseThumb name={ex.exerciseName} imageUrl={ex.imageUrl} />
             <Body className="flex-1 text-sm text-foreground">
               {ex.setCount} set{ex.setCount !== 1 ? 's' : ''} {ex.exerciseName}
             </Body>

@@ -388,7 +388,7 @@ export default function EditWorkoutScreen() {
                 className="mb-1 flex-row items-center gap-3"
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${g.exerciseName} details`}>
-                <ExerciseThumb uri={g.imageUrl} />
+                <ExerciseThumb name={g.exerciseName} imageUrl={g.imageUrl} />
                 <Body className="flex-1 text-base font-semibold text-primary">{g.exerciseName}</Body>
               </Pressable>
 
