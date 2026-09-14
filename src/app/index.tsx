@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
-import { useAuth } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/expo';
 
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { bindLocalAccount } from '@/db/account';

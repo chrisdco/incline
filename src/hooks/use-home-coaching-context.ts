@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from 'expo-router';
 
 import { pickHomeCoachingInsight, topMuscleGap } from '@/coaching/insights';
