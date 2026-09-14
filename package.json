@@ -16,7 +16,7 @@
     "test:watch": "vitest --config vitest.config.mts"
   },
   "dependencies": {
-    "@clerk/expo": "^2.20.0",
+    "@clerk/expo": "^4.6.6",
     "@expo-google-fonts/geist": "^0.4.2",
     "@expo/ui": "~57.0.16",
     "@shopify/flash-list": "2.0.2",

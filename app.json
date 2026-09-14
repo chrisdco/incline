@@ -53,7 +53,8 @@
       ],
       "expo-secure-store",
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      "@clerk/expo"
     ],
     "experiments": {
       "typedRoutes": true
