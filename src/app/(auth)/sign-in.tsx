@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Platform, View, TextInput, Pressable, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useSignIn, useSSO } from '@clerk/clerk-expo';
+import { useSignIn, useSSO } from '@clerk/expo';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 

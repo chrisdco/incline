@@ -67,7 +67,7 @@ Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
 | App | Expo SDK 57, React Native 0.86, Expo Router |
 | UI | NativeWind v4, Reanimated, Lucide, Gifted Charts, FlashList, Geist |
 | Local data | expo-sqlite (schema v16, incl. photo metadata), Zustand + SQLite `kv` |
-| Auth | Clerk (`@clerk/clerk-expo`) |
+| Auth | Clerk (`@clerk/expo`) |
 | Cloud | Supabase (exercise catalog + user sync tables / RLS) |
 | Coaching | Pure TypeScript rules in `src/coaching/` (no model keys in the app) |
 

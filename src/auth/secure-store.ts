@@ -1,5 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import { type TokenCache } from '@clerk/clerk-expo';
+import { type TokenCache } from '@clerk/expo';
 
 /**
  * SecureStore-backed token cache for Clerk.
