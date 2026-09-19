@@ -9,6 +9,8 @@ import { useEffect } from 'react';
 import { formatClock } from '@/db/calc';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/cn';
+import { useHaptics } from '@/hooks/use-haptics';
+import * as Haptics from 'expo-haptics';
 
 /**
  * Compact rest-timer bar shown at the bottom of the session screen.
@@ -30,11 +32,22 @@ export function RestTimer({
   const done = remaining <= 0 && total > 0;
   const progress = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
   const fill = useSharedValue(progress);
+  // Amber bar for the last 10s, but only tick haptics on the final 3 seconds —
+  // 10 vibrations read as noise instead of a cue.
   const urgent = remaining > 0 && remaining <= 10;
+  const finalTicks = remaining > 0 && remaining <= 3;
+  const { impact, selection } = useHaptics();
 
   useEffect(() => {
     fill.value = withTiming(progress, { duration: 250 });
   }, [fill, progress]);
+
+  // Light tick on each of the last three seconds.
+  useEffect(() => {
+    if (finalTicks && !done) {
+      selection();
+    }
+  }, [remaining, finalTicks, done, selection]);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${fill.value * 100}%`,
@@ -52,7 +65,10 @@ export function RestTimer({
       </View>
       <View className="flex-row items-center justify-between">
         <Pressable
-          onPress={() => onAdd(-15)}
+          onPress={() => {
+            selection();
+            onAdd(-15);
+          }}
           accessibilityRole="button"
           accessibilityLabel="Subtract 15 seconds"
           className="h-11 w-14 items-center justify-center rounded-xl bg-muted">
@@ -72,7 +88,10 @@ export function RestTimer({
         </View>
 
         <Pressable
-          onPress={() => onAdd(15)}
+          onPress={() => {
+            selection();
+            onAdd(15);
+          }}
           accessibilityRole="button"
           accessibilityLabel="Add 15 seconds"
           className="h-11 w-14 items-center justify-center rounded-xl bg-muted">
@@ -80,7 +99,10 @@ export function RestTimer({
         </Pressable>
 
         <Pressable
-          onPress={onSkip}
+          onPress={() => {
+            impact(Haptics.ImpactFeedbackStyle.Medium);
+            onSkip();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Skip rest"
           className="h-11 items-center justify-center rounded-xl bg-primary px-4">

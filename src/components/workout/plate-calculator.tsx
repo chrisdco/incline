@@ -7,6 +7,7 @@ import { SegmentedControl } from '@/components/common/segmented-control';
 import { Switch } from '@/components/ui/switch';
 import { calculatePlates, BAR_OPTIONS, type BarKind, type Plate } from '@/lib/plate-calculator';
 import { useSettings } from '@/store/settings-store';
+import { PLACEHOLDER_COLOR } from '@/constants/config';
 import { cn } from '@/lib/cn';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 
@@ -41,7 +42,7 @@ export function PlateCalculator({ targetWeight: initialTarget, className }: Plat
             value={input}
             onChangeText={setInput}
             placeholder={`e.g. ${unit === 'kg' ? '80' : '135'}`}
-            placeholderTextColor="#6b7280"
+            placeholderTextColor={PLACEHOLDER_COLOR}
             keyboardType="decimal-pad"
             className="rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground"
           />

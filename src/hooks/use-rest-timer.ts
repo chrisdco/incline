@@ -13,13 +13,22 @@ import {
  * Handles backgrounding via wall-clock deadlines, and schedules a local
  * notification so rest completion still alerts when the user leaves the session.
  */
-export function useRestTimer(opts?: { notify?: boolean }) {
+export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
   const notify = opts?.notify !== false;
+  const sessionId = opts?.sessionId;
   const [remaining, setRemaining] = useState(0);
   const [total, setTotal] = useState(0);
   const [running, setRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const deadlineRef = useRef<number>(0);
+  // Mirror of `remaining` so callback bodies can read the live value without
+  // doing side effects inside a state updater (updaters must stay pure — React
+  // may invoke them twice, which would double-fire notification scheduling).
+  const remainingRef = useRef(0);
+  const applyRemaining = useCallback((next: number) => {
+    remainingRef.current = next;
+    setRemaining(next);
+  }, []);
 
   const syncNotification = useCallback(
     async (seconds: number | null) => {
@@ -31,42 +40,47 @@ export function useRestTimer(opts?: { notify?: boolean }) {
         await cancelRestCompleteNotification();
         return;
       }
-      await scheduleRestCompleteNotification(seconds);
+      await scheduleRestCompleteNotification(seconds, { sessionId });
     },
-    [notify],
+    [notify, sessionId],
   );
 
   const start = useCallback(
     (seconds: number) => {
       if (seconds <= 0) return;
       setTotal(seconds);
-      setRemaining(seconds);
+      applyRemaining(seconds);
       setRunning(true);
       deadlineRef.current = Date.now() + seconds * 1000;
       void syncNotification(seconds);
     },
-    [syncNotification],
+    [applyRemaining, syncNotification],
   );
 
   const stop = useCallback(() => {
     setRunning(false);
-    setRemaining(0);
+    applyRemaining(0);
     setTotal(0);
     deadlineRef.current = 0;
     void syncNotification(null);
-  }, [syncNotification]);
+  }, [applyRemaining, syncNotification]);
 
   const add = useCallback(
     (delta: number) => {
-      setRemaining((r) => {
-        const next = Math.max(0, r + delta);
+      const next = Math.max(0, remainingRef.current + delta);
+      applyRemaining(next);
+      if (next === 0) {
+        // Dropping to zero ends the rest instead of leaving a dead 0s timer.
+        deadlineRef.current = 0;
+        setRunning(false);
+        void syncNotification(null);
+      } else {
         deadlineRef.current = Date.now() + next * 1000;
-        void syncNotification(next > 0 ? next : null);
-        return next;
-      });
-      setRunning(true);
+        setRunning(true);
+        void syncNotification(next);
+      }
     },
-    [syncNotification],
+    [applyRemaining, syncNotification],
   );
 
   useEffect(() => {
@@ -75,17 +89,17 @@ export function useRestTimer(opts?: { notify?: boolean }) {
         const now = Date.now();
         const diff = deadlineRef.current - now;
         if (diff <= 0) {
-          setRemaining(0);
+          applyRemaining(0);
           setRunning(false);
           deadlineRef.current = 0;
           void syncNotification(null);
         } else {
-          setRemaining(Math.ceil(diff / 1000));
+          applyRemaining(Math.ceil(diff / 1000));
         }
       }
     });
     return () => sub.remove();
-  }, [running, syncNotification]);
+  }, [running, syncNotification, applyRemaining]);
 
   useEffect(() => {
     if (!running) {
@@ -99,18 +113,18 @@ export function useRestTimer(opts?: { notify?: boolean }) {
       const now = Date.now();
       const diff = deadlineRef.current - now;
       if (diff <= 0) {
-        setRemaining(0);
+        applyRemaining(0);
         setRunning(false);
         deadlineRef.current = 0;
         void syncNotification(null);
       } else {
-        setRemaining(Math.ceil(diff / 1000));
+        applyRemaining(Math.ceil(diff / 1000));
       }
     }, 1000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [running, syncNotification]);
+  }, [running, syncNotification, applyRemaining]);
 
   const justFinished = total > 0 && remaining === 0 && !running;
 

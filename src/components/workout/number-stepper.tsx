@@ -7,6 +7,7 @@ import { TextInput } from 'react-native-gesture-handler';
 import { cn } from '@/lib/cn';
 import { Text } from '@/components/ui/text';
 import { clamp } from '@/db/calc';
+import { PLACEHOLDER_COLOR } from '@/constants/config';
 import { SET_INPUT_HEIGHT } from './set-layout';
 
 export interface NumberStepperHandle {
@@ -26,6 +27,7 @@ export function NumberStepper({
   max = 1000,
   decimals = 0,
   onSubmitNext,
+  label,
   className,
   style,
   step: _step,
@@ -38,6 +40,8 @@ export function NumberStepper({
   max?: number;
   decimals?: number;
   onSubmitNext?: () => void;
+  /** Screen-reader name — "Weight, set 2" / "Reps, set 2". */
+  label?: string;
   className?: string;
   style?: StyleProp<ViewStyle>;
   step?: number;
@@ -76,7 +80,7 @@ export function NumberStepper({
         ref={inputRef}
         value={focused ? draft : value > 0 ? String(value) : ''}
         placeholder="—"
-        placeholderTextColor="#71717a"
+        placeholderTextColor={PLACEHOLDER_COLOR}
         onFocus={() => {
           committedRef.current = false;
           setFocused(true);
@@ -94,7 +98,8 @@ export function NumberStepper({
         keyboardType="decimal-pad"
         returnKeyType={onSubmitNext ? 'next' : 'done'}
         selectTextOnFocus
-        accessibilityLabel={suffix ? `Value in ${suffix}` : 'Numeric value'}
+        accessibilityLabel={label ?? (suffix ? `Value in ${suffix}` : 'Numeric value')}
+        accessibilityValue={{ text: focused ? draft : value > 0 ? String(value) : 'Empty' }}
         style={{
           height: SET_INPUT_HEIGHT,
           flex: 1,

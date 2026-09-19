@@ -24,5 +24,9 @@ export function useHaptics() {
     [enabled],
   );
 
-  return { impact, notify };
+  const selection = useCallback(() => {
+    if (enabled) Haptics.selectionAsync().catch(() => {});
+  }, [enabled]);
+
+  return { impact, notify, selection };
 }

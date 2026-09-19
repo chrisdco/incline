@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { FlashList } from '@shopify/flash-list';
@@ -74,6 +74,18 @@ export default function ProgressScreen() {
   }, [historyRange, historyExercise, historyTemplate]);
 
   const history = useWorkoutLogs(historyFilters);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshHistory = history.refresh;
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      refetch();
+      await refreshHistory();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch, refreshHistory]);
   const historyFiltered =
     historyRange !== 'all' || historyExercise != null || historyTemplate != null;
 
@@ -107,6 +119,8 @@ export default function ProgressScreen() {
         ItemSeparatorComponent={() => <View className="h-2" />}
         onEndReached={history.loadMore}
         onEndReachedThreshold={0.3}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         ListHeaderComponent={
           <View className="mb-4 gap-5">
             <View className="mt-2">
@@ -244,7 +258,9 @@ export default function ProgressScreen() {
           </View>
         }
         ListEmptyComponent={
-          history.items.length === 0 && !history.loading ? (
+          history.error && history.items.length === 0 ? (
+            <ErrorState onRetry={() => void history.refresh()} />
+          ) : history.items.length === 0 && !history.loading ? (
             <EmptyState
               icon={<Icon icon={Dumbbell} size={28} color="muted-foreground" />}
               title={historyFiltered ? 'No matching workouts' : 'No workouts logged'}
