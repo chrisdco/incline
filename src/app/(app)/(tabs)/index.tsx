@@ -16,6 +16,7 @@ import { TemplatePickerSheet } from '@/components/workout/template-picker-sheet'
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { CardSkeleton } from '@/components/common/skeleton';
+import { ErrorState } from '@/components/common/states';
 import { SectionHeader } from '@/components/common/section-header';
 import { HomeContextCard } from '@/components/home/home-context-card';
 import { MonthlyReportPromo } from '@/components/home/monthly-report-promo';
@@ -53,7 +54,7 @@ export default function HomeScreen() {
   const { data: profile, refetch: refetchProfile } = useProfile();
   const { data: suggested, loading: sugLoading } = useSuggestedTemplate();
   const { data: todaySlot, loading: todayLoading, refetch: refetchToday } = useTodayProgramSlot();
-  const { data: stats, loading: statsLoading } = useProgressStats();
+  const { data: stats, loading: statsLoading, refetch: refetchStats } = useProgressStats();
   const { session } = useActiveSession();
   const clear = useActiveWorkout((s) => s.clear);
   const feed = useWorkoutFeedLogs();
@@ -73,18 +74,34 @@ export default function HomeScreen() {
   const [menuLog, setMenuLog] = useState<FeedWorkoutLog | null>(null);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [today] = useState(() => formatFullDate(Date.now()));
+  const [refreshing, setRefreshing] = useState(false);
   const didFocus = useRef(false);
+
+  // One refresh path for both pull-to-refresh and tab re-focus.
+  const reloadHome = useCallback(async () => {
+    refetchProfile();
+    refetchStats();
+    refetchToday();
+    await refreshFeed();
+  }, [refetchProfile, refetchStats, refetchToday, refreshFeed]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await reloadHome();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reloadHome]);
 
   useFocusEffect(
     useCallback(() => {
       if (didFocus.current) {
-        refetchProfile();
-        refreshFeed();
-        refetchToday();
+        void reloadHome();
       } else {
         didFocus.current = true;
       }
-    }, [refetchProfile, refreshFeed, refetchToday]),
+    }, [reloadHome]),
   );
 
   const doStart = async (templateId: number | null, name: string) => {
@@ -366,17 +383,17 @@ export default function HomeScreen() {
     <WorkoutFeedCard
       log={item}
       unit={unit}
-      profileName={profile?.name?.trim() || 'Athlete'}
+      profileName={name}
       avatarUrl={profile?.avatarUrl}
       onMenuPress={() => setMenuLog(item)}
     />
   );
 
-  const keyExtractor = (item: FeedWorkoutLog) => String(item.id);
+  const keyExtractor = useCallback((item: FeedWorkoutLog) => String(item.id), []);
 
-  const onEndReached = () => {
+  const onEndReached = useCallback(() => {
     if (feed.hasMore && !feed.loading) feed.loadMore();
-  };
+  }, [feed]);
 
   const onSaveAsRoutine = async () => {
     if (!menuLog || savingTemplate) return;
@@ -405,10 +422,24 @@ export default function HomeScreen() {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         ListHeaderComponent={renderHeader()}
-        ListEmptyComponent={feed.loading ? <View className="mt-8 px-4"><CardSkeleton /></View> : null}
+        ListEmptyComponent={
+          feed.error && feed.items.length === 0 ? (
+            <View className="mt-8 px-4">
+              <ErrorState
+                title="Couldn’t load your workouts"
+                description={feed.error.message || undefined}
+                onRetry={() => void feed.refresh()}
+              />
+            </View>
+          ) : feed.loading ? (
+            <View className="mt-8 px-4"><CardSkeleton /></View>
+          ) : null
+        }
         ListFooterComponent={feed.loading && feed.items.length > 0 ? <View className="px-4 py-4"><CardSkeleton /></View> : null}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         contentContainerStyle={{ paddingTop: 24, paddingBottom: 32 }}
         ItemSeparatorComponent={FeedSeparator}
         showsVerticalScrollIndicator={false}

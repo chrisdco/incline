@@ -18,6 +18,7 @@ import { ExercisePickerSheet } from '@/components/workout/exercise-picker-sheet'
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
+import { PLACEHOLDER_COLOR } from '@/constants/config';
 import {
   addExerciseToWorkout,
   addSet,
@@ -302,11 +303,12 @@ export default function EditWorkoutScreen() {
             onChangeText={setNotes}
             onBlur={() => { if (notes.trim()) updateWorkoutNotes(logId, notes.trim()); }}
             placeholder="How did your workout go? Leave some notes here..."
-            placeholderTextColor="#6b7280"
+            placeholderTextColor={PLACEHOLDER_COLOR}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
-            style={{ minHeight: 80, fontSize: 14, lineHeight: 20, borderWidth: 1, borderColor: 'hsl(240 5.9% 90%)', borderRadius: 12, padding: 12 }}
+            className="rounded-xl border border-border bg-card p-3 text-sm text-foreground"
+            style={{ minHeight: 80, fontSize: 14, lineHeight: 20 }}
           />
         </View>
 

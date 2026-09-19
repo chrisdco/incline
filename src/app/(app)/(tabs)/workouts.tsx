@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy } from 'lucide-react-native';
@@ -43,6 +43,42 @@ export default function WorkoutsScreen() {
   const [menuTarget, setMenuTarget] = useState<TemplateSummary | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TemplateSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const sawLoadingRef = useRef(false);
+  const didFocus = useRef(false);
+
+  // Routines/programs are edited on pushed screens; refetch when this tab
+  // regains focus so names, counts, and order are never stale.
+  useFocusEffect(
+    useCallback(() => {
+      if (didFocus.current) {
+        templates.refetch();
+        programs.refetch();
+      } else {
+        didFocus.current = true;
+      }
+    }, [templates.refetch, programs.refetch]),
+  );
+
+  const activeLoading = tab === 'routines' ? templates.loading : programs.loading;
+
+  const onRefresh = useCallback(() => {
+    sawLoadingRef.current = false;
+    setRefreshing(true);
+    if (tab === 'routines') templates.refetch();
+    else programs.refetch();
+  }, [tab, templates.refetch, programs.refetch]);
+
+  // Refetch is fire-and-forget, so end the spinner once we have actually
+  // observed the pulled refresh go in flight and come back.
+  useEffect(() => {
+    if (!refreshing) return;
+    if (activeLoading) {
+      sawLoadingRef.current = true;
+      return;
+    }
+    if (sawLoadingRef.current) setRefreshing(false);
+  }, [refreshing, activeLoading]);
 
   const doStart = async (templateId: number | null, name: string) => {
     setStarting(true);
@@ -157,6 +193,8 @@ export default function WorkoutsScreen() {
           keyExtractor={(item) => String(item.template.id)}
           contentContainerStyle={SCREEN_CONTENT}
           ItemSeparatorComponent={() => <View className="h-3" />}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           ListHeaderComponent={
             <View className="mb-4 gap-3">
               <Button
@@ -214,6 +252,8 @@ export default function WorkoutsScreen() {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={SCREEN_CONTENT}
           ItemSeparatorComponent={() => <View className="h-3" />}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           ListHeaderComponent={
             <View className="mb-4 flex-row items-center justify-between">
               <Body className="font-semibold text-foreground">Programs</Body>
@@ -229,6 +269,8 @@ export default function WorkoutsScreen() {
           ListEmptyComponent={
             programs.loading ? (
               <ListSkeleton count={2} />
+            ) : programs.error ? (
+              <ErrorState onRetry={programs.refetch} />
             ) : (
               <EmptyState
                 title="No programs yet"

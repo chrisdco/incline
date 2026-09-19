@@ -26,7 +26,7 @@ import {
   type TodayProgramSlot,
   type WorkoutLogFilters,
 } from '@/db/queries';
-import type { Exercise, FeedWorkoutLog, MuscleGroup, MonthlyRecap, PR, PeriodStats, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutLog, WorkoutTemplate } from '@/db/types';
+import type { Exercise, FeedWorkoutLog, MonthlyRecap, PeriodStats, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutLog, WorkoutTemplate } from '@/db/types';
 import { useSettings } from '@/store/settings-store';
 
 /* ---- catalog ---- */
@@ -92,6 +92,7 @@ export function useWorkoutLogs(filters: WorkoutLogFilters = {}) {
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const offsetRef = useRef(0);
+  const requestRef = useRef(0);
   const filtersKey = `${filters.sinceMs ?? ''}:${filters.templateId ?? ''}:${filters.exerciseId ?? ''}`;
   const filtersRef = useRef(filters);
 
@@ -100,19 +101,24 @@ export function useWorkoutLogs(filters: WorkoutLogFilters = {}) {
   }, [filters]);
 
   const load = useCallback(async (reset: boolean) => {
+    // Pull-to-refresh and infinite scroll can overlap; only the newest request
+    // may touch items/offset or a stale page would append after a reset.
+    const request = (requestRef.current += 1);
     setLoading(true);
     setError(null);
     try {
       const offset = reset ? 0 : offsetRef.current;
       const page = await listWorkoutLogs(offset, undefined, filtersRef.current);
+      if (request !== requestRef.current) return;
       setItems((prev) => (reset ? page.items : [...prev, ...page.items]));
       offsetRef.current = page.nextOffset ?? offset;
       setHasMore(page.nextOffset !== null);
     } catch (e) {
+      if (request !== requestRef.current) return;
       setError(e as Error);
       if (reset) setItems([]);
     } finally {
-      setLoading(false);
+      if (request === requestRef.current) setLoading(false);
     }
   }, []);
 
@@ -133,8 +139,6 @@ export function useWorkoutLogs(filters: WorkoutLogFilters = {}) {
       if (!loading && hasMore) load(false);
     },
     refresh: () => load(true),
-    prs: [] as PR[],
-    muscleFocus: [] as MuscleGroup[],
   };
 }
 
@@ -144,21 +148,27 @@ export function useWorkoutFeedLogs() {
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const offsetRef = useRef(0);
+  const requestRef = useRef(0);
 
   const load = useCallback(async (reset: boolean) => {
+    // Same guard as history: a refresh must not be clobbered by an in-flight
+    // "load more" page landing afterwards.
+    const request = (requestRef.current += 1);
     setLoading(true);
     setError(null);
     try {
       const offset = reset ? 0 : offsetRef.current;
       const page = await listWorkoutFeedLogs(offset);
+      if (request !== requestRef.current) return;
       setItems((prev) => (reset ? page.items : [...prev, ...page.items]));
       offsetRef.current = page.nextOffset ?? offset;
       setHasMore(page.nextOffset !== null);
     } catch (e) {
+      if (request !== requestRef.current) return;
       setError(e as Error);
       if (reset) setItems([]);
     } finally {
-      setLoading(false);
+      if (request === requestRef.current) setLoading(false);
     }
   }, []);
 

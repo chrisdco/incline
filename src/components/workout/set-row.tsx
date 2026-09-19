@@ -140,6 +140,7 @@ export function SetRow({
         value={weight}
         onChange={onChangeWeight}
         decimals={1}
+        label={`Weight, set ${index + 1}`}
         style={{ width: SET_COL.weight }}
         onSubmitNext={() => repsRef.current?.focus()}
       />
@@ -147,6 +148,7 @@ export function SetRow({
         ref={repsRef}
         value={reps}
         onChange={onChangeReps}
+        label={`Reps, set ${index + 1}`}
         style={{ width: SET_COL.reps }}
         onSubmitNext={onSubmitReps}
       />

@@ -32,19 +32,22 @@ export function RestTimer({
   const done = remaining <= 0 && total > 0;
   const progress = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
   const fill = useSharedValue(progress);
+  // Amber bar for the last 10s, but only tick haptics on the final 3 seconds —
+  // 10 vibrations read as noise instead of a cue.
   const urgent = remaining > 0 && remaining <= 10;
+  const finalTicks = remaining > 0 && remaining <= 3;
   const { impact, selection } = useHaptics();
 
   useEffect(() => {
     fill.value = withTiming(progress, { duration: 250 });
   }, [fill, progress]);
 
-  // Light tick on each urgent second.
+  // Light tick on each of the last three seconds.
   useEffect(() => {
-    if (urgent && remaining > 0 && !done) {
+    if (finalTicks && !done) {
       selection();
     }
-  }, [remaining, urgent, done, selection]);
+  }, [remaining, finalTicks, done, selection]);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${fill.value * 100}%`,

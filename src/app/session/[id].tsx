@@ -52,6 +52,7 @@ import {
   isCelebrationPrKind,
 } from '@/coaching/pr';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
+import { PLACEHOLDER_COLOR } from '@/constants/config';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
@@ -731,10 +732,11 @@ export default function SessionScreen() {
               onChangeText={setNotes}
               onBlur={() => { if (session) updateWorkoutNotes(logId, notes); }}
               placeholder="How did this session feel?"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={PLACEHOLDER_COLOR}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              className="rounded-xl bg-background p-3 text-foreground"
               style={{ minHeight: 80, fontSize: 14, lineHeight: 20 }}
             />
           </View>

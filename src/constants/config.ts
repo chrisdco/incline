@@ -16,3 +16,10 @@ export const STORAGE_KEYS = {
   settings: 'settings',
   activeWorkout: 'active-workout',
 } as const;
+
+/**
+ * Placeholder text colour for native `TextInput`s. These cannot use Tailwind
+ * classes, so they need one shared value — screens previously drifted between
+ * three different greys (#6b7280 / #9ca3af / #71717a).
+ */
+export const PLACEHOLDER_COLOR = '#71717a';
