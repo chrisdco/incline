@@ -9,7 +9,7 @@ import type { Exercise, SetEntry, Unit } from '../../types';
 
 function workingSets(sets: SetEntry[]): { weight: number; reps: number; rpe: number | null }[] {
   return sets
-    .filter((s) => s.completed && s.weight > 0 && (s.setType ?? 'working') !== 'warmup')
+    .filter((s) => s.completed && s.weight > 0 && (s.setType ?? 'working') === 'working')
     .map((s) => ({ weight: s.weight, reps: s.reps, rpe: s.rpe ?? null }));
 }
 

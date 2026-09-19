@@ -22,6 +22,7 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { startWorkout, discardWorkout, deleteTemplate, duplicateTemplate } from '@/db/queries';
+import { setCachedSession } from '@/db/session-cache';
 import type { TemplateSummary } from '@/db/queries';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
 
@@ -68,7 +69,11 @@ export default function WorkoutsScreen() {
 
   const resumeActive = () => {
     setConflictOpen(false);
-    if (session) router.push(`/session/${session.id}`);
+    if (session) {
+      // Warm the reopen cache so the push lands on content, not a spinner.
+      setCachedSession(session);
+      router.push(`/session/${session.id}`);
+    }
     setPendingStart(null);
   };
 

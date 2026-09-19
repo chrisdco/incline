@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
-import { useAuth } from '@clerk/expo';
+import { useAppAuth } from '@/auth/use-app-auth';
+import { isDevAuthBypassEnabled } from '@/lib/env';
 import * as ImagePicker from 'expo-image-picker';
 import { documentDirectory, makeDirectoryAsync, copyAsync } from 'expo-file-system/legacy';
 import {
@@ -47,7 +48,7 @@ export default function ProfileScreen() {
   const { unit } = useSettings();
   const { data: profile, refetch } = useProfile();
   const { data: stats, refetch: refetchStats } = useProgressStats();
-  const { signOut } = useAuth();
+  const { signOut } = useAppAuth();
   const [clearOpen, setClearOpen] = useState(false);
 
   const pickAvatar = async () => {
@@ -223,10 +224,14 @@ export default function ProfileScreen() {
             </View>
           )}
 
+          {/* Hidden under the dev auth bypass: stub sign-out is a noop and the
+              gate would bounce straight back into the app. */}
+          {!isDevAuthBypassEnabled() && (
           <Pressable onPress={async () => { await signOut(); router.replace('/(auth)/sign-in' as Href); }} accessibilityRole="button" accessibilityLabel="Sign out" className="flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={LogOut} size={20} color="muted-foreground" />
             <Body className="flex-1 font-medium text-foreground">Sign out</Body>
           </Pressable>
+          )}
         </View>
       </ScrollView>
 

@@ -8,6 +8,7 @@ import type {
   FeedWorkoutLog,
   MuscleGroup,
   Paginated,
+  SetType,
   WorkoutLog,
 } from '../types';
 import { getCelebrationPrCounts } from './coaching/prs';
@@ -274,16 +275,18 @@ export interface SetPatch {
   completed?: boolean;
   restSeconds?: number | null;
   rpe?: number | null;
+  setType?: SetType;
 }
 
 export async function updateSet(setId: number, patch: SetPatch): Promise<void> {
   const db = await openDatabase();
   const sets: string[] = [];
-  const args: (number | null)[] = [];
+  const args: (number | string | null)[] = [];
   if (patch.weight !== undefined) { sets.push('weight = ?'); args.push(patch.weight); }
   if (patch.reps !== undefined) { sets.push('reps = ?'); args.push(patch.reps); }
   if (patch.completed !== undefined) { sets.push('completed = ?'); args.push(patch.completed ? 1 : 0); }
   if (patch.restSeconds !== undefined) { sets.push('rest_seconds = ?'); args.push(patch.restSeconds); }
+  if (patch.setType !== undefined) { sets.push('set_type = ?'); args.push(patch.setType); }
   if (patch.rpe !== undefined) {
     sets.push('rpe = ?');
     const n = patch.rpe;

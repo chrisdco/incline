@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 import { ChevronUp, Trash2 } from 'lucide-react-native';
 
 import { cn } from '@/lib/cn';
-import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/ui/text';
 import { formatDuration } from '@/db/calc';
+import { getWorkoutLog } from '@/db/queries';
+import { setCachedSession } from '@/db/session-cache';
 
 /**
  * Floating session bar shown above the tab bar when a workout is in progress.
@@ -31,8 +32,6 @@ export function ActiveSessionBar({
   className?: string;
 }) {
   const router = useRouter();
-  const scheme = useAppColorScheme();
-  const isDark = scheme === 'dark';
   const [elapsed, setElapsed] = useState(() => (startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0));
 
   useEffect(() => {
@@ -52,25 +51,39 @@ export function ActiveSessionBar({
   }, [refetch]);
 
   const displayName = name ?? 'Workout';
-  const rippleColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
+
+  // Warm the reopen cache before pushing: by the time the push animation
+  // finishes, the session screen usually mounts onto cached rows instead of
+  // a spinner. Fire-and-forget — mount still refreshes from SQLite.
+  const open = () => {
+    void getWorkoutLog(logId)
+      .then((s) => {
+        if (s) setCachedSession(s);
+      })
+      .catch(() => {});
+    router.push(`/session/${logId}`);
+  };
 
   return (
     <View
       style={{ marginHorizontal: 16, marginBottom: 8, borderRadius: 9999 }}
       className={cn('flex-row items-center border border-border bg-surface2 px-3 py-3 shadow-lg', className)}>
+      {/* Whole bar opens — only the trash circle deletes. */}
       <Pressable
-        onPress={() => router.push(`/session/${logId}`)}
+        onPress={open}
         accessibilityRole="button"
         accessibilityLabel="Open workout"
-        className="h-14 w-14 items-center justify-center rounded-full bg-muted"
-        android_ripple={{ color: rippleColor }}>
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        className="h-14 w-14 items-center justify-center rounded-full bg-muted">
         <Icon icon={ChevronUp} size={30} color="foreground" />
       </Pressable>
 
       <Pressable
-        onPress={() => router.push(`/session/${logId}`)}
-        className="flex-1 flex-row items-center px-2"
-        android_ripple={{ color: rippleColor }}>
+        onPress={open}
+        accessibilityRole="button"
+        accessibilityLabel="Open workout"
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        className="flex-1 flex-row items-center px-2">
         <View className="flex-1">
           <View className="flex-row items-center gap-2">
             <View className="h-3 w-3 rounded-full bg-success" />
@@ -90,8 +103,9 @@ export function ActiveSessionBar({
           onPress={onDiscard}
           accessibilityRole="button"
           accessibilityLabel="Discard workout"
-          className="h-14 w-14 items-center justify-center rounded-full bg-muted"
-          android_ripple={{ color: rippleColor }}>
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          className="h-14 w-14 items-center justify-center rounded-full bg-muted">
           <Icon icon={Trash2} size={28} color="destructive" />
         </Pressable>
       ) : null}

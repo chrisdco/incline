@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/expo';
+import { useAppAuth } from '@/auth/use-app-auth';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -53,7 +53,7 @@ export default function SummaryScreen() {
   const router = useRouter();
   const { toast } = useToast();
   const { unit, showRpe } = useSettings();
-  const { userId, getToken } = useAuth();
+  const { userId, getToken } = useAppAuth();
   const getTokenRef = useRef(getToken);
   const { data: profile } = useProfile();
   const [log, setLog] = useState<SessionWorkout | null>(null);

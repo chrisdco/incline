@@ -123,7 +123,14 @@ export interface Program {
   workouts?: ProgramWorkout[];
 }
 
-export type SetType = 'working' | 'warmup';
+/** Set kind. Only pure `working` drives PR/overload/ghost records; `drop` and
+ * `failure` count toward volume like working but can never win a record. */
+export const SET_TYPES = ['working', 'warmup', 'drop', 'failure'] as const;
+export type SetType = (typeof SET_TYPES)[number];
+
+export function isSetType(v: unknown): v is SetType {
+  return typeof v === 'string' && (SET_TYPES as readonly string[]).includes(v);
+}
 
 export interface SetEntry {
   id: number;
