@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,7 +6,7 @@ import { Check, MessageSquarePlus, Pause, Play, Plus, Undo2, X } from 'lucide-re
 import { Icon } from '@/components/common/icon';
 
 import { Body, Caption } from '@/components/common/text';
-import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
+import { ListSkeleton } from '@/components/common/skeleton';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -43,6 +43,7 @@ import {
   type SessionWorkout,
 } from '@/db/queries';
 import { formatClock, formatVolume, formatWeight } from '@/db/calc';
+import { dropCachedSession, getCachedSession, setCachedSession } from '@/db/session-cache';
 import {
   applySetToBests,
   bestsFromPrSummary,
@@ -55,7 +56,7 @@ import { METRIC_ICONS } from '@/lib/metric-icons';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
 
-import type { Exercise, MuscleGroup, SetEntry } from '@/db/types';
+import type { Exercise, MuscleGroup, SetEntry, SetType } from '@/db/types';
 import type { TrainingSuggestion } from '@/coaching/types';
 import type { SessionGhost } from '@/db/queries';
 
@@ -64,6 +65,34 @@ interface Group {
   exerciseName: string;
   sets: SetEntry[];
   supersetGroup: number | null;
+}
+
+/**
+ * Elapsed workout clock. Isolated so the 1s tick re-renders only this text,
+ * not the whole session (every set row + input) underneath it.
+ */
+function SessionClock({
+  startedAt,
+  pausedAtRef,
+  totalPausedMsRef,
+  className,
+}: {
+  startedAt: number;
+  pausedAtRef: RefObject<number | null>;
+  totalPausedMsRef: RefObject<number>;
+  className?: string;
+}) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const tick = () => {
+      if (pausedAtRef.current) return;
+      setElapsed(Math.floor((Date.now() - startedAt - totalPausedMsRef.current) / 1000));
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [startedAt, pausedAtRef, totalPausedMsRef]);
+  return <Body className={className}>{formatClock(elapsed)}</Body>;
 }
 
 export default function SessionScreen() {
@@ -96,16 +125,19 @@ export default function SessionScreen() {
     if (rest.justFinished && restSoundEnabled) restSound.play();
   }, [rest.justFinished, restSound, restSoundEnabled]);
 
-  const [session, setSession] = useState<SessionWorkout | null>(null);
+  // Stale-while-revalidate: reopening (tray tap, resume dialog) renders cached
+  // rows synchronously instead of flashing a spinner mid-transition, then
+  // refreshes from SQLite in the background. Single-writer + wipe-cleared
+  // cache (see session-cache.ts) keeps this safe.
+  const [session, setSession] = useState<SessionWorkout | null>(() => getCachedSession(logId));
   const [lastSetsMap, setLastSetsMap] = useState<Record<number, SetEntry[]>>({});
   const [prMap, setPrMap] = useState<Record<number, ExercisePRSummary>>({});
   const [suggestionMap, setSuggestionMap] = useState<Record<number, TrainingSuggestion>>({});
   const [ghost, setGhost] = useState<SessionGhost | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => getCachedSession(logId) == null);
   const scrollRef = useRef<ScrollView>(null);
   const groupRefs = useRef<(View | null)[]>([]);
   const prevActiveGroupRef = useRef<number | null>(null);
-  const [elapsed, setElapsed] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [swapPinned, setSwapPinned] = useState<Exercise[]>([]);
   const [finishOpen, setFinishOpen] = useState(false);
@@ -123,54 +155,62 @@ export default function SessionScreen() {
   const pausedAtRef = useRef<number | null>(null);
   const seededRestRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const loadSession = useCallback(async () => {
     const s = await getWorkoutLog(logId);
     setSession(s);
     if (s) setNotes(s.notes ?? '');
     setLoading(false);
+    return s;
+  }, [logId]);
 
-    if (!s) return;
+  // Assist data (last-session values, PRs, suggestions, ghost) is expensive
+  // and never changes on field edits — load it on open / structural change
+  // only, never on tick/type/delete. The run guard drops stale responses when
+  // a newer assist run supersedes (e.g. exercise added mid-flight).
+  const assistRunRef = useRef(0);
+  const loadAssist = useCallback(async (s: SessionWorkout) => {
+    const run = (assistRunRef.current += 1);
     const exIds = [...new Set(s.sets.map((x) => x.exerciseId))];
-    if (!seededRestRef.current) {
-      seededRestRef.current = true;
-      void getRestDefaultsForSession(logId).then(setRestSecondsMap);
-    }
-    // PR / last-session assist is secondary — load after the set list is interactive.
-    void (async () => {
-      const [lastMap, prEntries, templateSug, ghostRow] = await Promise.all([
-        getLastSetsForExercises(exIds),
-        Promise.all(exIds.map(async (eid) => [eid, await getExercisePRSummary(eid)] as const)),
-        s.templateId ? getTemplateSuggestions(s.templateId, unit) : Promise.resolve([]),
-        showSessionGhost
-          ? getSessionGhost({
-              templateId: s.templateId,
-              name: s.templateId ? null : s.name,
-              beforeStartedAt: s.startedAt,
-              excludeLogId: s.id,
-            })
-          : Promise.resolve(null),
-      ]);
-      setLastSetsMap(lastMap);
-      setPrMap(Object.fromEntries(prEntries));
-      setSuggestionMap(Object.fromEntries(templateSug.map((sug) => [sug.exerciseId, sug])));
-      setGhost(ghostRow);
-    })();
+    const [lastMap, prEntries, templateSug, ghostRow] = await Promise.all([
+      getLastSetsForExercises(exIds),
+      Promise.all(exIds.map(async (eid) => [eid, await getExercisePRSummary(eid)] as const)),
+      s.templateId ? getTemplateSuggestions(s.templateId, unit) : Promise.resolve([]),
+      showSessionGhost
+        ? getSessionGhost({
+            templateId: s.templateId,
+            name: s.templateId ? null : s.name,
+            beforeStartedAt: s.startedAt,
+            excludeLogId: s.id,
+          })
+        : Promise.resolve(null),
+    ]);
+    if (assistRunRef.current !== run) return;
+    setLastSetsMap(lastMap);
+    setPrMap(Object.fromEntries(prEntries));
+    setSuggestionMap(Object.fromEntries(templateSug.map((sug) => [sug.exerciseId, sug])));
+    setGhost(ghostRow);
   }, [logId, unit, showSessionGhost]);
 
   useEffect(() => {
-    load();
-  }, [load]);
-
-  useEffect(() => {
-    if (!session) return;
-    const tick = () => {
-      if (pausedAtRef.current) return;
-      const now = Date.now();
-      setElapsed(Math.floor((now - session.startedAt - totalPausedMsRef.current) / 1000));
+    let active = true;
+    void (async () => {
+      const s = await loadSession();
+      if (!active || !s) return;
+      if (!seededRestRef.current) {
+        seededRestRef.current = true;
+        void getRestDefaultsForSession(logId).then(setRestSecondsMap);
+      }
+      void loadAssist(s);
+    })();
+    return () => {
+      active = false;
     };
-    tick();
-    const iv = setInterval(tick, 1000);
-    return () => clearInterval(iv);
+  }, [loadSession, loadAssist, logId]);
+
+  // Keep the reopen cache fresh on every state change (optimistic edits flow
+  // through here too, so the cache never lags the UI).
+  useEffect(() => {
+    if (session) setCachedSession(session);
   }, [session]);
 
   useEffect(() => {
@@ -242,22 +282,41 @@ export default function SessionScreen() {
     return () => clearTimeout(t);
   }, [session, activeGroupIndex, loading]);
 
-  const reload = () => load();
-  const onChangeWeight = async (setId: number, v: number) => {
-    try {
-      await updateSet(setId, { weight: v });
-      reload();
-    } catch {
-      toast({ title: 'Could not save weight', variant: 'destructive' });
-    }
+  // Cheap path: session rows only (field edits never need assist data).
+  const reload = () => {
+    void loadSession();
   };
-  const onChangeReps = async (setId: number, v: number) => {
-    try {
-      await updateSet(setId, { reps: v });
+  // Structural path: rows + assist (exercise added / set undeleted).
+  const reloadAll = () => {
+    void (async () => {
+      const s = await loadSession();
+      if (s) void loadAssist(s);
+    })();
+  };
+  // Optimistic field edits: paint immediately, persist in the background.
+  // Reloads are failure-only — assist maps (last/PR/suggestions) don't change
+  // on a weight/reps keystroke, so a full refetch per edit is pure jank.
+  const onChangeWeight = (setId: number, v: number) => {
+    setSession((prev) =>
+      prev
+        ? { ...prev, sets: prev.sets.map((s) => (s.id === setId ? { ...s, weight: v } : s)) }
+        : prev,
+    );
+    updateSet(setId, { weight: v }).catch(() => {
+      toast({ title: 'Could not save weight', variant: 'destructive' });
       reload();
-    } catch {
+    });
+  };
+  const onChangeReps = (setId: number, v: number) => {
+    setSession((prev) =>
+      prev
+        ? { ...prev, sets: prev.sets.map((s) => (s.id === setId ? { ...s, reps: v } : s)) }
+        : prev,
+    );
+    updateSet(setId, { reps: v }).catch(() => {
       toast({ title: 'Could not save reps', variant: 'destructive' });
-    }
+      reload();
+    });
   };
   const onApplyLoad = async (exerciseId: number, weight: number, reps?: number) => {
     const groupSets = session?.sets.filter((s) => s.exerciseId === exerciseId) ?? [];
@@ -384,7 +443,18 @@ export default function SessionScreen() {
       reload();
     });
   };
-  const onRemoveSet = async (setId: number) => {
+  const onChangeSetType = (setId: number, setType: SetType) => {
+    setSession((prev) =>
+      prev
+        ? { ...prev, sets: prev.sets.map((s) => (s.id === setId ? { ...s, setType } : s)) }
+        : prev,
+    );
+    updateSet(setId, { setType }).catch(() => {
+      toast({ title: 'Could not save set type', variant: 'destructive' });
+      reload();
+    });
+  };
+  const onRemoveSet = (setId: number) => {
     const target = session?.sets.find((s) => s.id === setId);
     if (!target) return;
     // Save the removed set for undo
@@ -393,15 +463,22 @@ export default function SessionScreen() {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     // Auto-dismiss after 5 seconds
     undoTimerRef.current = setTimeout(() => setRemovedSet(null), 5000);
-    await removeSet(setId);
-    reload();
+    // Optimistic removal: drop the row now, persist in the background.
+    setSession((prev) =>
+      prev ? { ...prev, sets: prev.sets.filter((s) => s.id !== setId) } : prev,
+    );
+    removeSet(setId).catch(() => {
+      toast({ title: 'Could not delete set', variant: 'destructive' });
+      setRemovedSet(null);
+      reload();
+    });
   };
   const onUndoRemove = async () => {
     if (!removedSet) return;
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     await restoreSet(removedSet.setEntry.id);
     setRemovedSet(null);
-    reload();
+    reloadAll();
   };
   const onAddSet = async (exerciseId: number) => { impact(); await addSet(logId, exerciseId); reload(); };
   const onAddWarmUp = async (exerciseId: number) => { impact(); await addWarmUpSet(logId, exerciseId); reload(); };
@@ -412,7 +489,7 @@ export default function SessionScreen() {
     const wasSwap = swapPinned.length > 0;
     setPickerOpen(false);
     setSwapPinned([]);
-    reload();
+    reloadAll();
     if (wasSwap) {
       toast({
         title: 'Substitute added',
@@ -435,6 +512,7 @@ export default function SessionScreen() {
     const pausedMs = totalPausedMsRef.current + pauseBonus;
     await finishWorkout(logId, { pausedMs });
     clear();
+    dropCachedSession(logId);
     toast({ title: 'Workout saved', variant: 'success' });
     router.replace(`/summary/${logId}?celebrate=1`);
   };
@@ -442,13 +520,19 @@ export default function SessionScreen() {
     setDiscardOpen(false);
     await discardWorkout(logId);
     clear();
+    dropCachedSession(logId);
     router.replace('/(app)/(tabs)');
   };
 
   if (loading)
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-background">
-        <PrimaryActivityIndicator />
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+        <View className="px-4 pb-2 pt-3">
+          <View className="h-6 w-40 rounded-lg bg-muted" />
+        </View>
+        <View className="px-4">
+          <ListSkeleton count={4} />
+        </View>
       </SafeAreaView>
     );
   if (!session) {
@@ -502,7 +586,12 @@ export default function SessionScreen() {
           accessibilityLabel="Workout timer"
           className="flex-1 items-center">
           <Caption>Duration</Caption>
-          <Body className="mt-0.5 font-semibold text-primary">{formatClock(elapsed)}</Body>
+          <SessionClock
+            startedAt={session.startedAt}
+            pausedAtRef={pausedAtRef}
+            totalPausedMsRef={totalPausedMsRef}
+            className="mt-0.5 font-semibold text-primary"
+          />
           {pausedAt ? (
             <Caption className="mt-0.5 text-amber-500">Paused</Caption>
           ) : null}
@@ -591,6 +680,7 @@ export default function SessionScreen() {
                   onAddWarmUp={() => onAddWarmUp(g.exerciseId)}
                   onApplyLoad={(weight, reps) => onApplyLoad(g.exerciseId, weight, reps)}
                   onChangeRpe={onChangeRpe}
+                  onChangeSetType={onChangeSetType}
                   onOpenExercise={() => router.push(`/exercise/${g.exerciseId}` as Href)}
                   onSwap={() => { void onSwapExercise(g.exerciseId); }}
                   showWarmUpSets={showWarmUpSets}
@@ -700,7 +790,12 @@ export default function SessionScreen() {
       <Sheet open={timerSheetOpen} onOpenChange={setTimerSheetOpen} title="Workout Timer" mode="fit">
         <View className="items-center gap-3 py-2">
           <Body className="text-sm text-muted-foreground">Elapsed time</Body>
-          <Body className="text-5xl font-bold tracking-tight text-foreground">{formatClock(elapsed)}</Body>
+          <SessionClock
+            startedAt={session.startedAt}
+            pausedAtRef={pausedAtRef}
+            totalPausedMsRef={totalPausedMsRef}
+            className="text-5xl font-bold tracking-tight text-foreground"
+          />
           {pausedAt ? (
             <Caption className="text-amber-500">Paused</Caption>
           ) : null}

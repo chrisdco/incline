@@ -9,11 +9,30 @@ import { Check, Trash2 } from 'lucide-react-native';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
 import { SET_COL, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
-import type { Unit } from '@/db/types';
+import type { SetType, Unit } from '@/db/types';
 
 export interface SetRowHandle {
   focusWeight: () => void;
 }
+
+const SET_TYPE_LETTER: Record<Exclude<SetType, 'working'>, string> = {
+  warmup: 'W',
+  drop: 'D',
+  failure: 'F',
+};
+
+const SET_TYPE_LETTER_COLOR: Record<Exclude<SetType, 'working'>, string> = {
+  warmup: 'text-warning',
+  drop: 'text-info',
+  failure: 'text-destructive',
+};
+
+const SET_TYPE_LABEL: Record<SetType, string> = {
+  working: 'Working set',
+  warmup: 'Warm-up',
+  drop: 'Drop set',
+  failure: 'To failure',
+};
 
 /** A single set row: index, previous, weight, reps, and a complete toggle. */
 export function SetRow({
@@ -26,12 +45,14 @@ export function SetRow({
   completed,
   isNext = false,
   unit,
+  setType = 'working',
   onChangeWeight,
   onChangeReps,
   onApplyPrevious,
   onToggleComplete,
   onRemove,
   onSubmitReps,
+  onOpenSetType,
 }: {
   ref?: Ref<SetRowHandle>;
   index: number;
@@ -43,12 +64,15 @@ export function SetRow({
   /** True for the next incomplete set — gets the primary CTA treatment. */
   isNext?: boolean;
   unit: Unit;
+  setType?: SetType;
   onChangeWeight: (v: number) => void;
   onChangeReps: (v: number) => void;
   onApplyPrevious?: () => void;
   onToggleComplete?: () => void;
   onRemove?: () => void;
   onSubmitReps?: () => void;
+  /** When provided, the set number becomes a button opening the set-type menu. */
+  onOpenSetType?: () => void;
 }) {
   const weightRef = useRef<NumberStepperHandle>(null);
   const repsRef = useRef<NumberStepperHandle>(null);
@@ -71,9 +95,21 @@ export function SetRow({
         'flex-row items-center gap-2 rounded-xl bg-background px-1',
         completed && 'bg-success/8',
       )}>
-      <View style={{ width: SET_COL.index }} className="items-center">
+      <Pressable
+        style={{ width: SET_COL.index }}
+        className="items-center justify-center"
+        disabled={!onOpenSetType}
+        onPress={onOpenSetType}
+        accessibilityRole={onOpenSetType ? 'button' : undefined}
+        accessibilityLabel={onOpenSetType ? `Set ${index + 1} type: ${SET_TYPE_LABEL[setType]}. Activate to change.` : undefined}
+        hitSlop={6}>
         <Text className="text-sm font-bold text-muted-foreground">{index + 1}</Text>
-      </View>
+        {setType !== 'working' ? (
+          <Text className={cn('text-[9px] font-bold leading-none', SET_TYPE_LETTER_COLOR[setType])}>
+            {SET_TYPE_LETTER[setType]}
+          </Text>
+        ) : null}
+      </Pressable>
 
       <Pressable
         style={{ width: SET_COL.prev }}
@@ -135,7 +171,7 @@ export function SetRow({
   return (
     <Swipeable
       ref={swipeRef}
-      friction={2}
+      friction={1}
       rightThreshold={48}
       overshootRight={false}
       renderRightActions={() => (
@@ -146,7 +182,7 @@ export function SetRow({
           }}
           accessibilityRole="button"
           accessibilityLabel="Delete set"
-          className="w-[72px] items-center justify-center rounded-xl bg-destructive">
+          className="w-[72px] items-center justify-center bg-destructive">
           <Icon icon={Trash2} size={18} color="destructive-foreground" />
         </Pressable>
       )}>

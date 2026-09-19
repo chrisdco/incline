@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@clerk/expo';
+import { useAppAuth } from '@/auth/use-app-auth';
 import { useFocusEffect } from 'expo-router';
 
 import { pickHomeCoachingInsight, topMuscleGap } from '@/coaching/insights';
@@ -40,7 +40,7 @@ export function useHomeCoachingContext({
   dismissedAnnouncementIds,
   onReadinessImpact,
 }: UseHomeCoachingContextOptions) {
-  const { userId, getToken } = useAuth();
+  const { userId, getToken } = useAppAuth();
   const getTokenRef = useRef(getToken);
   const [consistency, setConsistency] = useState<WeeklyConsistency | null>(null);
   const [contextCards, setContextCards] = useState<HomeContextCard[]>([]);

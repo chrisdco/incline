@@ -8,6 +8,7 @@ import { ActiveSessionBar } from '@/components/workout/active-session-bar';
 import { DiscardSessionDialog, ResumeSessionDialog } from '@/components/workout/discard-session-dialog';
 import { useActiveSession } from '@/hooks/use-active-session';
 import { discardWorkout } from '@/db/queries';
+import { setCachedSession } from '@/db/session-cache';
 import { useActiveWorkout } from '@/store/active-workout-store';
 
 export default function TabsLayout() {
@@ -35,7 +36,11 @@ export default function TabsLayout() {
 
   const resume = () => {
     setOpen(false);
-    if (session) router.push(`/session/${session.id}`);
+    if (session) {
+      // Warm the reopen cache so the push lands on content, not a spinner.
+      setCachedSession(session);
+      router.push(`/session/${session.id}`);
+    }
   };
   const discardFromPrompt = async () => {
     setOpen(false);

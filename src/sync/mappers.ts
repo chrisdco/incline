@@ -1,4 +1,5 @@
 import type { ExerciseRef, TemplateRef } from './types';
+import { isSetType, type SetType } from '@/db/types';
 
 export function msToIso(ms: number | null | undefined): string | null {
   if (ms == null) return null;
@@ -30,8 +31,8 @@ export function asNumOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function asSetType(v: unknown): 'working' | 'warmup' {
-  return v === 'warmup' ? 'warmup' : 'working';
+export function asSetType(v: unknown): SetType {
+  return isSetType(v) ? v : 'working';
 }
 
 export function exerciseRefToCloud(ref: ExerciseRef | undefined): {

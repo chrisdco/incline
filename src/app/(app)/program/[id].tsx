@@ -25,6 +25,7 @@ import {
   discardWorkout,
   weekdayMon1,
 } from '@/db/queries';
+import { setCachedSession } from '@/db/session-cache';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import type { Program, ProgramWorkout } from '@/db/types';
 
@@ -103,7 +104,11 @@ export default function ProgramDetailScreen() {
 
   const resumeActive = () => {
     setConflictOpen(false);
-    if (session) router.push(`/session/${session.id}`);
+    if (session) {
+      // Warm the reopen cache so the push lands on content, not a spinner.
+      setCachedSession(session);
+      router.push(`/session/${session.id}`);
+    }
     setPendingStart(null);
   };
 

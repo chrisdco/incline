@@ -2,6 +2,7 @@
  * Pure CSV/JSON builders for workout export (#6).
  * DB gathering lives in `src/db/queries/export.ts`.
  */
+import type { SetType } from '@/db/types';
 
 export type ExportRange = 'all' | '30d' | '90d' | '365d';
 
@@ -45,7 +46,7 @@ export interface ExportSetRow {
   reps: number;
   completed: boolean;
   restSeconds: number | null;
-  setType: 'working' | 'warmup';
+  setType: SetType;
   rpe: number | null;
 }
 
@@ -67,7 +68,7 @@ export interface ExportWorkoutJson {
     reps: number;
     completed: boolean;
     restSeconds: number | null;
-    setType: 'working' | 'warmup';
+    setType: SetType;
     rpe: number | null;
   }[];
 }

@@ -1,5 +1,5 @@
 import { estimated1RM, setVolume } from '@/db/calc';
-import type { PR, PrKind } from '@/db/types';
+import type { PR, PrKind, SetType } from '@/db/types';
 
 /** Kinds that fire session toasts, summary badges, recaps, and achievements. */
 export const CELEBRATION_PR_KINDS: readonly PrKind[] = ['heaviest_weight', 'estimated_1rm'];
@@ -13,7 +13,7 @@ export interface PrSetInput {
   weight: number;
   reps: number;
   completed: boolean;
-  setType?: 'working' | 'warmup' | null;
+  setType?: SetType | null;
   createdAt: number;
   workoutLogId?: number;
   setIndex?: number;
@@ -62,7 +62,7 @@ export function bestsFromPrSummary(pr: {
 export function isEligiblePrSet(set: PrSetInput): boolean {
   return (
     set.completed
-    && (set.setType ?? 'working') !== 'warmup'
+    && (set.setType ?? 'working') === 'working'
     && set.weight > 0
     && set.reps > 0
   );

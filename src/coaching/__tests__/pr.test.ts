@@ -62,6 +62,12 @@ describe('detectSetRecords', () => {
     expect(detectSetRecords(set({ exerciseId: 1, weight: 200, reps: 1, completed: false }), prior)).toEqual([]);
   });
 
+  it('ignores drop and failure sets for records (back-offs cannot win)', () => {
+    const prior = applySetToBests(emptyExerciseBests(), set({ exerciseId: 1, weight: 80, reps: 5 }));
+    expect(detectSetRecords(set({ exerciseId: 1, weight: 200, reps: 1, setType: 'drop' }), prior)).toEqual([]);
+    expect(detectSetRecords(set({ exerciseId: 1, weight: 200, reps: 1, setType: 'failure' }), prior)).toEqual([]);
+  });
+
   it('uses in-session bests from a PR summary for live toasts', () => {
     const prior = bestsFromPrSummary({ heaviestWeight: 80, best1RM: 100 });
     const kinds = detectSetRecords(

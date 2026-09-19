@@ -38,6 +38,9 @@ describe('sync mappers', () => {
     expect(asSetType(undefined)).toBe('working');
     expect(asSetType('working')).toBe('working');
     expect(asSetType('warmup')).toBe('warmup');
+    expect(asSetType('drop')).toBe('drop');
+    expect(asSetType('failure')).toBe('failure');
+    expect(asSetType('amrap')).toBe('working');
     const row = buildCloudUpsertRow(
       'set_entries',
       'set-uuid',

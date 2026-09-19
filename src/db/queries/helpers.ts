@@ -1,4 +1,5 @@
 import { openDatabase } from '../client';
+import { isSetType } from '../types';
 import type {
   Category,
   Difficulty,
@@ -9,6 +10,7 @@ import type {
   MovementPattern,
   MuscleGroup,
   SetEntry,
+  SetType,
   TemplateExercise,
   Unit,
   UserProfile,
@@ -177,7 +179,7 @@ export async function mapExercise(db: DB, row: ExerciseRow): Promise<Exercise> {
 }
 
 export function mapSet(r: SetRow): SetEntry {
-  const setType = r.set_type === 'warmup' ? 'warmup' : 'working';
+  const setType: SetType = isSetType(r.set_type) ? r.set_type : 'working';
   return {
     id: r.id,
     workoutLogId: r.workout_log_id,
