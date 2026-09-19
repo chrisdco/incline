@@ -24,7 +24,7 @@ export interface FatigueCue {
 
 function workingSets(sets: FatigueSet[]): { weight: number; reps: number }[] {
   return sets
-    .filter((s) => s.completed && (s.setType ?? 'working') !== 'warmup' && s.weight > 0 && s.reps > 0)
+    .filter((s) => s.completed && (s.setType ?? 'working') === 'working' && s.weight > 0 && s.reps > 0)
     .map((s) => ({ weight: s.weight, reps: s.reps }));
 }
 

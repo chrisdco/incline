@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
-import { useAuth } from '@clerk/expo';
+import { useAppAuth } from '@/auth/use-app-auth';
 
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { bindLocalAccount } from '@/db/account';
 import { useDatabaseReady } from '@/hooks/use-database';
 import { useProfile } from '@/hooks/use-data';
+import { isDevAuthBypassEnabled } from '@/lib/env';
 import { runSync, syncBackendReady } from '@/sync';
 
 /**
@@ -15,7 +16,7 @@ import { runSync, syncBackendReady } from '@/sync';
  */
 export default function Gate() {
   const ready = useDatabaseReady();
-  const { isSignedIn, isLoaded: authLoaded, userId, getToken } = useAuth();
+  const { isSignedIn, isLoaded: authLoaded, userId, getToken } = useAppAuth();
   const { data: profile, loading: profileLoading, refetch: refetchProfile } = useProfile();
   const router = useRouter();
   const segments = useSegments();
@@ -40,7 +41,8 @@ export default function Gate() {
         const result = await bindLocalAccount(userId);
         // Pull cloud profile/workouts before routing so a returning account
         // does not land in empty onboarding after a local wipe.
-        if (syncBackendReady()) {
+        // Skipped under the dev auth bypass (no token by design — stays local).
+        if (syncBackendReady() && !isDevAuthBypassEnabled()) {
           await runSync({
             userId,
             getToken: (opts) => getTokenRef.current(opts),

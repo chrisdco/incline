@@ -12,12 +12,19 @@ import { RpeChips } from './rpe-chips';
 import { PreviousBestBadge } from './previous-best-badge';
 import { RestTimerPickerSheet } from './rest-timer-picker-sheet';
 import { estimated1RM, formatWeight, repsToBeat1RM } from '@/db/calc';
-import type { SetEntry, Unit } from '@/db/types';
+import type { SetEntry, SetType, Unit } from '@/db/types';
 import type { ExercisePRSummary } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
 import { detectSetFatigue } from '@/coaching/fatigue';
-import { Plus, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight } from 'lucide-react-native';
+import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, Trash2 } from 'lucide-react-native';
 import { SET_COL } from './set-layout';
+
+const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
+  { id: 'working', label: 'Working set', hint: 'Counts toward PRs and progression' },
+  { id: 'warmup', label: 'Warm-up', hint: 'Excluded from PRs and progression' },
+  { id: 'drop', label: 'Drop set', hint: 'Back-off weight · not eligible for PRs' },
+  { id: 'failure', label: 'To failure', hint: 'Max effort · not eligible for PRs' },
+];
 
 /**
  * One exercise within an active session: header (name + rest timer config) and
@@ -43,6 +50,7 @@ export function ExerciseBlock({
   onAddWarmUp,
   onApplyLoad,
   onChangeRpe,
+  onChangeSetType,
   onOpenExercise,
   onSwap,
   showWarmUpSets = true,
@@ -67,6 +75,7 @@ export function ExerciseBlock({
   /** Prefill the next incomplete set with a weight/reps suggestion. */
   onApplyLoad?: (weight: number, reps?: number) => void;
   onChangeRpe?: (setId: number, rpe: number | null) => void;
+  onChangeSetType: (setId: number, setType: SetType) => void;
   /** Open exercise detail (history / charts). */
   onOpenExercise?: () => void;
   /** Open substitute picker — does not remove completed sets. */
@@ -78,6 +87,8 @@ export function ExerciseBlock({
 }) {
   const [restPickerOpen, setRestPickerOpen] = useState(false);
   const [assistOpen, setAssistOpen] = useState(false);
+  const [typeMenuSetId, setTypeMenuSetId] = useState<number | null>(null);
+  const typeMenuSet = typeMenuSetId != null ? sets.find((s) => s.id === typeMenuSetId) ?? null : null;
   const rowRefs = useRef<(SetRowHandle | null)[]>([]);
   const completedCount = sets.filter((s) => s.completed).length;
   const weightLabel = unit === 'metric' ? 'KG' : 'LB';
@@ -249,6 +260,8 @@ export function ExerciseBlock({
               completed={s.completed}
               isNext={!s.completed && activeSet?.id === s.id}
               unit={unit}
+              setType={s.setType}
+              onOpenSetType={() => setTypeMenuSetId(s.id)}
               onChangeWeight={(v) => onChangeWeight(s.id, v)}
               onChangeReps={(v) => onChangeReps(s.id, v)}
               onApplyPrevious={
@@ -297,6 +310,52 @@ export function ExerciseBlock({
         exerciseId={exerciseId}
         onSelect={onChangeRestSeconds}
       />
+
+      <Sheet
+        open={typeMenuSet != null}
+        onOpenChange={(open) => { if (!open) setTypeMenuSetId(null); }}
+        title="Set type"
+        mode="fit">
+        <View className="gap-1 pb-2">
+          {SET_TYPE_OPTIONS.map((opt) => {
+            const selected = (typeMenuSet?.setType ?? 'working') === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => {
+                  if (typeMenuSet) onChangeSetType(typeMenuSet.id, opt.id);
+                  setTypeMenuSetId(null);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={opt.label}
+                accessibilityState={{ selected }}
+                className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground">{opt.label}</Text>
+                  <Caption>{opt.hint}</Caption>
+                </View>
+                {selected ? <Icon icon={Check} size={18} color="primary" /> : null}
+              </Pressable>
+            );
+          })}
+          {typeMenuSet && sets.length > 1 ? (
+            <Pressable
+              onPress={() => {
+                onRemoveSet(typeMenuSet.id);
+                setTypeMenuSetId(null);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Delete set"
+              className="mt-1 flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-destructive">Delete set</Text>
+                <Caption>Removes set {sets.findIndex((s) => s.id === typeMenuSet.id) + 1} · undo available</Caption>
+              </View>
+              <Icon icon={Trash2} size={18} color="destructive" />
+            </Pressable>
+          ) : null}
+        </View>
+      </Sheet>
 
       <Sheet
         open={assistOpen}

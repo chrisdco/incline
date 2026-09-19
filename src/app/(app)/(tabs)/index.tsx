@@ -27,6 +27,7 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { startWorkout, discardWorkout, deleteWorkout, createTemplateFromWorkoutLog } from '@/db/queries';
+import { setCachedSession } from '@/db/session-cache';
 import { formatVolume, formatFullDate } from '@/db/calc';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
@@ -124,7 +125,11 @@ export default function HomeScreen() {
 
   const resumeActive = () => {
     setConflictOpen(false);
-    if (session) router.push(`/session/${session.id}`);
+    if (session) {
+      // Warm the reopen cache so the push lands on content, not a spinner.
+      setCachedSession(session);
+      router.push(`/session/${session.id}`);
+    }
     setPendingStart(null);
   };
 
@@ -157,7 +162,10 @@ export default function HomeScreen() {
 
   const programWorkout = todaySlot && !todaySlot.isRestDay ? todaySlot.workout : null;
   const todayMuscles = programWorkout ? todaySlot?.muscles ?? [] : suggestedMuscles;
-  const heroLoading = sugLoading || todayLoading;
+  // Skeleton only when there is nothing to show yet — refetches (e.g. back
+  // from session) keep the rendered card instead of flashing a skeleton.
+  const heroDataReady = todaySlot != null || suggested != null;
+  const heroLoading = !heroDataReady && (sugLoading || todayLoading);
 
   const renderHeader = () => (
     <View className="px-4">

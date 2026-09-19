@@ -1,4 +1,5 @@
 import { openDatabase } from '../../client';
+import { isSetType } from '../../types';
 import {
   allTimeLeaderboard,
   celebrationEventCount,
@@ -35,7 +36,7 @@ function mapRow(r: PrSetRow): PrSetInput & { exerciseName: string } {
     weight: r.weight,
     reps: r.reps,
     completed: true,
-    setType: r.setType === 'warmup' ? 'warmup' : 'working',
+    setType: isSetType(r.setType) ? r.setType : 'working',
     createdAt: r.createdAt,
     exerciseName: r.exerciseName,
   };

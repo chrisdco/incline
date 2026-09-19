@@ -2,6 +2,7 @@ import { cacheDirectory, writeAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 import { openDatabase } from '../client';
+import { isSetType } from '../types';
 import {
   buildExportJson,
   csvForSingleSection,
@@ -87,7 +88,7 @@ async function loadExportSetRows(range: ExportRange): Promise<ExportSetRow[]> {
     reps: r.reps,
     completed: r.completed === 1,
     restSeconds: r.rest_seconds,
-    setType: r.set_type === 'warmup' ? 'warmup' : 'working',
+    setType: isSetType(r.set_type) ? r.set_type : 'working',
     rpe: typeof r.rpe === 'number' && r.rpe >= 1 && r.rpe <= 10 ? Math.round(r.rpe) : null,
   }));
 }

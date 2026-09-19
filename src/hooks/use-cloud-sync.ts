@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
-import { useAuth } from '@clerk/expo';
+import { useAppAuth } from '@/auth/use-app-auth';
+import { isDevAuthBypassEnabled } from '@/lib/env';
 
 import { getSyncStatus, outboxCount, runSync, syncBackendReady, type SyncStatus } from '@/sync';
 
@@ -13,7 +14,7 @@ import { getSyncStatus, outboxCount, runSync, syncBackendReady, type SyncStatus 
  */
 export function useCloudSync(options?: { auto?: boolean }) {
   const auto = options?.auto ?? true;
-  const { isSignedIn, userId, getToken } = useAuth();
+  const { isSignedIn, userId, getToken } = useAppAuth();
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -45,6 +46,12 @@ export function useCloudSync(options?: { auto?: boolean }) {
   }, []);
 
   const syncNow = useCallback(async () => {
+    // Dev auth bypass has no token by design — stay fully local instead of
+    // writing "Not authenticated" errors into sync status on every boot.
+    if (isDevAuthBypassEnabled()) {
+      await refresh();
+      return { ok: false as const, error: 'Sync unavailable' };
+    }
     if (!isSignedIn || !userId || !syncBackendReady()) {
       await refresh();
       return { ok: false as const, error: 'Sync unavailable' };
@@ -93,7 +100,7 @@ export function useCloudSync(options?: { auto?: boolean }) {
     status,
     pending,
     syncing,
-    enabled: syncBackendReady() && !!isSignedIn,
+    enabled: syncBackendReady() && !!isSignedIn && !isDevAuthBypassEnabled(),
     syncNow,
     refresh,
   };

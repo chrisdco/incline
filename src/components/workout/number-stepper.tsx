@@ -1,5 +1,8 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
-import { TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
+// Gesture-handler TextInput cooperates with the parent Swipeable: a swipe
+// starting on the input still drives the row instead of being eaten by focus.
+import { TextInput } from 'react-native-gesture-handler';
 
 import { cn } from '@/lib/cn';
 import { Text } from '@/components/ui/text';
