@@ -681,6 +681,7 @@ export default function SessionScreen() {
                   <Caption className="mb-2 text-primary">Superset</Caption>
                 ) : null}
                 <ExerciseBlock
+                  logId={logId}
                   name={g.exerciseName}
                   exerciseId={g.exerciseId}
                   sets={g.sets}

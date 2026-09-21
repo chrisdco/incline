@@ -119,6 +119,7 @@ export async function resetUserData(): Promise<void> {
     // table added in v16
   }
   await db.execAsync('DELETE FROM workout_logs');
+  await db.execAsync('DELETE FROM session_exercise_notes');
   await db.execAsync('DELETE FROM bodyweight_entries');
   await db.execAsync('DELETE FROM body_measurements');
   await db.execAsync('DELETE FROM user_profile');
