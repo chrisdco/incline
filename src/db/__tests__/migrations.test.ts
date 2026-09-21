@@ -151,4 +151,33 @@ describe('schema migrations (better-sqlite3)', () => {
     expect(custom.is_custom).toBe(1);
     db.close();
   });
+
+  it('creates session_exercise_notes with per-log/exercise upsert semantics (017)', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE session_exercise_notes (
+        workout_log_id INTEGER NOT NULL,
+        exercise_id INTEGER NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (workout_log_id, exercise_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_session_exercise_notes_log ON session_exercise_notes(workout_log_id);
+    `);
+    const upsert = db.prepare(`
+      INSERT INTO session_exercise_notes (workout_log_id, exercise_id, notes, updated_at)
+      VALUES (?, ?, ?, ?) ON CONFLICT(workout_log_id, exercise_id)
+      DO UPDATE SET notes = excluded.notes, updated_at = excluded.updated_at
+    `);
+    upsert.run(1, 2, 'elbows tucked', 100);
+    upsert.run(1, 2, 'elbows tucked, pause', 200);
+    const row = db.prepare(
+      'SELECT notes FROM session_exercise_notes WHERE workout_log_id = 1 AND exercise_id = 2',
+    ).get() as { notes: string };
+    expect(row.notes).toBe('elbows tucked, pause');
+    db.prepare('DELETE FROM session_exercise_notes WHERE workout_log_id = 1 AND exercise_id = 2').run();
+    const gone = db.prepare('SELECT COUNT(*) as c FROM session_exercise_notes').get() as { c: number };
+    expect(gone.c).toBe(0);
+    db.close();
+  });
 });

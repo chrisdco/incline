@@ -8,6 +8,7 @@ import { Body, Caption } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { SetRow, type SetRowHandle } from './set-row';
+import { ExerciseNoteField, PlatesHint } from './exercise-extras';
 import { RpeChips } from './rpe-chips';
 import { PreviousBestBadge } from './previous-best-badge';
 import { RestTimerPickerSheet } from './rest-timer-picker-sheet';
@@ -34,6 +35,7 @@ const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
  * list stays the primary focus during logging.
  */
 export function ExerciseBlock({
+  logId,
   name,
   exerciseId,
   sets,
@@ -84,6 +86,8 @@ export function ExerciseBlock({
   showRpe?: boolean;
   loadSuggestion?: TrainingSuggestion | null;
   className?: string;
+  /** Owning workout log — feeds per-exercise notes. */
+  logId: number;
 }) {
   const [restPickerOpen, setRestPickerOpen] = useState(false);
   const [assistOpen, setAssistOpen] = useState(false);
@@ -200,15 +204,21 @@ export function ExerciseBlock({
           <Pressable
             onPress={() => setRestPickerOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel={`Rest timer: ${restSeconds > 0 ? restSeconds + 's' : 'off'}`}
-            className="flex-row items-center gap-1">
+            accessibilityLabel={restSeconds > 0 ? `Rest timer, ${restSeconds} seconds. Activate to change.` : 'Rest timer off. Activate to set.'}
+            hitSlop={6}
+            className="flex-row items-center gap-1.5 rounded-full bg-muted px-3 py-1.5">
             <Icon icon={Clock} size={13} color={restSeconds > 0 ? 'primary' : 'muted-foreground'} />
-            <Text className={cn('text-xs', restSeconds > 0 ? 'font-medium text-primary' : 'text-muted-foreground')}>
-              {restSeconds > 0 ? `${restSeconds}s` : 'Off'}
+            <Text className={cn('text-xs', restSeconds > 0 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+              {restSeconds > 0 ? `Rest ${restSeconds}s` : 'Rest off'}
             </Text>
           </Pressable>
         </View>
       </View>
+
+      <ExerciseNoteField logId={logId} exerciseId={exerciseId} />
+      {activeSet && activeSet.weight > 0 ? (
+        <PlatesHint exerciseId={exerciseId} weight={activeSet.weight} unit={unit} />
+      ) : null}
 
       {fatigue ? (
         <View className="mx-1 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2">

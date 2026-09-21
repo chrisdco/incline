@@ -8,7 +8,7 @@
  * `runMigrations` in `client.ts`. Keep SCHEMA_VERSION in sync with the latest
  * migration version.
  */
-export const SCHEMA_VERSION = 16;
+export const SCHEMA_VERSION = 17;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -243,6 +243,16 @@ export const SCHEMA_STATEMENTS: string[] = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   )`,
+
+  // ---- per-exercise session notes (local-only) ----
+  `CREATE TABLE IF NOT EXISTS session_exercise_notes (
+    workout_log_id INTEGER NOT NULL,
+    exercise_id INTEGER NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (workout_log_id, exercise_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_session_exercise_notes_log ON session_exercise_notes(workout_log_id)`,
 
   `CREATE TABLE IF NOT EXISTS schema_meta (
     key TEXT PRIMARY KEY,

@@ -15,6 +15,7 @@ import { migration013 } from './013_workout_photos';
 import { migration014 } from './014_set_rpe';
 import { migration015 } from './015_program_workouts_updated_at';
 import { migration016 } from './016_photo_sync_metadata';
+import { migration017 } from './017_session_exercise_notes';
 import type { Migration } from './types';
 
 export type { Migration } from './types';
@@ -37,6 +38,7 @@ export const MIGRATIONS: Migration[] = [
   migration014,
   migration015,
   migration016,
+  migration017,
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 1;

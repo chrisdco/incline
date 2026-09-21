@@ -5,7 +5,7 @@ Last updated: **2026-08-25** (two-week plan in [SPRINT-2026-08.md](./SPRINT-2026
 ## Current product state
 
 - **Branch:** `main` — sync-fidelity work merged via [#127](https://github.com/chrisdco/incline/pull/127); lockfile regenerated so `npm ci` works on Linux CI
-- **Schema version:** 16 (`016_photo_sync_metadata`)
+- **Schema version:** 17 (`017_session_exercise_notes`, local-only — no cloud deploy needed)
 - **Status:** Pre-alpha; offline-first logger. Core workout/profile sync plus RPE/set type/supersets, circumference, custom programs, account preferences, last-session ghost, and private photo backup (deploy + two-device restore still required)
 
 ## What landed via #127
