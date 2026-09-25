@@ -1,4 +1,5 @@
-import { View, Image } from 'react-native';
+import { View } from 'react-native';
+import { Image } from 'expo-image';
 
 import { cn } from '@/lib/cn';
 import { Text } from '@/components/ui/text';
@@ -48,6 +49,9 @@ export function InitialsAvatar({
     return (
       <Image
         source={{ uri }}
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
         className={cn('rounded-full', className)}
         style={{ width: size, height: size }}
       />

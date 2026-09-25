@@ -32,6 +32,7 @@ export function RestTimer({
   const done = remaining <= 0 && total > 0;
   const progress = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
   const fill = useSharedValue(progress);
+  const rowW = useSharedValue(0);
   // Amber bar for the last 10s, but only tick haptics on the final 3 seconds —
   // 10 vibrations read as noise instead of a cue.
   const urgent = remaining > 0 && remaining <= 10;
@@ -49,17 +50,27 @@ export function RestTimer({
     }
   }, [remaining, finalTicks, done, selection]);
 
-  const fillStyle = useAnimatedStyle(() => ({
-    width: `${fill.value * 100}%`,
-  }));
+  // GPU-only fill: scaleX about the left edge (via center-origin compensation)
+  // instead of width %, which re-lays-out every frame of the 250ms tick.
+  const fillStyle = useAnimatedStyle(() => {
+    const cw = Math.max(rowW.value, 1);
+    const s = Math.max(0, Math.min(1, fill.value));
+    return {
+      transform: [{ translateX: ((s - 1) * cw) / 2 }, { scaleX: Math.max(s, 0.001) }],
+    };
+  });
 
   return (
     <View
       className="absolute inset-x-0 bottom-0 z-30 border-t border-border bg-background px-4 py-3 pb-6"
-      style={{ elevation: 12 }}>
-      <View className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
+      style={{ boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.25)' }}>
+      <View
+        onLayout={(e) => {
+          rowW.value = e.nativeEvent.layout.width;
+        }}
+        className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
         <Animated.View
-          className={cn('h-full rounded-full', urgent ? 'bg-warning' : 'bg-primary')}
+          className={cn('h-full w-full rounded-full', urgent ? 'bg-warning' : 'bg-primary')}
           style={fillStyle}
         />
       </View>

@@ -2,7 +2,7 @@ import { ReactNode, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { BottomSheet, BottomSheetView, BottomSheetScrollView } from '@expo/ui/community/bottom-sheet';
 
-import { Text } from './text';
+import { Title } from '@/components/common/text';
 
 /**
  * Honest sheet heights for `@expo/ui` native sheets.
@@ -53,6 +53,7 @@ export function Sheet({
   title,
   mode = 'fit',
   scroll = false,
+  initialIndex = 0,
   children,
 }: {
   open: boolean;
@@ -60,6 +61,8 @@ export function Sheet({
   title?: string;
   mode?: SheetMode;
   scroll?: boolean;
+  /** Snap index to open at (default 0). Pickers open at 1 so lists aren't cut off at the 50% detent. */
+  initialIndex?: number;
   children: ReactNode;
 }) {
   const handleClose = useCallback(() => {
@@ -71,13 +74,13 @@ export function Sheet({
 
   return (
     <BottomSheet
-      index={open ? 0 : -1}
+      index={open ? initialIndex : -1}
       snapPoints={sizing.snapPoints}
       enableDynamicSizing={sizing.enableDynamicSizing}
       enablePanDownToClose
       onClose={handleClose}>
       <Content style={{ padding: 20 }}>
-        {title ? <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>{title}</Text> : null}
+        {title ? <Title className="mb-3">{title}</Title> : null}
         {children}
       </Content>
     </BottomSheet>

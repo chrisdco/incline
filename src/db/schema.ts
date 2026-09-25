@@ -8,7 +8,7 @@
  * `runMigrations` in `client.ts`. Keep SCHEMA_VERSION in sync with the latest
  * migration version.
  */
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -178,6 +178,7 @@ export const SCHEMA_STATEMENTS: string[] = [
     superset_group INTEGER,
     set_type TEXT NOT NULL DEFAULT 'working',
     rpe INTEGER,
+    sort_order INTEGER,
     uuid TEXT,
     deleted_at INTEGER,
     created_at INTEGER NOT NULL,
@@ -237,6 +238,7 @@ export const SCHEMA_STATEMENTS: string[] = [
     attempts INTEGER NOT NULL DEFAULT 0
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sync_outbox_order ON sync_outbox(id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_outbox_row ON sync_outbox(table_name, row_uuid)`,
 
   // ---- key/value (Zustand persist + flags) ----
   `CREATE TABLE IF NOT EXISTS kv (

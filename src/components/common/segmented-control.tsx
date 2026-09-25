@@ -24,7 +24,7 @@ export function SegmentedControl<T extends string>({
   const [offsets, setOffsets] = useState<number[]>(values.map(() => 0));
 
   const indicatorX = useSharedValue(0);
-  const indicatorWidth = useSharedValue(0);
+  const selectedWidth = widths[selectedIndex] ?? 0;
 
   const onLayout = (index: number, e: LayoutChangeEvent) => {
     const { x, width } = e.nativeEvent.layout;
@@ -41,23 +41,22 @@ export function SegmentedControl<T extends string>({
   };
 
   useEffect(() => {
-    const w = widths[selectedIndex] ?? 0;
     const x = offsets[selectedIndex] ?? 0;
-    if (w <= 0) return;
+    if (selectedWidth <= 0) return;
     indicatorX.value = withSpring(x, { damping: 40, stiffness: 150 });
-    indicatorWidth.value = withSpring(w, { damping: 40, stiffness: 150 });
-  }, [selectedIndex, widths, offsets, indicatorX, indicatorWidth]);
+  }, [selectedIndex, selectedWidth, offsets, indicatorX]);
 
+  // translateX glides on the GPU; width applies instantly (one layout per tap)
+  // instead of animating width every frame.
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: indicatorX.value }],
-    width: indicatorWidth.value,
   }));
 
   return (
     <View className={cn('relative flex-row rounded-xl border border-border bg-muted/60 p-1', className)}>
       <Animated.View
         className="absolute top-1 bottom-1 rounded-lg border border-primary/35 bg-primary/15"
-        style={[indicatorStyle, { left: 0 }]}
+        style={[indicatorStyle, { left: 0, width: Math.max(selectedWidth, 0) }]}
       />
       {values.map((v, i) => {
         const isSelected = v.value === value;

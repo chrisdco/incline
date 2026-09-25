@@ -24,3 +24,7 @@ jobs:
       - run: npm run lint
 
       - run: npm run test
+
+      # Heavier integration suite (real query modules over better-sqlite3):
+      # CI-only so local `npm test` stays instant on every small change.
+      - run: npm run test:integration

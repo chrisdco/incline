@@ -25,6 +25,7 @@ import {
   addWarmUpSet,
   getWorkoutLog,
   removeSet,
+  restoreSet,
   updateSet,
   updateWorkoutDuration,
   updateWorkoutNotes,
@@ -32,7 +33,6 @@ import {
   type SessionWorkout,
   type SessionSet,
 } from '@/db/queries';
-import { openDatabase } from '@/db/client';
 import { formatDuration, formatVolume, formatFullDateTime } from '@/db/calc';
 import type { Exercise, SetEntry } from '@/db/types';
 import { METRIC_ICONS } from '@/lib/metric-icons';
@@ -120,41 +120,48 @@ export default function EditWorkoutScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups.length]);
 
+  // Every mutation below goes through here: like the live session, a failed
+  // write toasts and reloads instead of rejecting unhandled. (Enqueues are
+  // awaited since Batch B, so the failure window is real.)
+  const mutate = async (label: string, fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+      load();
+    } catch {
+      toast({ title: label, description: 'Please try again.', variant: 'destructive' });
+      load();
+    }
+  };
+
   const onChangeWeight = async (setId: number, value: number) => {
     impact();
-    await updateSet(setId, { weight: value });
-    load();
+    await mutate('Could not save weight', () => updateSet(setId, { weight: value }));
   };
 
   const onChangeReps = async (setId: number, value: number) => {
     impact();
-    await updateSet(setId, { reps: value });
-    load();
+    await mutate('Could not save reps', () => updateSet(setId, { reps: value }));
   };
 
   const onToggleComplete = async (setId: number) => {
     const target = log?.sets.find((x) => x.id === setId);
     const next = !target?.completed;
-    await updateSet(setId, { completed: next });
+    await mutate('Could not save set', () => updateSet(setId, { completed: next }));
     impact();
-    load();
   };
 
   const onChangeRpe = async (setId: number, rpe: number | null) => {
-    await updateSet(setId, { rpe });
-    load();
+    await mutate('Could not save RPE', () => updateSet(setId, { rpe }));
   };
 
   const onAddSet = async (exerciseId: number) => {
     impact();
-    await addSet(logId, exerciseId);
-    load();
+    await mutate('Could not add set', () => addSet(logId, exerciseId));
   };
 
   const onAddWarmUp = async (exerciseId: number) => {
     impact();
-    await addWarmUpSet(logId, exerciseId);
-    load();
+    await mutate('Could not add warm-up', () => addWarmUpSet(logId, exerciseId));
   };
 
   const onRemoveSet = async (setId: number) => {
@@ -163,35 +170,45 @@ export default function EditWorkoutScreen() {
     setRemovedSet({ setEntry: target, exerciseId: target.exerciseId, logId });
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     undoTimerRef.current = setTimeout(() => setRemovedSet(null), 5000);
-    await removeSet(setId);
-    load();
+    try {
+      await removeSet(setId);
+      load();
+    } catch {
+      // A failed delete must not leave an undo slot that resurrects nothing.
+      setRemovedSet(null);
+      toast({ title: 'Could not delete set', description: 'Please try again.', variant: 'destructive' });
+      load();
+    }
   };
 
   const onUndoRemove = async () => {
     if (!removedSet) return;
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    const { setEntry, logId: lid } = removedSet;
-    const db = await openDatabase();
-    await db.runAsync(
-      `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      lid, setEntry.exerciseId, setEntry.setIndex, setEntry.weight, setEntry.reps, setEntry.completed ? 1 : 0, setEntry.restSeconds, setEntry.createdAt,
-    );
-    setRemovedSet(null);
-    load();
+    // Soft-delete restore (uuid + rpe + set_type preserved, synced, volume
+    // recomputed) — never a fabricated re-INSERT.
+    await mutate('Could not undo', async () => {
+      await restoreSet(removedSet.setEntry.id);
+      setRemovedSet(null);
+    });
   };
 
   const onPickExercise = async (ex: Exercise) => {
     impact();
-    await addExerciseToWorkout(logId, ex.id);
-    setPickerOpen(false);
-    load();
+    await mutate('Could not add exercise', async () => {
+      await addExerciseToWorkout(logId, ex.id);
+      setPickerOpen(false);
+    });
   };
 
   const onChangeDuration = async (minutes: number) => {
     impact();
-    await updateWorkoutDuration(logId, Math.max(0, minutes) * 60);
+    const applied = await updateWorkoutDuration(logId, Math.max(0, minutes) * 60);
     load();
-    toast({ title: 'Duration updated', variant: 'success' });
+    toast(
+      applied
+        ? { title: 'Duration updated', variant: 'success' }
+        : { title: 'Duration not changed', description: 'Only finished workouts keep an edited duration.', variant: 'warning' },
+    );
   };
 
   const handleSave = async () => {

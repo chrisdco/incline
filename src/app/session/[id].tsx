@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import Animated, { LinearTransition } from 'react-native-reanimated';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, MessageSquarePlus, Pause, Play, Plus, Undo2, X } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
@@ -12,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
 import { ExerciseBlock } from '@/components/workout/exercise-block';
-import { ExercisePickerSheet } from '@/components/workout/exercise-picker-sheet';
 import { DiscardSessionDialog } from '@/components/workout/discard-session-dialog';
 import { RestTimer } from '@/components/workout/rest-timer';
 import { RestPresetBar } from '@/components/workout/rest-preset-bar';
@@ -23,7 +23,6 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
 import {
-  addExerciseToWorkout,
   addSet,
   addWarmUpSet,
   discardWorkout,
@@ -34,7 +33,7 @@ import {
   getTemplateSuggestions,
   getSessionGhost,
   getWorkoutLog,
-  getExerciseSubstitutes,
+  removeExerciseFromWorkout,
   removeSet,
   restoreSet,
   updateSet,
@@ -52,12 +51,13 @@ import {
   isCelebrationPrKind,
 } from '@/coaching/pr';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
+import { motionDuration } from '@/styles/motion';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
 
-import type { Exercise, MuscleGroup, SetEntry, SetType } from '@/db/types';
+import type { MuscleGroup, SetEntry, SetType } from '@/db/types';
 import type { TrainingSuggestion } from '@/coaching/types';
 import type { SessionGhost } from '@/db/queries';
 
@@ -139,10 +139,11 @@ export default function SessionScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const groupRefs = useRef<(View | null)[]>([]);
   const prevActiveGroupRef = useRef<number | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [swapPinned, setSwapPinned] = useState<Exercise[]>([]);
+  const [removeTarget, setRemoveTarget] = useState<{ exerciseId: number; name: string } | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [restSecondsMap, setRestSecondsMap] = useState<Record<number, number>>({});
   const [notes, setNotes] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
@@ -211,6 +212,7 @@ export default function SessionScreen() {
     void (async () => {
       const s = await loadSession();
       if (!active || !s) return;
+      for (const id of new Set(s.sets.map((x) => x.exerciseId))) assistKnownRef.current.add(id);
       if (!seededRestRef.current) {
         seededRestRef.current = true;
         void getRestDefaultsForSession(logId).then(setRestSecondsMap);
@@ -221,6 +223,41 @@ export default function SessionScreen() {
       active = false;
     };
   }, [loadSession, loadAssist, logId]);
+
+  // Pick/reorder screens write directly then go back — refresh rows on
+  // return. Cheap SELECT; rest defaults merge for newly added exercises only
+  // (never clobber edits). Assist reloads only for exercises it hasn't seen:
+  // the pick screen's whole point is adding something new, which would
+  // otherwise show empty Last/PR/Suggested until remount.
+  const assistKnownRef = useRef<Set<number>>(new Set());
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        const s = await loadSession();
+        if (!s) return;
+        const ids = [...new Set(s.sets.map((x) => x.exerciseId))];
+        const unseen = ids.filter((id) => !assistKnownRef.current.has(id));
+        if (unseen.length > 0) {
+          for (const id of ids) assistKnownRef.current.add(id);
+          void loadAssist(s);
+        }
+      })();
+      void getRestDefaultsForSession(logId).then((defaults) => {
+        setRestSecondsMap((prev) => {
+          const next = { ...prev };
+          let changed = false;
+          for (const [key, value] of Object.entries(defaults)) {
+            const id = Number(key);
+            if (next[id] === undefined) {
+              next[id] = value;
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
+      });
+    }, [loadSession, loadAssist, logId]),
+  );
 
   // Keep the reopen cache fresh on every state change (optimistic edits flow
   // through here too, so the cache never lags the UI).
@@ -491,54 +528,84 @@ export default function SessionScreen() {
   const onUndoRemove = async () => {
     if (!removedSet) return;
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    await restoreSet(removedSet.setEntry.id);
-    setRemovedSet(null);
-    reloadAll();
+    try {
+      await restoreSet(removedSet.setEntry.id);
+      setRemovedSet(null);
+      reloadAll();
+    } catch {
+      toast({ title: 'Could not undo', variant: 'destructive' });
+      reload();
+    }
   };
   const onAddSet = async (exerciseId: number) => { impact(); await addSet(logId, exerciseId); reload(); };
   const onAddWarmUp = async (exerciseId: number) => { impact(); await addWarmUpSet(logId, exerciseId); reload(); };
-  const onPickExercise = async (ex: Exercise) => {
+  const openAddExercise = () => {
+    router.push(`/pick-exercise?logId=${logId}&mode=add` as Href);
+  };
+  const openReplaceExercise = (exerciseId: number, name: string) => {
+    router.push(
+      `/pick-exercise?logId=${logId}&mode=replace&exerciseId=${exerciseId}&name=${encodeURIComponent(name)}` as Href,
+    );
+  };
+  const openReorder = () => {
+    router.push(`/session/reorder/${logId}` as Href);
+  };
+  const removeTargetExercise = async () => {
+    if (!removeTarget) return;
+    const target = removeTarget;
+    setRemoveTarget(null);
     impact();
-    await addExerciseToWorkout(logId, ex.id);
-    setRestSecondsMap((prev) => ({ ...prev, [ex.id]: prev[ex.id] ?? ex.defaultRestSeconds ?? defaultRestSeconds }));
-    const wasSwap = swapPinned.length > 0;
-    setPickerOpen(false);
-    setSwapPinned([]);
-    reloadAll();
-    if (wasSwap) {
+    try {
+      const { removed } = await removeExerciseFromWorkout(logId, target.exerciseId);
+      reloadAll();
       toast({
-        title: 'Substitute added',
-        description: 'Completed sets on the original stay in the log.',
+        title: `${target.name} removed`,
+        description:
+          removed > 0
+            ? `${removed} set${removed === 1 ? '' : 's'} left this session. Your routine is untouched.`
+            : undefined,
         variant: 'info',
       });
+    } catch {
+      toast({ title: 'Could not remove exercise', variant: 'destructive' });
     }
   };
 
-  const onSwapExercise = async (exerciseId: number) => {
-    const subs = await getExerciseSubstitutes(exerciseId);
-    setSwapPinned(subs);
-    setPickerOpen(true);
-  };
-
   const finish = async () => {
+    // Guard double-tap: finishWorkout now awaits enqueues, widening the
+    // window where a second tap would double-close and double-navigate.
+    if (finishing) return;
+    setFinishing(true);
     setFinishOpen(false);
     rest.stop();
-    if (notes.trim()) await updateWorkoutNotes(logId, notes.trim());
-    const pauseBonus = pausedAt ? Date.now() - pausedAt : 0;
-    const pausedMs = totalPausedMsRef.current + pauseBonus;
-    await finishWorkout(logId, { pausedMs });
-    clear();
-    dropCachedSession(logId);
-    toast({ title: 'Workout saved', variant: 'success' });
-    router.replace(`/summary/${logId}?celebrate=1`);
+    try {
+      if (notes.trim()) await updateWorkoutNotes(logId, notes.trim());
+      const pauseBonus = pausedAt ? Date.now() - pausedAt : 0;
+      const pausedMs = totalPausedMsRef.current + pauseBonus;
+      await finishWorkout(logId, { pausedMs });
+      clear();
+      dropCachedSession(logId);
+      toast({ title: 'Workout saved', variant: 'success' });
+      router.replace(`/summary/${logId}?celebrate=1`);
+    } catch {
+      setFinishing(false);
+      toast({ title: 'Could not save workout', description: 'Please try again.', variant: 'destructive' });
+    }
   };
   const discard = async () => {
+    if (discarding) return;
+    setDiscarding(true);
     setDiscardOpen(false);
     rest.stop();
-    await discardWorkout(logId);
-    clear();
-    dropCachedSession(logId);
-    router.replace('/(app)/(tabs)');
+    try {
+      await discardWorkout(logId);
+      clear();
+      dropCachedSession(logId);
+      router.replace('/(app)/(tabs)');
+    } catch {
+      setDiscarding(false);
+      toast({ title: 'Could not discard workout', variant: 'destructive' });
+    }
   };
 
   if (loading)
@@ -566,13 +633,13 @@ export default function SessionScreen() {
   const totalSets = session.sets.length;
   const totalVolume = session.sets.reduce((acc, s) => acc + (s.completed ? s.weight * s.reps : 0), 0);
 
+  // Completed sets only: an unstarted exercise must not paint its muscle as
+  // trained on the body map.
   const sessionMuscleDistribution = (() => {
     const counts: Partial<Record<MuscleGroup, number>> = {};
     for (const s of session.sets) {
-      counts[s.primaryMuscle] = (counts[s.primaryMuscle] ?? 0) + (s.completed ? 1 : 0);
-    }
-    for (const s of session.sets) {
-      if ((counts[s.primaryMuscle] ?? 0) === 0) counts[s.primaryMuscle] = 1;
+      if (!s.completed) continue;
+      counts[s.primaryMuscle] = (counts[s.primaryMuscle] ?? 0) + 1;
     }
     return (Object.entries(counts) as [MuscleGroup, number][]).map(([muscle, sets]) => ({
       muscle,
@@ -591,7 +658,7 @@ export default function SessionScreen() {
           <Body className="font-semibold text-foreground">{session.name}</Body>
           {pausedAt ? <Caption className="text-amber-500">Paused</Caption> : null}
         </View>
-        <Button size="sm" variant="success" leftIcon={<Icon icon={Check} size={16} color="success-foreground" />} onPress={() => setFinishOpen(true)}>
+        <Button size="sm" variant="success" leftIcon={<Icon icon={Check} size={16} color="success-foreground" />} onPress={() => setFinishOpen(true)} disabled={finishing || discarding} loading={finishing}>
           Finish
         </Button>
       </View>
@@ -653,7 +720,7 @@ export default function SessionScreen() {
           </View>
         ) : null}
 
-        <Button variant="outline" className="mb-3" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={() => setPickerOpen(true)}>
+        <Button variant="outline" className="mb-3" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
           Add exercise
         </Button>
 
@@ -670,8 +737,12 @@ export default function SessionScreen() {
               const continueSuperset =
                 inSuperset && prev != null && prev.supersetGroup === g.supersetGroup;
               return (
-              <View
+              // Layout-animated: note editors expanding in one block glide the
+              // blocks below instead of snapping them.
+              <Animated.View
                 key={g.exerciseId}
+                layout={LinearTransition.duration(motionDuration.enter)}>
+              <View
                 ref={(el) => { groupRefs.current[i] = el; }}
                 className={inSuperset ? 'border-l-2 border-primary/50 pl-3' : undefined}>
                 {i > 0 && !continueSuperset ? <View className="mb-5 h-px bg-border/40" /> : null}
@@ -700,12 +771,15 @@ export default function SessionScreen() {
                   onChangeRpe={onChangeRpe}
                   onChangeSetType={onChangeSetType}
                   onOpenExercise={() => router.push(`/exercise/${g.exerciseId}` as Href)}
-                  onSwap={() => { void onSwapExercise(g.exerciseId); }}
+                  onReplaceExercise={() => openReplaceExercise(g.exerciseId, g.exerciseName)}
+                  onRemoveExercise={() => setRemoveTarget({ exerciseId: g.exerciseId, name: g.exerciseName })}
+                  onReorderExercises={openReorder}
                   showWarmUpSets={showWarmUpSets}
                   showRpe={showRpe}
                   loadSuggestion={suggestionMap[g.exerciseId] ?? null}
                 />
               </View>
+              </Animated.View>
             );})}
           </View>
         )}
@@ -777,15 +851,17 @@ export default function SessionScreen() {
         />
       ) : null}
 
-      <ExercisePickerSheet
-        open={pickerOpen}
-        onOpenChange={(open) => {
-          setPickerOpen(open);
-          if (!open) setSwapPinned([]);
-        }}
-        onPick={onPickExercise}
-        pinned={swapPinned}
-        title={swapPinned.length > 0 ? 'Swap exercise' : undefined}
+      <Dialog
+        open={removeTarget != null}
+        onOpenChange={(open) => { if (!open) setRemoveTarget(null); }}
+        title={removeTarget ? `Remove ${removeTarget.name}?` : 'Remove exercise?'}
+        description="Its sets leave this session. Your routine is untouched — finishing saves what you actually did as history."
+        footer={
+          <>
+            <Button variant="outline" onPress={() => setRemoveTarget(null)}>Keep</Button>
+            <Button variant="destructive" onPress={() => { void removeTargetExercise(); }}>Remove</Button>
+          </>
+        }
       />
 
       <Dialog
@@ -799,12 +875,12 @@ export default function SessionScreen() {
         }
         footer={
           <>
-            <Button variant="outline" onPress={() => setFinishOpen(false)}>Keep logging</Button>
-            <Button variant="success" onPress={finish}>Finish &amp; save</Button>
+            <Button variant="outline" onPress={() => setFinishOpen(false)} disabled={finishing}>Keep logging</Button>
+            <Button variant="success" onPress={finish} disabled={finishing} loading={finishing}>Finish &amp; save</Button>
           </>
         }
       />
-      <DiscardSessionDialog open={discardOpen} onOpenChange={setDiscardOpen} onConfirm={discard} />
+      <DiscardSessionDialog open={discardOpen} onOpenChange={(open) => { if (!discarding) setDiscardOpen(open); }} onConfirm={discard} pending={discarding} />
 
       <Sheet open={timerSheetOpen} onOpenChange={setTimerSheetOpen} title="Workout Timer" mode="fit">
         <View className="items-center gap-3 py-2">

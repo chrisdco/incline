@@ -74,7 +74,7 @@ export function PlateCalculator({ targetWeight: initialTarget, className }: Plat
           </View>
         ) : null}
 
-        {input && Number(input) > 0 && result && (
+        {input && Number(input) > 0 && result ? (
           <View className="gap-2">
             <Caption className="text-muted-foreground">
               {result.barbell > 0
@@ -91,13 +91,13 @@ export function PlateCalculator({ targetWeight: initialTarget, className }: Plat
               </View>
             )}
           </View>
-        )}
+        ) : null}
 
-        {input && Number(input) > 0 && !result && (
+        {input && Number(input) > 0 && !result ? (
           <Caption className="text-destructive">
             Weight must be at least {includeBar ? `the ${barWeight}${unit} bar` : '0'}.
           </Caption>
-        )}
+        ) : null}
       </View>
     </View>
   );

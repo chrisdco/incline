@@ -66,8 +66,8 @@ export function ActiveSessionBar({
 
   return (
     <View
-      style={{ marginHorizontal: 16, marginBottom: 8, borderRadius: 9999 }}
-      className={cn('flex-row items-center border border-border bg-surface2 px-3 py-3 shadow-lg', className)}>
+      style={{ borderRadius: 9999 }}
+      className={cn('mx-4 mb-2 flex-row items-center border border-border bg-surface2 px-3 py-3 shadow-lg', className)}>
       {/* Whole bar opens — only the trash circle deletes. */}
       <Pressable
         onPress={open}

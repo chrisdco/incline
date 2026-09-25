@@ -61,6 +61,54 @@ export function validateNarrationResponse(
   raw: unknown,
   pack: FeaturePackV1,
 ): { ok: true; narration: CoachNarration } | { ok: false; error: string } {
+  // Hard gate: the caller is expected to run `sanitizeNarrationResponse` first
+  // (client + edge both do). Anything still invalid here is unrecoverable —
+  // invented numbers, empty content — and must fail, never render.
+  const sanitized = sanitizeNarrationResponse(raw, pack);
+  return validateSanitizedNarration(sanitized, pack);
+}
+
+/**
+ * Soft sanitizer (Amber `sanitizeIntents` pattern): trim/slice, drop empty
+ * paragraphs, dedupe citations and drop unknown ids — return partial success
+ * instead of failing on recoverable model padding. Never invents content:
+ * headline/paragraphs come only from the model, ids only from the pack.
+ * Callers still run the hard `validateNarrationResponse` gate afterwards.
+ */
+export function sanitizeNarrationResponse(raw: unknown, pack: FeaturePackV1): unknown {
+  if (!isRecord(raw)) return raw;
+  const allowedIds = new Set(pack.insights.map((i) => i.id));
+  const out: Record<string, unknown> = { ...raw };
+  if (typeof out.headline === 'string') {
+    out.headline = out.headline.trim().slice(0, MAX_NARRATION_HEADLINE);
+  }
+  if (Array.isArray(out.paragraphs)) {
+    const cleaned = out.paragraphs
+      .filter((p): p is string => typeof p === 'string')
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .slice(0, MAX_NARRATION_PARAGRAPHS);
+    out.paragraphs = cleaned;
+  }
+  if (Array.isArray(out.citedInsightIds)) {
+    const seen = new Set<string>();
+    const cited: string[] = [];
+    for (const id of out.citedInsightIds) {
+      if (typeof id !== 'string' || !id) continue;
+      if (!allowedIds.has(id)) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      cited.push(id);
+    }
+    out.citedInsightIds = cited;
+  }
+  return out;
+}
+
+function validateSanitizedNarration(
+  raw: unknown,
+  pack: FeaturePackV1,
+): { ok: true; narration: CoachNarration } | { ok: false; error: string } {
   if (!isRecord(raw)) return { ok: false, error: 'narration must be an object' };
   if (typeof raw.headline !== 'string') return { ok: false, error: 'headline must be a string' };
   const headline = raw.headline.trim();

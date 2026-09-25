@@ -6,7 +6,9 @@ import { ArrowLeft, Share2 } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Hero } from '@/components/common/text';
-import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
+import { PrimaryActivityIndicator } from
+'@/components/common/primary-activity-indicator';
+import { ErrorState } from '@/components/common/states';
 import { StatCard } from '@/components/common/stat-card';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,14 +27,26 @@ export default function WeekReportScreen() {
   const weekStartMs = weekStartParam ? Number(weekStartParam) : defaultWeekStart;
   const router = useRouter();
   const { unit } = useSettings();
-  const { data: recap, loading } = useWeeklyRecap(
+  const { data: recap, loading, error, refetch } = useWeeklyRecap(
     Number.isFinite(weekStartMs) ? weekStartMs : defaultWeekStart,
   );
 
-  if (loading || !recap) {
+  if (loading && !recap) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background">
         <PrimaryActivityIndicator />
+      </SafeAreaView>
+    );
+  }
+
+  if (!recap) {
+    return (
+      <SafeAreaView className="flex-1 bg-background">
+        <ErrorState
+          title="Could not load this report"
+          description={error ? 'The recap query failed. Your data is safe.' : 'No recap for this week yet.'}
+          onRetry={refetch}
+        />
       </SafeAreaView>
     );
   }

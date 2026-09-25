@@ -46,6 +46,21 @@ export async function getExerciseByExternalId(externalId: string): Promise<Exerc
   return row ? mapExercise(db, row) : null;
 }
 
+/** Most recently trained exercises (by session start), for pickers. */
+export async function getRecentExercises(limit = 10): Promise<Exercise[]> {
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<ExerciseRow>(
+    `SELECT e.* FROM set_entries s
+     JOIN workout_logs w ON w.id = s.workout_log_id
+     JOIN exercises e ON e.id = s.exercise_id
+     WHERE s.deleted_at IS NULL AND w.deleted_at IS NULL
+       AND e.deleted_at IS NULL AND s.completed = 1 AND w.ended_at IS NOT NULL
+     GROUP BY s.exercise_id ORDER BY MAX(w.started_at) DESC LIMIT ?`,
+    limit,
+  );
+  return Promise.all(rows.map((r) => mapExercise(db, r)));
+}
+
 export interface ExerciseFilters {
   muscle?: MuscleGroup;
   equipment?: Equipment;
