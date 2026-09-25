@@ -21,6 +21,7 @@
   "exclude": [
     "**/__tests__/**",
     "vitest.config.ts",
-    "supabase/functions/**"
+    "supabase/functions/**",
+    "web/**/*"
   ]
 }

@@ -1,0 +1,57 @@
+name: Web
+
+on:
+  push:
+    branches: [main]
+    paths: [web/**, .github/workflows/web.yml]
+  pull_request:
+    branches: [main]
+    paths: [web/**, .github/workflows/web.yml]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+
+  e2e:
+    runs-on: ubuntu-latest
+    # Secrets are not allowed in job `if:` — gate on a repo *variable* the
+    # maintainer sets alongside the secrets (Settings → Variables).
+    # Authed specs additionally skip without E2E_TEST_EMAIL + PASSWORD.
+    if: vars.WEB_E2E_ENABLED == 'true'
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
