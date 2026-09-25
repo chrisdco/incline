@@ -5,7 +5,8 @@ const expoConfig = require("eslint-config-expo/flat");
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
+    // The Next.js web app has its own toolchain (web/eslint.config.mjs).
+    ignores: ["dist/*", "web/**/*"],
   },
   {
     // React Compiler lint rules vs. idiomatic library patterns in this app:
