@@ -1,0 +1,22 @@
+name: Account purge
+
+# Daily hard-delete for grace-period account deletions. Free tier: GitHub's
+# scheduler (no Vercel/paid cron needed). Manual runs via workflow_dispatch.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  purge:
+    # Ships dark: set the repo variable ACCOUNT_DELETION_ENABLED=true when the
+    # feature goes to real users, otherwise this stays green and silent.
+    if: vars.ACCOUNT_DELETION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl --fail -X POST "$WEB_URL/api/account/purge" \
+            -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          WEB_URL: ${{ secrets.WEB_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

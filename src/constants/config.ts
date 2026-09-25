@@ -18,6 +18,13 @@ export const STORAGE_KEYS = {
 } as const;
 
 /**
+ * Account deletion with a 30-day grace period (docs/ACCOUNT-DELETION.md).
+ * Shipped dark: entry points and the gate check stay dormant until this is
+ * true. Flip when the app goes to real users — no other code changes needed.
+ */
+export const ACCOUNT_DELETION_ENABLED = false;
+
+/**
  * Placeholder text colour for native `TextInput`s. These cannot use Tailwind
  * classes, so they need one shared value — screens previously drifted between
  * three different greys (#6b7280 / #9ca3af / #71717a).
