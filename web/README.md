@@ -74,8 +74,9 @@ already ships inside `node_modules/next/dist/docs/` plus the generated
 - E2E: `npm run e2e` (Playwright, Chromium). Public specs need Clerk
   publishable + Supabase anon env; authed specs additionally need
   `E2E_TEST_EMAIL` + `E2E_TEST_PASSWORD` for a throwaway Clerk user and skip
-  otherwise. CI runs them only when the secrets exist (see
-  `.github/workflows/web.yml`).
+  otherwise. CI runs them only when the repo variable `WEB_E2E_ENABLED` is
+  `true` (job `if:` cannot read secrets) — see
+  `.github/workflows/web.yml`.
 
 ## Roadmap (web phases)
 

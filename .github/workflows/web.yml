@@ -29,9 +29,10 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    # Needs at minimum the public-safe keys; authed specs additionally skip
-    # without E2E_TEST_EMAIL + E2E_TEST_PASSWORD (throwaway Clerk user).
-    if: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
+    # Secrets are not allowed in job `if:` — gate on a repo *variable* the
+    # maintainer sets alongside the secrets (Settings → Variables).
+    # Authed specs additionally skip without E2E_TEST_EMAIL + PASSWORD.
+    if: vars.WEB_E2E_ENABLED == 'true'
     defaults:
       run:
         working-directory: web
