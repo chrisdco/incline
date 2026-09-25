@@ -1,11 +1,13 @@
 # Agent handoff — read this after `git pull`
 
-Last updated: **2026-08-25** (two-week plan in [SPRINT-2026-08.md](./SPRINT-2026-08.md)).
+Last updated: **2026-09-25**. Plan: [SPRINT-2026-08.md](./SPRINT-2026-08.md) (still the two-week frame) · pickup list: [REVIEW-BATCHES.md](./REVIEW-BATCHES.md) (batches A–J + second-pass fixes) · deletion design: [ACCOUNT-DELETION.md](./ACCOUNT-DELETION.md) · web app: [web/README.md](../web/README.md).
 
 ## Current product state
 
-- **Branch:** `main` — sync-fidelity work merged via [#127](https://github.com/chrisdco/incline/pull/127); lockfile regenerated so `npm ci` works on Linux CI
-- **Schema version:** 17 (`017_session_exercise_notes`, local-only — no cloud deploy needed)
+- **Branch:** `main` — recent work uncommitted (see `git status`): session kebab menu + pick/reorder screens, Batch B durability (outbox upsert, transactions, guards), delete-with-grace dark-shipped, Tier-2 integration harness, Amber-port UI tokens, `web/` Next.js companion
+- **Schema version:** 18 (`018_set_sort_order`, local-only — no cloud deploy needed)
+- **Feature flags (all off):** `ACCOUNT_DELETION_ENABLED` (mobile constant + web env + cron repo variable)
+- **Tests:** `npm test` = fast unit (local default); `npm run test:integration` = real-module SQLite suite (CI runs both)
 - **Status:** Pre-alpha; offline-first logger. Core workout/profile sync plus RPE/set type/supersets, circumference, custom programs, account preferences, last-session ghost, and private photo backup (deploy + two-device restore still required)
 
 ## What landed via #127
