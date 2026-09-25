@@ -5,10 +5,12 @@ type DiscardProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
+  /** While the discard is running: disables both buttons, spins the confirm. */
+  pending?: boolean;
 };
 
 /** Confirm permanently discarding the active session. */
-export function DiscardSessionDialog({ open, onOpenChange, onConfirm }: DiscardProps) {
+export function DiscardSessionDialog({ open, onOpenChange, onConfirm, pending }: DiscardProps) {
   return (
     <Dialog
       open={open}
@@ -17,10 +19,10 @@ export function DiscardSessionDialog({ open, onOpenChange, onConfirm }: DiscardP
       description="This session and all logged sets will be permanently deleted."
       footer={
         <>
-          <Button variant="outline" onPress={() => onOpenChange(false)}>
+          <Button variant="outline" onPress={() => onOpenChange(false)} disabled={pending}>
             Cancel
           </Button>
-          <Button variant="destructive" onPress={onConfirm}>
+          <Button variant="destructive" onPress={onConfirm} disabled={pending} loading={pending}>
             Discard
           </Button>
         </>

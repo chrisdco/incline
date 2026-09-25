@@ -22,16 +22,16 @@ export async function enqueueSync(
   const now = Date.now();
   const json = payload ? JSON.stringify(payload) : null;
 
-  // Drop older pending ops for the same row so the latest wins.
-  await db.runAsync(
-    'DELETE FROM sync_outbox WHERE table_name = ? AND row_uuid = ?',
-    tableName,
-    rowUuid,
-  );
-
+  // Single-statement coalesce. The old DELETE + bare INSERT pair could lose
+  // the mutation on a kill between statements (local row already bumped, so
+  // pull LWW would never repair it). Requires the UNIQUE index created in
+  // schema.ts / ensure-sync-schema.ts. Atomic alone and safe to call inside a
+  // larger withTransactionAsync (no nesting involved).
   await db.runAsync(
     `INSERT INTO sync_outbox (table_name, row_uuid, op, payload, created_at, attempts)
-     VALUES (?, ?, ?, ?, ?, 0)`,
+     VALUES (?, ?, ?, ?, ?, 0)
+     ON CONFLICT(table_name, row_uuid)
+     DO UPDATE SET op = excluded.op, payload = excluded.payload, created_at = excluded.created_at, attempts = 0`,
     tableName,
     rowUuid,
     op,

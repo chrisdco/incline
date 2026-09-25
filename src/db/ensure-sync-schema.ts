@@ -81,6 +81,16 @@ export async function ensureSyncSchema(db: SQLiteDatabase): Promise<void> {
   }
 
   // Indexes only after columns exist
+  // Dedup first: pre-upsert builds could leave duplicate outbox rows, and a
+  // UNIQUE index over duplicates throws on open (boot brick). Keep latest.
+  await db.execAsync(
+    `DELETE FROM sync_outbox WHERE id NOT IN (
+      SELECT MIN(id) FROM sync_outbox GROUP BY table_name, row_uuid
+    )`,
+  );
+  await db.execAsync(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_outbox_row ON sync_outbox(table_name, row_uuid)',
+  );
   await db.execAsync('CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_uuid ON exercises(uuid)');
   await db.execAsync(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_workout_templates_uuid ON workout_templates(uuid)',

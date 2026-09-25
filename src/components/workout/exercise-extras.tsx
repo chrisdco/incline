@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
-import { TextInput } from 'react-native-gesture-handler';
+import { Pressable, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { MessageSquarePlus } from 'lucide-react-native';
 
 import { Caption } from '@/components/common/text';
@@ -10,6 +10,7 @@ import { getExercise, getSessionExerciseNote, saveSessionExerciseNote } from '@/
 import { calculatePlates } from '@/lib/plate-calculator';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
+import { motionDuration } from '@/styles/motion';
 import type { Unit } from '@/db/types';
 
 /**
@@ -54,22 +55,47 @@ export function ExerciseNoteField({ logId, exerciseId }: { logId: number; exerci
   }
 
   return (
-    <TextInput
-      value={draft}
-      onChangeText={setDraft}
-      autoFocus
-      multiline
-      placeholder="Cues, feel, setup details…"
-      placeholderTextColor={PLACEHOLDER_COLOR}
-      onBlur={() => {
-        setEditing(false);
-        setNote(draft.trim());
-        void saveSessionExerciseNote(logId, exerciseId, draft).catch(() => {});
-      }}
-      accessibilityLabel="Exercise note"
-      style={{ minHeight: 36, paddingVertical: 6, fontSize: 13 }}
-      className="rounded-xl bg-muted/60 px-3 text-foreground"
-    />
+    <Animated.View
+      entering={FadeIn.duration(motionDuration.state)}
+      exiting={FadeOut.duration(motionDuration.feedback)}
+      className="gap-1 rounded-xl bg-muted/60 px-3 py-2">
+      <TextInput
+        value={draft}
+        onChangeText={setDraft}
+        // No autoFocus: focusing on mount pops the keyboard and yanks scroll
+        // the instant "Add note" is tapped. Editor opens in place (position
+        // stays); keyboard + minimal OS scroll happen on tap into the field.
+        multiline
+        placeholder="Cues, feel, setup details…"
+        placeholderTextColor={PLACEHOLDER_COLOR}
+        // Save on blur but STAY mounted: the session ScrollView dismisses the
+        // keyboard on drag, and unmounting here closed the editor mid-typing
+        // with no way back except re-tap. Explicit Done collapses it.
+        onBlur={() => {
+          setNote(draft.trim());
+          void saveSessionExerciseNote(logId, exerciseId, draft).catch((err) => {
+            console.warn('[notes] exercise note save failed', err);
+          });
+        }}
+        accessibilityLabel="Exercise note"
+        style={{ minHeight: 36, paddingVertical: 6, fontSize: 13 }}
+        className="text-foreground"
+      />
+      <Pressable
+        onPress={() => {
+          setEditing(false);
+          setNote(draft.trim());
+          void saveSessionExerciseNote(logId, exerciseId, draft).catch((err) => {
+            console.warn('[notes] exercise note save failed', err);
+          });
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Done editing exercise note"
+        hitSlop={8}
+        className="self-end rounded-lg bg-primary/15 px-3 py-1.5">
+        <Text className="text-xs font-semibold text-primary">Done</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 

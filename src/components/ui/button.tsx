@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
-import { Pressable, type PressableProps } from 'react-native';
+import { ActivityIndicator, Pressable, type PressableProps } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
+import { motionControl, motionPress } from '@/styles/motion';
 import { Text } from './text';
 
 const buttonVariants = cva('flex-row items-center justify-center gap-2 rounded-full', {
@@ -52,6 +53,8 @@ type ButtonProps = PressableProps &
     leftIcon?: ReactNode;
     rightIcon?: ReactNode;
     textClass?: string;
+    /** Busy state: disables press, shows a spinner, keeps the label for a11y. */
+    loading?: boolean;
   };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -73,6 +76,7 @@ export function Button({
   rightIcon,
   children,
   disabled,
+  loading,
   ...props
 }: ButtonProps) {
   const scale = useSharedValue(1);
@@ -82,31 +86,37 @@ export function Button({
   }));
 
   const onPressIn = useCallback(() => {
-    scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
+    scale.value = withSpring(motionPress.scale, motionPress.spring);
   }, [scale]);
 
   const onPressOut = useCallback(() => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+    scale.value = withSpring(1, motionPress.spring);
   }, [scale]);
 
   const label = asButtonLabel(children);
+  const inactive = disabled || loading;
 
   return (
     <AnimatedPressable
       style={animatedStyle}
-      className={cn(buttonVariants({ variant, size }), disabled && 'opacity-50', className)}
-      disabled={disabled}
+      className={cn(buttonVariants({ variant, size }), inactive && 'opacity-50', className)}
+      disabled={inactive}
       accessibilityRole="button"
+      accessibilityState={{ disabled: inactive, busy: loading }}
+      // Amber `control` pattern: retain presses that drift slightly off-target
+      // (gym use with sweaty hands) without enlarging the visual target.
+      pressRetentionOffset={motionControl.pressRetentionOffset}
+      hitSlop={motionControl.pressRetentionOffset}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       {...props}>
-      {leftIcon}
+      {loading ? <ActivityIndicator /> : leftIcon}
       {label != null ? (
         <Text className={cn(buttonTextVariants({ variant, size }), textClass)}>{label}</Text>
       ) : (
         children
       )}
-      {rightIcon}
+      {!loading && rightIcon}
     </AnimatedPressable>
   );
 }

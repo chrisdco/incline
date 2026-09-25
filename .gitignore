@@ -51,3 +51,7 @@ install.err
 tsc_baseline.txt
 tsc_err.txt
 tsc_out.txt
+
+# Local agent-skill links (reinstall via: npx skills add vercel-labs/agent-skills)
+.claude/skills/
+

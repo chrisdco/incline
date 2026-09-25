@@ -349,10 +349,64 @@ function collectAllowedNumbers(pack: FeaturePackV1): Set<string> {
   if (typeof agg.weeklyStreak === 'number') parts.push(String(agg.weeklyStreak));
   if (typeof agg.volumeDeltaPct === 'number') parts.push(String(agg.volumeDeltaPct));
   if (typeof agg.prCount === 'number') parts.push(String(agg.prCount));
+  // Parity with src/coaching/narrate-validate.ts: recent-week numbers are
+  // speakable. A shared package would be better than this comment (Batch G).
+  if (Array.isArray(agg.recentWeeks)) {
+    for (const week of agg.recentWeeks as { sessions: unknown; volume: unknown }[]) {
+      if (typeof week.sessions === 'number') parts.push(String(week.sessions));
+      if (typeof week.volume === 'number') parts.push(String(week.volume));
+    }
+  }
   return new Set(extractNumberTokens(parts.join(' ')));
 }
 
 export function validateNarrationResponse(
+  raw: unknown,
+  pack: FeaturePackV1,
+): { ok: true; narration: CoachNarration } | { ok: false; error: string } {
+  // Hard gate: sanitize first (client mirrors this). Anything still invalid —
+  // invented numbers, empty content — must fail, never render.
+  const sanitized = sanitizeNarrationResponse(raw, pack);
+  return validateSanitizedNarration(sanitized, pack);
+}
+
+/**
+ * Soft sanitizer (Amber `sanitizeIntents` pattern): trim/slice, drop empty
+ * paragraphs, dedupe citations and drop unknown ids — return partial success
+ * instead of a 502 on recoverable model padding. Never invents content.
+ * NOTE: keep in sync with `src/coaching/narrate-validate.ts`.
+ */
+export function sanitizeNarrationResponse(raw: unknown, pack: FeaturePackV1): unknown {
+  if (!isRecord(raw)) return raw;
+  const allowedIds = new Set(pack.insights.map((i) => i.id));
+  const out: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
+  if (typeof out.headline === 'string') {
+    out.headline = out.headline.trim().slice(0, 80);
+  }
+  if (Array.isArray(out.paragraphs)) {
+    const cleaned = (out.paragraphs as unknown[])
+      .filter((p): p is string => typeof p === 'string')
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    out.paragraphs = cleaned;
+  }
+  if (Array.isArray(out.citedInsightIds)) {
+    const seen = new Set<string>();
+    const cited: string[] = [];
+    for (const id of out.citedInsightIds as unknown[]) {
+      if (typeof id !== 'string' || !id) continue;
+      if (!allowedIds.has(id)) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      cited.push(id);
+    }
+    out.citedInsightIds = cited;
+  }
+  return out;
+}
+
+function validateSanitizedNarration(
   raw: unknown,
   pack: FeaturePackV1,
 ): { ok: true; narration: CoachNarration } | { ok: false; error: string } {

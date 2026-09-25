@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { Pressable, View } from 'react-native';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { FlashList } from '@shopify/flash-list';
@@ -61,6 +61,66 @@ function toSupabaseItem(ex: Exercise): SupabaseExercise {
     is_custom: ex.isCustom,
   };
 }
+
+/** Module scope: a new component identity per render breaks FlashList recycling. */
+function PickerSeparator() {
+  return <View className="h-2" />;
+}
+
+/** Memoized row: search keystrokes re-render the list, not every visible row. */
+const PickerRow = memo(function PickerRow({
+  externalId,
+  name,
+  isCustom,
+  canDelete,
+  targetMuscle,
+  equipment,
+  onPick,
+  onDelete,
+}: {
+  externalId: string;
+  name: string;
+  isCustom: boolean;
+  canDelete: boolean;
+  targetMuscle: string;
+  equipment: string;
+  onPick: (externalId: string) => void;
+  onDelete: (externalId: string) => void;
+}) {
+  return (
+    <Pressable onPress={() => onPick(externalId)}>
+      <View className="mb-2">
+        <View className="flex-row items-center gap-3 rounded-3xl bg-card p-4">
+          <View className="flex-1">
+            <View className="flex-row items-center gap-2">
+              <Text className="text-sm font-semibold text-foreground">{name}</Text>
+              {isCustom ? (
+                <View className="rounded-full bg-primary/15 px-2 py-0.5">
+                  <Text className="text-[10px] font-semibold text-primary">Custom</Text>
+                </View>
+              ) : null}
+            </View>
+            <View className="mt-1 flex-row flex-wrap items-center gap-1.5">
+              <MuscleBadge muscle={targetMuscle} />
+              <Text className="text-xs text-muted-foreground">{equipment}</Text>
+            </View>
+          </View>
+          {canDelete ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${name}`}
+              onPress={() => onDelete(externalId)}
+              hitSlop={8}
+              className="p-2">
+              <Icon icon={Trash2} size={16} color="muted-foreground" />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
 
 /** Modal sheet to pick an exercise — fetches from Supabase (ExerciseDB data). */
 export function ExercisePickerSheet({
@@ -209,8 +269,36 @@ export function ExercisePickerSheet({
     return [...pinnedItems, ...items.filter((i) => !seen.has(i.external_id))];
   }, [items, pinned, query]);
 
+  // Stable by-id callbacks so memoized rows skip re-renders on keystrokes.
+  // Refs sync in an effect: row presses only fire post-render.
+  const itemsRef = useRef(displayItems);
+  const pickRef = useRef(handlePick);
+  const deleteRef = useRef(handleDeleteCustom);
+  useEffect(() => {
+    itemsRef.current = displayItems;
+    pickRef.current = handlePick;
+    deleteRef.current = handleDeleteCustom;
+  });
+  const handlePickById = useCallback((externalId: string) => {
+    const item = itemsRef.current.find((x) => x.external_id === externalId);
+    if (item) void pickRef.current(item);
+  }, []);
+  const handleDeleteById = useCallback((externalId: string) => {
+    const item = itemsRef.current.find((x) => x.external_id === externalId);
+    if (item) void deleteRef.current(item);
+  }, []);
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={creating ? 'Create exercise' : (title ?? 'Add exercise')} mode="expandable" scroll>
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={creating ? 'Create exercise' : (title ?? 'Add exercise')}
+      mode="expandable"
+      // Open at the full detent: at 50% the search + 500px list was cut off
+      // with no affordance. User can still drag down to half. Covers both
+      // the add-exercise and swap-exercise entries (same sheet).
+      initialIndex={1}
+      scroll>
       {creating ? (
         <CreateExerciseForm onCreated={handleCreated} onCancel={() => setCreating(false)} />
       ) : (
@@ -232,39 +320,19 @@ export function ExercisePickerSheet({
               <FlashList
                 data={displayItems}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => handlePick(item)}>
-                    <View className="mb-2">
-                      <View className="flex-row items-center gap-3 rounded-3xl bg-card p-4">
-                        <View className="flex-1">
-                          <View className="flex-row items-center gap-2">
-                            <Text className="text-sm font-semibold text-foreground">{item.name}</Text>
-                            {item.is_custom ? (
-                              <View className="rounded-full bg-primary/15 px-2 py-0.5">
-                                <Text className="text-[10px] font-semibold text-primary">Custom</Text>
-                              </View>
-                            ) : null}
-                          </View>
-                          <View className="mt-1 flex-row flex-wrap items-center gap-1.5">
-                            <MuscleBadge muscle={item.target_muscle} />
-                            <Text className="text-xs text-muted-foreground">{item.equipment}</Text>
-                          </View>
-                        </View>
-                        {item.is_custom && usageMap[item.id] === 0 ? (
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Delete ${item.name}`}
-                            onPress={() => handleDeleteCustom(item)}
-                            hitSlop={8}
-                            className="p-2">
-                            <Icon icon={Trash2} size={16} color="muted-foreground" />
-                          </Pressable>
-                        ) : null}
-                      </View>
-                    </View>
-                  </Pressable>
+                  <PickerRow
+                    externalId={item.external_id}
+                    name={item.name}
+                    isCustom={item.is_custom === true}
+                    canDelete={item.is_custom === true && usageMap[item.id] === 0}
+                    targetMuscle={item.target_muscle}
+                    equipment={item.equipment}
+                    onPick={handlePickById}
+                    onDelete={handleDeleteById}
+                  />
                 )}
                 keyExtractor={(item) => item.external_id}
-                ItemSeparatorComponent={() => <View className="h-2" />}
+                ItemSeparatorComponent={PickerSeparator}
                 onEndReached={loadMore}
                 onEndReachedThreshold={0.3}
                 ListFooterComponent={

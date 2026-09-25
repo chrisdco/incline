@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,6 +18,7 @@ import {
 } from '@expo-google-fonts/geist';
 
 import { cn } from '@/lib/cn';
+import { themeHex } from '@/lib/theme';
 import { CLERK_PUBLISHABLE_KEY, isDevAuthBypassEnabled } from '@/lib/env';
 import { secureTokenCache } from '@/auth/secure-store';
 import { ToastProvider } from '@/components/ui/toast';
@@ -47,6 +49,17 @@ function AppShell() {
   const dbReady = useDatabaseReady();
   const scheme = useAppColorScheme();
   const accentTheme = useSettings((s) => s.accentTheme);
+  // Paint the OS window + nav containers with the themed background so push /
+  // pop gestures never reveal a white flash underneath. Matches --background.
+  // (Amber pattern: bridge the palette into the nav theme — the navigator
+  // paints every screen container with `background` before JS mounts, and
+  // SystemUI covers the root view/overscroll behind routes.)
+  const palette = themeHex(scheme, accentTheme);
+  const navBackground = palette.background;
+
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(navBackground).catch(() => {});
+  }, [navBackground]);
 
   useEffect(() => {
     if (fontsLoaded && dbReady) SplashScreen.hideAsync();
@@ -55,9 +68,21 @@ function AppShell() {
   if (!fontsLoaded || !dbReady) return null;
 
   const isDark = scheme === 'dark';
+  const baseNavTheme = isDark ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...baseNavTheme,
+    colors: {
+      ...baseNavTheme.colors,
+      background: navBackground,
+      card: navBackground,
+      text: palette.foreground,
+      border: palette.border,
+      primary: palette.primary,
+    },
+  };
 
   return (
-    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navTheme}>
       <ErrorBoundary>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <GestureHandlerRootView style={{ flex: 1 }}>
@@ -65,7 +90,11 @@ function AppShell() {
             <View className={cn('flex-1', isDark && 'dark', `theme-${accentTheme}`)}>
                 <ToastProvider>
                   <NotificationBootstrap />
-                  <Stack screenOptions={{ headerShown: false }}>
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: navBackground },
+                    }}>
                   <Stack.Screen name="index" />
                   <Stack.Screen name="(onboarding)" />
                   <Stack.Screen name="(auth)" />
@@ -73,10 +102,39 @@ function AppShell() {
                   <Stack.Screen name="exercise/[id]" options={{ headerShown: true, title: 'Exercise' }} />
                   <Stack.Screen name="workout/[id]" options={{ headerShown: true, title: 'Workout' }} />
                   <Stack.Screen name="session/[id]" options={{ headerShown: false }} />
+                  <Stack.Screen name="session/reorder/[id]" options={{ headerShown: false }} />
+                  <Stack.Screen name="pick-exercise" options={{ headerShown: false }} />
                   <Stack.Screen name="summary/[id]" options={{ headerShown: false }} />
-                  <Stack.Screen name="share/[id]" options={{ headerShown: false, presentation: 'modal' }} />
-                  <Stack.Screen name="share/week" options={{ headerShown: false, presentation: 'modal' }} />
-                  <Stack.Screen name="share/month" options={{ headerShown: false, presentation: 'modal' }} />
+                  {/* Share cards as formSheets (Amber convention): grabber +
+                      themed container so the sheet never flashes the default
+                      background on push. Android falls back to modal. */}
+                  <Stack.Screen
+                    name="share/[id]"
+                    options={{
+                      headerShown: false,
+                      presentation: 'formSheet',
+                      sheetGrabberVisible: true,
+                      contentStyle: { backgroundColor: navBackground },
+                    }}
+                  />
+                  <Stack.Screen
+                    name="share/week"
+                    options={{
+                      headerShown: false,
+                      presentation: 'formSheet',
+                      sheetGrabberVisible: true,
+                      contentStyle: { backgroundColor: navBackground },
+                    }}
+                  />
+                  <Stack.Screen
+                    name="share/month"
+                    options={{
+                      headerShown: false,
+                      presentation: 'formSheet',
+                      sheetGrabberVisible: true,
+                      contentStyle: { backgroundColor: navBackground },
+                    }}
+                  />
                   <Stack.Screen name="edit-workout/[id]" options={{ headerShown: false }} />
                   <Stack.Screen name="+not-found" options={{ title: 'Not Found' }} />
                 </Stack>

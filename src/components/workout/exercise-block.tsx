@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { cn } from '@/lib/cn';
+import { motionDuration } from '@/styles/motion';
 import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/ui/text';
 import { Body, Caption } from '@/components/common/text';
@@ -17,7 +19,7 @@ import type { SetEntry, SetType, Unit } from '@/db/types';
 import type { ExercisePRSummary } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
 import { detectSetFatigue } from '@/coaching/fatigue';
-import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, Trash2 } from 'lucide-react-native';
+import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical } from 'lucide-react-native';
 import { SET_COL } from './set-layout';
 
 const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
@@ -54,7 +56,9 @@ export function ExerciseBlock({
   onChangeRpe,
   onChangeSetType,
   onOpenExercise,
-  onSwap,
+  onReplaceExercise,
+  onRemoveExercise,
+  onReorderExercises,
   showWarmUpSets = true,
   showRpe = true,
   loadSuggestion,
@@ -80,8 +84,12 @@ export function ExerciseBlock({
   onChangeSetType: (setId: number, setType: SetType) => void;
   /** Open exercise detail (history / charts). */
   onOpenExercise?: () => void;
-  /** Open substitute picker — does not remove completed sets. */
-  onSwap?: () => void;
+  /** Replace with another exercise (full-screen chooser). */
+  onReplaceExercise?: () => void;
+  /** Remove this exercise from the session (confirm lives with caller). */
+  onRemoveExercise?: () => void;
+  /** Open the session reorder screen. */
+  onReorderExercises?: () => void;
   showWarmUpSets?: boolean;
   showRpe?: boolean;
   loadSuggestion?: TrainingSuggestion | null;
@@ -91,6 +99,7 @@ export function ExerciseBlock({
 }) {
   const [restPickerOpen, setRestPickerOpen] = useState(false);
   const [assistOpen, setAssistOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [typeMenuSetId, setTypeMenuSetId] = useState<number | null>(null);
   const typeMenuSet = typeMenuSetId != null ? sets.find((s) => s.id === typeMenuSetId) ?? null : null;
   const rowRefs = useRef<(SetRowHandle | null)[]>([]);
@@ -177,15 +186,6 @@ export function ExerciseBlock({
                 </Text>
               </Pressable>
             ) : null}
-            {onSwap ? (
-              <Pressable
-                onPress={onSwap}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel={`Swap ${name}`}>
-                <Icon icon={ArrowLeftRight} size={14} color="muted-foreground" />
-              </Pressable>
-            ) : null}
             {showAssistIcon ? (
               <Pressable
                 onPress={() => setAssistOpen(true)}
@@ -197,25 +197,36 @@ export function ExerciseBlock({
             ) : null}
           </View>
         </View>
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center gap-2">
           <Text className="text-xs text-muted-foreground">
             {completedCount}/{sets.length}
           </Text>
           <Pressable
-            onPress={() => setRestPickerOpen(true)}
+            onPress={() => setOptionsOpen(true)}
+            hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel={restSeconds > 0 ? `Rest timer, ${restSeconds} seconds. Activate to change.` : 'Rest timer off. Activate to set.'}
-            hitSlop={6}
-            className="flex-row items-center gap-1.5 rounded-full bg-muted px-3 py-1.5">
-            <Icon icon={Clock} size={13} color={restSeconds > 0 ? 'primary' : 'muted-foreground'} />
-            <Text className={cn('text-xs', restSeconds > 0 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
-              {restSeconds > 0 ? `Rest ${restSeconds}s` : 'Rest off'}
-            </Text>
+            accessibilityLabel={`${name} options`}
+            className="p-1">
+            <Icon icon={MoreVertical} size={18} color="muted-foreground" />
           </Pressable>
         </View>
       </View>
 
       <ExerciseNoteField logId={logId} exerciseId={exerciseId} />
+      {/* Layout-animated unit: when the note editor above expands/collapses,
+          rest + plates + sets glide instead of snapping. */}
+      <Animated.View layout={LinearTransition.duration(motionDuration.enter)} className="gap-2">
+      <Pressable
+        onPress={() => setRestPickerOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={restSeconds > 0 ? `Rest timer, ${restSeconds} seconds. Activate to change.` : 'Rest timer off. Activate to set.'}
+        hitSlop={6}
+        className="flex-row items-center gap-1.5 self-start rounded-full bg-muted px-3 py-1.5">
+        <Icon icon={Clock} size={13} color={restSeconds > 0 ? 'primary' : 'muted-foreground'} />
+        <Text className={cn('text-xs', restSeconds > 0 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+          {restSeconds > 0 ? `Rest ${restSeconds}s` : 'Rest off'}
+        </Text>
+      </Pressable>
       {activeSet && activeSet.weight > 0 ? (
         <PlatesHint exerciseId={exerciseId} weight={activeSet.weight} unit={unit} />
       ) : null}
@@ -312,6 +323,7 @@ export function ExerciseBlock({
           <Text className="text-sm font-medium text-warning">Warm-up (~50%)</Text>
         </Pressable>
       ) : null}
+      </Animated.View>
 
       <RestTimerPickerSheet
         open={restPickerOpen}
@@ -320,6 +332,64 @@ export function ExerciseBlock({
         exerciseId={exerciseId}
         onSelect={onChangeRestSeconds}
       />
+
+      <Sheet
+        open={optionsOpen}
+        onOpenChange={setOptionsOpen}
+        title={name}
+        mode="fit">
+        <View className="gap-1 pb-2">
+          {onReplaceExercise ? (
+            <Pressable
+              onPress={() => {
+                setOptionsOpen(false);
+                onReplaceExercise();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Replace ${name}`}
+              className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <Icon icon={ArrowLeftRight} size={18} color="foreground" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">Replace exercise</Text>
+                <Caption>Completed sets stay in your log</Caption>
+              </View>
+            </Pressable>
+          ) : null}
+          {onReorderExercises ? (
+            <Pressable
+              onPress={() => {
+                setOptionsOpen(false);
+                onReorderExercises();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Reorder exercises"
+              className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <Icon icon={ArrowUpDown} size={18} color="foreground" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">Reorder exercises</Text>
+                <Caption>Saved for this session</Caption>
+              </View>
+            </Pressable>
+          ) : null}
+          {onRemoveExercise ? (
+            <Pressable
+              onPress={() => {
+                setOptionsOpen(false);
+                onRemoveExercise();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${name} from this workout`}
+              className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <Icon icon={Trash2} size={18} color="destructive" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-destructive">Remove exercise</Text>
+                <Caption>Removes its sets from this session only</Caption>
+              </View>
+            </Pressable>
+          ) : null}
+          {/* Superset grouping joins this menu later (deferred). */}
+        </View>
+      </Sheet>
 
       <Sheet
         open={typeMenuSet != null}
@@ -437,16 +507,6 @@ export function ExerciseBlock({
                 onOpenExercise();
               }}>
               Open exercise details
-            </Button>
-          ) : null}
-          {onSwap ? (
-            <Button
-              variant="outline"
-              onPress={() => {
-                setAssistOpen(false);
-                onSwap();
-              }}>
-              Swap exercise
             </Button>
           ) : null}
         </View>

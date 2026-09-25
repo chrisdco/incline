@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Play, Plus, ArrowRight, Dumbbell } from 'lucide-react-native';
+import { Play, Plus, ArrowRight, ChevronRight, Dumbbell } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Hero, Body, Caption } from '@/components/common/text';
@@ -153,7 +153,12 @@ export default function HomeScreen() {
   const startNewAndDiscard = async () => {
     setConflictOpen(false);
     if (session) {
-      await discardWorkout(session.id);
+      try {
+        await discardWorkout(session.id);
+      } catch {
+        toast({ title: 'Could not discard workout', variant: 'destructive' });
+        return;
+      }
       clear();
     }
     if (pendingStart) {
@@ -229,7 +234,7 @@ export default function HomeScreen() {
         {heroLoading ? (
           <CardSkeleton />
         ) : programWorkout ? (
-          <Pressable onPress={() => router.push(`/workout/${programWorkout.templateId}`)}>
+          <View>
             <Card elevation="raised">
               <View className="flex-row items-center justify-between">
                 <Caption>Today · {todaySlot!.program.name}</Caption>
@@ -237,9 +242,18 @@ export default function HomeScreen() {
                   <Caption>{programWorkout.estimatedMinutes} min</Caption>
                 ) : null}
               </View>
-              <Body className="mt-2 font-semibold text-foreground">
-                {programWorkout.templateName ?? 'Workout'}
-              </Body>
+              {/* Explicit preview affordance: the old outer Pressable wrapped
+                  the Start button, so one tap could push preview AND start. */}
+              <Pressable
+                onPress={() => router.push(`/workout/${programWorkout.templateId}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Preview ${programWorkout.templateName ?? 'workout'}`}
+                className="flex-row items-center justify-between">
+                <Body className="mt-2 flex-1 font-semibold text-foreground">
+                  {programWorkout.templateName ?? 'Workout'}
+                </Body>
+                <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+              </Pressable>
               <Caption className="mt-1">Week {todaySlot!.week}</Caption>
               {todayMuscles.length > 0 ? (
                 <MuscleBodyMap muscles={todayMuscles} compact className="mt-3" />
@@ -254,7 +268,7 @@ export default function HomeScreen() {
                 Start workout
               </Button>
             </Card>
-          </Pressable>
+          </View>
         ) : todaySlot?.isRestDay ? (
           <Card elevation="raised">
             <Caption>Today · {todaySlot.program.name}</Caption>
@@ -272,13 +286,20 @@ export default function HomeScreen() {
             </Button>
           </Card>
         ) : suggested ? (
-          <Pressable onPress={() => router.push(`/workout/${suggested.id}`)}>
+          <View>
             <Card elevation="raised">
               <View className="flex-row items-center justify-between">
                 <Caption>Today&apos;s workout</Caption>
                 <Caption>{suggested.estimatedMinutes} min</Caption>
               </View>
-              <Body className="mt-2 font-semibold text-foreground">{suggested.name}</Body>
+              <Pressable
+                onPress={() => router.push(`/workout/${suggested.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Preview ${suggested.name}`}
+                className="flex-row items-center justify-between">
+                <Body className="mt-2 flex-1 font-semibold text-foreground">{suggested.name}</Body>
+                <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+              </Pressable>
               <Body className="mt-1 text-sm text-muted-foreground" numberOfLines={2}>
                 {suggested.description}
               </Body>
@@ -294,7 +315,7 @@ export default function HomeScreen() {
               </Button>
               <Caption className="mt-3 text-center">Suggested from your recent training</Caption>
             </Card>
-          </Pressable>
+          </View>
         ) : null}
 
         {hasData && !todaySlot?.isRestDay ? (

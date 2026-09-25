@@ -11,7 +11,7 @@ vi.mock('expo-crypto', () => ({
 import { COACHING_RULE_VERSION } from '../types';
 import { buildFeaturePackV1, type FeaturePackV1 } from '../feature-pack';
 import { requestCoachNarration } from '../narrate-client';
-import { validateNarrationResponse } from '../narrate-validate';
+import { sanitizeNarrationResponse, validateNarrationResponse } from '../narrate-validate';
 
 function packWithInsight(): FeaturePackV1 {
   return buildFeaturePackV1({
@@ -62,7 +62,7 @@ describe('validateNarrationResponse', () => {
     }
   });
 
-  it('rejects headlines over 80 characters', () => {
+  it('truncates headlines over 80 characters instead of failing', () => {
     const result = validateNarrationResponse(
       {
         headline: 'x'.repeat(81),
@@ -71,31 +71,67 @@ describe('validateNarrationResponse', () => {
       },
       pack,
     );
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.narration.headline).toBe('x'.repeat(80));
   });
 
-  it('rejects cited ids that are not in the pack', () => {
+  it('sanitizes recoverable padding instead of failing: trims, caps paragraphs, drops unknown ids', () => {
     const result = validateNarrationResponse(
+      {
+        headline: '  Volume is up 12%  ',
+        paragraphs: ['  You added 12% volume.  ', '', 'Bench stays at 80.', 'extra padded para'],
+        citedInsightIds: ['volume-trend', 'not-a-real-id', 'volume-trend'],
+      },
+      pack,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.narration.headline).toBe('Volume is up 12%');
+      expect(result.narration.paragraphs).toEqual([
+        'You added 12% volume.',
+        'Bench stays at 80.',
+        'extra padded para',
+      ]);
+      expect(result.narration.citedInsightIds).toEqual(['volume-trend']);
+    }
+  });
+
+  it('still rejects unrecoverable output: empty headline, no paragraphs, invented numbers', () => {
+    expect(
+      validateNarrationResponse(
+        { headline: '   ', paragraphs: ['Volume +12% vs last week'], citedInsightIds: [] },
+        pack,
+      ).ok,
+    ).toBe(false);
+    expect(
+      validateNarrationResponse(
+        { headline: 'Keep going', paragraphs: [], citedInsightIds: [] },
+        pack,
+      ).ok,
+    ).toBe(false);
+    expect(
+      validateNarrationResponse(
+        {
+          headline: 'Try 225 next',
+          paragraphs: ['That load is not in the pack.'],
+          citedInsightIds: ['volume-trend'],
+        },
+        pack,
+      ).ok,
+    ).toBe(false);
+  });
+
+  it('sanitizeNarrationResponse never invents content', () => {
+    const sanitized = sanitizeNarrationResponse(
       {
         headline: 'Keep going',
         paragraphs: ['Volume +12% vs last week'],
         citedInsightIds: ['not-a-real-id'],
       },
       pack,
-    );
-    expect(result.ok).toBe(false);
-  });
-
-  it('rejects invented numbers', () => {
-    const result = validateNarrationResponse(
-      {
-        headline: 'Try 225 next',
-        paragraphs: ['That load is not in the pack.'],
-        citedInsightIds: ['volume-trend'],
-      },
-      pack,
-    );
-    expect(result.ok).toBe(false);
+    ) as Record<string, unknown>;
+    expect(sanitized.headline).toBe('Keep going');
+    expect(sanitized.citedInsightIds).toEqual([]);
   });
 });
 

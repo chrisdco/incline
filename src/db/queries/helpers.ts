@@ -119,6 +119,8 @@ export interface SetRow {
   superset_group: number | null;
   set_type?: string | null;
   rpe?: number | null;
+  /** Display order of the exercise group (018, local-only). NULL = insertion order. */
+  sort_order?: number | null;
   uuid: string | null;
   deleted_at: number | null;
   created_at: number;
@@ -266,7 +268,7 @@ export async function getSessionSets(logId: number): Promise<SessionSet[]> {
     `SELECT s.*, e.name as exercise_name, e.primary_muscle
      FROM set_entries s JOIN exercises e ON e.id = s.exercise_id
      WHERE s.workout_log_id = ? AND s.deleted_at IS NULL
-     ORDER BY s.id, s.set_index`,
+     ORDER BY COALESCE(s.sort_order, s.id), s.set_index`,
     logId,
   );
   return rows.map((r) => ({

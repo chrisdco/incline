@@ -3,6 +3,7 @@
  * used by expo-sqlite migrations. Keeps schema evolution safe without a device.
  */
 import Database from 'better-sqlite3';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 function createV1Db() {
@@ -112,6 +113,19 @@ function applyThroughV5(db: Database.Database) {
 }
 
 describe('schema migrations (better-sqlite3)', () => {
+  it('keeps SCHEMA_VERSION in sync with the latest migration', () => {
+    // client.ts only runs migrations when stored version < SCHEMA_VERSION —
+    // registering a migration without bumping it ships a missing column.
+    // Source-text comparison: importing the migrations index under Node pulls
+    // native modules (expo-crypto, ensure-sync-schema chain).
+    const indexSrc = readFileSync(new URL('../migrations/index.ts', import.meta.url), 'utf8');
+    const versions = [...indexSrc.matchAll(/migration(\d{3})/g)].map((m) => Number(m[1]));
+    const schemaSrc = readFileSync(new URL('../schema.ts', import.meta.url), 'utf8');
+    const schemaMatch = schemaSrc.match(/export const SCHEMA_VERSION = (\d+);/);
+    expect(schemaMatch).not.toBeNull();
+    expect(Number(schemaMatch?.[1])).toBe(Math.max(...new Set(versions)));
+  });
+
   it('upgrades v1 → v5 without wiping exercise rows', () => {
     const db = createV1Db();
     applyThroughV5(db);
@@ -178,6 +192,51 @@ describe('schema migrations (better-sqlite3)', () => {
     db.prepare('DELETE FROM session_exercise_notes WHERE workout_log_id = 1 AND exercise_id = 2').run();
     const gone = db.prepare('SELECT COUNT(*) as c FROM session_exercise_notes').get() as { c: number };
     expect(gone.c).toBe(0);
+    db.close();
+  });
+
+  it('backfills set sort_order from insertion order and reorders via COALESCE (018)', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE set_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workout_log_id INTEGER NOT NULL,
+        exercise_id INTEGER NOT NULL,
+        set_index INTEGER NOT NULL,
+        deleted_at INTEGER
+      );
+      INSERT INTO set_entries (workout_log_id, exercise_id, set_index)
+      VALUES (1, 10, 0), (1, 20, 0), (1, 10, 1);
+    `);
+    // Mirror 018: add column + backfill from rowid order.
+    db.exec('ALTER TABLE set_entries ADD COLUMN sort_order INTEGER');
+    db.exec('UPDATE set_entries SET sort_order = id WHERE sort_order IS NULL');
+    expect(hasColumn(db, 'set_entries', 'sort_order')).toBe(true);
+
+    const order = (db
+      .prepare(
+        `SELECT DISTINCT exercise_id FROM set_entries
+         WHERE workout_log_id = 1 AND deleted_at IS NULL
+         ORDER BY COALESCE(sort_order, id)`,
+      )
+      .all() as { exercise_id: number }[]).map((r) => r.exercise_id);
+    expect(order).toEqual([10, 20]);
+
+    // Reorder: bench (20) first.
+    db.prepare(
+      'UPDATE set_entries SET sort_order = ? WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
+    ).run(0, 1, 20);
+    db.prepare(
+      'UPDATE set_entries SET sort_order = ? WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
+    ).run(1, 1, 10);
+    const reordered = (db
+      .prepare(
+        `SELECT DISTINCT exercise_id FROM set_entries
+         WHERE workout_log_id = 1 AND deleted_at IS NULL
+         ORDER BY COALESCE(sort_order, id)`,
+      )
+      .all() as { exercise_id: number }[]).map((r) => r.exercise_id);
+    expect(reordered).toEqual([20, 10]);
     db.close();
   });
 });

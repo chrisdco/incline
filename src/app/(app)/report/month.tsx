@@ -7,7 +7,9 @@ import { ArrowLeft, Award, ChevronRight, Share2 } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Hero } from '@/components/common/text';
-import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
+import { PrimaryActivityIndicator } from
+'@/components/common/primary-activity-indicator';
+import { ErrorState } from '@/components/common/states';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { MuscleRadar } from '@/components/progress/muscle-radar';
@@ -98,15 +100,27 @@ export default function MonthReportScreen() {
   const router = useRouter();
   const { unit, weekStartsOn } = useSettings();
   const { data: profile } = useProfile();
-  const { data: recap, loading } = useMonthlyRecap(
+  const { data: recap, loading, error, refetch } = useMonthlyRecap(
     Number.isFinite(monthStartMs) ? monthStartMs : defaultStart,
   );
   const [sparkMetric, setSparkMetric] = useState<SparkMetric>('sessions');
 
-  if (loading || !recap) {
+  if (loading && !recap) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background">
         <PrimaryActivityIndicator />
+      </SafeAreaView>
+    );
+  }
+
+  if (!recap) {
+    return (
+      <SafeAreaView className="flex-1 bg-background">
+        <ErrorState
+          title="Could not load this report"
+          description={error ? 'The recap query failed. Your data is safe.' : 'No recap for this month yet.'}
+          onRetry={refetch}
+        />
       </SafeAreaView>
     );
   }
