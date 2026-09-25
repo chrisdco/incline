@@ -33,7 +33,10 @@ import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { useProfile, useProgressStats } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
-import { saveProfile, clearWorkoutHistory } from '@/db/queries';
+import { saveProfile, clearWorkoutHistory, resetUserData } from '@/db/queries';
+import { requestDeletion } from '@/lib/account-deletion';
+import { ACCOUNT_DELETION_ENABLED } from '@/constants/config';
+import { useActiveWorkout } from '@/store/active-workout-store';
 import { GOAL_LABELS } from '@/lib/labels';
 import { formatVolume } from '@/db/calc';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
@@ -48,8 +51,10 @@ export default function ProfileScreen() {
   const { unit } = useSettings();
   const { data: profile, refetch } = useProfile();
   const { data: stats, refetch: refetchStats } = useProgressStats();
-  const { signOut } = useAppAuth();
+  const { signOut, userId, getToken } = useAppAuth();
   const [clearOpen, setClearOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const pickAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -82,6 +87,37 @@ export default function ProfileScreen() {
     await clearWorkoutHistory();
     refetchStats();
     toast({ title: 'Workout history cleared', variant: 'info' });
+  };
+
+  const deleteAccount = async () => {
+    if (!userId || deleting) return;
+    setDeleting(true);
+    // Schedule server-side first: if this throws, nothing local is touched.
+    try {
+      await requestDeletion(userId, getToken);
+    } catch {
+      toast({ title: 'Could not schedule deletion', variant: 'destructive' });
+      setDeleting(false);
+      return;
+    }
+    // Wipe-then-exit runs even if the wipe itself throws: the server already
+    // scheduled, so staying signed in with partial data is the worse outcome.
+    // Next login lands on the scheduled screen either way.
+    try {
+      await resetUserData();
+    } catch (err) {
+      console.warn('[profile] local wipe incomplete after scheduled deletion', err);
+    } finally {
+      useActiveWorkout.getState().clear();
+      setDeleteOpen(false);
+      setDeleting(false);
+      try {
+        await signOut();
+      } catch {
+        // Clerk sign-out is best-effort here; the gate re-routes regardless.
+      }
+      router.replace('/(auth)/sign-in' as Href);
+    }
   };
 
   const achievements = evaluateAchievements(stats);
@@ -202,6 +238,17 @@ export default function ProfileScreen() {
             <Icon icon={ChevronRight} size={18} color="muted-foreground" />
           </Pressable>
 
+          {!isDevAuthBypassEnabled() && ACCOUNT_DELETION_ENABLED && (
+          <Pressable onPress={() => setDeleteOpen(true)} accessibilityRole="button" accessibilityLabel="Delete account" className="flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
+            <Icon icon={LogOut} size={20} color="destructive" />
+            <View className="flex-1">
+              <Body className="font-medium text-destructive">Delete account</Body>
+              <Caption>30-day undo window</Caption>
+            </View>
+            <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+          </Pressable>
+          )}
+
           <View className="flex-row items-center gap-3 rounded-3xl bg-card p-4">
             <Icon icon={Info} size={20} color="muted-foreground" />
             <View className="flex-1">
@@ -244,6 +291,19 @@ export default function ProfileScreen() {
           <>
             <Button variant="outline" onPress={() => setClearOpen(false)}>Cancel</Button>
             <Button variant="destructive" onPress={clearHistory}>Delete</Button>
+          </>
+        }
+      />
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => { if (!deleting) setDeleteOpen(open); }}
+        title="Delete your account?"
+        description="This schedules deletion of all workouts, measurements, routines and photos in 30 days. This device is wiped now; signing back in before the purge cancels it and restores everything. Export first — purged data cannot be recovered."
+        footer={
+          <>
+            <Button variant="outline" onPress={() => setDeleteOpen(false)} disabled={deleting}>Keep</Button>
+            <Button variant="destructive" onPress={() => { void deleteAccount(); }} disabled={deleting} loading={deleting}>Delete</Button>
           </>
         }
       />
