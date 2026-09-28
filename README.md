@@ -73,13 +73,13 @@ Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
 
 ## Getting started
 
-Prerequisites: Node 20+, Expo tooling for device/simulator.
+Prerequisites: Node 22+, pnpm 12+ (`corepack enable`), Expo tooling for device/simulator.
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env.local   # fill Clerk (required); Supabase optional for catalog/sync
-npx expo start
-# npx expo start --android | --ios
+pnpm exec expo start
+# pnpm exec expo start --android | --ios
 ```
 
 ### Environment
@@ -112,9 +112,9 @@ supabase/                # Catalog + sync SQL
 ## Verify
 
 ```bash
-npm run typecheck
-npm run test
-npm run lint
+pnpm run typecheck
+pnpm run test
+pnpm run lint
 ```
 
 ## License

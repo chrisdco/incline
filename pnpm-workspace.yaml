@@ -1,0 +1,17 @@
+# pnpm workspace: the Expo app (repo root) plus the Next.js companion.
+# Isolated installs are the default; if a React Native library fails to
+# resolve, fall back to `nodeLinker: hoisted` (Expo docs, SDK 54+).
+packages:
+  - web
+
+# Build scripts run only for explicitly trusted deps (pnpm default denies).
+# better-sqlite3 needs its prebuilt native binding for the vitest suites.
+onlyBuiltDependencies:
+  - better-sqlite3
+allowBuilds:
+  better-sqlite3: set this to true or false
+  browser-tabs-lock: set this to true or false
+  bufferutil: set this to true or false
+  core-js: set this to true or false
+  unrs-resolver: set this to true or false
+  utf-8-validate: set this to true or false

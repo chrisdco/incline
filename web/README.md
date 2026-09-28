@@ -8,8 +8,8 @@ mobile.** Same Clerk project, same Supabase project, same RLS — no new backend
 ```bash
 cd web
 cp .env.example .env.local   # fill in keys (see below)
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 | Variable | Where |
@@ -66,12 +66,12 @@ Cache Components/PPR, and this app is fully dynamic personal data.
 manual verification becomes the bottleneck. Versioned framework reference
 already ships inside `node_modules/next/dist/docs/` plus the generated
 `web/AGENTS.md` — read those before writing app code.
-- `npm run build` requires real env keys (pages read the session at build
+- `pnpm run build` requires real env keys (pages read the session at build
   otherwise); CI should provide them or skip the web build.
 - Error monitoring: Sentry is wired (client + server configs, error boundary
   capture) and stays disabled without `NEXT_PUBLIC_SENTRY_DSN`. Add the DSN
   when preview builds go to testers; the mobile app gets its own setup later.
-- E2E: `npm run e2e` (Playwright, Chromium). Public specs need Clerk
+- E2E: `pnpm run e2e` (Playwright, Chromium). Public specs need Clerk
   publishable + Supabase anon env; authed specs additionally need
   `E2E_TEST_EMAIL` + `E2E_TEST_PASSWORD` for a throwaway Clerk user and skip
   otherwise. CI runs them only when the repo variable `WEB_E2E_ENABLED` is
