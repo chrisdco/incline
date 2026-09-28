@@ -105,15 +105,13 @@ function AppShell() {
                   <Stack.Screen name="session/reorder/[id]" options={{ headerShown: false }} />
                   <Stack.Screen name="pick-exercise" options={{ headerShown: false }} />
                   <Stack.Screen name="summary/[id]" options={{ headerShown: false }} />
-                  {/* Share cards as formSheets (Amber convention): grabber +
-                      themed container so the sheet never flashes the default
-                      background on push. Android falls back to modal. */}
+                  {/* Share cards stay pushed (not modal): view-shot cannot
+                      capture inside native modals on Android (separate
+                      window). The in-screen header keeps the sheet feel. */}
                   <Stack.Screen
                     name="share/[id]"
                     options={{
                       headerShown: false,
-                      presentation: 'formSheet',
-                      sheetGrabberVisible: true,
                       contentStyle: { backgroundColor: navBackground },
                     }}
                   />
@@ -121,8 +119,6 @@ function AppShell() {
                     name="share/week"
                     options={{
                       headerShown: false,
-                      presentation: 'formSheet',
-                      sheetGrabberVisible: true,
                       contentStyle: { backgroundColor: navBackground },
                     }}
                   />
@@ -130,8 +126,6 @@ function AppShell() {
                     name="share/month"
                     options={{
                       headerShown: false,
-                      presentation: 'formSheet',
-                      sheetGrabberVisible: true,
                       contentStyle: { backgroundColor: navBackground },
                     }}
                   />

@@ -48,6 +48,7 @@ export default function ShareMonthScreen() {
   const { data: recap, loading } = useMonthlyRecap(resolvedStart);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [settling, setSettling] = useState(false);
   const [bgId, setBgId] = useState<ShareBackgroundId>('navy');
   const captureRef = useRef<View>(null);
 
@@ -66,10 +67,13 @@ export default function ShareMonthScreen() {
     : 'My month on Incline';
 
   const run = async (mode: 'stories' | 'more' | 'download') => {
-    if (!recap || busy) return;
+    if (!recap || busy || settling) return;
     setBusy(true);
     try {
       const uri = await captureSharePng(captureRef);
+      if (!uri) {
+        toast({ title: 'Image capture failed', description: 'Sharing as text instead.', variant: 'warning' });
+      }
       if (mode === 'download') {
         await downloadSharePng({
           uri,
@@ -120,6 +124,7 @@ export default function ShareMonthScreen() {
           onIndexChange={setIndex}
           captureRef={captureRef}
           pageBackground={bg.page}
+          onSettlingChange={setSettling}
           renderCard={(slide) => {
             if (slide === 'cover') {
               return (
@@ -180,6 +185,7 @@ export default function ShareMonthScreen() {
       <View className="px-4 pb-4">
         <ShareActionBar
           busy={busy}
+          disabled={settling}
           onBackground={() => setBgId((id) => nextShareBackgroundId(id))}
           onStories={() => void run('stories')}
           onMore={() => void run('more')}
