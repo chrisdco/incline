@@ -33,6 +33,7 @@ export interface ExerciseRow {
   difficulty: string | null;
   default_rest_seconds: number;
   tips: string | null;
+  search_text: string | null;
   uuid: string | null;
   deleted_at: number | null;
   created_at: number;

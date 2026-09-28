@@ -1,5 +1,6 @@
 // Offline import scripts / tooling only — not wired into the app UI.
 import { openDatabase } from './client';
+import { buildSearchText } from '@/lib/exercise-search';
 import { fetchExercises, type ExerciseDbExercise } from '@/lib/api';
 import type { Equipment, MuscleGroup, MovementPattern } from './types';
 
@@ -164,14 +165,18 @@ export async function importExercisesFromDb(
 
           if (existing) {
             await db.runAsync(
-              `UPDATE exercises SET name = ?, primary_muscle = ?, movement_pattern = ?, equipment = ?, category = ?, is_compound = ?, difficulty = ?, updated_at = ? WHERE external_id = ?`,
-              ex.name, primaryMuscle, pattern, equipment, category, compound ? 1 : 0, 'beginner', now, ex.id,
+              `UPDATE exercises SET name = ?, primary_muscle = ?, movement_pattern = ?, equipment = ?, category = ?, is_compound = ?, difficulty = ?, search_text = ?, updated_at = ? WHERE external_id = ?`,
+              ex.name, primaryMuscle, pattern, equipment, category, compound ? 1 : 0, 'beginner',
+              buildSearchText({ name: ex.name, primaryMuscle, equipment, pattern, category }),
+              now, ex.id,
             );
             exerciseId = existing.id;
           } else {
             const res = await db.runAsync(
-              `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, external_id, difficulty, default_rest_seconds, tips, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, 'exercisedb', ?, 'beginner', 90, '', ?, ?)`,
-              ex.name, primaryMuscle, pattern, equipment, category, compound ? 1 : 0, ex.id, now, now,
+              `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, external_id, difficulty, default_rest_seconds, tips, search_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, 'exercisedb', ?, 'beginner', 90, '', ?, ?, ?)`,
+              ex.name, primaryMuscle, pattern, equipment, category, compound ? 1 : 0, ex.id,
+              buildSearchText({ name: ex.name, primaryMuscle, equipment, pattern, category }),
+              now, now,
             );
             exerciseId = res.lastInsertRowId as number;
           }

@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { buildSearchText } from '@/lib/exercise-search';
 import { supabase, supabaseReady, type SupabaseExercise } from '@/lib/supabase';
 
 /**
@@ -124,10 +125,12 @@ export async function seedFromSupabase(db: SQLiteDatabase): Promise<number> {
     const defaultRest = ex.is_compound ? 120 : 90;
 
     const res = await db.runAsync(
-      `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, tips, source, external_id, difficulty, default_rest_seconds, is_custom, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, '', 'exercisedb', ?, ?, ?, 0, ?, ?)`,
+      `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, tips, source, external_id, difficulty, default_rest_seconds, is_custom, search_text, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, '', 'exercisedb', ?, ?, ?, 0, ?, ?, ?)`,
       ex.name, primary, ex.movement_pattern ?? 'isolation', equip, ex.category,
-      ex.is_compound ? 1 : 0, ex.external_id, ex.difficulty || 'intermediate', defaultRest, now, now,
+      ex.is_compound ? 1 : 0, ex.external_id, ex.difficulty || 'intermediate', defaultRest,
+      buildSearchText({ name: ex.name, primaryMuscle: primary, equipment: equip, pattern: ex.movement_pattern, category: ex.category }),
+      now, now,
     );
     localId = res.lastInsertRowId as number;
 

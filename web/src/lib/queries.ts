@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 
 import { supabaseForUser } from "./supabase";
 import { toDisplayWeight, weekStart } from "./format";
+import { recencyBonus, scoreField, tokenize } from "./exercise-search";
 import type {
   BodyweightRow,
   CatalogExerciseRow,
@@ -274,17 +275,79 @@ export async function getProgram(id: string): Promise<{ program: ProgramRow; slo
 
 export async function searchExercises(query: string, muscle: string): Promise<{ catalog: CatalogExerciseRow[]; custom: CustomExerciseRow[] }> {
   const { supabase, userId } = await authed();
-  const q = query.trim();
-  let catalogQuery = supabase.from("exercises").select("*").order("name").limit(100);
-  if (q) catalogQuery = catalogQuery.ilike("name", `%${q}%`);
-  if (muscle) catalogQuery = catalogQuery.eq("target_muscle", muscle);
-  let customQuery = supabase.from("user_exercises").select("*").eq("user_id", userId).is("deleted_at", null).order("name").limit(100);
-  if (q) customQuery = customQuery.ilike("name", `%${q}%`);
-  if (muscle) customQuery = customQuery.eq("primary_muscle", muscle);
-  const [catalogRes, customRes] = await Promise.all([catalogQuery, customQuery]);
+  const tokens = tokenize(query);
+  // Candidate prefilter mirrors mobile: OR over tokens, NULL-safe. A fully
+  // typo'd query matches nothing here and falls through to the full set
+  // below so the fuzzy ranker still gets its chance.
+  async function fetchCandidates() {
+    const orFilter = tokens.map((t) => `name.ilike.%${t}%`).join(",");
+    let catalogQuery = supabase.from("exercises").select("*").order("name").limit(200);
+    let customQuery = supabase.from("user_exercises").select("*").eq("user_id", userId).is("deleted_at", null).order("name").limit(200);
+    if (tokens.length > 0) {
+      catalogQuery = catalogQuery.or(orFilter);
+      customQuery = customQuery.or(orFilter);
+    }
+    if (muscle) {
+      catalogQuery = catalogQuery.eq("target_muscle", muscle);
+      customQuery = customQuery.eq("primary_muscle", muscle);
+    }
+    const [catalogRes, customRes] = await Promise.all([catalogQuery, customQuery]);
+    return {
+      catalog: (catalogRes.data ?? []) as CatalogExerciseRow[],
+      custom: (customRes.data ?? []) as CustomExerciseRow[],
+    };
+  }
+  async function fetchRecency(): Promise<Map<string, number>> {
+    if (tokens.length === 0) return new Map();
+    const { data: sets } = await supabase
+      .from("set_entries")
+      .select("ref_type,catalog_external_id,user_exercise_id,created_at")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .eq("completed", true)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    const order = new Map<string, number>();
+    for (const s of (sets ?? []) as { ref_type: string; catalog_external_id: string | null; user_exercise_id: string | null }[]) {
+      const key = `${s.ref_type}:${s.ref_type === "catalog" ? s.catalog_external_id : s.user_exercise_id}`;
+      if (!order.has(key)) order.set(key, order.size);
+    }
+    return order;
+  }
+  const [{ catalog, custom }, recency] = await Promise.all([fetchCandidates(), fetchRecency()]);
+  if (tokens.length === 0) return { catalog, custom };
+
+  const NAME_BANDS = { exact: 100, prefix: 88, substring: 72, fuzzy: 55 };
+  const ALIAS_BANDS = { exact: 94, prefix: 82, substring: 66, fuzzy: 50 };
+  function rank<T>(items: T[], fieldTokens: (item: T) => string[], bands: typeof NAME_BANDS, keyOf: (item: T) => string) {
+    const out: { item: T; score: number }[] = [];
+    for (const item of items) {
+      const hit = scoreField(tokens, fieldTokens(item), bands);
+      if (!hit) continue;
+      const recencyRank = recency.get(keyOf(item));
+      out.push({ item, score: hit + (recencyRank == null ? 0 : recencyBonus(recencyRank)) });
+    }
+    return out.sort((a, b) => b.score - a.score);
+  }
+  // Customs score name-fields and aliases separately (alias bands, like
+  // mobile), merged by best score per exercise.
+  const customScored = new Map<string, { ex: CustomExerciseRow; score: number }>();
+  for (const { item: ex, score } of [
+    ...rank(custom, (ex) => [...tokenize(ex.name), ...tokenize(ex.primary_muscle), ...tokenize(ex.equipment)], NAME_BANDS, (ex) => `custom:${ex.id}`),
+    ...rank(custom, (ex) => tokenize((ex.aliases ?? []).join(" ")), ALIAS_BANDS, (ex) => `custom:${ex.id}`),
+  ]) {
+    const cur = customScored.get(ex.id);
+    if (!cur || score > cur.score) customScored.set(ex.id, { ex, score });
+  }
+  const mergedCustom = [...customScored.values()].sort((a, b) => b.score - a.score).map((v) => v.ex);
   return {
-    catalog: (catalogRes.data ?? []) as CatalogExerciseRow[],
-    custom: (customRes.data ?? []) as CustomExerciseRow[],
+    catalog: rank(
+      catalog,
+      (ex) => tokenize(`${ex.name} ${ex.target_muscle} ${ex.equipment}`),
+      NAME_BANDS,
+      (ex) => `catalog:${ex.external_id}`,
+    ).map((r) => r.item),
+    custom: mergedCustom,
   };
 }
 

@@ -67,6 +67,7 @@ export interface CustomExerciseRow {
   category: string;
   is_compound: boolean;
   tips: string;
+  aliases: string[];
 }
 
 export interface RoutineRow {

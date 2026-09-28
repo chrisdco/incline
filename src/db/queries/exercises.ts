@@ -1,5 +1,6 @@
 import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
+import { buildSearchText, scoreField, tokenize } from '@/lib/exercise-search';
 import { enqueueSync } from '@/sync/outbox';
 import type {
   Category,
@@ -15,7 +16,6 @@ import {
   type ExerciseRow,
   mapExercise,
   mapSet,
-  isSubsequence,
   type SetRow,
 } from './helpers';
 import { WORKING_PR_PREDICATE } from './coaching/prs';
@@ -68,23 +68,48 @@ export interface ExerciseFilters {
 }
 
 /**
- * Multi-attribute search with a deliberate ranking order:
- * exact name -> exact alias -> name prefix -> alias prefix -> name contains
- * -> alias contains -> muscle -> equipment -> movement pattern -> fuzzy.
+ * Tokenized exercise search with typo tolerance and recency boost.
+ *
+ * Pipeline: normalize → tokenize → SQL candidate prefilter on `search_text`
+ * (OR over tokens; NULL blobs always pass so legacy/diaticritic rows are
+ * never silently dropped) → JS ranking (exact/prefix/substring/fuzzy per
+ * field, AND across tokens) → recency boost → sort.
+ *
+ * Bands preserve the old precedence (name > alias > muscle > equipment >
+ * pattern); a fuzzy name hit still outranks an exact muscle hit because name
+ * intent is stronger. Recency (the Hevy move) adds +12 top-10 / +6 next-40.
  */
-export async function searchExercises(query: string, filters?: ExerciseFilters): Promise<SearchHit[]> {
+export async function searchExercises(
+  query: string,
+  filters?: ExerciseFilters,
+  options?: { recentIds?: number[] },
+): Promise<SearchHit[]> {
   const db = await openDatabase();
-  const q = query.trim().toLowerCase();
+  const tokens = tokenize(query);
   const where: string[] = [];
   const args: (string | number)[] = [];
   if (filters?.muscle) { where.push('primary_muscle = ?'); args.push(filters.muscle); }
   if (filters?.equipment) { where.push('equipment = ?'); args.push(filters.equipment); }
   if (filters?.pattern) { where.push('movement_pattern = ?'); args.push(filters.pattern); }
   let sql = 'SELECT * FROM exercises';
-  if (where.length) sql += ' WHERE ' + where.join(' AND ') + ' AND deleted_at IS NULL';
-  else sql += ' WHERE deleted_at IS NULL';
+  // Tokens are [a-z0-9]+ by construction (normalizer strips the rest), so
+  // LIKE needs no ESCAPE clause.
+  const prefilter = tokens.map(() => `search_text LIKE '%' || ? || '%'`).join(' OR ');
+  const clauses = [...where, 'deleted_at IS NULL'];
+  if (prefilter) clauses.push(`(search_text IS NULL OR (${prefilter}))`);
+  sql += ' WHERE ' + clauses.join(' AND ');
   sql += ' ORDER BY name';
-  const rows = await db.getAllAsync<ExerciseRow>(sql, ...args);
+  let rows = await db.getAllAsync<ExerciseRow>(sql, ...args, ...tokens);
+  if (rows.length === 0 && tokens.length > 0) {
+    // Prefilter is substring-only, so a fully-typo'd query matches nothing.
+    // Fall back to the full set and let the fuzzy ranker decide — bounded
+    // cost, only on otherwise-empty results.
+    const fallback = [...where, 'deleted_at IS NULL'].join(' AND ');
+    rows = await db.getAllAsync<ExerciseRow>(
+      `SELECT * FROM exercises WHERE ${fallback} ORDER BY name`,
+      ...args,
+    );
+  }
 
   // Batch-load related data to avoid N+1 queries
   const ids = rows.map((r) => r.id);
@@ -149,27 +174,57 @@ export async function searchExercises(query: string, filters?: ExerciseFilters):
     updatedAt: row.updated_at,
   }));
 
-  if (!q) return exercises.map((exercise) => ({ exercise, score: 0, matchedOn: 'name' as const }));
+  if (!tokens.length) return exercises.map((exercise) => ({ exercise, score: 0, matchedOn: 'name' as const }));
+
+  const recentBonus = new Map<number, number>();
+  (options?.recentIds ?? []).forEach((id, i) => {
+    if (!recentBonus.has(id)) recentBonus.set(id, i < 10 ? 12 : 6);
+  });
 
   const hits: SearchHit[] = [];
   for (const ex of exercises) {
-    const name = ex.name.toLowerCase();
-    const aliases = ex.aliases.map((a) => a.toLowerCase());
-    const muscles = [ex.primaryMuscle, ...ex.secondaryMuscles];
-    let score = 0;
-    let matchedOn: SearchHit['matchedOn'] | null = null;
-    if (name === q) { score = 100; matchedOn = 'name'; }
-    else if (aliases.includes(q)) { score = 95; matchedOn = 'alias'; }
-    else if (name.startsWith(q)) { score = 90; matchedOn = 'name'; }
-    else if (aliases.some((a) => a.startsWith(q))) { score = 85; matchedOn = 'alias'; }
-    else if (name.includes(q)) { score = 75; matchedOn = 'name'; }
-    else if (aliases.some((a) => a.includes(q))) { score = 70; matchedOn = 'alias'; }
-    else if (muscles.some((m) => m.includes(q))) { score = 50; matchedOn = 'muscle'; }
-    else if (ex.equipment.includes(q)) { score = 40; matchedOn = 'equipment'; }
-    else if (ex.movementPattern && (ex.movementPattern.includes(q) || ex.movementPattern.replace('_', ' ').includes(q))) { score = 30; matchedOn = 'pattern'; }
-    else if (isSubsequence(q, name)) { score = 20; matchedOn = 'name'; }
-    else if (aliases.some((a) => isSubsequence(q, a))) { score = 18; matchedOn = 'alias'; }
-    if (matchedOn) hits.push({ exercise: ex, score, matchedOn });
+    const nameTokens = tokenize(ex.name);
+    let best: { score: number; matchedOn: SearchHit['matchedOn'] } | null = null;
+    const nameHit = scoreField(tokens, nameTokens, {
+      exact: 100, prefix: 88, substring: 72, fuzzy: 55, matchedOn: 'name',
+    });
+    if (nameHit) best = { score: nameHit.score, matchedOn: 'name' };
+    if (!best) {
+      for (const alias of ex.aliases) {
+        const aliasHit = scoreField(tokens, tokenize(alias), {
+          exact: 94, prefix: 82, substring: 66, fuzzy: 50, matchedOn: 'alias',
+        });
+        if (aliasHit) {
+          best = { score: aliasHit.score, matchedOn: 'alias' };
+          break;
+        }
+      }
+    }
+    if (!best) {
+      const muscleHit = scoreField(tokens, tokenize([ex.primaryMuscle, ...ex.secondaryMuscles].join(' ')), {
+        exact: 48, prefix: 44, substring: 40, fuzzy: 36, matchedOn: 'muscle',
+      });
+      if (muscleHit) best = { score: muscleHit.score, matchedOn: 'muscle' };
+    }
+    if (!best && ex.equipment) {
+      const equipHit = scoreField(tokens, tokenize(ex.equipment), {
+        exact: 40, prefix: 36, substring: 32, fuzzy: 28, matchedOn: 'equipment',
+      });
+      if (equipHit) best = { score: equipHit.score, matchedOn: 'equipment' };
+    }
+    if (!best && ex.movementPattern) {
+      const patternHit = scoreField(tokens, tokenize(ex.movementPattern), {
+        exact: 30, prefix: 27, substring: 24, fuzzy: 20, matchedOn: 'pattern',
+      });
+      if (patternHit) best = { score: patternHit.score, matchedOn: 'pattern' };
+    }
+    if (best) {
+      hits.push({
+        exercise: ex,
+        score: best.score + (recentBonus.get(ex.id) ?? 0),
+        matchedOn: best.matchedOn,
+      });
+    }
   }
   hits.sort((a, b) => b.score - a.score || a.exercise.name.localeCompare(b.exercise.name));
   return hits;
@@ -193,8 +248,10 @@ export async function createCustomExercise(input: CreateCustomExerciseInput): Pr
   const now = Date.now();
   const uuid = newUuid();
   const res = await db.runAsync(
-    `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, tips, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'custom', ?, ?, ?, ?)`,
-    input.name, input.primaryMuscle, input.movementPattern, input.equipment, input.category, input.isCompound ? 1 : 0, input.tips ?? '', uuid, now, now,
+    `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, tips, search_text, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'custom', ?, ?, ?, ?, ?)`,
+    input.name, input.primaryMuscle, input.movementPattern, input.equipment, input.category, input.isCompound ? 1 : 0, input.tips ?? '',
+    buildSearchText({ name: input.name, primaryMuscle: input.primaryMuscle, equipment: input.equipment, pattern: input.movementPattern, category: input.category }),
+    uuid, now, now,
   );
   const id = res.lastInsertRowId as number;
   for (const alias of (input.aliases ?? [])) {
@@ -307,11 +364,13 @@ export async function ensureExerciseExists(
 
   const now = Date.now();
   const res = await db.runAsync(
-     `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, external_id, difficulty, default_rest_seconds, tips, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 0, 'exercisedb', ?, 'intermediate', ?, '', ?, ?)`,
+     `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, external_id, difficulty, default_rest_seconds, tips, search_text, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 0, 'exercisedb', ?, 'intermediate', ?, '', ?, ?, ?)`,
     exercise.name, exercise.primaryMuscle, exercise.movementPattern ?? 'isolation', exercise.equipment,
     exercise.category, exercise.isCompound ? 1 : 0, externalId,
-    exercise.defaultRestSeconds ?? 90, now, now,
+    exercise.defaultRestSeconds ?? 90,
+    buildSearchText({ name: exercise.name, primaryMuscle: exercise.primaryMuscle, equipment: exercise.equipment, pattern: exercise.movementPattern, category: exercise.category }),
+    now, now,
   );
   const id = res.lastInsertRowId as number;
 
