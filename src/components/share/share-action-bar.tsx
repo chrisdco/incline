@@ -14,17 +14,21 @@ type Action = {
 /** Hevy-style row: Background, Stories, More, Download. Stories uses the OS share sheet (pick Instagram if installed). */
 export function ShareActionBar({
   busy,
+  disabled,
   onBackground,
   onStories,
   onMore,
   onDownload,
 }: {
   busy?: boolean;
+  /** Extra disable (e.g. pager mid-swipe): capture would grab the wrong page. */
+  disabled?: boolean;
   onBackground: () => void;
   onStories: () => void;
   onMore: () => void;
   onDownload: () => void;
 }) {
+  const inactive = busy || disabled;
   const actions: Action[] = [
     { key: 'bg', label: 'Background', icon: PaintBucket, onPress: onBackground },
     { key: 'stories', label: 'Stories', icon: Sparkles, onPress: onStories },
@@ -42,9 +46,10 @@ export function ShareActionBar({
           <Pressable
             key={a.key}
             onPress={a.onPress}
-            disabled={busy}
+            disabled={inactive}
             accessibilityRole="button"
             accessibilityLabel={a.label}
+            accessibilityState={{ disabled: inactive }}
             className="items-center gap-1.5 disabled:opacity-40">
             <View className="h-12 w-12 items-center justify-center rounded-full bg-muted">
               <Icon icon={a.icon} size={20} color="foreground" />

@@ -17,6 +17,7 @@ export function ShareCardPager<T>({
   renderCard,
   captureRef,
   pageBackground,
+  onSettlingChange,
 }: {
   data: T[];
   index: number;
@@ -24,6 +25,8 @@ export function ShareCardPager<T>({
   renderCard: (item: T, index: number) => ReactNode;
   captureRef: RefObject<View | null>;
   pageBackground?: string;
+  /** Fires around pager motion: capturing mid-swipe grabs the wrong page. */
+  onSettlingChange?: (settling: boolean) => void;
 }) {
   const { width } = useWindowDimensions();
   const pageRefs = useCallback((el: View | null, i: number) => {
@@ -32,6 +35,7 @@ export function ShareCardPager<T>({
 
   const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const next = Math.round(e.nativeEvent.contentOffset.x / Math.max(1, width));
+    onSettlingChange?.(false);
     onIndexChange(Math.max(0, Math.min(data.length - 1, next)));
   };
 
@@ -46,6 +50,7 @@ export function ShareCardPager<T>({
         keyExtractor={(_, i) => String(i)}
         extraData={`${index}-${pageBackground ?? ''}`}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+        onScrollBeginDrag={() => onSettlingChange?.(true)}
         onMomentumScrollEnd={onMomentumScrollEnd}
         renderItem={({ item, index: i }) => (
           <View style={{ width, paddingHorizontal: 20 }}>

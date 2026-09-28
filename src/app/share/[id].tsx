@@ -102,6 +102,9 @@ export default function ShareWorkoutScreen() {
     });
     try {
       const uri = await captureSharePng(shareRef);
+      if (!uri) {
+        toast({ title: 'Image capture failed', description: 'Sharing as text instead.', variant: 'warning' });
+      }
       if (mode === 'download') {
         await downloadSharePng({
           uri,
