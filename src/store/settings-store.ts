@@ -5,7 +5,7 @@ import { STORAGE_KEYS } from '@/constants/config';
 import { kvStorage } from '@/db/kv';
 import type { Settings, Unit, ThemeMode, AccentTheme, CalendarHeatMetric, WeekStartsOn, BodyMetric, ExerciseMediaStyle, ExerciseMediaAnimation, DevExerciseMediaOverride } from '@/db/types';
 import { isCalendarHeatMetric, isWeekStartsOn, DEFAULT_ENABLED_BODY_METRICS } from '@/db/types';
-import { DEFAULT_ACCENT_THEME, isAccentTheme } from '@/lib/accent-themes';
+import { DEFAULT_ACCENT_THEME, isAccentTheme, isAuroraAccent } from '@/lib/accent-themes';
 import { sanitizeEnabledBodyMetrics } from '@/lib/body-metrics';
 import {
   ACCOUNT_PREF_DEFAULTS,
@@ -17,9 +17,13 @@ import {
 import { enqueueSync } from '@/sync/outbox';
 
 interface SettingsState extends Settings {
+  /** Last Classic accent — restored when leaving an aurora preset. Device-local. */
+  lastClassicAccent: AccentTheme;
   setUnit: (unit: Unit) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setAccentTheme: (accent: AccentTheme) => void;
+  /** Full-skin presets: aurora ids enable the neon skin, anything else is Classic. */
+  applyThemePreset: (preset: 'classic' | AccentTheme) => void;
   setHaptics: (enabled: boolean) => void;
   setRestSound: (enabled: boolean) => void;
   setAutoStartRest: (enabled: boolean) => void;
@@ -122,6 +126,9 @@ export const useSettings = create<SettingsState>()(
       unit: 'metric',
       themeMode: 'system',
       accentTheme: DEFAULT_ACCENT_THEME,
+      // Last Classic accent — restored when leaving an aurora preset.
+      // Device-local (not synced): a restore helper, not a preference.
+      lastClassicAccent: DEFAULT_ACCENT_THEME,
       hapticsEnabled: true,
       restSoundEnabled: true,
       autoStartRest: true,
@@ -148,7 +155,21 @@ export const useSettings = create<SettingsState>()(
       devExerciseMediaOverride: 'off',
       setUnit: (unit) => set({ unit }),
       setThemeMode: (themeMode) => set({ themeMode }),
-      setAccentTheme: (accentTheme) => set({ accentTheme }),
+      setAccentTheme: (accentTheme) =>
+        set((s) => ({
+          accentTheme,
+          // Classic dots double as "back to Classic": remember the choice so
+          // Theme → Classic restores it instead of a hardcoded default.
+          ...(isAuroraAccent(accentTheme) ? null : { lastClassicAccent: accentTheme }),
+        })),
+      applyThemePreset: (preset) =>
+        set((s) => {
+          if (preset === 'classic') return { accentTheme: s.lastClassicAccent };
+          return {
+            ...(isAuroraAccent(s.accentTheme) ? null : { lastClassicAccent: s.accentTheme }),
+            accentTheme: preset,
+          };
+        }),
       setHaptics: (enabled) => set({ hapticsEnabled: enabled }),
       setRestSound: (enabled) => set({ restSoundEnabled: enabled }),
       setAutoStartRest: (enabled) => set({ autoStartRest: enabled }),
@@ -201,6 +222,7 @@ export const useSettings = create<SettingsState>()(
         unit: s.unit,
         themeMode: s.themeMode,
         accentTheme: s.accentTheme,
+        lastClassicAccent: s.lastClassicAccent,
         hapticsEnabled: s.hapticsEnabled,
         restSoundEnabled: s.restSoundEnabled,
         autoStartRest: s.autoStartRest,
@@ -227,11 +249,15 @@ export const useSettings = create<SettingsState>()(
         devExerciseMediaOverride: s.devExerciseMediaOverride,
       }),
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<Settings>;
+        const p = (persisted ?? {}) as Partial<Settings> & { lastClassicAccent?: unknown };
         return {
           ...current,
           ...p,
           accentTheme: isAccentTheme(p.accentTheme) ? p.accentTheme : DEFAULT_ACCENT_THEME,
+          lastClassicAccent:
+            p.lastClassicAccent != null && isAccentTheme(p.lastClassicAccent) && !isAuroraAccent(p.lastClassicAccent)
+              ? p.lastClassicAccent
+              : DEFAULT_ACCENT_THEME,
           calendarHeatMetric: isCalendarHeatMetric(p.calendarHeatMetric)
             ? p.calendarHeatMetric
             : 'volume',
@@ -320,13 +346,16 @@ export function resetAccountPreferences(): void {
 
 export function applyRemoteAccountPrefs(payload: Record<string, unknown>): void {
   const prefs = pickAccountPrefs(payload);
+  const remoteAccent = isAccentTheme(prefs.accentTheme) ? prefs.accentTheme : DEFAULT_ACCENT_THEME;
   suppressPrefSync = true;
   try {
-    useSettings.setState({
+    useSettings.setState((s) => ({
       themeMode: prefs.themeMode === 'light' || prefs.themeMode === 'dark' || prefs.themeMode === 'system'
         ? prefs.themeMode
         : 'system',
-      accentTheme: isAccentTheme(prefs.accentTheme) ? prefs.accentTheme : DEFAULT_ACCENT_THEME,
+      accentTheme: remoteAccent,
+      // A Classic accent arriving from another device becomes the restore point.
+      lastClassicAccent: isAuroraAccent(remoteAccent) ? s.lastClassicAccent : remoteAccent,
       calendarHeatMetric: isCalendarHeatMetric(prefs.calendarHeatMetric)
         ? prefs.calendarHeatMetric
         : 'volume',
@@ -338,7 +367,7 @@ export function applyRemoteAccountPrefs(payload: Record<string, unknown>): void 
       autoStartRest: prefs.autoStartRest,
       defaultRestSeconds: prefs.defaultRestSeconds,
       showSessionGhost: prefs.showSessionGhost,
-    });
+    }));
   } finally {
     suppressPrefSync = false;
   }

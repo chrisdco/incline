@@ -32,6 +32,12 @@ const NEUTRALS = {
 
 export type ThemeScheme = 'light' | 'dark';
 
+/** Tinted dark bases for the aurora skins — must match global.css. */
+const DARK_BASE: Partial<Record<AccentTheme, string>> = {
+  rose: '#0b0509',
+  electron: '#04070b',
+};
+
 export function themeHex(
   scheme: ThemeScheme | null | undefined,
   accent: AccentTheme = DEFAULT_ACCENT_THEME,
@@ -40,6 +46,7 @@ export function themeHex(
   const def = ACCENT_THEMES[accent] ?? ACCENT_THEMES[DEFAULT_ACCENT_THEME];
   return {
     ...NEUTRALS[mode],
+    background: mode === 'dark' ? (DARK_BASE[accent] ?? NEUTRALS.dark.background) : NEUTRALS.light.background,
     primary: def.hex[mode],
   };
 }
