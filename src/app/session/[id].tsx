@@ -150,6 +150,8 @@ export default function SessionScreen() {
   const notesRef = useRef<TextInput>(null);
   const [removedSet, setRemovedSet] = useState<{ setEntry: SetEntry; exerciseId: number; logId: number } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRemovedExerciseRef = useRef<{ name: string; setIds: number[] } | null>(null);
+  const undoExerciseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const totalPausedMsRef = useRef(0);
   const [timerSheetOpen, setTimerSheetOpen] = useState(false);
@@ -269,10 +271,11 @@ export default function SessionScreen() {
     if (session?.isComplete) router.replace(`/summary/${session.id}`);
   }, [session?.isComplete, session?.id, router]);
 
-  // Cleanup undo timer on unmount
+  // Cleanup undo timers on unmount
   useEffect(() => {
     return () => {
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      if (undoExerciseTimerRef.current) clearTimeout(undoExerciseTimerRef.current);
     };
   }, []);
 
@@ -543,9 +546,15 @@ export default function SessionScreen() {
     router.push(`/pick-exercise?logId=${logId}&mode=add` as Href);
   };
   const openReplaceExercise = (exerciseId: number, name: string) => {
-    router.push(
-      `/pick-exercise?logId=${logId}&mode=replace&exerciseId=${exerciseId}&name=${encodeURIComponent(name)}` as Href,
-    );
+    const logged = groups.find((g) => g.exerciseId === exerciseId)?.sets.filter((s) => s.completed).length ?? 0;
+    const params = new URLSearchParams({
+      logId: String(logId),
+      mode: 'replace',
+      exerciseId: String(exerciseId),
+      name,
+      logged: String(logged),
+    });
+    router.push(`/pick-exercise?${params.toString()}` as Href);
   };
   const openReorder = () => {
     router.push(`/session/reorder/${logId}` as Href);
@@ -556,8 +565,16 @@ export default function SessionScreen() {
     setRemoveTarget(null);
     impact();
     try {
-      const { removed } = await removeExerciseFromWorkout(logId, target.exerciseId);
+      const { removed, setIds } = await removeExerciseFromWorkout(logId, target.exerciseId);
       reloadAll();
+      // Undo window lives exactly as long as the toast: a second remove
+      // replaces both (latest-wins queue), which is standard snackbar behavior.
+      if (undoExerciseTimerRef.current) clearTimeout(undoExerciseTimerRef.current);
+      const snapshot = { name: target.name, setIds };
+      undoExerciseTimerRef.current = setTimeout(() => {
+        lastRemovedExerciseRef.current = null;
+      }, 6500);
+      lastRemovedExerciseRef.current = snapshot;
       toast({
         title: `${target.name} removed`,
         description:
@@ -565,6 +582,27 @@ export default function SessionScreen() {
             ? `${removed} set${removed === 1 ? '' : 's'} left this session. Your routine is untouched.`
             : undefined,
         variant: 'info',
+        durationMs: 6000,
+        action: {
+          label: 'Undo',
+          onPress: () => {
+            void (async () => {
+              const snap = lastRemovedExerciseRef.current;
+              if (!snap) return;
+              lastRemovedExerciseRef.current = null;
+              try {
+                for (const setId of snap.setIds) {
+                  await restoreSet(setId);
+                }
+                reloadAll();
+                toast({ title: `${snap.name} restored`, variant: 'success' });
+              } catch {
+                toast({ title: 'Could not undo', variant: 'destructive' });
+                reload();
+              }
+            })();
+          },
+        },
       });
     } catch {
       toast({ title: 'Could not remove exercise', variant: 'destructive' });

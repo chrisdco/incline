@@ -235,7 +235,20 @@ describe('exercise-level ops', () => {
 
     const removed = await removeExerciseFromWorkout(logId, 2);
     expect(removed.removed).toBe(1);
+    expect(removed.setIds).toHaveLength(1);
     let session = await getWorkoutLog(logId);
+    expect(session?.sets.map((s) => s.exerciseId)).toEqual([1]);
+
+    // Undo path (what the toast action drives): restore every removed set.
+    for (const setId of removed.setIds) {
+      await restoreSet(setId);
+    }
+    session = await getWorkoutLog(logId);
+    expect(session?.sets.map((s) => s.exerciseId).sort()).toEqual([1, 2]);
+
+    // Back to the pre-undo state for the reorder/replace checks below.
+    await removeExerciseFromWorkout(logId, 2);
+    session = await getWorkoutLog(logId);
     expect(session?.sets.map((s) => s.exerciseId)).toEqual([1]);
 
     await addExerciseToWorkout(logId, 2);
