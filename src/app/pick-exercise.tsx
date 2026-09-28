@@ -31,6 +31,7 @@ type Params = {
   mode?: string;
   exerciseId?: string;
   name?: string;
+  logged?: string;
 };
 
 /**
@@ -40,13 +41,14 @@ type Params = {
  * back; the session refreshes on focus. The `i` affordance opens details.
  */
 export default function PickExerciseScreen() {
-  const { logId, mode, exerciseId, name } = useLocalSearchParams<Params>();
+  const { logId, mode, exerciseId, name, logged } = useLocalSearchParams<Params>();
   const router = useRouter();
   const { toast } = useToast();
   const { impact } = useHaptics();
   const sessionId = Number(logId);
   const isReplace = mode === 'replace';
   const replaceId = exerciseId != null ? Number(exerciseId) : null;
+  const loggedCount = Math.max(0, Number(logged ?? 0) || 0);
 
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -180,7 +182,12 @@ export default function PickExerciseScreen() {
         <View className="flex-1">
           <Heading className="text-lg">{isReplace ? 'Replace exercise' : 'Add exercise'}</Heading>
           {isReplace && name ? (
-            <Caption numberOfLines={1}>Replacing {name}</Caption>
+            <Caption numberOfLines={1}>
+              Replacing {name}
+              {loggedCount > 0
+                ? ` · ${loggedCount} logged set${loggedCount === 1 ? '' : 's'} stay${loggedCount === 1 ? 's' : ''} in your log`
+                : ' · takes this spot'}
+            </Caption>
           ) : null}
         </View>
       </View>

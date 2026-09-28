@@ -374,14 +374,14 @@ export async function removeSet(setId: number): Promise<void> {
 export async function removeExerciseFromWorkout(
   logId: number,
   exerciseId: number,
-): Promise<{ removed: number; completed: number }> {
+): Promise<{ removed: number; completed: number; setIds: number[] }> {
   const db = await openDatabase();
   const now = Date.now();
   const rows = await db.getAllAsync<{ id: number; completed: number }>(
     'SELECT id, completed FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
     logId, exerciseId,
   );
-  if (rows.length === 0) return { removed: 0, completed: 0 };
+  if (rows.length === 0) return { removed: 0, completed: 0, setIds: [] };
   // Atomic with the volume recompute and outbox rows: a kill mid-remove must
   // not leave tombstoned sets on a stale-volume log (helpers join the tx via
   // the shared connection — none of them open a nested transaction).
@@ -394,7 +394,11 @@ export async function removeExerciseFromWorkout(
     await enqueueSetUpserts(rows.map((r) => r.id));
     await enqueueLogUpsert(logId);
   });
-  return { removed: rows.length, completed: rows.filter((r) => r.completed === 1).length };
+  return {
+    removed: rows.length,
+    completed: rows.filter((r) => r.completed === 1).length,
+    setIds: rows.map((r) => r.id),
+  };
 }
 
 /**
