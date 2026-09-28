@@ -80,5 +80,6 @@
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"
   },
-  "private": true
+  "private": true,
+  "packageManager": "pnpm@12.6.0"
 }

@@ -12,19 +12,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
-      - run: npm run typecheck
+      - run: pnpm run typecheck
 
-      - run: npm run lint
+      - run: pnpm run lint
 
-      - run: npm run test
+      - run: pnpm run test
 
       # Heavier integration suite (real query modules over better-sqlite3):
-      # CI-only so local `npm test` stays instant on every small change.
-      - run: npm run test:integration
+      # CI-only so local `pnpm test` stays instant on every small change.
+      - run: pnpm run test:integration
