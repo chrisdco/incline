@@ -15,6 +15,8 @@ export const notificationsAvailable = !(isRunningInExpoGo() && Platform.OS === '
 
 type NotificationsModule = typeof import('expo-notifications');
 
+export type { NotificationsModule };
+
 let Notifications: NotificationsModule | null = null;
 let handlerReady = false;
 const channelsReady = new Set<NotificationChannelId>();
@@ -99,6 +101,8 @@ export async function prepareNotifications(
     const ok = await ensureNotificationPermission(mod);
     if (!ok) return null;
     await ensureNotificationChannel(mod, channelId);
+    const { ensureNotificationCategories } = await import('@/lib/notifications/actions');
+    await ensureNotificationCategories(mod);
     return mod;
   } catch {
     return null;

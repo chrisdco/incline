@@ -25,6 +25,8 @@ import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { useDatabaseReady } from '@/hooks/use-database';
 import { useNotificationRouting } from '@/hooks/use-notification-routing';
+import { useMonthlyRecapSync } from '@/hooks/use-monthly-recap-sync';
+import { useNudgeSync } from '@/hooks/use-nudge-sync';
 import { useWeeklyDigestSync } from '@/hooks/use-weekly-digest-sync';
 import { useWorkoutReminderSync } from '@/hooks/use-workout-reminder-sync';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
@@ -36,6 +38,8 @@ function NotificationBootstrap() {
   useNotificationRouting();
   useWorkoutReminderSync();
   useWeeklyDigestSync();
+  useMonthlyRecapSync();
+  useNudgeSync();
   return null;
 }
 

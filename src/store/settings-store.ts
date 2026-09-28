@@ -19,6 +19,10 @@ import { enqueueSync } from '@/sync/outbox';
 interface SettingsState extends Settings {
   /** Last Classic accent — restored when leaving an aurora preset. Device-local. */
   lastClassicAccent: AccentTheme;
+  /** Nudge caps (device-local, never synced): one ping per session / week. */
+  lastAbandonedNudgeLogId: number | null;
+  lastStreakNudgeWeekKey: string | null;
+  seenAchievementIds: string[];
   setUnit: (unit: Unit) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setAccentTheme: (accent: AccentTheme) => void;
@@ -39,6 +43,13 @@ interface SettingsState extends Settings {
   setWorkoutReminderTime: (hour: number, minute: number) => void;
   setWeeklyDigestEnabled: (enabled: boolean) => void;
   setWeeklyDigestTime: (hour: number, minute: number) => void;
+  setMonthlyRecapEnabled: (enabled: boolean) => void;
+  setAbandonedNudgeEnabled: (enabled: boolean) => void;
+  setStreakNudgeEnabled: (enabled: boolean) => void;
+  setMilestoneNudgeEnabled: (enabled: boolean) => void;
+  markAbandonedNudged: (logId: number) => void;
+  markStreakNudged: (weekKey: string) => void;
+  markAchievementsSeen: (ids: string[]) => void;
   setEnabledBodyMetrics: (metrics: BodyMetric[]) => void;
   toggleBodyMetric: (metric: BodyMetric) => void;
   setWeeklyWorkoutGoal: (goal: number) => void;
@@ -146,6 +157,14 @@ export const useSettings = create<SettingsState>()(
       weeklyDigestEnabled: false,
       weeklyDigestHour: 18,
       weeklyDigestMinute: 0,
+      monthlyRecapEnabled: false,
+      abandonedNudgeEnabled: false,
+      streakNudgeEnabled: false,
+      milestoneNudgeEnabled: false,
+      // Nudge caps live next to the toggles: device-local helpers, not prefs.
+      lastAbandonedNudgeLogId: null,
+      lastStreakNudgeWeekKey: null,
+      seenAchievementIds: [],
       enabledBodyMetrics: [...DEFAULT_ENABLED_BODY_METRICS],
       weeklyWorkoutGoal: 4,
       dismissedAnnouncementIds: [],
@@ -193,6 +212,16 @@ export const useSettings = create<SettingsState>()(
           weeklyDigestHour: sanitizeHour(hour, 18),
           weeklyDigestMinute: sanitizeMinute(minute, 0),
         }),
+      setMonthlyRecapEnabled: (monthlyRecapEnabled) => set({ monthlyRecapEnabled }),
+      setAbandonedNudgeEnabled: (abandonedNudgeEnabled) => set({ abandonedNudgeEnabled }),
+      setStreakNudgeEnabled: (streakNudgeEnabled) => set({ streakNudgeEnabled }),
+      setMilestoneNudgeEnabled: (milestoneNudgeEnabled) => set({ milestoneNudgeEnabled }),
+      markAbandonedNudged: (logId: number) => set({ lastAbandonedNudgeLogId: logId }),
+      markStreakNudged: (weekKey: string) => set({ lastStreakNudgeWeekKey: weekKey }),
+      markAchievementsSeen: (ids: string[]) =>
+        set((s) => ({
+          seenAchievementIds: [...new Set([...s.seenAchievementIds, ...ids.filter((id) => id.length > 0)])],
+        })),
       setEnabledBodyMetrics: (metrics) =>
         set({ enabledBodyMetrics: sanitizeEnabledBodyMetrics(metrics) }),
       toggleBodyMetric: (metric) =>
@@ -240,6 +269,13 @@ export const useSettings = create<SettingsState>()(
         weeklyDigestEnabled: s.weeklyDigestEnabled,
         weeklyDigestHour: s.weeklyDigestHour,
         weeklyDigestMinute: s.weeklyDigestMinute,
+        monthlyRecapEnabled: s.monthlyRecapEnabled,
+        abandonedNudgeEnabled: s.abandonedNudgeEnabled,
+        streakNudgeEnabled: s.streakNudgeEnabled,
+        milestoneNudgeEnabled: s.milestoneNudgeEnabled,
+        lastAbandonedNudgeLogId: s.lastAbandonedNudgeLogId,
+        lastStreakNudgeWeekKey: s.lastStreakNudgeWeekKey,
+        seenAchievementIds: s.seenAchievementIds,
         enabledBodyMetrics: s.enabledBodyMetrics,
         weeklyWorkoutGoal: s.weeklyWorkoutGoal,
         dismissedAnnouncementIds: s.dismissedAnnouncementIds,
@@ -249,7 +285,12 @@ export const useSettings = create<SettingsState>()(
         devExerciseMediaOverride: s.devExerciseMediaOverride,
       }),
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<Settings> & { lastClassicAccent?: unknown };
+        const p = (persisted ?? {}) as Partial<Settings> & {
+          lastClassicAccent?: unknown;
+          lastAbandonedNudgeLogId?: unknown;
+          lastStreakNudgeWeekKey?: unknown;
+          seenAchievementIds?: unknown;
+        };
         return {
           ...current,
           ...p,
@@ -275,6 +316,19 @@ export const useSettings = create<SettingsState>()(
             typeof p.weeklyDigestEnabled === 'boolean' ? p.weeklyDigestEnabled : false,
           weeklyDigestHour: sanitizeHour(p.weeklyDigestHour, 18),
           weeklyDigestMinute: sanitizeMinute(p.weeklyDigestMinute, 0),
+          monthlyRecapEnabled:
+            typeof p.monthlyRecapEnabled === 'boolean' ? p.monthlyRecapEnabled : false,
+          abandonedNudgeEnabled:
+            typeof p.abandonedNudgeEnabled === 'boolean' ? p.abandonedNudgeEnabled : false,
+          streakNudgeEnabled:
+            typeof p.streakNudgeEnabled === 'boolean' ? p.streakNudgeEnabled : false,
+          milestoneNudgeEnabled:
+            typeof p.milestoneNudgeEnabled === 'boolean' ? p.milestoneNudgeEnabled : false,
+          lastAbandonedNudgeLogId:
+            typeof p.lastAbandonedNudgeLogId === 'number' ? p.lastAbandonedNudgeLogId : null,
+          lastStreakNudgeWeekKey:
+            typeof p.lastStreakNudgeWeekKey === 'string' ? p.lastStreakNudgeWeekKey : null,
+          seenAchievementIds: sanitizeDismissedIds(p.seenAchievementIds),
           enabledBodyMetrics: sanitizeEnabledBodyMetrics(p.enabledBodyMetrics),
           weeklyWorkoutGoal: sanitizeWeeklyGoal(p.weeklyWorkoutGoal),
           dismissedAnnouncementIds: sanitizeDismissedIds(p.dismissedAnnouncementIds),

@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 
+import { NOTIFICATION_CATEGORIES } from '@/lib/notifications/actions';
+import { reminderBodyForDay } from '@/lib/notifications/copy';
 import {
   cancelNotification,
   prepareNotifications,
@@ -20,6 +22,8 @@ export type WorkoutReminderPrefs = {
 };
 
 const ALL_JS_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+
+export { reminderBodyForDay } from '@/lib/notifications/copy';
 
 /** Cancel every weekday reminder slot (enabled or not). */
 export async function cancelWorkoutReminders(): Promise<void> {
@@ -50,9 +54,10 @@ export async function syncWorkoutReminderSchedules(prefs: WorkoutReminderPrefs):
           identifier: NOTIFICATION_IDS.reminderDay(jsDay),
           content: {
             title: 'Time to train',
-            body: 'Your Incline reminder — ready when you are.',
+            body: reminderBodyForDay(jsDay),
             sound: 'default',
             data,
+            categoryIdentifier: NOTIFICATION_CATEGORIES.reminder,
           },
           trigger: {
             type: mod.SchedulableTriggerInputTypes.WEEKLY,

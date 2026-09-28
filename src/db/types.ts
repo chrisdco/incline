@@ -236,6 +236,14 @@ export interface Settings {
   weeklyDigestEnabled: boolean;
   weeklyDigestHour: number;
   weeklyDigestMinute: number;
+  /** Opt-in monthly recap on the 1st (same time as the Sunday digest). */
+  monthlyRecapEnabled: boolean;
+  /** Opt-in "still training?" ping for sessions idle 25+ min. Default off. */
+  abandonedNudgeEnabled: boolean;
+  /** Opt-in late-week ping when a live streak has no session yet. Default off. */
+  streakNudgeEnabled: boolean;
+  /** Opt-in congrats ping for newly unlocked milestones. Default off. */
+  milestoneNudgeEnabled: boolean;
   /** Which body metrics appear on the Measures screen (bodyweight always available). */
   enabledBodyMetrics: BodyMetric[];
   /** Target finished sessions per week (consistency goal). 0 = off. */

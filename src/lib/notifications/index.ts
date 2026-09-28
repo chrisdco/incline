@@ -24,3 +24,30 @@ export {
   cancelWeeklyDigest,
   type WeeklyDigestPrefs,
 } from '@/lib/notifications/digest';
+export {
+  syncMonthlyRecapSchedule,
+  cancelMonthlyRecap,
+  type MonthlyRecapPrefs,
+} from '@/lib/notifications/recap';
+export {
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_ACTIONS,
+  ensureNotificationCategories,
+  actionForResponse,
+  pathForNotificationAction,
+  type NotificationAction,
+} from '@/lib/notifications/actions';
+export {
+  ABANDONED_IDLE_MS,
+  STREAK_NUDGE_DAYS,
+  mondayWeekKey,
+  shouldNudgeAbandoned,
+  shouldNudgeStreak,
+  newlyUnlockedAchievementIds,
+  scheduleAbandonedNudge,
+  scheduleStreakNudge,
+  scheduleMilestoneNudge,
+  cancelAbandonedNudge,
+  cancelStreakNudge,
+  cancelMilestoneNudge,
+} from '@/lib/notifications/nudges';

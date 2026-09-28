@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { NOTIFICATION_CATEGORIES } from '@/lib/notifications/actions';
 import { cancelNotification, prepareNotifications } from '@/lib/notifications/core';
 import {
   NOTIFICATION_CHANNELS,
@@ -25,6 +26,7 @@ export async function scheduleRestCompleteNotification(
         body: 'Time for your next set.',
         sound: 'default',
         data,
+        categoryIdentifier: NOTIFICATION_CATEGORIES.rest,
       },
       trigger: {
         type: mod.SchedulableTriggerInputTypes.TIME_INTERVAL,
