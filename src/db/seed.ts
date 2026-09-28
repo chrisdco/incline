@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { buildSearchText } from '@/lib/exercise-search';
 import type {
   Category,
   Equipment,
@@ -130,8 +131,10 @@ export async function seedDatabase(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const ex of EXERCISES) {
       await db.runAsync(
-        `INSERT INTO exercises (id, name, primary_muscle, movement_pattern, equipment, category, is_compound, tips, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ex.id, ex.name, ex.primaryMuscle, ex.movementPattern, ex.equipment, ex.category, ex.isCompound ? 1 : 0, ex.tips, now, now,
+        `INSERT INTO exercises (id, name, primary_muscle, movement_pattern, equipment, category, is_compound, tips, search_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ex.id, ex.name, ex.primaryMuscle, ex.movementPattern, ex.equipment, ex.category, ex.isCompound ? 1 : 0, ex.tips,
+        buildSearchText({ name: ex.name, primaryMuscle: ex.primaryMuscle, equipment: ex.equipment, pattern: ex.movementPattern, category: ex.category }),
+        now, now,
       );
       for (const alias of ex.aliases) {
         await db.runAsync(`INSERT INTO exercise_aliases (exercise_id, alias) VALUES (?, ?)`, ex.id, alias.toLowerCase());

@@ -1,10 +1,17 @@
 /**
- * Migration runner tests against better-sqlite3 (Node), mirroring the SQL
- * used by expo-sqlite migrations. Keeps schema evolution safe without a device.
+ * Migration tests against better-sqlite3 (Node). Where the migration module
+ * has no native imports, tests run the REAL up() (017/018/019) — no mirrors
+ * to drift. Older/complex migrations keep SQL mirrors with a comment.
  */
 import Database from 'better-sqlite3';
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+
+import { migration017 } from '../migrations/017_session_exercise_notes';
+import { migration018 } from '../migrations/018_set_sort_order';
+import { migration019 } from '../migrations/019_exercise_search_text';
+import { createTestDatabase } from './sqlite-adapter';
 
 function createV1Db() {
   const db = new Database(':memory:');
@@ -166,77 +173,113 @@ describe('schema migrations (better-sqlite3)', () => {
     db.close();
   });
 
-  it('creates session_exercise_notes with per-log/exercise upsert semantics (017)', () => {
-    const db = new Database(':memory:');
-    db.exec(`
-      CREATE TABLE session_exercise_notes (
-        workout_log_id INTEGER NOT NULL,
-        exercise_id INTEGER NOT NULL,
-        notes TEXT NOT NULL DEFAULT '',
-        updated_at INTEGER NOT NULL,
-        PRIMARY KEY (workout_log_id, exercise_id)
+  it('creates session_exercise_notes with per-log/exercise upsert semantics (017, real up)', async () => {
+    const t = createTestDatabase({ ddl: [] });
+    await migration017.up(t.db as unknown as SQLiteDatabase);
+    await migration017.up(t.db as unknown as SQLiteDatabase);
+    const cols = await t.db.getAllAsync<{ name: string }>(`PRAGMA table_info(session_exercise_notes)`);
+    expect(cols.some((c) => c.name === 'notes')).toBe(true);
+    const upsert = async (logId: number, exerciseId: number, notes: string, at: number) =>
+      t.db.runAsync(
+        `INSERT INTO session_exercise_notes (workout_log_id, exercise_id, notes, updated_at)
+         VALUES (?, ?, ?, ?) ON CONFLICT(workout_log_id, exercise_id)
+         DO UPDATE SET notes = excluded.notes, updated_at = excluded.updated_at`,
+        logId,
+        exerciseId,
+        notes,
+        at,
       );
-      CREATE INDEX IF NOT EXISTS idx_session_exercise_notes_log ON session_exercise_notes(workout_log_id);
-    `);
-    const upsert = db.prepare(`
-      INSERT INTO session_exercise_notes (workout_log_id, exercise_id, notes, updated_at)
-      VALUES (?, ?, ?, ?) ON CONFLICT(workout_log_id, exercise_id)
-      DO UPDATE SET notes = excluded.notes, updated_at = excluded.updated_at
-    `);
-    upsert.run(1, 2, 'elbows tucked', 100);
-    upsert.run(1, 2, 'elbows tucked, pause', 200);
-    const row = db.prepare(
+    await upsert(1, 2, 'elbows tucked', 100);
+    await upsert(1, 2, 'elbows tucked, pause', 200);
+    const row = await t.db.getFirstAsync<{ notes: string }>(
       'SELECT notes FROM session_exercise_notes WHERE workout_log_id = 1 AND exercise_id = 2',
-    ).get() as { notes: string };
-    expect(row.notes).toBe('elbows tucked, pause');
-    db.prepare('DELETE FROM session_exercise_notes WHERE workout_log_id = 1 AND exercise_id = 2').run();
-    const gone = db.prepare('SELECT COUNT(*) as c FROM session_exercise_notes').get() as { c: number };
-    expect(gone.c).toBe(0);
-    db.close();
+    );
+    expect(row?.notes).toBe('elbows tucked, pause');
+    await t.db.runAsync('DELETE FROM session_exercise_notes WHERE workout_log_id = 1 AND exercise_id = 2');
+    const gone = await t.db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) as c FROM session_exercise_notes',
+    );
+    expect(gone?.c).toBe(0);
+    t.close();
   });
 
-  it('backfills set sort_order from insertion order and reorders via COALESCE (018)', () => {
-    const db = new Database(':memory:');
-    db.exec(`
-      CREATE TABLE set_entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        workout_log_id INTEGER NOT NULL,
-        exercise_id INTEGER NOT NULL,
-        set_index INTEGER NOT NULL,
-        deleted_at INTEGER
-      );
-      INSERT INTO set_entries (workout_log_id, exercise_id, set_index)
-      VALUES (1, 10, 0), (1, 20, 0), (1, 10, 1);
-    `);
-    // Mirror 018: add column + backfill from rowid order.
-    db.exec('ALTER TABLE set_entries ADD COLUMN sort_order INTEGER');
-    db.exec('UPDATE set_entries SET sort_order = id WHERE sort_order IS NULL');
-    expect(hasColumn(db, 'set_entries', 'sort_order')).toBe(true);
+  it('backfills set sort_order from insertion order and reorders via COALESCE (018, real up)', async () => {
+    const t = createTestDatabase({
+      ddl: [
+        `CREATE TABLE set_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          workout_log_id INTEGER NOT NULL,
+          exercise_id INTEGER NOT NULL,
+          set_index INTEGER NOT NULL,
+          deleted_at INTEGER
+        )`,
+        `INSERT INTO set_entries (workout_log_id, exercise_id, set_index)
+         VALUES (1, 10, 0), (1, 20, 0), (1, 10, 1)`,
+      ],
+    });
+    await migration018.up(t.db as unknown as SQLiteDatabase);
+    await migration018.up(t.db as unknown as SQLiteDatabase);
+    const cols = await t.db.getAllAsync<{ name: string }>(`PRAGMA table_info(set_entries)`);
+    expect(cols.some((c) => c.name === 'sort_order')).toBe(true);
 
-    const order = (db
-      .prepare(
+    const order = (
+      await t.db.getAllAsync<{ exercise_id: number }>(
         `SELECT DISTINCT exercise_id FROM set_entries
          WHERE workout_log_id = 1 AND deleted_at IS NULL
          ORDER BY COALESCE(sort_order, id)`,
       )
-      .all() as { exercise_id: number }[]).map((r) => r.exercise_id);
+    ).map((r) => r.exercise_id);
     expect(order).toEqual([10, 20]);
 
     // Reorder: bench (20) first.
-    db.prepare(
+    await t.db.runAsync(
       'UPDATE set_entries SET sort_order = ? WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
-    ).run(0, 1, 20);
-    db.prepare(
+      0,
+      1,
+      20,
+    );
+    await t.db.runAsync(
       'UPDATE set_entries SET sort_order = ? WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
-    ).run(1, 1, 10);
-    const reordered = (db
-      .prepare(
+      1,
+      1,
+      10,
+    );
+    const reordered = (
+      await t.db.getAllAsync<{ exercise_id: number }>(
         `SELECT DISTINCT exercise_id FROM set_entries
          WHERE workout_log_id = 1 AND deleted_at IS NULL
          ORDER BY COALESCE(sort_order, id)`,
       )
-      .all() as { exercise_id: number }[]).map((r) => r.exercise_id);
+    ).map((r) => r.exercise_id);
     expect(reordered).toEqual([20, 10]);
-    db.close();
+    t.close();
+  });
+
+  it('backfills exercise search_text lowercased with flattened parens (019, real up)', async () => {
+    const t = createTestDatabase({
+      ddl: [
+        `CREATE TABLE exercises (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          primary_muscle TEXT NOT NULL,
+          movement_pattern TEXT,
+          equipment TEXT NOT NULL,
+          category TEXT NOT NULL
+        )`,
+        `INSERT INTO exercises (id, name, primary_muscle, movement_pattern, equipment, category)
+         VALUES (1, 'Bench Press (Barbell)', 'chest', 'horizontal_push', 'barbell', 'strength')`,
+      ],
+    });
+    await migration019.up(t.db as unknown as SQLiteDatabase);
+    await migration019.up(t.db as unknown as SQLiteDatabase);
+    const cols = await t.db.getAllAsync<{ name: string }>(`PRAGMA table_info(exercises)`);
+    expect(cols.some((c) => c.name === 'search_text')).toBe(true);
+    const row = await t.db.getFirstAsync<{ search_text: string }>(
+      'SELECT search_text FROM exercises WHERE id = 1',
+    );
+    expect(row?.search_text).toContain('bench press');
+    expect(row?.search_text).toContain('barbell');
+    expect(row?.search_text).not.toMatch(/[()]/);
+    t.close();
   });
 });

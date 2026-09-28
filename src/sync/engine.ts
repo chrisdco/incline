@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { openDatabase } from '@/db/client';
 import { newUuid } from '@/lib/uuid';
+import { buildSearchText } from '@/lib/exercise-search';
 import type { SyncTable } from './types';
 import {
   bumpOutboxAttempt,
@@ -329,7 +330,7 @@ async function applyRemoteRow(
     if (local) {
       await db.runAsync(
         `UPDATE exercises SET name = ?, primary_muscle = ?, movement_pattern = ?, equipment = ?, category = ?,
-         is_compound = ?, tips = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
+         is_compound = ?, tips = ?, search_text = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
         asStr(remote.name),
         asStr(remote.primary_muscle),
         remote.movement_pattern == null ? null : asStr(remote.movement_pattern),
@@ -337,6 +338,13 @@ async function applyRemoteRow(
         asStr(remote.category),
         remote.is_compound ? 1 : 0,
         asStr(remote.tips),
+        buildSearchText({
+          name: asStr(remote.name),
+          primaryMuscle: asStr(remote.primary_muscle),
+          equipment: asStr(remote.equipment),
+          pattern: remote.movement_pattern == null ? null : asStr(remote.movement_pattern),
+          category: asStr(remote.category),
+        }),
         updatedAt,
         deletedAt,
         local.id,
@@ -344,8 +352,8 @@ async function applyRemoteRow(
     } else if (!deletedAt) {
       const created = isoToMs(asStr(remote.created_at)) ?? updatedAt;
       await db.runAsync(
-        `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, tips, uuid, created_at, updated_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, 1, 'custom', ?, ?, ?, ?, ?)`,
+        `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, tips, search_text, uuid, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, 1, 'custom', ?, ?, ?, ?, ?, ?)`,
         asStr(remote.name),
         asStr(remote.primary_muscle),
         remote.movement_pattern == null ? null : asStr(remote.movement_pattern),
@@ -353,6 +361,13 @@ async function applyRemoteRow(
         asStr(remote.category),
         remote.is_compound ? 1 : 0,
         asStr(remote.tips),
+        buildSearchText({
+          name: asStr(remote.name),
+          primaryMuscle: asStr(remote.primary_muscle),
+          equipment: asStr(remote.equipment),
+          pattern: remote.movement_pattern == null ? null : asStr(remote.movement_pattern),
+          category: asStr(remote.category),
+        }),
         id,
         created,
         updatedAt,

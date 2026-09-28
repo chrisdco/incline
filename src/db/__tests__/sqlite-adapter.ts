@@ -26,14 +26,21 @@ function normalize(params: unknown[]): unknown[] {
   return params.map((p) => (p === undefined ? null : p));
 }
 
-export function createTestDatabase(opts?: { failOn?: RegExp }): {
+export function createTestDatabase(opts?: {
+  failOn?: { failOn: RegExp | null } | RegExp | null;
+  /**
+   * Custom DDL instead of the full latest schema — lets migration tests start
+   * from a genuinely old shape and run the REAL migration up() against it.
+   */
+  ddl?: string[];
+}): {
   db: TestDbHandle;
   close: () => void;
 } {
   const raw = new Database(':memory:');
   raw.exec('PRAGMA journal_mode = WAL');
   raw.exec('PRAGMA foreign_keys = ON');
-  for (const stmt of SCHEMA_STATEMENTS) raw.exec(stmt);
+  for (const stmt of opts?.ddl ?? SCHEMA_STATEMENTS) raw.exec(stmt);
 
   const db: TestDbHandle = {
     execAsync: async (sql: string) => {
