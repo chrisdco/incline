@@ -4,20 +4,30 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { useCallback } from 'react';
 
 import { cn } from '@/lib/cn';
+import { useAuroraSkin } from '@/lib/use-color-scheme';
 import { Text } from './text';
 
 type CardProps = ViewProps & {
   elevation?: 'flat' | 'raised';
 };
 
+function cardBorder(aurora: boolean, raised: boolean): string {
+  // Aurora skins read as lifted neon fills (ref) — hairlines look wireframe
+  // on near-black, so cards go borderless and let the tinted fill carry them.
+  if (aurora) return 'border-transparent';
+  return raised ? 'border-border' : 'border-border/60';
+}
+
 export function Card({ className, elevation = 'flat', ...props }: CardProps) {
+  const aurora = useAuroraSkin();
   return (
     <View
       className={cn(
         'rounded-3xl border p-4',
         elevation === 'raised'
-          ? 'border-border bg-surface2 shadow-sm'
-          : 'border-border/60 bg-surface1',
+          ? 'bg-surface2 shadow-sm'
+          : 'bg-surface1',
+        cardBorder(aurora, elevation === 'raised'),
         className,
       )}
       {...props}
@@ -41,6 +51,7 @@ export function PressableCard({
   disabled,
   ...props
 }: PressableCardProps) {
+  const aurora = useAuroraSkin();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -59,9 +70,8 @@ export function PressableCard({
       style={animatedStyle}
       className={cn(
         'rounded-3xl border p-4',
-        elevation === 'raised'
-          ? 'border-border bg-surface2 shadow-sm'
-          : 'border-border/60 bg-surface1',
+        elevation === 'raised' ? 'bg-surface2 shadow-sm' : 'bg-surface1',
+        cardBorder(aurora, elevation === 'raised'),
         disabled && 'opacity-50',
         className,
       )}

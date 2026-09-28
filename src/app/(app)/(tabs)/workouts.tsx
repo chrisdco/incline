@@ -15,6 +15,7 @@ import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { WorkoutCard } from '@/components/workout/workout-card';
 import { ProgramCard } from '@/components/workout/program-card';
+import { HeroGlow } from '@/components/common/hero-glow';
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
 import { useTemplateSummaries, usePrograms } from '@/hooks/use-data';
 import { useActiveSession } from '@/hooks/use-active-session';
@@ -23,6 +24,9 @@ import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { startWorkout, discardWorkout, deleteTemplate, duplicateTemplate } from '@/db/queries';
 import { setCachedSession } from '@/db/session-cache';
+import { useSettings } from '@/store/settings-store';
+import { usePrimaryHex } from '@/lib/theme';
+import { isAuroraAccent } from '@/lib/accent-themes';
 import type { TemplateSummary } from '@/db/queries';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
 
@@ -34,6 +38,9 @@ export default function WorkoutsScreen() {
   const templates = useTemplateSummaries();
   const programs = usePrograms();
   const { session } = useActiveSession();
+  const { accentTheme } = useSettings();
+  const primaryHex = usePrimaryHex();
+  const aurora = isAuroraAccent(accentTheme);
   const clear = useActiveWorkout((s) => s.clear);
   const { toast } = useToast();
   const { impact } = useHaptics();
@@ -162,6 +169,7 @@ export default function WorkoutsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className={SCREEN_HEADER}>
+        {aurora ? <HeroGlow hex={primaryHex} /> : null}
         <Heading>Workouts</Heading>
         <SegmentedControl<Tab>
           className="mt-3"

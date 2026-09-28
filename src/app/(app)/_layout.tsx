@@ -1,12 +1,21 @@
 import { Stack } from 'expo-router';
 
 import { CloudSyncProvider } from '@/components/common/cloud-sync-provider';
+import { themeHex } from '@/lib/theme';
+import { useAppColorScheme } from '@/lib/use-color-scheme';
+import { useSettings } from '@/store/settings-store';
 
 /** App group: tabs at the root, settings pushed on top (hides the tab bar). */
 export default function AppLayout() {
+  const scheme = useAppColorScheme();
+  const accentTheme = useSettings((s) => s.accentTheme);
   return (
     <CloudSyncProvider>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: themeHex(scheme, accentTheme).background },
+        }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="exercises" options={{ headerShown: true, title: 'Exercises' }} />
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />

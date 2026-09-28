@@ -1,5 +1,6 @@
 import { useColorScheme as useRNColorScheme } from 'react-native';
 
+import { isAuroraAccent } from '@/lib/accent-themes';
 import { useSettings } from '@/store/settings-store';
 
 export { useRNColorScheme as useSystemColorScheme };
@@ -18,4 +19,10 @@ export function useAppColorScheme(): 'light' | 'dark' {
 /** Whether the effective theme is dark. Convenience for layout wrappers. */
 export function useIsDark(): boolean {
   return useAppColorScheme() === 'dark';
+}
+
+/** True when an aurora skin (rose/electron) drives the full theme treatment. */
+export function useAuroraSkin(): boolean {
+  const { accentTheme } = useSettings();
+  return isAuroraAccent(accentTheme);
 }

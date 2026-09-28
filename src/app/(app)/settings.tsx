@@ -22,7 +22,7 @@ import {
 import { useProfile } from '@/hooks/use-data';
 import { useCloudSync } from '@/hooks/use-cloud-sync';
 import { saveProfile } from '@/db/queries';
-import { ACCENT_THEME_LIST } from '@/lib/accent-themes';
+import { ACCENT_THEME_LIST, CLASSIC_ACCENTS, isAuroraAccent } from '@/lib/accent-themes';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import {
@@ -120,12 +120,14 @@ export default function SettingsScreen() {
     setWorkoutRemindersEnabled, setWorkoutReminderDays, setWorkoutReminderTime,
     setWeeklyDigestEnabled, setWeeklyDigestTime,
     setExerciseMediaStyle, setExerciseMediaAnimation, setDevExerciseMediaOverride,
+    applyThemePreset,
   } = useSettings();
   const router = useRouter();
   const { data: profile, refetch } = useProfile();
   const scheme = useAppColorScheme();
   const { toast } = useToast();
   const selectedAccent = ACCENT_THEME_LIST.find((t) => t.id === accentTheme) ?? ACCENT_THEME_LIST[0];
+  const auroraActive = isAuroraAccent(accentTheme);
   const { status, pending, syncing, enabled, syncNow } = useCloudSync({ auto: false });
 
   const changeUnit = (u: Unit) => {
@@ -484,15 +486,67 @@ export default function SettingsScreen() {
           <View className="py-3">
             <View className="mb-3 flex-row items-center gap-3">
               <View className="h-9 w-9 items-center justify-center rounded-xl bg-muted">
+                <Icon icon={Sparkles} size={18} color="muted-foreground" />
+              </View>
+              <View className="flex-1">
+                <Body className="font-medium text-foreground">Theme</Body>
+                <Caption className="mt-0.5">
+                  {auroraActive ? `${selectedAccent.label} aurora — neon dark skin` : 'Classic — clean base, any accent'}
+                </Caption>
+              </View>
+            </View>
+            <View className="gap-2 px-1">
+              {(
+                [
+                  { id: 'classic', label: 'Classic', hint: 'Clean base + accent dots below', swatch: scheme === 'dark' ? '#0c0c0e' : '#f9f9fb', ring: scheme === 'dark' ? '#3f3f46' : '#e4e4e7' },
+                  { id: 'electron', label: 'Electron', hint: 'Cyan aurora · neon dark skin', swatch: scheme === 'dark' ? '#3DCDF5' : '#0B8A9E', ring: null },
+                  { id: 'rose', label: 'Rose', hint: 'Pink aurora · neon dark skin', swatch: scheme === 'dark' ? '#F368AB' : '#DB3A7B', ring: null },
+                ] as const
+              ).map((preset) => {
+                const selected = preset.id === 'classic' ? !auroraActive : accentTheme === preset.id;
+                return (
+                  <Pressable
+                    key={preset.id}
+                    onPress={() => applyThemePreset(preset.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`${preset.label} theme`}
+                    className={cn(
+                      'flex-row items-center gap-3 rounded-2xl border px-3 py-2.5',
+                      selected ? 'border-foreground bg-muted/60' : 'border-border/60',
+                    )}>
+                    <View
+                      className="h-9 w-9 rounded-full border border-border/60"
+                      style={{ backgroundColor: preset.swatch, borderColor: preset.ring ?? undefined }}
+                    />
+                    <View className="flex-1">
+                      <Body className="font-medium text-foreground">{preset.label}</Body>
+                      <Caption>{preset.hint}</Caption>
+                    </View>
+                    {selected ? <Icon icon={ChevronRight} size={18} color="muted-foreground" /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Caption className="px-1 pb-1 pt-2 text-[11px]">
+              Aurora skins restyle the dark base + ambient glow. Light mode stays Classic.
+            </Caption>
+          </View>
+          <View className="h-px bg-border/60" />
+          <View className="py-3">
+            <View className="mb-3 flex-row items-center gap-3">
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-muted">
                 <Icon icon={Palette} size={18} color="muted-foreground" />
               </View>
               <View className="flex-1">
                 <Body className="font-medium text-foreground">Accent</Body>
-                <Caption className="mt-0.5">{selectedAccent.description}</Caption>
+                <Caption className="mt-0.5">
+                  {auroraActive ? 'Accents apply to the Classic theme' : selectedAccent.description}
+                </Caption>
               </View>
             </View>
-            <View className="flex-row flex-wrap gap-3 px-1">
-              {ACCENT_THEME_LIST.map((theme) => {
+            <View className={cn('flex-row flex-wrap gap-3 px-1', auroraActive && 'opacity-60')}>
+              {CLASSIC_ACCENTS.map((theme) => {
                 const selected = accentTheme === theme.id;
                 const swatch = scheme === 'dark' ? theme.hex.dark : theme.hex.light;
                 return (

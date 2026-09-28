@@ -1,4 +1,6 @@
 /** Cross-device account preferences. Unit lives on profile; AI opt-in stays per-device. */
+import { DEFAULT_ACCENT_THEME } from '@/lib/accent-themes';
+
 export const ACCOUNT_PREF_KEYS = [
   'themeMode',
   'accentTheme',
@@ -34,7 +36,7 @@ export type AccountPrefsPayload = {
 
 export const ACCOUNT_PREF_DEFAULTS: AccountPrefsPayload = {
   themeMode: 'system',
-  accentTheme: 'indigo',
+  accentTheme: DEFAULT_ACCENT_THEME,
   calendarHeatMetric: 'volume',
   weekStartsOn: 'monday',
   weeklyWorkoutGoal: 4,

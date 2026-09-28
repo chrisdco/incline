@@ -84,15 +84,39 @@ export const ACCENT_THEMES: Record<AccentTheme, AccentDefinition> = {
     dark: { primary: '142 70% 68%', ring: '142 70% 68%', chart1: '142 65% 62%' },
     hex: { light: '#2DB86A', dark: '#75E69C' },
   },
+  rose: {
+    id: 'rose',
+    label: 'Rose',
+    description: 'Hot pink aurora — neon dark skin',
+    light: { primary: '336 80% 50%', ring: '336 80% 50%', chart1: '336 75% 55%' },
+    dark: { primary: '331 85% 68%', ring: '331 85% 68%', chart1: '331 80% 62%' },
+    hex: { light: '#DB3A7B', dark: '#F368AB' },
+  },
+  electron: {
+    id: 'electron',
+    label: 'Electron',
+    description: 'Electric cyan aurora — neon dark skin',
+    light: { primary: '187 85% 36%', ring: '187 85% 36%', chart1: '187 80% 44%' },
+    dark: { primary: '193 90% 60%', ring: '193 90% 60%', chart1: '193 85% 56%' },
+    hex: { light: '#0B8A9E', dark: '#3DCDF5' },
+  },
 };
 
 export const ACCENT_THEME_LIST = Object.values(ACCENT_THEMES);
 
-export const DEFAULT_ACCENT_THEME: AccentTheme = 'indigo';
+export const DEFAULT_ACCENT_THEME: AccentTheme = 'teal';
 
 export function isAccentTheme(value: unknown): value is AccentTheme {
   return typeof value === 'string' && value in ACCENT_THEMES;
 }
+
+/** Full aurora skins (tinted dark base + ambient glow). Everything else is Classic. */
+export function isAuroraAccent(value: unknown): value is AccentTheme {
+  return value === 'rose' || value === 'electron';
+}
+
+/** Base accents shown in the Classic accent picker (aurora skins have their own picker entry). */
+export const CLASSIC_ACCENTS = ACCENT_THEME_LIST.filter((t) => !isAuroraAccent(t.id));
 
 /** Chart palette keyed to the active accent: accent + amber/mauve/red/slate/teal. */
 export function chartPaletteFor(

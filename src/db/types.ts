@@ -37,7 +37,7 @@ export type Category = 'strength' | 'cardio' | 'mobility' | 'accessory';
 export type Goal = 'build_muscle' | 'gain_strength' | 'lose_fat' | 'improve_endurance';
 export type Unit = 'metric' | 'imperial';
 export type ThemeMode = 'system' | 'light' | 'dark';
-export type AccentTheme = 'indigo' | 'teal' | 'copper' | 'coral' | 'emerald' | 'mint';
+export type AccentTheme = 'indigo' | 'teal' | 'copper' | 'coral' | 'emerald' | 'mint' | 'rose' | 'electron';
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 

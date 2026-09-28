@@ -18,6 +18,7 @@ import { VolumeChart } from '@/components/progress/volume-chart';
 import { TrendChip } from '@/components/progress/trend-chip';
 import { PRCard } from '@/components/progress/pr-card';
 import { HistoryRow } from '@/components/progress/history-row';
+import { HeroGlow } from '@/components/common/hero-glow';
 import {
   HistoryFilters,
   HistoryExerciseFilterSheet,
@@ -27,6 +28,8 @@ import {
 } from '@/components/progress/history-filters';
 import { usePeriodStats, useWorkoutLogs } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
+import { usePrimaryHex } from '@/lib/theme';
+import { isAuroraAccent } from '@/lib/accent-themes';
 import { formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
 import { MUSCLE_LABELS } from '@/lib/labels';
 import { SCREEN_CONTENT } from '@/lib/layout';
@@ -55,7 +58,9 @@ function monthLabel(key: string): string {
 
 export default function ProgressScreen() {
   const router = useRouter();
-  const { unit } = useSettings();
+  const { unit, accentTheme } = useSettings();
+  const primaryHex = usePrimaryHex();
+  const aurora = isAuroraAccent(accentTheme);
   const [range, setRange] = useState<ProgressRange>('30d');
   const [historyRange, setHistoryRange] = useState<ProgressRange>('all');
   const [historyExercise, setHistoryExercise] = useState<HistoryFilterSelection | null>(null);
@@ -123,6 +128,7 @@ export default function ProgressScreen() {
         onRefresh={onRefresh}
         ListHeaderComponent={
           <View className="mb-4 gap-5">
+            {aurora ? <HeroGlow hex={primaryHex} /> : null}
             <View className="mt-2">
               <Heading>Progress</Heading>
               <Caption className="mt-1">Your training history at a glance.</Caption>
