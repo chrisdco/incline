@@ -37,7 +37,8 @@ export interface SetEntryRow {
   completed: boolean;
   rest_seconds: number | null;
   superset_group: number | null;
-  set_type: string;
+  /** Legacy rows synced before set_type existed come back NULL (= working). */
+  set_type: string | null;
   rpe: number | null;
 }
 

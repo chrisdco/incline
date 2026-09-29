@@ -18,8 +18,8 @@ export function workingSetCount(sets: { completed: boolean; setType?: string | n
   return sets.filter(isWorkingSet).length;
 }
 
-export function ghostWorkingSql(): string {
-  return `(s.set_type IS NULL OR s.set_type = 'working') AND s.weight > 0 AND s.reps > 0 AND s.completed = 1 AND s.deleted_at IS NULL`;
+export function ghostWorkingSql(alias = 's'): string {
+  return `(${alias}.set_type IS NULL OR ${alias}.set_type = 'working') AND ${alias}.weight > 0 AND ${alias}.reps > 0 AND ${alias}.completed = 1 AND ${alias}.deleted_at IS NULL`;
 }
 
 export type SessionGhost = {

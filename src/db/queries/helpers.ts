@@ -1,4 +1,5 @@
 import { openDatabase } from '../client';
+import { ghostWorkingSql } from '@/lib/session-ghost';
 import { isSetType } from '../types';
 import type {
   Category,
@@ -324,6 +325,36 @@ export async function recomputeVolume(logId: number): Promise<void> {
     logId,
   );
   await db.runAsync('UPDATE workout_logs SET total_volume = ?, updated_at = ? WHERE id = ?', r?.v ?? 0, Date.now(), logId);
+}
+
+/**
+ * Working-set volume per log, derived from set rows (total_volume stays the
+ * all-completed-sets figure so full information is never lost). One GROUP BY
+ * over the `idx_set_entries_log` index — cheap at any realistic log count.
+ * Displays (progress, recaps, ghost deltas, milestones) use this; stored
+ * total_volume is the full-fidelity record used by export/sync.
+ */
+export async function getWorkingVolumes(logIds: number[]): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  const ids = [...new Set(logIds.filter((id) => Number.isInteger(id)))];
+  if (ids.length === 0) return out;
+  const db = await openDatabase();
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = await db.getAllAsync<{ workout_log_id: number; v: number }>(
+    `SELECT s.workout_log_id, COALESCE(SUM(s.weight * s.reps), 0) as v
+     FROM set_entries s
+     WHERE s.workout_log_id IN (${placeholders}) AND ${ghostWorkingSql()}
+     GROUP BY s.workout_log_id`,
+    ...ids,
+  );
+  for (const r of rows) out.set(r.workout_log_id, r.v);
+  for (const id of ids) if (!out.has(id)) out.set(id, 0);
+  return out;
+}
+
+/** Single-log convenience over getWorkingVolumes. */
+export async function getWorkingVolume(logId: number): Promise<number> {
+  return (await getWorkingVolumes([logId])).get(logId) ?? 0;
 }
 
 export async function getSessionSets(logId: number): Promise<SessionSet[]> {

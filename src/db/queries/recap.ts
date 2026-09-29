@@ -9,6 +9,7 @@ import {
   weekBounds,
 } from '../calc';
 import { getCelebrationPrsInWindow } from './coaching/prs';
+import { ghostWorkingSql } from '@/lib/session-ghost';
 import type {
   MonthSeriesPoint,
   MuscleDistribution,
@@ -19,6 +20,7 @@ import type {
   WeeklyRecap,
 } from '../types';
 import { getStreak } from './progress';
+import { getWorkingVolumes } from './helpers';
 
 const WEEK_MS = 7 * 86_400_000;
 const MONTH_NARROW = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
@@ -47,15 +49,25 @@ async function twelveMonthSeries(
     mk: string;
     sessions: number;
     duration: number;
-    volume: number;
   }>(
     `SELECT strftime('%Y-%m', datetime(started_at / 1000, 'unixepoch', 'localtime')) as mk,
             COUNT(*) as sessions,
-            COALESCE(SUM(duration_seconds), 0) as duration,
-            COALESCE(SUM(total_volume), 0) as volume
+            COALESCE(SUM(duration_seconds), 0) as duration
      FROM workout_logs
      WHERE ended_at IS NOT NULL AND deleted_at IS NULL
        AND started_at >= ? AND started_at < ?
+     GROUP BY mk`,
+    seriesStart,
+    endMs,
+  );
+  // Working-only monthly volume (warm-ups excluded), one indexed aggregate.
+  const volRows = await db.getAllAsync<{ mk: string; volume: number }>(
+    `SELECT strftime('%Y-%m', datetime(w.started_at / 1000, 'unixepoch', 'localtime')) as mk,
+            COALESCE(SUM(CASE WHEN ${ghostWorkingSql('s')} THEN s.weight * s.reps ELSE 0 END), 0) as volume
+     FROM set_entries s
+     JOIN workout_logs w ON w.id = s.workout_log_id
+     WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL
+       AND s.completed = 1 AND w.started_at >= ? AND w.started_at < ?
      GROUP BY mk`,
     seriesStart,
     endMs,
@@ -72,6 +84,7 @@ async function twelveMonthSeries(
     endMs,
   );
   const logMap = new Map(logRows.map((r) => [r.mk, r]));
+  const volMap = new Map(volRows.map((r) => [r.mk, r.volume]));
   const setMap = new Map(setRows.map((r) => [r.mk, r.sets]));
   return buckets.map((b) => {
     const row = logMap.get(b.monthKey);
@@ -79,7 +92,7 @@ async function twelveMonthSeries(
       ...b,
       sessions: row?.sessions ?? 0,
       durationSeconds: row?.duration ?? 0,
-      volume: row?.volume ?? 0,
+      volume: volMap.get(b.monthKey) ?? 0,
       sets: setMap.get(b.monthKey) ?? 0,
     };
   });
@@ -152,7 +165,8 @@ async function windowMuscles(
   endMs: number,
 ): Promise<MuscleDistribution[]> {
   const muscleRows = await db.getAllAsync<{ primary_muscle: string; sets: number; volume: number }>(
-    `SELECT e.primary_muscle, COUNT(s.id) as sets, COALESCE(SUM(s.weight * s.reps), 0) as volume
+    `SELECT e.primary_muscle, COUNT(s.id) as sets,
+       COALESCE(SUM(CASE WHEN ${ghostWorkingSql('s')} THEN s.weight * s.reps ELSE 0 END), 0) as volume
      FROM set_entries s
      JOIN workout_logs w ON w.id = s.workout_log_id
      JOIN exercises e ON e.id = s.exercise_id
@@ -182,26 +196,27 @@ export async function getWeeklyRecap(
   const prevStart = startMs - WEEK_MS;
   const weekStart = isoDate(startMs);
 
-  const logs = await db.getAllAsync<{ started_at: number; total_volume: number }>(
-    `SELECT started_at, total_volume FROM workout_logs
+  const logs = await db.getAllAsync<{ id: number; started_at: number }>(
+    `SELECT id, started_at FROM workout_logs
      WHERE ended_at IS NOT NULL AND deleted_at IS NULL
        AND started_at >= ? AND started_at < ?
      ORDER BY started_at`,
     startMs,
     endMs,
   );
-  const prevLogs = await db.getAllAsync<{ started_at: number; total_volume: number }>(
-    `SELECT started_at, total_volume FROM workout_logs
+  const prevLogs = await db.getAllAsync<{ id: number; started_at: number }>(
+    `SELECT id, started_at FROM workout_logs
      WHERE ended_at IS NOT NULL AND deleted_at IS NULL
        AND started_at >= ? AND started_at < ?`,
     prevStart,
     startMs,
   );
+  const working = await getWorkingVolumes([...logs, ...prevLogs].map((l) => l.id));
 
   const sessions = logs.length;
-  const totalVolume = logs.reduce((sum, l) => sum + l.total_volume, 0);
+  const totalVolume = logs.reduce((sum, l) => sum + (working.get(l.id) ?? 0), 0);
   const prevSessions = prevLogs.length;
-  const prevVolume = prevLogs.reduce((sum, l) => sum + l.total_volume, 0);
+  const prevVolume = prevLogs.reduce((sum, l) => sum + (working.get(l.id) ?? 0), 0);
   const volumeDeltaPct = pctDelta(totalVolume, prevVolume, prevSessions > 0);
   const sessionsDeltaPct = pctDelta(sessions, prevSessions, prevSessions > 0);
 
@@ -263,11 +278,11 @@ export async function getMonthlyRecap(
   const key = monthKey(startMs);
 
   const logs = await db.getAllAsync<{
+    id: number;
     started_at: number;
-    total_volume: number;
     duration_seconds: number;
   }>(
-    `SELECT started_at, total_volume, duration_seconds FROM workout_logs
+    `SELECT id, started_at, duration_seconds FROM workout_logs
      WHERE ended_at IS NOT NULL AND deleted_at IS NULL
        AND started_at >= ? AND started_at < ?
      ORDER BY started_at`,
@@ -275,22 +290,23 @@ export async function getMonthlyRecap(
     endMs,
   );
   const prevLogs = await db.getAllAsync<{
+    id: number;
     started_at: number;
-    total_volume: number;
     duration_seconds: number;
   }>(
-    `SELECT started_at, total_volume, duration_seconds FROM workout_logs
+    `SELECT id, started_at, duration_seconds FROM workout_logs
      WHERE ended_at IS NOT NULL AND deleted_at IS NULL
        AND started_at >= ? AND started_at < ?`,
     prev.startMs,
     prev.endMs,
   );
+  const working = await getWorkingVolumes([...logs, ...prevLogs].map((l) => l.id));
 
   const sessions = logs.length;
-  const totalVolume = logs.reduce((sum, l) => sum + l.total_volume, 0);
+  const totalVolume = logs.reduce((sum, l) => sum + (working.get(l.id) ?? 0), 0);
   const durationSeconds = logs.reduce((sum, l) => sum + (l.duration_seconds ?? 0), 0);
   const prevSessions = prevLogs.length;
-  const prevVolume = prevLogs.reduce((sum, l) => sum + l.total_volume, 0);
+  const prevVolume = prevLogs.reduce((sum, l) => sum + (working.get(l.id) ?? 0), 0);
   const previousDurationSeconds = prevLogs.reduce((sum, l) => sum + (l.duration_seconds ?? 0), 0);
   const volumeDeltaPct = pctDelta(totalVolume, prevVolume, prevSessions > 0);
   const sessionsDeltaPct = pctDelta(sessions, prevSessions, prevSessions > 0);
@@ -326,7 +342,8 @@ export async function getMonthlyRecap(
     sets: number;
     volume: number;
   }>(
-    `SELECT e.id as exerciseId, e.name, COUNT(s.id) as sets, COALESCE(SUM(s.weight * s.reps), 0) as volume
+    `SELECT e.id as exerciseId, e.name, COUNT(s.id) as sets,
+       COALESCE(SUM(CASE WHEN ${ghostWorkingSql('s')} THEN s.weight * s.reps ELSE 0 END), 0) as volume
      FROM set_entries s
      JOIN workout_logs w ON w.id = s.workout_log_id
      JOIN exercises e ON e.id = s.exercise_id

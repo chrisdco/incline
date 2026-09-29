@@ -3,7 +3,7 @@ import dynamicChart from "next/dynamic";
 import { Suspense } from "react";
 
 import { getDashboard, getVolumeSeries } from "@/lib/queries";
-import { formatDateTime, formatVolume } from "@/lib/format";
+import { formatDateTime, formatVolume, toDisplayWeight } from "@/lib/format";
 import { Card, EmptyState, SectionTitle, Stat } from "@/components/ui";
 
 const VolumeChart = dynamicChart(() => import("@/components/charts").then((m) => m.VolumeChart), {
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
                       <p className="text-sm text-zinc-500">{formatDateTime(log.started_at)}</p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="font-semibold">{formatVolume(log.total_volume, log.unit)}</p>
+                      <p className="font-semibold">{formatVolume(dashboard.workingVolumeByLog[log.id] ?? toDisplayWeight(log.total_volume, log.unit, unit), unit)}</p>
                       <p className="text-xs text-zinc-500">{log.duration_seconds > 0 ? `${Math.round(log.duration_seconds / 60)} min` : ""}</p>
                     </div>
                   </div>

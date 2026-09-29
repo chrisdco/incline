@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { getWorkouts } from "@/lib/queries";
-import { formatDateTime, formatDuration, formatVolume } from "@/lib/format";
+import { getWorkingVolumesForLogs, getWorkouts } from "@/lib/queries";
+import { formatDateTime, formatDuration, formatVolume, toDisplayWeight } from "@/lib/format";
 import { Card, EmptyState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,14 @@ export default async function WorkoutsPage({ searchParams }: { searchParams: Pro
   const params = await searchParams;
   const page = Math.max(0, Number(params.page ?? 0) || 0);
   const { logs: visible, hasMore } = await getWorkouts(PAGE_SIZE, page * PAGE_SIZE);
+  // Single-user pages are single-unit in practice; convert stragglers.
+  const pageUnit = visible[0]?.unit ?? "metric";
+  const unitByLog = new Map(visible.map((l) => [l.id, l.unit]));
+  const workingByLog = await getWorkingVolumesForLogs(
+    visible.map((l) => l.id),
+    unitByLog,
+    pageUnit,
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -30,7 +38,7 @@ export default async function WorkoutsPage({ searchParams }: { searchParams: Pro
                     {log.notes ? <p className="mt-1 truncate text-sm text-zinc-500">{log.notes}</p> : null}
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-semibold">{formatVolume(log.total_volume, log.unit)}</p>
+                    <p className="font-semibold">{formatVolume(workingByLog.get(log.id) ?? toDisplayWeight(log.total_volume, log.unit, pageUnit), pageUnit)}</p>
                     <p className="text-xs text-zinc-500">{log.duration_seconds > 0 ? formatDuration(log.duration_seconds) : ""}</p>
                   </div>
                 </div>
