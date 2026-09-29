@@ -12,11 +12,25 @@ import { ListSkeleton } from '@/components/common/skeleton';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useToast } from '@/components/ui/toast';
 import { getWorkoutLog, reorderWorkoutExercises } from '@/db/queries';
+import { getCachedSession } from '@/db/session-cache';
 
 interface ReorderItem {
   exerciseId: number;
   name: string;
   setCount: number;
+}
+
+function itemsFromSessionSets(
+  sets: { exerciseId: number; exerciseName: string }[] | undefined,
+): ReorderItem[] | null {
+  if (!sets) return null;
+  const seen = new Map<number, ReorderItem>();
+  for (const s of sets) {
+    const cur = seen.get(s.exerciseId);
+    if (cur) cur.setCount += 1;
+    else seen.set(s.exerciseId, { exerciseId: s.exerciseId, name: s.exerciseName, setCount: 1 });
+  }
+  return [...seen.values()];
 }
 
 /**
@@ -29,7 +43,11 @@ export default function ReorderSessionScreen() {
   const router = useRouter();
   const { toast } = useToast();
   const { impact } = useHaptics();
-  const [items, setItems] = useState<ReorderItem[] | null>(null);
+  const [items, setItems] = useState<ReorderItem[] | null>(() =>
+    // Stale-while-revalidate: the session screen keeps this cache fresh, so
+    // reorder renders synchronously and refreshes in the background.
+    itemsFromSessionSets(!Number.isNaN(logId) ? getCachedSession(logId)?.sets : undefined),
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -42,13 +60,7 @@ export default function ReorderSessionScreen() {
       try {
         const session = await getWorkoutLog(logId);
         if (!active) return;
-        const seen = new Map<number, ReorderItem>();
-        for (const s of session?.sets ?? []) {
-          const cur = seen.get(s.exerciseId);
-          if (cur) cur.setCount += 1;
-          else seen.set(s.exerciseId, { exerciseId: s.exerciseId, name: s.exerciseName, setCount: 1 });
-        }
-        setItems([...seen.values()]);
+        setItems(itemsFromSessionSets(session?.sets) ?? []);
       } catch {
         if (!active) return;
         toast({ title: 'Could not load exercises', variant: 'destructive' });

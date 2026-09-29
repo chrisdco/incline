@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/common/states';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useToast } from '@/components/ui/toast';
+import { getCachedCatalog, setCachedCatalog } from '@/db/exercise-cache';
 import {
   addExerciseToWorkout,
   getExerciseSubstitutes,
@@ -52,7 +53,9 @@ export default function PickExerciseScreen() {
 
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
-  const [catalog, setCatalog] = useState<Exercise[] | null>(null);
+  // Stale-while-revalidate: render the cached catalog synchronously (no
+  // spinner on every open) and refresh from SQLite in the background.
+  const [catalog, setCatalog] = useState<Exercise[] | null>(() => getCachedCatalog());
   const [results, setResults] = useState<Exercise[] | null>(null);
   const [suggested, setSuggested] = useState<Exercise[] | null>(null);
   const [recent, setRecent] = useState<Exercise[] | null>(null);
@@ -72,6 +75,7 @@ export default function PickExerciseScreen() {
         getRecentExercises(8),
       ]);
       if (!active) return;
+      setCachedCatalog(all);
       setCatalog(all);
       setRecent(recents);
     })();
@@ -202,7 +206,10 @@ export default function PickExerciseScreen() {
             onCreated={() => {
               setCreating(false);
               toast({ title: 'Exercise created', description: 'Tap it in the list to add.', variant: 'success' });
-              void listExercises().then(setCatalog);
+              void listExercises().then((all) => {
+                setCachedCatalog(all);
+                setCatalog(all);
+              });
             }}
             onCancel={() => setCreating(false)}
           />

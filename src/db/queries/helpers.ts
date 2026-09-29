@@ -181,6 +181,69 @@ export async function mapExercise(db: DB, row: ExerciseRow): Promise<Exercise> {
   };
 }
 
+/**
+ * Batch-map exercise rows: 4 queries total regardless of row count.
+ * `mapExercise` above is 4 queries PER row — never use it in a loop over
+ * the catalog (pick screen opened 1200+ queries; see fix/pick-exercise-perf).
+ */
+export async function mapExerciseRows(db: DB, rows: ExerciseRow[]): Promise<Exercise[]> {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  const placeholders = ids.map(() => '?').join(',');
+  const [aliasRows, muscleRows, instrRows, imgRows] = await Promise.all([
+    db.getAllAsync<{ exercise_id: number; alias: string }>(
+      `SELECT exercise_id, alias FROM exercise_aliases WHERE exercise_id IN (${placeholders}) ORDER BY id`, ...ids,
+    ),
+    db.getAllAsync<{ exercise_id: number; muscle: string }>(
+      `SELECT exercise_id, muscle FROM exercise_secondary_muscles WHERE exercise_id IN (${placeholders}) ORDER BY id`, ...ids,
+    ),
+    db.getAllAsync<{ exercise_id: number; text: string }>(
+      `SELECT exercise_id, text FROM exercise_instructions WHERE exercise_id IN (${placeholders}) ORDER BY step`, ...ids,
+    ),
+    db.getAllAsync<{ exercise_id: number; url: string }>(
+      `SELECT exercise_id, url FROM exercise_images WHERE exercise_id IN (${placeholders}) AND is_primary = 1`, ...ids,
+    ),
+  ]);
+  const aliasMap = new Map<number, string[]>();
+  for (const r of aliasRows) {
+    if (!aliasMap.has(r.exercise_id)) aliasMap.set(r.exercise_id, []);
+    aliasMap.get(r.exercise_id)!.push(r.alias);
+  }
+  const muscleMap = new Map<number, MuscleGroup[]>();
+  for (const r of muscleRows) {
+    if (!muscleMap.has(r.exercise_id)) muscleMap.set(r.exercise_id, []);
+    muscleMap.get(r.exercise_id)!.push(r.muscle as MuscleGroup);
+  }
+  const instrMap = new Map<number, string[]>();
+  for (const r of instrRows) {
+    if (!instrMap.has(r.exercise_id)) instrMap.set(r.exercise_id, []);
+    instrMap.get(r.exercise_id)!.push(r.text);
+  }
+  const imgMap = new Map<number, string>();
+  for (const r of imgRows) imgMap.set(r.exercise_id, r.url);
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    aliases: aliasMap.get(row.id) ?? [],
+    primaryMuscle: row.primary_muscle as MuscleGroup,
+    secondaryMuscles: muscleMap.get(row.id) ?? [],
+    movementPattern: row.movement_pattern as MovementPattern | null,
+    equipment: row.equipment as Equipment,
+    category: row.category as Category,
+    isCompound: !!row.is_compound,
+    isCustom: !!row.is_custom,
+    source: row.source as 'seed' | 'exercisedb' | 'custom',
+    externalId: row.external_id,
+    difficulty: row.difficulty,
+    defaultRestSeconds: row.default_rest_seconds,
+    instructions: instrMap.get(row.id) ?? [],
+    tips: row.tips,
+    imageUrl: imgMap.get(row.id) ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
 export function mapSet(r: SetRow): SetEntry {
   const setType: SetType = isSetType(r.set_type) ? r.set_type : 'working';
   return {
