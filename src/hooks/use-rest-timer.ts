@@ -46,13 +46,20 @@ export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
   );
 
   const start = useCallback(
-    (seconds: number) => {
-      if (seconds <= 0) return;
+    (seconds: number): { replaced: boolean; discardedSeconds: number } => {
+      if (seconds <= 0) return { replaced: false, discardedSeconds: 0 };
+      // Auto-start replacing auto-start is standard (Strong/Hevy do the
+      // same). Only report when a genuinely large remainder is discarded —
+      // per-round superset restarts stay quiet.
+      const discardedSeconds =
+        deadlineRef.current > 0 ? Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)) : 0;
+      const replaced = discardedSeconds > 0;
       setTotal(seconds);
       applyRemaining(seconds);
       setRunning(true);
       deadlineRef.current = Date.now() + seconds * 1000;
       void syncNotification(seconds);
+      return { replaced, discardedSeconds };
     },
     [applyRemaining, syncNotification],
   );
