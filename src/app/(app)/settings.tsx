@@ -112,6 +112,7 @@ export default function SettingsScreen() {
     calendarHeatMetric, weekStartsOn, keepScreenAwake, weeklyWorkoutGoal,
     workoutRemindersEnabled, workoutReminderDays, workoutReminderHour, workoutReminderMinute,
     weeklyDigestEnabled, weeklyDigestHour, weeklyDigestMinute,
+    monthlyRecapEnabled, abandonedNudgeEnabled, streakNudgeEnabled, milestoneNudgeEnabled,
     exerciseMediaStyle, exerciseMediaAnimation, devExerciseMediaOverride,
     setUnit, setThemeMode, setAccentTheme, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe,
     setShowSessionGhost,
@@ -119,6 +120,7 @@ export default function SettingsScreen() {
     setCalendarHeatMetric, setWeekStartsOn, setKeepScreenAwake, setWeeklyWorkoutGoal,
     setWorkoutRemindersEnabled, setWorkoutReminderDays, setWorkoutReminderTime,
     setWeeklyDigestEnabled, setWeeklyDigestTime,
+    setMonthlyRecapEnabled, setAbandonedNudgeEnabled, setStreakNudgeEnabled, setMilestoneNudgeEnabled,
     setExerciseMediaStyle, setExerciseMediaAnimation, setDevExerciseMediaOverride,
     applyThemePreset,
   } = useSettings();
@@ -195,6 +197,36 @@ export default function SettingsScreen() {
       return;
     }
     setWeeklyDigestEnabled(true);
+  };
+
+  /** Generic gate for the digests-channel toggles (monthly recap + nudges). */
+  const onDigestsChannelToggle = async (
+    next: boolean,
+    set: (v: boolean) => void,
+    feature: string,
+  ) => {
+    if (!next) {
+      set(false);
+      return;
+    }
+    if (!notificationsAvailable) {
+      toast({
+        title: `${feature} need a dev build`,
+        description: 'Local alerts are unavailable in Android Expo Go',
+        variant: 'warning',
+      });
+      return;
+    }
+    const mod = await prepareNotifications(NOTIFICATION_CHANNELS.digests);
+    if (!mod) {
+      toast({
+        title: 'Permission needed',
+        description: `Allow notifications to enable ${feature.toLowerCase()}`,
+        variant: 'warning',
+      });
+      return;
+    }
+    set(true);
   };
 
   const isSyncError = status?.status === 'error' && !!status?.lastError;
@@ -415,6 +447,53 @@ export default function SettingsScreen() {
               </StackedRow>
             </>
           ) : null}
+          <View className="h-px bg-border/60" />
+          <Row
+            icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
+            title="Monthly recap"
+            subtitle="1st of the month, same time as the digest">
+            <Switch
+              value={monthlyRecapEnabled}
+              onValueChange={(v) => void onDigestsChannelToggle(v, setMonthlyRecapEnabled, 'Monthly recaps')}
+              accessibilityLabel="Monthly recap"
+            />
+          </Row>
+        </Card>
+
+        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Nudges</Caption>
+        <Card>
+          <Row
+            icon={<Icon icon={History} size={18} color="muted-foreground" />}
+            title="Abandoned session"
+            subtitle="One ping if a workout sits idle 25+ min">
+            <Switch
+              value={abandonedNudgeEnabled}
+              onValueChange={(v) => void onDigestsChannelToggle(v, setAbandonedNudgeEnabled, 'Session nudges')}
+              accessibilityLabel="Abandoned session nudge"
+            />
+          </Row>
+          <View className="h-px bg-border/60" />
+          <Row
+            icon={<Icon icon={METRIC_ICONS.streak} size={18} color="muted-foreground" />}
+            title="Streak at risk"
+            subtitle="One late-week ping when a streak has no session yet">
+            <Switch
+              value={streakNudgeEnabled}
+              onValueChange={(v) => void onDigestsChannelToggle(v, setStreakNudgeEnabled, 'Streak nudges')}
+              accessibilityLabel="Streak at risk nudge"
+            />
+          </Row>
+          <View className="h-px bg-border/60" />
+          <Row
+            icon={<Icon icon={Zap} size={18} color="muted-foreground" />}
+            title="Milestones"
+            subtitle="Congrats ping for newly unlocked achievements">
+            <Switch
+              value={milestoneNudgeEnabled}
+              onValueChange={(v) => void onDigestsChannelToggle(v, setMilestoneNudgeEnabled, 'Milestone nudges')}
+              accessibilityLabel="Milestone nudges"
+            />
+          </Row>
         </Card>
 
         <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Calendar</Caption>

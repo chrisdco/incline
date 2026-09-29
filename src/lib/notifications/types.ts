@@ -8,7 +8,10 @@ export type NotificationPayload =
   | { type: 'rest_complete'; sessionId?: number }
   | { type: 'workout_reminder' }
   | { type: 'weekly_digest'; weekStart?: string }
-  | { type: 'monthly_recap'; monthKey?: string };
+  | { type: 'monthly_recap'; monthKey?: string }
+  | { type: 'abandoned_session'; sessionId: number }
+  | { type: 'streak_nudge'; weekKey: string }
+  | { type: 'milestone'; achievementId: string };
 
 export const NOTIFICATION_CHANNELS = {
   restTimer: 'rest-timer',
@@ -25,6 +28,9 @@ export const NOTIFICATION_IDS = {
   reminderDay: (jsWeekday: number) => `incline-reminder-${jsWeekday}`,
   weeklyDigest: 'incline-weekly-digest',
   monthlyRecap: 'incline-monthly-recap',
+  abandonedSession: 'incline-abandoned-session',
+  streakNudge: 'incline-streak-nudge',
+  milestone: (achievementId: string) => `incline-milestone-${achievementId}`,
 } as const;
 
 /** JS `Date.getDay()` Sunday=0 … Saturday=6 → Expo WEEKLY weekday Sunday=1 … Saturday=7 */
@@ -39,6 +45,9 @@ export function isNotificationPayload(value: unknown): value is NotificationPayl
     type === 'rest_complete' ||
     type === 'workout_reminder' ||
     type === 'weekly_digest' ||
-    type === 'monthly_recap'
+    type === 'monthly_recap' ||
+    type === 'abandoned_session' ||
+    type === 'streak_nudge' ||
+    type === 'milestone'
   );
 }
