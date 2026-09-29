@@ -21,6 +21,7 @@ import {
   Calculator,
   Weight,
   Trophy,
+  Cloud,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon } from '@/components/common/icon';
@@ -31,6 +32,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { StatCard } from '@/components/common/stat-card';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { useProfile, useProgressStats } from '@/hooks/use-data';
+import { useCloudSync } from '@/hooks/use-cloud-sync';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
 import { saveProfile, clearWorkoutHistory, resetUserData } from '@/db/queries';
@@ -55,6 +57,10 @@ export default function ProfileScreen() {
   const [clearOpen, setClearOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Backup visibility at the point of danger: destructive actions below must
+  // never run blind to unsynced changes.
+  const { pending, status, syncing, enabled: syncEnabled, syncNow } = useCloudSync({ auto: false });
+  const syncError = status?.status === 'error' && !!status?.lastError;
 
   const pickAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -232,6 +238,48 @@ export default function ProfileScreen() {
         </View>
 
         <View className="mt-6 gap-2">
+          <Pressable
+            onPress={() => {
+              if (syncing) return;
+              if (pending > 0 || syncError) {
+                void (async () => {
+                  const result = await syncNow();
+                  if (!result.ok && result.error) {
+                    toast({ title: 'Sync failed', description: result.error, variant: 'destructive' });
+                  }
+                })();
+              } else {
+                router.push('/(app)/settings' as Href);
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              pending > 0
+                ? `${pending} changes waiting to upload. Activate to retry.`
+                : syncError
+                  ? 'Last sync failed. Activate to retry.'
+                  : 'Backup up to date. Activate for sync details.'
+            }
+            className="flex-row items-center gap-3 rounded-3xl bg-card p-4"
+            android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
+            <Icon icon={Cloud} size={20} color={pending > 0 || syncError ? 'warning' : 'muted-foreground'} />
+            <View className="flex-1">
+              <Body className="font-medium text-foreground">
+                {pending > 0 ? `${pending} change${pending === 1 ? '' : 's'} waiting` : syncError ? 'Sync failed' : 'Backed up'}
+              </Body>
+              <Caption>
+                {pending > 0
+                  ? 'Tap to retry upload'
+                  : syncError
+                    ? (status?.lastError ?? 'Tap to retry')
+                    : syncEnabled
+                      ? 'Tap for sync details'
+                      : 'Sign in + Supabase to enable backup'}
+              </Caption>
+            </View>
+            {syncing ? null : <Icon icon={ChevronRight} size={18} color="muted-foreground" />}
+          </Pressable>
+
           <Pressable onPress={() => setClearOpen(true)} accessibilityRole="button" accessibilityLabel="Clear workout history" className="flex-row items-center gap-3 rounded-3xl border border-destructive/20 bg-destructive/10 p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Trash2} size={20} color="destructive" />
             <Body className="flex-1 font-medium text-foreground">Clear workout history</Body>
@@ -286,7 +334,11 @@ export default function ProfileScreen() {
         open={clearOpen}
         onOpenChange={setClearOpen}
         title="Clear all history?"
-        description="This permanently deletes every completed workout. This cannot be undone."
+        description={
+          pending > 0
+            ? `This permanently deletes every completed workout. ${pending} unsynced change${pending === 1 ? '' : 's'} will upload afterward — cleared items sync as deletions.`
+            : 'This permanently deletes every completed workout. This cannot be undone.'
+        }
         footer={
           <>
             <Button variant="outline" onPress={() => setClearOpen(false)}>Cancel</Button>

@@ -373,7 +373,12 @@ useSettings.subscribe((state, prev) => {
   })().catch(() => {});
 });
 
-/** Reset synced account keys on account switch. Device-local settings stay. */
+/**
+ * Reset account-scoped prefs on account switch. Synced keys go to cloud
+ * defaults; local-only keys (reminders, nudges, media, behavior flags) go
+ * to app defaults so the new account never inherits the old owner's setup.
+ * Only device taste survives: classic-accent memory + seen announcements.
+ */
 export function resetAccountPreferences(): void {
   suppressPrefSync = true;
   try {
@@ -391,6 +396,31 @@ export function resetAccountPreferences(): void {
       autoStartRest: ACCOUNT_PREF_DEFAULTS.autoStartRest,
       defaultRestSeconds: ACCOUNT_PREF_DEFAULTS.defaultRestSeconds,
       showSessionGhost: ACCOUNT_PREF_DEFAULTS.showSessionGhost,
+      // Local-only prefs never sync, so a new account would otherwise inherit
+      // the previous owner's reminders, nudges, media taste, and behavior
+      // flags. Reset them; only device taste (classic-accent memory, seen
+      // announcements) survives the switch.
+      unit: 'metric',
+      hapticsEnabled: true,
+      restSoundEnabled: true,
+      keepScreenAwake: true,
+      workoutRemindersEnabled: false,
+      workoutReminderDays: [...DEFAULT_WORKOUT_REMINDER_DAYS],
+      workoutReminderHour: 18,
+      workoutReminderMinute: 0,
+      weeklyDigestEnabled: false,
+      weeklyDigestHour: 18,
+      weeklyDigestMinute: 0,
+      monthlyRecapEnabled: false,
+      abandonedNudgeEnabled: false,
+      streakNudgeEnabled: false,
+      milestoneNudgeEnabled: false,
+      lastAbandonedNudgeLogId: null,
+      lastStreakNudgeWeekKey: null,
+      seenAchievementIds: [],
+      exerciseMediaStyle: 'auto',
+      exerciseMediaAnimation: 'cycle',
+      devExerciseMediaOverride: 'off',
     });
   } finally {
     suppressPrefSync = false;
