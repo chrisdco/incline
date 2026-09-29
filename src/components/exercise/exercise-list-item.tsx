@@ -1,13 +1,12 @@
-import { Dumbbell } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { cn } from '@/lib/cn';
-import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/ui/text';
 import { EQUIPMENT_LABELS, MOVEMENT_LABELS } from '@/lib/labels';
 import type { Exercise } from '@/db/types';
 import { MuscleBadge } from './muscle-badge';
+import { ExerciseThumb } from './exercise-media';
 
 /** Exercise row used in the library list and search results. */
 export function ExerciseListItem({ exercise, className }: { exercise: Exercise; className?: string }) {
@@ -17,9 +16,7 @@ export function ExerciseListItem({ exercise, className }: { exercise: Exercise; 
       className={cn('flex-row items-center gap-3 rounded-3xl bg-card p-4', className)}
       onPress={() => router.push(`/exercise/${exercise.id}`)}
       android_ripple={{ color: 'rgba(0,0,0,0.06)' }}>
-      <View className="h-11 w-11 items-center justify-center rounded-3xl bg-muted">
-        <Icon icon={Dumbbell} size={20} color="muted-foreground" />
-      </View>
+      <ExerciseThumb name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} size={44} />
       <View className="flex-1">
         <Text className="text-base font-semibold text-foreground">{exercise.name}</Text>
         <Text className="mt-0.5 text-xs text-muted-foreground">

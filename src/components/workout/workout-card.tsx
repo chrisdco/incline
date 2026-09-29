@@ -9,6 +9,7 @@ import { PressableCard } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DIFFICULTY_LABELS } from '@/lib/labels';
 import { METRIC_ICONS } from '@/lib/metric-icons';
+import { MuscleBadge } from '@/components/exercise/muscle-badge';
 import type { Difficulty, MuscleGroup } from '@/db/types';
 
 /**
@@ -24,6 +25,7 @@ export function WorkoutCard({
   estimatedMinutes,
   exerciseCount,
   muscleFocus,
+  exerciseNames = [],
   onStart,
   onMenuPress,
   className,
@@ -35,6 +37,7 @@ export function WorkoutCard({
   estimatedMinutes: number;
   exerciseCount: number;
   muscleFocus: MuscleGroup[];
+  exerciseNames?: string[];
   onStart?: () => void;
   onMenuPress?: () => void;
   className?: string;
@@ -80,6 +83,27 @@ export function WorkoutCard({
           </View>
           <Text className="text-xs text-muted-foreground">· {DIFFICULTY_LABELS[difficulty]}</Text>
         </View>
+
+        {muscleFocus.length > 0 || exerciseNames.length > 0 ? (
+          <View className="mt-3 gap-2">
+            {muscleFocus.length > 0 ? (
+              <View className="flex-row flex-wrap items-center gap-1.5">
+                {muscleFocus.slice(0, 3).map((m) => (
+                  <MuscleBadge key={m} muscle={m} />
+                ))}
+                {muscleFocus.length > 3 ? (
+                  <Text className="text-xs text-muted-foreground">+{muscleFocus.length - 3}</Text>
+                ) : null}
+              </View>
+            ) : null}
+            {exerciseNames.length > 0 ? (
+              <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+                {exerciseNames.slice(0, 3).join(' · ')}
+                {exerciseNames.length > 3 ? ` · +${exerciseNames.length - 3} more` : ''}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </PressableCard>
 
       {onStart ? (
