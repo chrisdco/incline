@@ -12,6 +12,7 @@ import { Body, Caption } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
 import { NumberStepper } from '@/components/workout/number-stepper';
 import { SetRow } from '@/components/workout/set-row';
+import { SET_COL } from '@/components/workout/set-layout';
 import { RpeChips } from '@/components/workout/rpe-chips';
 import { SummaryStat } from '@/components/workout/summary-stat';
 import { ExercisePickerSheet } from '@/components/workout/exercise-picker-sheet';
@@ -415,14 +416,13 @@ export default function EditWorkoutScreen() {
               <Caption className="mb-2 px-1">Add notes here...</Caption>
 
               {/* Set table header */}
-              <View className="mb-1 flex-row items-center gap-1 px-1">
-                <View className="w-6 items-center"><Caption>SET</Caption></View>
-                <View className="w-[72px] items-center"><Caption>PREVIOUS</Caption></View>
-                <View className="flex-1 flex-row">
-                  <View className="flex-1 items-center"><Caption>{unit === 'metric' ? 'KG' : 'LB'}</Caption></View>
-                  <View className="flex-1 items-center"><Caption>REPS</Caption></View>
-                </View>
-                <View className="w-12" />
+              <View className="mb-1 flex-row items-center gap-2 px-1">
+                <View style={{ width: SET_COL.index }} className="items-center"><Caption>SET</Caption></View>
+                <View style={{ width: SET_COL.prev }} className="items-center"><Caption>PREV</Caption></View>
+                <View style={{ width: SET_COL.weight }} className="items-center"><Caption>{unit === 'metric' ? 'KG' : 'LB'}</Caption></View>
+                <View style={{ width: SET_COL.reps }} className="items-center"><Caption>REPS</Caption></View>
+                <View className="flex-1" />
+                <View style={{ width: SET_COL.done }} />
               </View>
 
               {/* Sets */}
@@ -438,6 +438,14 @@ export default function EditWorkoutScreen() {
                     unit={unit}
                     onChangeWeight={(v) => onChangeWeight(s.id, v)}
                     onChangeReps={(v) => onChangeReps(s.id, v)}
+                    onApplyPrevious={
+                      i > 0 && g.sets[i - 1].weight > 0
+                        ? () => {
+                            onChangeWeight(s.id, g.sets[i - 1].weight);
+                            onChangeReps(s.id, g.sets[i - 1].reps);
+                          }
+                        : undefined
+                    }
                     onToggleComplete={() => onToggleComplete(s.id)}
                     onRemove={g.sets.length > 1 ? () => onRemoveSet(s.id) : undefined}
                   />
