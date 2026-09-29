@@ -1,4 +1,5 @@
 import { openDatabase } from '../client';
+import { invalidateCatalog } from '../exercise-cache';
 import { newUuid } from '@/lib/uuid';
 import { buildSearchText, scoreField, tokenize } from '@/lib/exercise-search';
 import { enqueueSync } from '@/sync/outbox';
@@ -15,6 +16,7 @@ import type {
 import {
   type ExerciseRow,
   mapExercise,
+  mapExerciseRows,
   mapSet,
   type SetRow,
 } from './helpers';
@@ -25,7 +27,7 @@ export async function listExercises(): Promise<Exercise[]> {
   const rows = await db.getAllAsync<ExerciseRow>(
     'SELECT * FROM exercises WHERE deleted_at IS NULL ORDER BY name',
   );
-  return Promise.all(rows.map((r) => mapExercise(db, r)));
+  return mapExerciseRows(db, rows);
 }
 
 export async function getExercise(id: number): Promise<Exercise | null> {
@@ -55,10 +57,10 @@ export async function getRecentExercises(limit = 10): Promise<Exercise[]> {
      JOIN exercises e ON e.id = s.exercise_id
      WHERE s.deleted_at IS NULL AND w.deleted_at IS NULL
        AND e.deleted_at IS NULL AND s.completed = 1 AND w.ended_at IS NOT NULL
-     GROUP BY s.exercise_id ORDER BY MAX(w.started_at) DESC LIMIT ?`,
+      GROUP BY s.exercise_id ORDER BY MAX(w.started_at) DESC LIMIT ?`,
     limit,
   );
-  return Promise.all(rows.map((r) => mapExercise(db, r)));
+  return mapExerciseRows(db, rows);
 }
 
 export interface ExerciseFilters {
@@ -111,68 +113,8 @@ export async function searchExercises(
     );
   }
 
-  // Batch-load related data to avoid N+1 queries
-  const ids = rows.map((r) => r.id);
-  if (ids.length === 0) return [];
-
-  const placeholders = ids.map(() => '?').join(',');
-
-  const [aliasRows, muscleRows, instrRows, imgRows] = await Promise.all([
-    db.getAllAsync<{ exercise_id: number; alias: string }>(
-      `SELECT exercise_id, alias FROM exercise_aliases WHERE exercise_id IN (${placeholders}) ORDER BY id`, ...ids,
-    ),
-    db.getAllAsync<{ exercise_id: number; muscle: string }>(
-      `SELECT exercise_id, muscle FROM exercise_secondary_muscles WHERE exercise_id IN (${placeholders}) ORDER BY id`, ...ids,
-    ),
-    db.getAllAsync<{ exercise_id: number; text: string }>(
-      `SELECT exercise_id, text FROM exercise_instructions WHERE exercise_id IN (${placeholders}) ORDER BY step`, ...ids,
-    ),
-    db.getAllAsync<{ exercise_id: number; url: string }>(
-      `SELECT exercise_id, url FROM exercise_images WHERE exercise_id IN (${placeholders}) AND is_primary = 1`, ...ids,
-    ),
-  ]);
-
-  // Build lookup maps
-  const aliasMap = new Map<number, string[]>();
-  for (const r of aliasRows) {
-    if (!aliasMap.has(r.exercise_id)) aliasMap.set(r.exercise_id, []);
-    aliasMap.get(r.exercise_id)!.push(r.alias);
-  }
-  const muscleMap = new Map<number, MuscleGroup[]>();
-  for (const r of muscleRows) {
-    if (!muscleMap.has(r.exercise_id)) muscleMap.set(r.exercise_id, []);
-    muscleMap.get(r.exercise_id)!.push(r.muscle as MuscleGroup);
-  }
-  const instrMap = new Map<number, string[]>();
-  for (const r of instrRows) {
-    if (!instrMap.has(r.exercise_id)) instrMap.set(r.exercise_id, []);
-    instrMap.get(r.exercise_id)!.push(r.text);
-  }
-  const imgMap = new Map<number, string>();
-  for (const r of imgRows) imgMap.set(r.exercise_id, r.url);
-
-  // Assemble exercises
-  const exercises: Exercise[] = rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    aliases: aliasMap.get(row.id) ?? [],
-    primaryMuscle: row.primary_muscle as MuscleGroup,
-    secondaryMuscles: muscleMap.get(row.id) ?? [],
-    movementPattern: row.movement_pattern as MovementPattern | null,
-    equipment: row.equipment as Equipment,
-    category: row.category as Category,
-    isCompound: !!row.is_compound,
-    isCustom: !!row.is_custom,
-    source: row.source as 'seed' | 'exercisedb' | 'custom',
-    externalId: row.external_id,
-    difficulty: row.difficulty,
-    defaultRestSeconds: row.default_rest_seconds,
-    instructions: instrMap.get(row.id) ?? [],
-    tips: row.tips,
-    imageUrl: imgMap.get(row.id) ?? null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  // Batch-map (4 queries total, no N+1) then rank in JS.
+  const exercises = await mapExerciseRows(db, rows);
 
   if (!tokens.length) return exercises.map((exercise) => ({ exercise, score: 0, matchedOn: 'name' as const }));
 
@@ -278,6 +220,7 @@ export async function createCustomExercise(input: CreateCustomExerciseInput): Pr
     updated_at: now,
     deleted_at: null,
   });
+  invalidateCatalog();
   return id;
 }
 
@@ -298,6 +241,7 @@ export async function deleteCustomExercise(id: number): Promise<void> {
       deleted_at: now,
     });
   }
+  invalidateCatalog();
 }
 
 /** List only user-created exercises (local SQLite), sorted by name. */
@@ -306,7 +250,7 @@ export async function listCustomExercises(): Promise<Exercise[]> {
   const rows = await db.getAllAsync<ExerciseRow>(
     'SELECT * FROM exercises WHERE is_custom = 1 AND deleted_at IS NULL ORDER BY name',
   );
-  return Promise.all(rows.map((row) => mapExercise(db, row)));
+  return mapExerciseRows(db, rows);
 }
 
 /** Logged sets + template usages for an exercise (0 = safe to delete). */
@@ -390,6 +334,7 @@ export async function ensureExerciseExists(
     );
   }
 
+  invalidateCatalog();
   return id;
 }
 

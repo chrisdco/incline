@@ -1,6 +1,7 @@
 import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
 import { clearSessionCache } from '../session-cache';
+import { clearExerciseCache } from '../exercise-cache';
 import { clearOutbox, enqueueSync } from '@/sync/outbox';
 import { resetSyncState } from '@/sync/state';
 import type { ExperienceLevel, Goal, Unit, UserProfile } from '../types';
@@ -110,6 +111,7 @@ export async function resetUserData(): Promise<void> {
   // Wipe the in-memory session cache first: ids restart after a full wipe,
   // so a stale entry could otherwise resurrect another account's session.
   clearSessionCache();
+  clearExerciseCache();
   const db = await openDatabase();
   await db.execAsync('DELETE FROM set_entries');
   await db.execAsync('DELETE FROM workout_photos');
