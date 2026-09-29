@@ -479,7 +479,10 @@ export default function SessionScreen() {
           const exRest = restSecondsMap[target.exerciseId] ?? defaultRestSeconds;
           if (exRest > 0) {
             setRestKind(decision.kind);
-            rest.start(exRest);
+            const { replaced, discardedSeconds } = rest.start(exRest);
+            if (replaced && discardedSeconds > 60) {
+              toast({ title: 'Rest restarted', description: `${discardedSeconds}s left on the last one.`, variant: 'info' });
+            }
           }
         }
       }

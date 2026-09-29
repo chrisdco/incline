@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { ChevronLeft, Info, Plus } from 'lucide-react-native';
@@ -67,22 +67,44 @@ export default function PickExerciseScreen() {
     return () => clearTimeout(t);
   }, [query]);
 
+  const loadingRef = useRef(false);
+  const refreshCatalog = useCallback(async (opts?: { forceVisible?: boolean }) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    try {
+      const all = await listExercises();
+      setCachedCatalog(all);
+      // Visible rows only update on first paint or explicit refresh — never
+      // shift a list mid-browse when returning from another surface.
+      setCatalog((prev) => (opts?.forceVisible || prev == null ? all : prev));
+    } finally {
+      loadingRef.current = false;
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
+    void refreshCatalog({ forceVisible: true });
     void (async () => {
-      const [all, recents] = await Promise.all([
-        listExercises(),
-        getRecentExercises(8),
-      ]);
-      if (!active) return;
-      setCachedCatalog(all);
-      setCatalog(all);
-      setRecent(recents);
+      try {
+        const recents = await getRecentExercises(8);
+        if (active) setRecent(recents);
+      } catch {
+        // recents are a nicety; the catalog stands alone
+      }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshCatalog]);
+
+  // Revalidate the cache when returning (covers creates from other
+  // surfaces). In-flight guard above dedupes the mount double-fire.
+  useFocusEffect(
+    useCallback(() => {
+      void refreshCatalog();
+    }, [refreshCatalog]),
+  );
 
   useEffect(() => {
     if (!isReplace || replaceId == null || Number.isNaN(replaceId)) return;
@@ -206,10 +228,7 @@ export default function PickExerciseScreen() {
             onCreated={() => {
               setCreating(false);
               toast({ title: 'Exercise created', description: 'Tap it in the list to add.', variant: 'success' });
-              void listExercises().then((all) => {
-                setCachedCatalog(all);
-                setCatalog(all);
-              });
+              void refreshCatalog({ forceVisible: true });
             }}
             onCancel={() => setCreating(false)}
           />

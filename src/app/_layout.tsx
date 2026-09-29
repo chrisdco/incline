@@ -27,6 +27,7 @@ import { useDatabaseReady } from '@/hooks/use-database';
 import { useNotificationRouting } from '@/hooks/use-notification-routing';
 import { useMonthlyRecapSync } from '@/hooks/use-monthly-recap-sync';
 import { useNudgeSync } from '@/hooks/use-nudge-sync';
+import { useCatalogPrefetch } from '@/hooks/use-catalog-prefetch';
 import { useWeeklyDigestSync } from '@/hooks/use-weekly-digest-sync';
 import { useWorkoutReminderSync } from '@/hooks/use-workout-reminder-sync';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
@@ -40,6 +41,7 @@ function NotificationBootstrap() {
   useWeeklyDigestSync();
   useMonthlyRecapSync();
   useNudgeSync();
+  useCatalogPrefetch();
   return null;
 }
 
