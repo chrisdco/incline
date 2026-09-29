@@ -155,13 +155,24 @@ async function enqueueTemplateExerciseUpsert(teId: number): Promise<void> {
   });
 }
 
-export async function createTemplate(name: string, description: string, difficulty: Difficulty): Promise<number> {
+/** Sanitize routine duration to a sane 5–240 min window. */
+export function sanitizeEstimatedMinutes(value: unknown, fallback = 45): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(240, Math.max(5, Math.round(value)));
+}
+
+export async function createTemplate(
+  name: string,
+  description: string,
+  difficulty: Difficulty,
+  estimatedMinutes = 45,
+): Promise<number> {
   const db = await openDatabase();
   const now = Date.now();
   const uuid = newUuid();
   const res = await db.runAsync(
-    `INSERT INTO workout_templates (name, description, category, difficulty, estimated_minutes, is_custom, uuid, created_at, updated_at) VALUES (?, ?, 'strength', ?, 45, 1, ?, ?, ?)`,
-    name, description, difficulty, uuid, now, now,
+    `INSERT INTO workout_templates (name, description, category, difficulty, estimated_minutes, is_custom, uuid, created_at, updated_at) VALUES (?, ?, 'strength', ?, ?, 1, ?, ?, ?)`,
+    name, description, difficulty, sanitizeEstimatedMinutes(estimatedMinutes), uuid, now, now,
   );
   const id = res.lastInsertRowId as number;
   await enqueueTemplateUpsert(id);
@@ -346,7 +357,7 @@ export async function duplicateTemplate(sourceId: number): Promise<number> {
   const source = await getTemplate(sourceId);
   if (!source) throw new Error('Template not found');
   const copyName = `${source.name} (copy)`;
-  const newId = await createTemplate(copyName, source.description, source.difficulty);
+  const newId = await createTemplate(copyName, source.description, source.difficulty, source.estimatedMinutes);
   for (const te of source.exercises ?? []) {
     const teId = await addExerciseToTemplate(
       newId,
@@ -372,6 +383,7 @@ export async function createDeloadTemplate(sourceId: number): Promise<number> {
     copyName,
     'Reduced-volume week. Your original routine was not changed.',
     source.difficulty,
+    source.estimatedMinutes,
   );
   for (const te of source.exercises ?? []) {
     const teId = await addExerciseToTemplate(
@@ -395,8 +407,8 @@ export async function createDeloadTemplate(sourceId: number): Promise<number> {
  */
 export async function createTemplateFromWorkoutLog(logId: number): Promise<number> {
   const db = await openDatabase();
-  const log = await db.getFirstAsync<{ name: string }>(
-    'SELECT name FROM workout_logs WHERE id = ? AND deleted_at IS NULL',
+  const log = await db.getFirstAsync<{ name: string; duration_seconds: number }>(
+    'SELECT name, duration_seconds FROM workout_logs WHERE id = ? AND deleted_at IS NULL',
     logId,
   );
   if (!log) throw new Error('Workout not found');
@@ -420,7 +432,12 @@ export async function createTemplateFromWorkoutLog(logId: number): Promise<numbe
   if (rows.length === 0) throw new Error('No completed sets to save');
 
   const name = log.name?.trim() ? `${log.name} template` : 'Saved workout';
-  const templateId = await createTemplate(name, 'Saved from a completed workout', 'intermediate');
+  const templateId = await createTemplate(
+    name,
+    'Saved from a completed workout',
+    'intermediate',
+    log.duration_seconds > 0 ? log.duration_seconds / 60 : 45,
+  );
 
   for (const row of rows) {
     const reps = Math.max(1, row.avg_reps || 8);
