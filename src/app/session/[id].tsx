@@ -861,6 +861,12 @@ export default function SessionScreen() {
           <Icon icon={METRIC_ICONS.equipment} size={16} color="primary" />
           <Body className="text-sm text-foreground">Plate calculator</Body>
         </Pressable>
+
+        {groups.length > 0 ? (
+          <Button variant="outline" className="mb-3" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
+            Add exercise
+          </Button>
+        ) : null}
       </ScrollView>
 
       {removedSet ? (

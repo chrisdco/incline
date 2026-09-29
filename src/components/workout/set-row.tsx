@@ -117,17 +117,21 @@ export function SetRow({
 
       <Pressable
         style={{ width: SET_COL.prev }}
-        className="items-center justify-center"
+        className="items-center justify-center self-stretch"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
           selection();
           onApplyPrevious?.();
         }}
         accessibilityRole={hasPrevious ? 'button' : undefined}
-        accessibilityLabel={hasPrevious ? 'Use previous weight and reps' : undefined}
-        hitSlop={6}>
+        accessibilityLabel={
+          hasPrevious
+            ? `Use previous ${formatWeight(previousWeight!, unit)} times ${previousReps ?? 0}`
+            : undefined
+        }
+        hitSlop={10}>
         {hasPrevious ? (
-          <Text className="text-center text-xs text-primary" numberOfLines={1}>
+          <Text className="text-center text-sm font-medium text-primary" numberOfLines={1}>
             {formatWeight(previousWeight!, unit)}×{previousReps}
           </Text>
         ) : (
