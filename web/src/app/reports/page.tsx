@@ -13,10 +13,19 @@ export default async function ReportsPage() {
 
   const unitByLog = new Map<string, string>();
   for (const l of [...twoWeeks.week, ...twoWeeks.prev]) unitByLog.set(l.id, l.unit);
+  const isWorking = (s: { set_type: string | null; weight: number; reps: number }) =>
+    (s.set_type ?? "working") === "working" && s.weight > 0 && s.reps > 0;
   const workingVolume = (logIds: Set<string>) =>
     twoWeeks.sets
-      .filter((s) => logIds.has(s.workout_log_id) && s.set_type === "working")
+      .filter((s) => logIds.has(s.workout_log_id) && isWorking(s))
       .reduce((a, s) => a + toDisplayWeight(s.weight * s.reps, unitByLog.get(s.workout_log_id) ?? unit, unit), 0);
+  const workingForLog = (logId: string, fallback: number, logUnit: string) => {
+    const rows = twoWeeks.sets.filter((s) => s.workout_log_id === logId);
+    if (rows.length === 0) return fallback;
+    return rows
+      .filter(isWorking)
+      .reduce((a, s) => a + toDisplayWeight(s.weight * s.reps, logUnit, unit), 0);
+  };
 
   const weekIds = new Set(twoWeeks.week.map((l) => l.id));
   const prevIds = new Set(twoWeeks.prev.map((l) => l.id));
@@ -54,7 +63,7 @@ export default async function ReportsPage() {
                       <p className="font-semibold">{log.name}</p>
                       <p className="text-xs text-zinc-500">{formatDate(log.started_at)}</p>
                     </div>
-                    <p className="text-sm font-medium">{formatVolume(log.total_volume, log.unit)}</p>
+                    <p className="text-sm font-medium">{formatVolume(workingForLog(log.id, log.total_volume, log.unit), unit)}</p>
                   </div>
                 </Card>
               </Link>

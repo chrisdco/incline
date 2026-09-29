@@ -35,6 +35,7 @@ import {
   type SessionSet,
 } from '@/db/queries';
 import { formatDuration, formatVolume, formatFullDateTime } from '@/db/calc';
+import { workingSetVolume } from '@/lib/session-ghost';
 import type { Exercise, SetEntry } from '@/db/types';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { usePrimaryHex } from '@/lib/theme';
@@ -295,7 +296,7 @@ export default function EditWorkoutScreen() {
               icon={<Icon icon={Clock} size={18} color="primary" />}
             />
           </Pressable>
-          <SummaryStat label="Volume" value={formatVolume(log.totalVolume, unit)} icon={<Icon icon={METRIC_ICONS.volume} size={18} color="info" />} />
+          <SummaryStat label="Volume" value={formatVolume(workingSetVolume(log?.sets ?? []), unit)} icon={<Icon icon={METRIC_ICONS.volume} size={18} color="info" />} />
           <SummaryStat label="Sets" value={`${completedSets}`} icon={<Icon icon={METRIC_ICONS.sets} size={18} color="warning" />} />
         </View>
 

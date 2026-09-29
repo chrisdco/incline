@@ -13,6 +13,7 @@ import { ShareActionBar } from '@/components/share/share-action-bar';
 import { ShareSummaryCard } from '@/components/workout/share-summary-card';
 import { getWorkoutLog, getWorkoutPrCount, getWorkoutMuscleSplit, type SessionWorkout } from '@/db/queries';
 import { useProfile } from '@/hooks/use-data';
+import { workingSetVolume } from '@/lib/session-ghost';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
 import { formatDuration, formatVolume } from '@/db/calc';
@@ -86,7 +87,7 @@ export default function ShareWorkoutScreen() {
 
   const athleteName = profile?.name?.trim() || 'Athlete';
   const handle = shareHandleFromName(athleteName);
-  const volumeLabel = log ? formatVolume(log.totalVolume, unit) : '';
+  const volumeLabel = log ? formatVolume(workingSetVolume(log.sets), unit) : '';
   const completedSets = log?.sets.filter((s) => s.completed).length ?? 0;
   const bg = shareBackgroundById(bgId);
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getWorkout } from "@/lib/queries";
+import { getWorkout, isWorkingSetRow } from "@/lib/queries";
 import { formatDateTime, formatDuration, formatVolume, formatWeight } from "@/lib/format";
 import { Badge, Card, SectionTitle, Stat } from "@/components/ui";
 import type { SetEntryRow } from "@/lib/types";
@@ -23,6 +23,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
     groups.set(key, entry);
   }
   const completed = sets.filter((s) => s.completed).length;
+  const workingVolume = sets.filter(isWorkingSetRow).reduce((a, s) => a + s.weight * s.reps, 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -34,7 +35,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <Card><Stat label="Volume" value={formatVolume(log.total_volume, log.unit)} /></Card>
+        <Card><Stat label="Volume" value={formatVolume(workingVolume, log.unit)} /></Card>
         <Card><Stat label="Duration" value={log.duration_seconds > 0 ? formatDuration(log.duration_seconds) : "—"} /></Card>
         <Card><Stat label="Sets" value={`${completed}/${sets.length}`} /></Card>
       </div>

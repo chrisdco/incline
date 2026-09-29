@@ -43,6 +43,7 @@ import { useProfile } from '@/hooks/use-data';
 import { formatDuration, formatVolume, formatWeight, formatFullDateTime } from '@/db/calc';
 import { formatCelebrationKinds } from '@/coaching/pr';
 import { MUSCLE_LABELS } from '@/lib/labels';
+import { workingSetVolume } from '@/lib/session-ghost';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import type { MuscleDistribution, WorkoutPhoto } from '@/db/types';
 
@@ -232,7 +233,7 @@ export default function SummaryScreen() {
   }, [coachingLines, log, unit, prs.length, volumeDelta, nextSuggestions, userId]);
 
   const athleteName = profile?.name?.trim() || 'Athlete';
-  const volumeLabel = log ? formatVolume(log.totalVolume, unit) : '';
+  const volumeLabel = log ? formatVolume(workingSetVolume(log.sets), unit) : '';
   const completedSets = log?.sets.filter((s) => s.completed).length ?? 0;
   const totalSets = log?.sets.length ?? 0;
 

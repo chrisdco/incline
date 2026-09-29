@@ -16,6 +16,7 @@ import { deletePhotosForWorkout } from './photos';
 import { getLastSetsForExercise, getLastSetsForExercises } from './exercises';
 import {
   getSessionSets,
+  getWorkingVolumes,
   mapLog,
   recomputeVolume,
   type LogRow,
@@ -723,19 +724,19 @@ async function enrichWorkoutFeed(db: SQLiteDatabase, rows: LogRow[]): Promise<Fe
   });
 }
 
-/** Volume of the previous completed log with the same template (null if none / no template). */
+/** Working-set volume of the previous completed log with the same template (null if none / no template). */
 export async function getPreviousTemplateVolume(
   logId: number,
 ): Promise<{ previousVolume: number; deltaPct: number | null } | null> {
   const db = await openDatabase();
-  const current = await db.getFirstAsync<{ template_id: number | null; total_volume: number; started_at: number }>(
-    'SELECT template_id, total_volume, started_at FROM workout_logs WHERE id = ? AND deleted_at IS NULL',
+  const current = await db.getFirstAsync<{ template_id: number | null; started_at: number }>(
+    'SELECT template_id, started_at FROM workout_logs WHERE id = ? AND deleted_at IS NULL',
     logId,
   );
   if (!current?.template_id) return null;
 
-  const prev = await db.getFirstAsync<{ total_volume: number }>(
-    `SELECT total_volume FROM workout_logs
+  const prev = await db.getFirstAsync<{ id: number }>(
+    `SELECT id FROM workout_logs
      WHERE template_id = ? AND id != ? AND ended_at IS NOT NULL AND deleted_at IS NULL
        AND started_at < ?
      ORDER BY started_at DESC LIMIT 1`,
@@ -745,10 +746,12 @@ export async function getPreviousTemplateVolume(
   );
   if (!prev) return null;
 
-  const previousVolume = prev.total_volume;
+  const working = await getWorkingVolumes([logId, prev.id]);
+  const currentVolume = working.get(logId) ?? 0;
+  const previousVolume = working.get(prev.id) ?? 0;
   let deltaPct: number | null = null;
   if (previousVolume > 0) {
-    deltaPct = Math.round(((current.total_volume - previousVolume) / previousVolume) * 100);
+    deltaPct = Math.round(((currentVolume - previousVolume) / previousVolume) * 100);
   }
   return { previousVolume, deltaPct };
 }

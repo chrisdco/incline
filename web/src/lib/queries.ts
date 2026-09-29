@@ -103,6 +103,56 @@ export interface DashboardData {
   streakWeeks: number;
   lastWorkout: WorkoutLogRow | null;
   recent: WorkoutLogRow[];
+  /** Per-log working volume in display units (warm-ups excluded, mobile parity). */
+  workingVolumeByLog: Record<string, number>;
+}
+
+/**
+ * Working-set predicate mirroring mobile ghost math (NULL set_type =
+ * legacy rows synced before the column existed = working).
+ */
+export function isWorkingSetRow(s: {
+  set_type: string | null;
+  weight: number;
+  reps: number;
+  completed: boolean;
+}): boolean {
+  return s.completed && (s.set_type ?? "working") === "working" && s.weight > 0 && s.reps > 0;
+}
+
+/**
+ * Per-log working volume in display units. One bounded sets query for exact
+ * log ids (explicit 20k cap; logs beyond it keep 0 and callers fall back to
+ * stored totals rather than showing a wrong number — see getDashboard).
+ */
+export async function getWorkingVolumesForLogs(
+  logIds: string[],
+  unitByLog: Map<string, string>,
+  displayUnit: string,
+): Promise<Map<string, number>> {
+  const out = new Map(logIds.map((id) => [id, 0]));
+  if (logIds.length === 0) return out;
+  const { supabase, userId } = await authed();
+  const { data } = await supabase
+    .from("set_entries")
+    .select("workout_log_id,weight,reps,completed,set_type")
+    .in("workout_log_id", logIds)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .eq("completed", true)
+    .limit(20000);
+  for (const s of (data ?? []) as {
+    workout_log_id: string;
+    weight: number;
+    reps: number;
+    completed: boolean;
+    set_type: string | null;
+  }[]) {
+    if (!isWorkingSetRow(s)) continue;
+    const unit = unitByLog.get(s.workout_log_id) ?? displayUnit;
+    out.set(s.workout_log_id, (out.get(s.workout_log_id) ?? 0) + toDisplayWeight(s.weight * s.reps, unit, displayUnit));
+  }
+  return out;
 }
 
 export async function getDashboard(): Promise<DashboardData> {
@@ -120,8 +170,15 @@ export async function getDashboard(): Promise<DashboardData> {
   ]);
   const logs = (logsRes.data ?? []) as (WorkoutLogRow & { unit: string })[];
   const displayUnit = profile?.unit ?? "metric";
-  const vol = (l: { total_volume: number; unit: string }) =>
-    toDisplayWeight(l.total_volume ?? 0, l.unit, displayUnit);
+  const unitByLog = new Map(logs.map((l) => [l.id, l.unit]));
+  const workingByLog = await getWorkingVolumesForLogs(
+    logs.map((l) => l.id),
+    unitByLog,
+    displayUnit,
+  );
+  // Working volumes only (mobile parity); stored totals stay full-fidelity.
+  const vol = (l: { id: string; total_volume: number; unit: string }) =>
+    workingByLog.get(l.id) ?? toDisplayWeight(l.total_volume ?? 0, l.unit, displayUnit);
   const totalSessions = logs.length;
   const totalVolume = logs.reduce((a, l) => a + vol(l), 0);
   const ws = weekStart().getTime();
@@ -158,6 +215,7 @@ export async function getDashboard(): Promise<DashboardData> {
     streakWeeks,
     lastWorkout: logs[0] ?? null,
     recent: logs.slice(0, 5),
+    workingVolumeByLog: Object.fromEntries(workingByLog),
   };
 }
 
@@ -470,7 +528,7 @@ export async function getVolumeSeries(weeks = 12): Promise<WeekBucket[]> {
     supabase.from("profiles").select("unit").eq("user_id", userId).maybeSingle(),
     supabase
       .from("workout_logs")
-      .select("started_at,total_volume,unit")
+      .select("id,started_at,total_volume,unit")
       .eq("user_id", userId)
       .is("deleted_at", null)
       .not("ended_at", "is", null)
@@ -478,15 +536,22 @@ export async function getVolumeSeries(weeks = 12): Promise<WeekBucket[]> {
       .order("started_at", { ascending: true }),
   ]);
   const displayUnit = ((profile as { unit: string } | null)?.unit ?? "metric");
+  const logs = (data ?? []) as { id: string; started_at: string; total_volume: number; unit: string }[];
+  const unitByLog = new Map(logs.map((l) => [l.id, l.unit]));
+  const workingByLog = await getWorkingVolumesForLogs(
+    logs.map((l) => l.id),
+    unitByLog,
+    displayUnit,
+  );
   const buckets = new Map<string, WeekBucket>();
-  for (const l of (data ?? []) as { started_at: string; total_volume: number; unit: string }[]) {
+  for (const l of logs) {
     const d = new Date(l.started_at);
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
     const key = d.toISOString().slice(0, 10);
     const b = buckets.get(key) ?? { weekStart: key, sessions: 0, volume: 0 };
     b.sessions += 1;
-    b.volume += toDisplayWeight(l.total_volume ?? 0, l.unit, displayUnit);
+    b.volume += workingByLog.get(l.id) ?? toDisplayWeight(l.total_volume ?? 0, l.unit, displayUnit);
     buckets.set(key, b);
   }
   return [...buckets.values()];
@@ -541,7 +606,7 @@ export async function getMuscleSplit(days = 30): Promise<MuscleSlice[]> {
     .eq("user_id", userId)
     .is("deleted_at", null)
     .eq("completed", true)
-    .eq("set_type", "working")
+    .or("set_type.eq.working,set_type.is.null")
     .gt("weight", 0)
     .gte("created_at", since.toISOString())
     .limit(5000);
@@ -577,7 +642,7 @@ export async function getRecords(displayUnit: string): Promise<RecordRow[]> {
     .eq("user_id", userId)
     .is("deleted_at", null)
     .eq("completed", true)
-    .eq("set_type", "working")
+    .or("set_type.eq.working,set_type.is.null")
     .gt("weight", 0)
     .order("created_at", { ascending: false })
     .limit(5000);

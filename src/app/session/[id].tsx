@@ -42,6 +42,7 @@ import {
   type SessionWorkout,
 } from '@/db/queries';
 import { formatClock, formatVolume, formatWeight } from '@/db/calc';
+import { workingSetVolume } from '@/lib/session-ghost';
 import { dropCachedSession, getCachedSession, setCachedSession } from '@/db/session-cache';
 import {
   applySetToBests,
@@ -669,7 +670,9 @@ export default function SessionScreen() {
 
   const completedSets = session.sets.filter((s) => s.completed).length;
   const totalSets = session.sets.length;
-  const totalVolume = session.sets.reduce((acc, s) => acc + (s.completed ? s.weight * s.reps : 0), 0);
+  // Working-only live total: matches the ghost + progress definition so a
+  // warm-up can never inflate the number mid-session.
+  const totalVolume = workingSetVolume(session.sets);
 
   // Completed sets only: an unstarted exercise must not paint its muscle as
   // trained on the body map.

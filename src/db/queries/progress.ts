@@ -2,6 +2,7 @@ import { openDatabase } from '../client';
 import { getPeriodPrs, getProgressPrStats } from './coaching/prs';
 import { estimated1RM, isoDate, startOfWeek } from '../calc';
 import { computeBestWeeklyStreak, computeWeeklyStreak } from '@/lib/consistency';
+import { ghostWorkingSql } from '@/lib/session-ghost';
 import type {
   MonthlyVolume,
   MuscleDistribution,
@@ -14,6 +15,7 @@ import type {
   WorkoutLog,
 } from '../types';
 import {
+  getWorkingVolumes,
   mapLog,
   type LogRow,
 } from './helpers';
@@ -83,17 +85,25 @@ export async function getProgressStats(weeks = 8): Promise<ProgressStats> {
   const weekStart = startOfWeek(now);
   const since = weekStart - (weeks - 1) * 7 * 86_400_000;
 
-  const totals = await db.getFirstAsync<{ c: number; v: number; last: number | null }>(
-    'SELECT COUNT(*) as c, COALESCE(SUM(total_volume), 0) as v, MAX(started_at) as last FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL',
+  const totals = await db.getFirstAsync<{ c: number; last: number | null }>(
+    'SELECT COUNT(*) as c, MAX(started_at) as last FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL',
+  );
+  // All-time working volume: derived from set rows so warm-ups never inflate
+  // milestones or KPIs (stored total_volume keeps the full-sets figure).
+  const allTimeWorking = await db.getFirstAsync<{ v: number }>(
+    `SELECT COALESCE(SUM(s.weight * s.reps), 0) as v
+     FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
+     WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND ${ghostWorkingSql('s')}`,
   );
   const setCount = await db.getFirstAsync<{ c: number }>(
     'SELECT COUNT(*) as c FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL AND s.completed = 1',
   );
 
-  const logs = await db.getAllAsync<{ started_at: number; total_volume: number }>(
-    'SELECT started_at, total_volume FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL AND started_at >= ? ORDER BY started_at',
+  const logs = await db.getAllAsync<{ id: number; started_at: number }>(
+    'SELECT id, started_at FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL AND started_at >= ? ORDER BY started_at',
     since,
   );
+  const working = await getWorkingVolumes(logs.map((l) => l.id));
   const buckets: WeeklyVolume[] = [];
   for (let i = 0; i < weeks; i++) {
     const ws = weekStart - (weeks - 1 - i) * 7 * 86_400_000;
@@ -102,11 +112,12 @@ export async function getProgressStats(weeks = 8): Promise<ProgressStats> {
   for (const l of logs) {
     const ws = isoDate(startOfWeek(l.started_at));
     const b = buckets.find((x) => x.weekStart === ws);
-    if (b) { b.volume += l.total_volume; b.sessions += 1; }
+    if (b) { b.volume += working.get(l.id) ?? 0; b.sessions += 1; }
   }
 
   const muscleRows = await db.getAllAsync<{ primary_muscle: string; sets: number; volume: number }>(
-    `SELECT e.primary_muscle, COUNT(s.id) as sets, COALESCE(SUM(s.weight * s.reps), 0) as volume
+    `SELECT e.primary_muscle, COUNT(s.id) as sets,
+       COALESCE(SUM(CASE WHEN ${ghostWorkingSql('s')} THEN s.weight * s.reps ELSE 0 END), 0) as volume
      FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id JOIN exercises e ON e.id = s.exercise_id
      WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL AND s.completed = 1 AND w.started_at >= ?
      GROUP BY e.primary_muscle ORDER BY sets DESC`,
@@ -118,7 +129,7 @@ export async function getProgressStats(weeks = 8): Promise<ProgressStats> {
 
   return {
     totalSessions: totals?.c ?? 0,
-    totalVolume: totals?.v ?? 0,
+    totalVolume: allTimeWorking?.v ?? 0,
     totalSets: setCount?.c ?? 0,
     streak: await getStreak(),
     weeklyVolume: buckets,
@@ -181,24 +192,28 @@ export async function getPeriodStats(range: ProgressRange): Promise<PeriodStats>
     weeklyMap.set(key, bucket);
   }
 
-  const logs = await db.getAllAsync<{ started_at: number; total_volume: number }>(
-    'SELECT started_at, total_volume FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL AND started_at >= ? ORDER BY started_at',
+  const logs = await db.getAllAsync<{ id: number; started_at: number }>(
+    'SELECT id, started_at FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL AND started_at >= ? ORDER BY started_at',
     since,
   );
+  const working = await getWorkingVolumes(logs.map((l) => l.id));
 
   const monthlyMap = new Map<string, MonthlyVolume>();
   let totalVolume = 0;
   let sessions = 0;
+  const trendLogs: { started_at: number; volume: number }[] = [];
   for (const l of logs) {
-    totalVolume += l.total_volume;
+    const v = working.get(l.id) ?? 0;
+    totalVolume += v;
     sessions += 1;
+    trendLogs.push({ started_at: l.started_at, volume: v });
     const wk = isoDate(startOfWeek(l.started_at));
     const wb = weeklyMap.get(wk);
-    if (wb) { wb.volume += l.total_volume; wb.sessions += 1; }
+    if (wb) { wb.volume += v; wb.sessions += 1; }
     const mk = monthKey(l.started_at);
     const mb = monthlyMap.get(mk);
-    if (mb) { mb.volume += l.total_volume; mb.sessions += 1; }
-    else { monthlyMap.set(mk, { month: mk, volume: l.total_volume, sessions: 1 }); }
+    if (mb) { mb.volume += v; mb.sessions += 1; }
+    else { monthlyMap.set(mk, { month: mk, volume: v, sessions: 1 }); }
   }
   const monthly = [...monthlyMap.values()].sort((a, b) => a.month.localeCompare(b.month));
 
@@ -208,7 +223,8 @@ export async function getPeriodStats(range: ProgressRange): Promise<PeriodStats>
   );
 
   const muscleRows = await db.getAllAsync<{ primary_muscle: string; sets: number; volume: number }>(
-    `SELECT e.primary_muscle, COUNT(s.id) as sets, COALESCE(SUM(s.weight * s.reps), 0) as volume
+    `SELECT e.primary_muscle, COUNT(s.id) as sets,
+       COALESCE(SUM(CASE WHEN ${ghostWorkingSql('s')} THEN s.weight * s.reps ELSE 0 END), 0) as volume
      FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id JOIN exercises e ON e.id = s.exercise_id
      WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL AND s.completed = 1 AND w.started_at >= ?
      GROUP BY e.primary_muscle ORDER BY sets DESC`,
@@ -221,7 +237,8 @@ export async function getPeriodStats(range: ProgressRange): Promise<PeriodStats>
     const windowMs = RANGE_MS[range];
     const prevSince = since - windowMs;
     const prevRows = await db.getAllAsync<{ primary_muscle: string; sets: number; volume: number }>(
-      `SELECT e.primary_muscle, COUNT(s.id) as sets, COALESCE(SUM(s.weight * s.reps), 0) as volume
+      `SELECT e.primary_muscle, COUNT(s.id) as sets,
+         COALESCE(SUM(CASE WHEN ${ghostWorkingSql('s')} THEN s.weight * s.reps ELSE 0 END), 0) as volume
        FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id JOIN exercises e ON e.id = s.exercise_id
        WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL AND s.completed = 1
          AND w.started_at >= ? AND w.started_at < ?
@@ -241,7 +258,7 @@ export async function getPeriodStats(range: ProgressRange): Promise<PeriodStats>
 
   // Trend: short ranges compare week-over-week; longer ranges compare month-over-month
   const bucketLen = range === '1w' || range === '30d' || range === '3m' ? 7 * DAY_MS : 30 * DAY_MS;
-  const trend = computeTrend(logs, now, bucketLen);
+  const trend = computeTrend(trendLogs, now, bucketLen);
 
   return {
     range,
@@ -258,13 +275,13 @@ export async function getPeriodStats(range: ProgressRange): Promise<PeriodStats>
   };
 }
 
-function computeTrend(logs: { started_at: number; total_volume: number }[], now: number, bucketLen: number): Trend | null {
+function computeTrend(logs: { started_at: number; volume: number }[], now: number, bucketLen: number): Trend | null {
   const currentStart = now - bucketLen;
   const prevStart = now - 2 * bucketLen;
   let curVol = 0, prevVol = 0, curSes = 0, prevSes = 0;
   for (const l of logs) {
-    if (l.started_at >= currentStart) { curVol += l.total_volume; curSes += 1; }
-    else if (l.started_at >= prevStart) { prevVol += l.total_volume; prevSes += 1; }
+    if (l.started_at >= currentStart) { curVol += l.volume; curSes += 1; }
+    else if (l.started_at >= prevStart) { prevVol += l.volume; prevSes += 1; }
   }
   if (prevVol <= 0 && prevSes <= 0) return null;
   return {
@@ -303,7 +320,7 @@ export async function getDailyVolumeByDate(): Promise<Record<string, number>> {
 }
 
 export interface DailyCalendarMetrics {
-  /** Sum of session total_volume for the day. */
+  /** Working-set volume for the day (warm-ups excluded). */
   volume: number;
   /** Max estimated 1RM across completed sets that day. */
   intensity: number;
@@ -319,9 +336,10 @@ export interface DailyCalendarMetrics {
  */
 export async function getDailyCalendarMetrics(): Promise<Record<string, DailyCalendarMetrics>> {
   const db = await openDatabase();
-  const logs = await db.getAllAsync<{ id: number; started_at: number; total_volume: number }>(
-    'SELECT id, started_at, total_volume FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL ORDER BY started_at',
+  const logs = await db.getAllAsync<{ id: number; started_at: number }>(
+    'SELECT id, started_at FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL ORDER BY started_at',
   );
+  const working = await getWorkingVolumes(logs.map((l) => l.id));
   const map: Record<string, DailyCalendarMetrics & { _logIds: Set<number> }> = {};
 
   for (const log of logs) {
@@ -335,7 +353,7 @@ export async function getDailyCalendarMetrics(): Promise<Record<string, DailyCal
     if (!bucket._logIds.has(log.id)) {
       bucket._logIds.add(log.id);
       bucket.sessions += 1;
-      bucket.volume += log.total_volume ?? 0;
+      bucket.volume += working.get(log.id) ?? 0;
     }
   }
 
