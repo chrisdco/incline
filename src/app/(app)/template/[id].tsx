@@ -127,7 +127,7 @@ export default function TemplateEditorScreen() {
     setSaving(true);
     try {
       if (isNew) {
-        const newId = await createTemplate(name.trim(), description.trim(), difficulty);
+        const newId = await createTemplate(name.trim(), description.trim(), difficulty, estimatedMinutes);
         for (const ex of exercises) {
           const teId = await addExerciseToTemplate(newId, ex.exerciseId, ex.targetSets, ex.targetRepsMin, ex.targetRepsMax, ex.restSeconds);
           if (ex.notes?.trim()) {
