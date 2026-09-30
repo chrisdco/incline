@@ -130,8 +130,11 @@ export default function TemplateEditorScreen() {
         const newId = await createTemplate(name.trim(), description.trim(), difficulty, estimatedMinutes);
         for (const ex of exercises) {
           const teId = await addExerciseToTemplate(newId, ex.exerciseId, ex.targetSets, ex.targetRepsMin, ex.targetRepsMax, ex.restSeconds);
-          if (ex.notes?.trim()) {
-            await updateTemplateExercise(teId, { notes: ex.notes });
+          if (ex.notes?.trim() || ex.supersetGroup != null) {
+            await updateTemplateExercise(teId, {
+              ...(ex.notes?.trim() ? { notes: ex.notes } : null),
+              ...(ex.supersetGroup != null ? { supersetGroup: ex.supersetGroup } : null),
+            });
           }
         }
         toast({ title: 'Routine created', variant: 'success' });
@@ -323,7 +326,41 @@ export default function TemplateEditorScreen() {
                   Unlink
                 </Button>
               </View>
-            ) : null}
+            ) : (
+              <View className="mt-2 flex-row gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  disabled={
+                    exercises.findIndex((e) => e.id === editingExercise.id) < 0 ||
+                    exercises.findIndex((e) => e.id === editingExercise.id) + 1 >= exercises.length
+                  }
+                  onPress={() => {
+                    // Local-only link: no DB rows exist yet. Share one group
+                    // id with the next exercise; save() persists it.
+                    setExercises((prev) => {
+                      const i = prev.findIndex((e) => e.id === editingExercise.id);
+                      if (i < 0 || i + 1 >= prev.length) return prev;
+                      const groupId = Date.now();
+                      return prev.map((e, j) =>
+                        j === i || j === i + 1 ? { ...e, supersetGroup: groupId } : e,
+                      );
+                    });
+                    toast({ title: 'Linked with next exercise', variant: 'success' });
+                  }}>
+                  Link with next
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onPress={() => {
+                    applyEdit({ supersetGroup: null });
+                    toast({ title: 'Removed from superset', variant: 'success' });
+                  }}>
+                  Unlink
+                </Button>
+              </View>
+            )}
           </View>
         )}
       </Dialog>
