@@ -96,7 +96,6 @@ export function NumberStepper({
         }}
         keyboardType="decimal-pad"
         returnKeyType={onSubmitNext ? 'next' : 'done'}
-        selectTextOnFocus
         accessibilityLabel={label ?? (suffix ? `Value in ${suffix}` : 'Numeric value')}
         accessibilityValue={{ text: focused ? draft : value > 0 ? String(value) : 'Empty' }}
         style={{

@@ -15,6 +15,7 @@ export function ExerciseListItem({ exercise, className }: { exercise: Exercise; 
     <Pressable
       className={cn('flex-row items-center gap-3 rounded-3xl bg-card p-4', className)}
       onPress={() => router.push(`/exercise/${exercise.id}`)}
+      style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
       android_ripple={{ color: 'rgba(0,0,0,0.06)' }}>
       <ExerciseThumb name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} size={44} />
       <View className="flex-1">

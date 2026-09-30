@@ -100,7 +100,7 @@ export function SetRow({
         completed && 'bg-success/8',
       )}>
       <Pressable
-        style={{ width: SET_COL.index }}
+        style={({ pressed }) => [{ width: SET_COL.index, opacity: pressed ? 0.55 : 1 }]}
         className="items-center justify-center self-stretch"
         disabled={!onOpenSetType}
         onPress={onOpenSetType}
@@ -116,7 +116,7 @@ export function SetRow({
       </Pressable>
 
       <Pressable
-        style={{ width: SET_COL.prev }}
+        style={({ pressed }) => [{ width: SET_COL.prev, opacity: pressed ? 0.55 : 1 }]}
         className="items-center justify-center self-stretch"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
