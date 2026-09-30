@@ -6,6 +6,11 @@ import { Plus, Trash2 } from 'lucide-react-native';
 
 import { Sheet } from '@/components/ui/sheet';
 import { SearchBar } from '@/components/common/search-bar';
+import {
+  ExerciseFilterBar,
+  hasExerciseFilters,
+  type ExerciseFilterValues,
+} from '@/components/exercise/exercise-filter-bar';
 import { CreateExerciseForm } from '@/components/exercise/create-exercise-form';
 import { MuscleBadge } from '@/components/exercise/muscle-badge';
 import { EmptyState } from '@/components/common/states';
@@ -13,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/ui/text';
 import { fetchExercisesFromSupabase, searchExercisesFromSupabase, type SupabaseExercise } from '@/lib/supabase';
-import { ensureExerciseExists, getExercise, listCustomExercises, deleteCustomExercise, getCustomExerciseUsage, listExercises, searchExercises } from '@/db/queries';
+import { ensureExerciseExists, getExercise, listCustomExercises, deleteCustomExercise, getCustomExerciseUsage, searchExercises } from '@/db/queries';
 import type { Exercise } from '@/db/types';
 
 /** Convert a Supabase exercise to the local Exercise type for workout logging. */
@@ -88,7 +93,10 @@ const PickerRow = memo(function PickerRow({
   onDelete: (externalId: string) => void;
 }) {
   return (
-    <Pressable onPress={() => onPick(externalId)}>
+    <Pressable
+      onPress={() => onPick(externalId)}
+      style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+      android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}>
       <View className="mb-2">
         <View className="flex-row items-center gap-3 rounded-3xl bg-card p-4">
           <View className="flex-1">
@@ -137,47 +145,99 @@ export function ExercisePickerSheet({
   title?: string;
 }) {
   const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<ExerciseFilterValues>({ muscle: null, equipment: null, pattern: null });
   const [creating, setCreating] = useState(false);
   const [items, setItems] = useState<SupabaseExercise[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  // True only when the local catalog is genuinely empty (pre-seed states):
+  // the only mode that still paginates Supabase.
+  const [cloudOnly, setCloudOnly] = useState(false);
   // Local id → usage count for custom exercises (0 = safe to delete).
   const [usageMap, setUsageMap] = useState<Record<number, number>>({});
   const BATCH = 50;
 
+  const activeFilters = useMemo(
+    () =>
+      hasExerciseFilters(filters)
+        ? {
+            muscle: filters.muscle ?? undefined,
+            equipment: filters.equipment ?? undefined,
+            pattern: filters.pattern ?? undefined,
+          }
+        : undefined,
+    [filters.muscle, filters.equipment, filters.pattern],
+  );
+
+  /** Usage counts for the customs in view (customs are few; per-row is fine). */
+  const refreshUsage = useCallback(async (list: SupabaseExercise[]) => {
+    const usage: Record<number, number> = {};
+    await Promise.all(
+      list.filter((i) => i.is_custom).map(async (c) => {
+        usage[c.id] = await getCustomExerciseUsage(c.id);
+      }),
+    );
+    setUsageMap(usage);
+  }, []);
+
+  /**
+   * Offline-first load: SQLite answers from the local catalog (search text +
+   * facets, one indexed path). Supabase only tops up thin unfiltered text
+   * searches (<5 local hits) for catalog breadth — facet browsing is
+   * local-only by design, so airplane mode keeps working.
+   */
   const loadInitial = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await fetchExercisesFromSupabase(BATCH, 0);
-      const customs = (await listCustomExercises()).map(toSupabaseItem);
-      const usage: Record<number, number> = {};
-      await Promise.all(customs.map(async (c) => { usage[c.id] = await getCustomExerciseUsage(c.id); }));
-      setUsageMap(usage);
-      setItems([...customs, ...data]);
-      setOffset(data.length);
-      setHasMore(data.length === BATCH);
-    } catch {
-      // Supabase unreachable — fall back to local SQLite exercises
-      try {
-        const local = await listExercises();
-        const usage: Record<number, number> = {};
-        await Promise.all(local.map(async (ex) => { if (ex.isCustom) usage[ex.id] = await getCustomExerciseUsage(ex.id); }));
-        setUsageMap(usage);
-        setItems(local.map(toSupabaseItem));
-        setHasMore(false);
-      } catch {
-        setError('Could not load exercises. Check your connection.');
+      const q = query.trim();
+      const hits = await searchExercises(q, activeFilters);
+      const local = hits.map((h) => h.exercise);
+      if (local.length === 0 && !q && !activeFilters) {
+        // Catalog genuinely empty — legacy cloud-paginated fallback.
+        const data = await fetchExercisesFromSupabase(BATCH, 0);
+        const customs = (await listCustomExercises()).map(toSupabaseItem);
+        await refreshUsage(customs);
+        setItems([...customs, ...data]);
+        setOffset(data.length);
+        setHasMore(data.length === BATCH);
+        setCloudOnly(true);
+        return;
       }
+      setCloudOnly(false);
+      const items = local.map(toSupabaseItem);
+      await refreshUsage(items);
+      setItems(items);
+      setOffset(0);
+      setHasMore(false);
+      if (q && !activeFilters && local.length < 5) {
+        try {
+          const data = await searchExercisesFromSupabase(q, BATCH);
+          const seen = new Set([
+            ...local.map((e) => (e.externalId ?? `local:${e.id}`).toLowerCase()),
+            ...local.map((e) => e.name.toLowerCase()),
+          ]);
+          const extra = data.filter(
+            (d) => !seen.has(d.external_id.toLowerCase()) && !seen.has(d.name.toLowerCase()),
+          );
+          if (extra.length > 0) setItems((prev) => [...prev, ...extra]);
+        } catch {
+          // Offline — local results stand alone.
+        }
+      }
+    } catch {
+      setError('Could not load exercises. Check your connection.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query, activeFilters, refreshUsage]);
 
   const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
+    // Local mode serves the whole filtered catalog at once; only the
+    // empty-catalog cloud fallback paginates.
+    if (loading || !hasMore || !cloudOnly) return;
     setLoading(true);
     try {
       const data = await fetchExercisesFromSupabase(BATCH, offset);
@@ -186,51 +246,13 @@ export function ExercisePickerSheet({
       setHasMore(data.length === BATCH);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [loading, hasMore, offset]);
+  }, [loading, hasMore, offset, cloudOnly]);
 
-  const doSearch = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      loadInitial();
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const data = await searchExercisesFromSupabase(q);
-      // Local custom exercises always participate in search.
-      const customs = (await searchExercises(q))
-        .filter((h) => h.exercise.isCustom)
-        .map((h) => toSupabaseItem(h.exercise));
-      const customNames = new Set(customs.map((c) => c.name.toLowerCase()));
-      setItems([...customs, ...data.filter((d) => !customNames.has(d.name.toLowerCase()))]);
-      setHasMore(false);
-    } catch {
-      // Supabase unreachable — search local SQLite
-      try {
-        const local = await searchExercises(q);
-        setItems(local.map((hit) => toSupabaseItem(hit.exercise)));
-        setHasMore(false);
-      } catch {
-        setError('Search failed. Try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [loadInitial]);
-
-  // Load initial data when sheet opens
+  // Debounced search + filter changes re-run the local-first load.
   useEffect(() => {
-    if (open && !creating) {
-      const t = setTimeout(() => loadInitial(), 0);
-      return () => clearTimeout(t);
-    }
-  }, [open, creating, loadInitial]);
-
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => doSearch(query), 300);
+    const timer = setTimeout(() => loadInitial(), 300);
     return () => clearTimeout(timer);
-  }, [query, doSearch]);
+  }, [query, loadInitial]);
 
   const handlePick = async (ex: SupabaseExercise) => {
     if (ex.is_custom) {
@@ -311,6 +333,15 @@ export function ExercisePickerSheet({
             Create custom exercise
           </Button>
           <SearchBar value={query} onChangeText={setQuery} placeholder="Search exercises" className="mb-3" />
+          <View className="mb-3">
+            <ExerciseFilterBar
+              value={filters}
+              onChange={(next) => {
+                setFilters(next);
+                setOffset(0);
+              }}
+            />
+          </View>
           <View style={{ minHeight: 300, maxHeight: 500 }}>
             {error ? (
               <EmptyState title="Error" description={error} />
