@@ -29,6 +29,14 @@ const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
   { id: 'failure', label: 'To failure', hint: 'Max effort · not eligible for PRs' },
 ];
 
+/** Letter badge matching the row marker (Hevy/Strong pattern: W · 1 · D · F). */
+const SET_TYPE_BADGE: Record<SetType, { letter: string; className: string }> = {
+  working: { letter: '1', className: 'text-foreground' },
+  warmup: { letter: 'W', className: 'text-warning' },
+  drop: { letter: 'D', className: 'text-info' },
+  failure: { letter: 'F', className: 'text-destructive' },
+};
+
 /**
  * One exercise within an active session: header (name + rest timer config) and
  * its set rows, plus an "Add set" action.
@@ -256,13 +264,12 @@ export function ExerciseBlock({
         <View style={{ width: SET_COL.prev }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Prev</Text>
         </View>
-        <View style={{ width: SET_COL.weight }} className="items-center">
+        <View className="flex-1 items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{weightLabel}</Text>
         </View>
-        <View style={{ width: SET_COL.reps }} className="items-center">
+        <View className="flex-1 items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Reps</Text>
         </View>
-        <View className="flex-1" />
         <View style={{ width: SET_COL.done }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Done</Text>
         </View>
@@ -399,6 +406,7 @@ export function ExerciseBlock({
         <View className="gap-1 pb-2">
           {SET_TYPE_OPTIONS.map((opt) => {
             const selected = (typeMenuSet?.setType ?? 'working') === opt.id;
+            const badge = SET_TYPE_BADGE[opt.id];
             return (
               <Pressable
                 key={opt.id}
@@ -410,6 +418,9 @@ export function ExerciseBlock({
                 accessibilityLabel={opt.label}
                 accessibilityState={{ selected }}
                 className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+                <View className="h-9 w-9 items-center justify-center rounded-xl bg-muted">
+                  <Text className={cn('text-base font-bold', badge.className)}>{badge.letter}</Text>
+                </View>
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-foreground">{opt.label}</Text>
                   <Caption>{opt.hint}</Caption>

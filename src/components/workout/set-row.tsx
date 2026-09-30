@@ -101,7 +101,7 @@ export function SetRow({
       )}>
       <Pressable
         style={{ width: SET_COL.index }}
-        className="items-center justify-center"
+        className="items-center justify-center self-stretch"
         disabled={!onOpenSetType}
         onPress={onOpenSetType}
         accessibilityRole={onOpenSetType ? 'button' : undefined}
@@ -131,7 +131,7 @@ export function SetRow({
         }
         hitSlop={10}>
         {hasPrevious ? (
-          <Text className="text-center text-sm font-medium text-primary" numberOfLines={1}>
+          <Text className="text-center text-xs text-muted-foreground" numberOfLines={2}>
             {formatWeight(previousWeight!, unit)}×{previousReps}
           </Text>
         ) : (
@@ -145,7 +145,7 @@ export function SetRow({
         onChange={onChangeWeight}
         decimals={1}
         label={`Weight, set ${index + 1}`}
-        style={{ width: SET_COL.weight }}
+        style={{ flex: 1 }}
         onSubmitNext={() => repsRef.current?.focus()}
       />
       <NumberStepper
@@ -153,13 +153,11 @@ export function SetRow({
         value={reps}
         onChange={onChangeReps}
         label={`Reps, set ${index + 1}`}
-        style={{ width: SET_COL.reps }}
+        style={{ flex: 1 }}
         onSubmitNext={onSubmitReps}
       />
 
-      <View className="flex-1" />
-
-      <View style={{ width: SET_COL.done }} className="items-center">
+      <View style={{ width: SET_COL.done }} className="items-center justify-center self-stretch">
         {onToggleComplete ? (
           <Pressable
             accessibilityRole="button"
