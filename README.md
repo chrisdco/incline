@@ -2,21 +2,21 @@
 
 Offline-first strength training app for React Native + Expo. Log sets in the gym, follow programs and routines, and get **explainable progressive overload** suggestions from your own history — even without a network.
 
-> **Status:** pre-alpha. Core loop (onboard → log → finish → progress) works locally. Cloud sync is **implemented in code** (Clerk JWT + Supabase outbox/RLS) but **ops are not fully proven** for multi-device yet — see [#57](https://github.com/ChrisDc777/incline/issues/57). Accounts (Clerk) are required.
+> **Status:** pre-alpha, single developer. Core loop (onboard → log → finish → progress) works locally. Cloud sync is **implemented in code** (Clerk JWT + Supabase outbox/RLS) but **ops are not fully proven** for multi-device yet — see [#57](https://github.com/chrisdco/incline/issues/57). Accounts (Clerk) are required.
 
 **Product north star:** the offline coach that tells you the next weight/reps, shows *why*, and knows when to hold — not another social logger.
 
 ## What’s in the app today
 
 ### Logging & gym UX
-- Live sessions: weight/reps, warm-up sets (`set_type`), previous-session carry-over, one-tap complete, undo
+- Live sessions: weight/reps, warm-up sets (`set_type`), previous-session carry-over (tap to copy), one-tap complete, undo
 - Rest timer: per-exercise / after-superset, OS alerts, sound + haptics
-- Supersets / circuits on templates and in-session
-- Templates (routines), program builder (local), Quick Start
+- Swap / remove / reorder exercises in-session; save-as-routine from summary
+- Templates (routines) with search/sort, superset builder, program builder (local), Quick Start
 
 ### Habit loops
 - Dynamic Home context cards (reports, inactivity, weekly goal, coaching, announcements)
-- Workout reminders + optional Sunday weekly digest (local notifications)
+- Workout reminders, Sunday digest, monthly recap, session nudges (abandoned / streak / milestones — all local, opt-in)
 - Weekly / monthly recaps and share slides
 - Calendar heatmap, weekly streak, weekly workout goal
 - Bodyweight + circumference measures; JSON/CSV export (incl. measurements)
@@ -29,24 +29,25 @@ Offline-first strength training app for React Native + Expo. Log sets in the gym
 - Rules live in `src/coaching/`; suggestions are recomputed from SQLite (not synced)
 
 ### Progress & tools
-- Volume, estimated 1RM / PRs, muscle distribution, achievements
+- Working-set volume (warm-ups excluded from displays; stored totals kept), estimated 1RM / PRs, muscle distribution, achievements
 - Progress photo compare (local session pics, week vs week) — Progress → Photos
 - Plate calculator, 1RM / bodyweight tools
-- Settings: units, theme, accent, rest defaults, calendar prefs, reminders, optional AI explanations
+- Settings: units, theme + aurora skins, accent, rest defaults, calendar prefs, reminders, optional AI explanations
 
 ### Trust & identity
 - Clerk email auth (mandatory)
 - Local SQLite source of truth; sync outbox → Supabase when configured
-- Soft-delete / UUID-ready rows; Settings “Backup & restore” triggers sync
+- Pending-upload badge, account-switch loss guard, Settings “Backup & restore” triggers sync
 
 ## What is *not* ready yet
 
 | Area | Notes |
 |------|--------|
-| Sync ops | Deploy schema + multi-device verification — [#57](https://github.com/ChrisDc777/incline/issues/57) |
-| Cloud AI narrations | Code shipped ([#99](https://github.com/ChrisDc777/incline/issues/99)); deploy Edge Function + secrets still required |
-| Photo cloud sync | Local compare shipped ([#23](https://github.com/ChrisDc777/incline/issues/23)); Storage later — [#109](https://github.com/ChrisDc777/incline/issues/109) |
+| Sync ops | Deploy schema + multi-device verification — [#57](https://github.com/chrisdco/incline/issues/57) |
+| Cloud AI narrations | Code shipped ([#99](https://github.com/chrisdco/incline/issues/99)); deploy Edge Function + secrets still required |
+| Photo cloud sync | Local compare shipped ([#23](https://github.com/chrisdco/incline/issues/23)); Storage later — [#109](https://github.com/chrisdco/incline/issues/109) |
 | Social / Health / marketplace | P3+ |
+| Satellite ecosystem | Directions tracked in [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) (coach rules, insights, MCP, export bridges) |
 
 ## Docs for humans & agents
 
@@ -55,8 +56,11 @@ Offline-first strength training app for React Native + Expo. Log sets in the gym
 | [docs/HANDOFF.md](docs/HANDOFF.md) | **Start here after `git pull`** — current state, next issues |
 | [docs/SPRINT-2026-08.md](docs/SPRINT-2026-08.md) | Two-week plan (prove sync) + small-agent slices |
 | [docs/P1-P2-COACHING.md](docs/P1-P2-COACHING.md) | P1 habit closeout + P2 coaching (Stages A–C) |
+| [docs/AUDIT-2026-09.md](docs/AUDIT-2026-09.md) | Full-app critique tracker (fix or rule out) |
+| [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) | Satellite directions + reference catalog |
+| [docs/DESIGN-INSPO.md](docs/DESIGN-INSPO.md) | Aurora theme reference notes |
 | [ROADMAP.md](ROADMAP.md) | Milestones P0–P4 |
-| [AGENTS.md](AGENTS.md) | Agent entry (Expo SDK 57 + doc pointers) |
+| [AGENTS.md](AGENTS.md) | Agent entry (Expo SDK 57 + doc pointers + data/UI rules) |
 
 Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
 
@@ -66,7 +70,7 @@ Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
 |-------|------------|
 | App | Expo SDK 57, React Native 0.86, Expo Router |
 | UI | NativeWind v4, Reanimated, Lucide, Gifted Charts, FlashList, Geist |
-| Local data | expo-sqlite (schema v17, incl. photo metadata + session exercise notes), Zustand + SQLite `kv` |
+| Local data | expo-sqlite (schema v19: search text, set order, session notes), Zustand + SQLite `kv` |
 | Auth | Clerk (`@clerk/expo`) |
 | Cloud | Supabase (exercise catalog + user sync tables / RLS) |
 | Coaching | Pure TypeScript rules in `src/coaching/` (no model keys in the app) |
@@ -119,4 +123,5 @@ pnpm run lint
 
 ## License
 
-Private — not for distribution.
+All rights reserved — not for distribution. (Deliberately proprietary while
+pre-alpha; see the license note below before flipping to MIT.)
