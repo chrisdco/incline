@@ -44,7 +44,7 @@ deployable"). Until then they are seed issues, not repos.
 
 - Audit backlog: #224 (groups feed the board).
 - Scale staging: #228.
-- Board: "Incline" user project — PENDING token scopes
-  (`gh auth refresh -s project,read:project`, then create + add
-  #224, #228, #239–#244).
+- Board: "Incline" user project (#2) — live with #224, #228, #239–#244.
+  Suggested views/columns (configure in UI): Now / Next / Later / Parked,
+  grouped by milestone P0–P4 + satellites.
 - Milestones P0–P4 already exist; satellites filed under P2/P3/P4.
