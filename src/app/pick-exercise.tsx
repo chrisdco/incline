@@ -12,6 +12,11 @@ import { Button } from '@/components/ui/button';
 import { SearchBar } from '@/components/common/search-bar';
 import { MuscleBadge } from '@/components/exercise/muscle-badge';
 import { CreateExerciseForm } from '@/components/exercise/create-exercise-form';
+import {
+  ExerciseFilterBar,
+  hasExerciseFilters,
+  type ExerciseFilterValues,
+} from '@/components/exercise/exercise-filter-bar';
 import { EmptyState } from '@/components/common/states';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { useHaptics } from '@/hooks/use-haptics';
@@ -53,6 +58,8 @@ export default function PickExerciseScreen() {
 
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [filters, setFilters] = useState<ExerciseFilterValues>({ muscle: null, equipment: null, pattern: null });
+  const filtersActive = hasExerciseFilters(filters);
   // Stale-while-revalidate: render the cached catalog synchronously (no
   // spinner on every open) and refresh from SQLite in the background.
   const [catalog, setCatalog] = useState<Exercise[] | null>(() => getCachedCatalog());
@@ -122,9 +129,21 @@ export default function PickExerciseScreen() {
   }, [isReplace, replaceId]);
 
   useEffect(() => {
-    if (!debounced) return;
+    // Filters alone (no text) still narrow via SQLite — same query path as
+    // text search so add and replace share one behavior.
+    if (!debounced && !filtersActive) {
+      setResults(null);
+      return;
+    }
     let active = true;
-    void searchExercises(debounced)
+    const activeFilters = filtersActive
+      ? {
+          muscle: filters.muscle ?? undefined,
+          equipment: filters.equipment ?? undefined,
+          pattern: filters.pattern ?? undefined,
+        }
+      : undefined;
+    void searchExercises(debounced, activeFilters)
       .then((hits) => {
         if (active) setResults(hits.map((h) => h.exercise));
       })
@@ -134,7 +153,7 @@ export default function PickExerciseScreen() {
     return () => {
       active = false;
     };
-  }, [debounced]);
+  }, [debounced, filtersActive, filters.muscle, filters.equipment, filters.pattern]);
 
   const applyExercise = useCallback(
     async (ex: Exercise) => {
@@ -170,9 +189,9 @@ export default function PickExerciseScreen() {
   );
 
   const rows = useMemo(() => {
-    if (debounced) return results ?? [];
+    if (debounced || filtersActive) return results ?? [];
     return catalog ?? [];
-  }, [debounced, results, catalog]);
+  }, [debounced, filtersActive, results, catalog]);
 
   // Stable by-id callbacks so memoized rows skip re-renders on keystrokes.
   // Map syncs in an effect: callbacks only run on press, always post-render.
@@ -191,8 +210,9 @@ export default function PickExerciseScreen() {
     if (ex) openDetails(ex);
   }, [openDetails]);
 
-  const loading = catalog == null || (debounced !== '' && results == null);
-  const showSections = !debounced && !creating;
+  const searching = debounced !== '' || filtersActive;
+  const loading = catalog == null || (searching && results == null);
+  const showSections = !searching && !creating;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -218,8 +238,9 @@ export default function PickExerciseScreen() {
         </View>
       </View>
 
-      <View className="px-4 pb-2">
+      <View className="gap-3 px-4 pb-2">
         <SearchBar value={query} onChangeText={setQuery} placeholder="Search exercises" />
+        <ExerciseFilterBar value={filters} onChange={setFilters} />
       </View>
 
       {creating ? (
@@ -324,8 +345,17 @@ export default function PickExerciseScreen() {
           )}
           ListEmptyComponent={
             <EmptyState
-              title={debounced ? 'No exercises found' : 'No exercises yet'}
-              description={debounced ? 'Try a different search or create a custom exercise.' : 'Create a custom exercise to get started.'}
+              title={searching ? 'No exercises found' : 'No exercises yet'}
+              description={searching ? 'Try a different search or loosen the filters.' : 'Create a custom exercise to get started.'}
+              actionLabel={searching ? 'Clear search & filters' : undefined}
+              onAction={
+                searching
+                  ? () => {
+                      setQuery('');
+                      setFilters({ muscle: null, equipment: null, pattern: null });
+                    }
+                  : undefined
+              }
             />
           }
         />

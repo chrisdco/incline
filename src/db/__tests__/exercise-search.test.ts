@@ -58,13 +58,16 @@ async function seedExercise(
   name: string,
   muscle = 'chest',
   aliases: string[] = [],
+  opts?: { equipment?: string; pattern?: string },
 ) {
   await db().runAsync(
     `INSERT INTO exercises (id, name, primary_muscle, movement_pattern, equipment, category, created_at, updated_at)
-     VALUES (?, ?, ?, 'horizontal_push', 'barbell', 'strength', 1, 1)`,
+     VALUES (?, ?, ?, ?, ?, 'strength', 1, 1)`,
     id,
     name,
     muscle,
+    opts?.pattern ?? 'horizontal_push',
+    opts?.equipment ?? 'barbell',
   );
   // Mirror migration 019 backfill for the seeded row.
   await db().runAsync(
@@ -127,5 +130,19 @@ describe('searchExercises', () => {
     const hits = await searchExercises('');
     expect(hits).toHaveLength(2);
     expect(hits.every((h) => h.score === 0)).toBe(true);
+  });
+
+  it('filters by equipment without text', async () => {
+    await seedExercise(1, 'Bench Press (Barbell)', 'chest', [], { equipment: 'barbell' });
+    await seedExercise(2, 'Push-Up', 'chest', [], { equipment: 'bodyweight' });
+    const hits = await searchExercises('', { equipment: 'bodyweight' });
+    expect(hits.map((h) => h.exercise.name)).toEqual(['Push-Up']);
+  });
+
+  it('combines text, equipment, and pattern filters', async () => {
+    await seedExercise(1, 'Bench Press (Barbell)', 'chest', [], { equipment: 'barbell', pattern: 'horizontal_push' });
+    await seedExercise(2, 'Overhead Press (Barbell)', 'shoulders', [], { equipment: 'barbell', pattern: 'vertical_push' });
+    const hits = await searchExercises('press', { equipment: 'barbell', pattern: 'vertical_push' });
+    expect(hits.map((h) => h.exercise.name)).toEqual(['Overhead Press (Barbell)']);
   });
 });
