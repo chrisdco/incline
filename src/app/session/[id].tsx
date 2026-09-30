@@ -479,10 +479,10 @@ export default function SessionScreen() {
           const exRest = restSecondsMap[target.exerciseId] ?? defaultRestSeconds;
           if (exRest > 0) {
             setRestKind(decision.kind);
-            const { replaced, discardedSeconds } = rest.start(exRest);
-            if (replaced && discardedSeconds > 60) {
-              toast({ title: 'Rest restarted', description: `${discardedSeconds}s left on the last one.`, variant: 'info' });
-            }
+            // Silent replace, like Strong/Hevy: the visible timer bar already
+            // shows the restart. A toast here fired on nearly every set for
+            // long rests (150s+) and read as noise on top of real signals.
+            rest.start(exRest);
           }
         }
       }

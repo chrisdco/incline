@@ -391,9 +391,10 @@ const ExercisePickRow = memo(function ExercisePickRow({
       <Pressable
         onPress={() => onPick(exerciseId)}
         disabled={disabled}
+        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1, flex: 1 })}
         accessibilityRole="button"
         accessibilityLabel={`Choose ${name}`}
-        className="flex-1 flex-row items-center gap-3">
+        className="flex-row items-center gap-3">
         <View className="flex-1">
           <View className="flex-row items-center gap-2">
             <Text className="flex-1 text-sm font-semibold text-foreground" numberOfLines={1}>

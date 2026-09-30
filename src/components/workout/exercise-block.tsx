@@ -162,6 +162,7 @@ export function ExerciseBlock({
           <Pressable
             onPress={onOpenExercise}
             disabled={!onOpenExercise}
+            style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
             accessibilityRole={onOpenExercise ? 'button' : undefined}
             accessibilityLabel={onOpenExercise ? `Open ${name} details` : undefined}
             className="flex-row items-center gap-1 self-start">

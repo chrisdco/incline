@@ -241,6 +241,13 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => {
               if (syncing) return;
+              // Retry only exists when sync can actually run. Logged out /
+              // unconfigured / dev-bypass goes to Settings instead of
+              // promising an upload that cannot happen.
+              if (!syncEnabled) {
+                router.push('/(app)/settings' as Href);
+                return;
+              }
               if (pending > 0 || syncError) {
                 void (async () => {
                   const result = await syncNow();
@@ -254,27 +261,29 @@ export default function ProfileScreen() {
             }}
             accessibilityRole="button"
             accessibilityLabel={
-              pending > 0
-                ? `${pending} changes waiting to upload. Activate to retry.`
-                : syncError
-                  ? 'Last sync failed. Activate to retry.'
-                  : 'Backup up to date. Activate for sync details.'
+              !syncEnabled
+                ? 'Backup off. Activate for sync details.'
+                : pending > 0
+                  ? `${pending} changes waiting to upload. Activate to retry.`
+                  : syncError
+                    ? 'Last sync failed. Activate to retry.'
+                    : 'Backup up to date. Activate for sync details.'
             }
             className="flex-row items-center gap-3 rounded-3xl bg-card p-4"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={Cloud} size={20} color={pending > 0 || syncError ? 'warning' : 'muted-foreground'} />
+            <Icon icon={Cloud} size={20} color={!syncEnabled || pending > 0 || syncError ? 'warning' : 'muted-foreground'} />
             <View className="flex-1">
               <Body className="font-medium text-foreground">
-                {pending > 0 ? `${pending} change${pending === 1 ? '' : 's'} waiting` : syncError ? 'Sync failed' : 'Backed up'}
+                {!syncEnabled ? 'Backup off' : pending > 0 ? `${pending} change${pending === 1 ? '' : 's'} waiting` : syncError ? 'Sync failed' : 'Backed up'}
               </Body>
               <Caption>
-                {pending > 0
-                  ? 'Tap to retry upload'
-                  : syncError
-                    ? (status?.lastError ?? 'Tap to retry')
-                    : syncEnabled
-                      ? 'Tap for sync details'
-                      : 'Sign in + Supabase to enable backup'}
+                {!syncEnabled
+                  ? 'Sign in + Supabase to enable backup'
+                  : pending > 0
+                    ? 'Tap to retry upload'
+                    : syncError
+                      ? (status?.lastError ?? 'Tap to retry')
+                      : 'Tap for sync details'}
               </Caption>
             </View>
             {syncing ? null : <Icon icon={ChevronRight} size={18} color="muted-foreground" />}
