@@ -36,7 +36,14 @@ const SET_TYPE_LABEL: Record<SetType, string> = {
   failure: 'To failure',
 };
 
-/** A single set row: index, previous, weight, reps, and a complete toggle. */
+/** A single set row: index, previous, weight, reps, and a complete toggle.
+ *
+ * Reference anatomy (Hevy, Sep 2026 screenshots — do not regress):
+ * number | PREV box (filled, dim, tappable = copy) | KG box | REPS box | DONE circle.
+ * Every cell is a filled box except the number; the next set's circle carries
+ * the accent ring. Any restyle must be checked side-by-side against the
+ * reference before PR.
+ */
 export function SetRow({
   ref,
   index,
@@ -122,7 +129,7 @@ export function SetRow({
 
       <Pressable
         style={({ pressed }) => [{ width: SET_COL.prev, opacity: pressed ? 0.55 : 1 }]}
-        className="items-center justify-center self-stretch"
+        className="items-center justify-center self-stretch rounded-xl bg-muted"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
           selection();
