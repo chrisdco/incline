@@ -87,8 +87,12 @@ export function SetRow({
   const hasPrevious = previousWeight !== undefined && previousWeight > 0;
 
   const toggleClass = cn(
-    'h-11 w-11 items-center justify-center rounded-full',
-    completed ? 'bg-success' : isNext ? 'border-2 border-primary bg-primary/10' : 'border-2 border-border',
+    'h-11 w-11 items-center justify-center rounded-full border-2',
+    completed
+      ? 'border-success bg-success'
+      : isNext
+        ? 'border-primary bg-primary/10'
+        : 'border-muted-foreground/40',
   );
   const toggleIconColor = completed ? 'success-foreground' : isNext ? 'primary' : 'muted-foreground';
 
@@ -104,10 +108,11 @@ export function SetRow({
         className="items-center justify-center self-stretch"
         disabled={!onOpenSetType}
         onPress={onOpenSetType}
+        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
         accessibilityRole={onOpenSetType ? 'button' : undefined}
         accessibilityLabel={onOpenSetType ? `Set ${index + 1} type: ${SET_TYPE_LABEL[setType]}. Activate to change.` : undefined}
         hitSlop={6}>
-        <Text className="text-sm font-bold text-muted-foreground">{index + 1}</Text>
+        <Text className="text-sm font-bold text-foreground">{index + 1}</Text>
         {setType !== 'working' ? (
           <Text className={cn('text-[9px] font-bold leading-none', SET_TYPE_LETTER_COLOR[setType])}>
             {SET_TYPE_LETTER[setType]}
@@ -123,6 +128,7 @@ export function SetRow({
           selection();
           onApplyPrevious?.();
         }}
+        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
         accessibilityRole={hasPrevious ? 'button' : undefined}
         accessibilityLabel={
           hasPrevious

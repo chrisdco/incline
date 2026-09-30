@@ -20,6 +20,7 @@ export function Chip({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+      android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
       className={cn(
