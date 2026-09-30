@@ -39,9 +39,10 @@ const SET_TYPE_LABEL: Record<SetType, string> = {
 /** A single set row: index, previous, weight, reps, and a complete toggle.
  *
  * Reference anatomy (Hevy, Sep 2026 screenshots — do not regress):
- * number | PREV box (filled, dim, tappable = copy) | KG box | REPS box | DONE circle.
- * Every cell is a filled box except the number; the next set's circle carries
- * the accent ring. Any restyle must be checked side-by-side against the
+ * number | PREV dim text (tappable = copy, never a box) | KG box | REPS box
+ * | DONE circle. Touch targets must not bleed into neighboring cells
+ * (no full-height stretch on text cells). The next set's circle carries the
+ * accent ring. Any restyle must be checked side-by-side against the
  * reference before PR.
  */
 export function SetRow({
@@ -129,20 +130,20 @@ export function SetRow({
 
       <Pressable
         style={({ pressed }) => [{ width: SET_COL.prev, opacity: pressed ? 0.55 : 1 }]}
-        className="items-center justify-center self-stretch rounded-xl bg-muted"
+        className="items-center justify-center"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
           selection();
           onApplyPrevious?.();
         }}
-        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
+        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
         accessibilityRole={hasPrevious ? 'button' : undefined}
         accessibilityLabel={
           hasPrevious
             ? `Use previous ${formatWeight(previousWeight!, unit)} times ${previousReps ?? 0}`
             : undefined
         }
-        hitSlop={10}>
+        hitSlop={6}>
         {hasPrevious ? (
           <Text className="text-center text-xs text-muted-foreground" numberOfLines={2}>
             {formatWeight(previousWeight!, unit)}×{previousReps}

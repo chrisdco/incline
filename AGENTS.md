@@ -15,5 +15,5 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 
 ## UI changes (screenshots beat memory)
 
-- **Gym-loop surfaces (session rows, cards, pickers) need a side-by-side check** against the Hevy/Strong reference screenshots before PR. Misses so far: prev-as-box, tick placement, press feedback — all caught by the user, none by code review.
+- **Gym-loop surfaces (session rows, cards, pickers) need a side-by-side check** against the Hevy/Strong reference screenshots before PR. Misses so far: prev treatment (text, never a box), tick placement, press feedback — all caught by the user, none by code review.
 - **Reference anatomy lives in code comments** (see `set-row.tsx` header). Update the comment when the reference changes; don't restyle from memory.
