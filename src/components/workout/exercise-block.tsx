@@ -266,10 +266,10 @@ export function ExerciseBlock({
         <View style={{ flex: SET_FLEX.prev }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Prev</Text>
         </View>
-        <View className="flex-1 items-center">
+        <View style={{ flex: SET_FLEX.input }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{weightLabel}</Text>
         </View>
-        <View className="flex-1 items-center">
+        <View style={{ flex: SET_FLEX.input }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Reps</Text>
         </View>
         <View style={{ width: SET_COL.done }} className="items-center">

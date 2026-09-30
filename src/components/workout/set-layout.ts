@@ -1,17 +1,19 @@
 /**
  * Shared column widths for session set headers + rows — keep in sync.
- * Hevy-style proportions: index/done fixed; prev/input cells flex so the
- * KG/REPS boxes stay compact on wide screens instead of ballooning while
- * fixed columns stand still (flex:1 on inputs alone caused exactly that).
+ * Proportional flex matching the Hevy reference (Sep 2026 shot): prev
+ * widest (long "80kg×8" strings), KG/REPS equal, tick fixed at the end.
+ * Fixed widths were tried and left gaps on wide screens; equal flex
+ * ballooned inputs without prev growing along. Locked: do not restyle
+ * without a device screenshot proving the current geometry wrong.
  */
 export const SET_COL = {
   index: 28,
   done: 44,
 } as const;
 
-/** Proportional widths: prev carries long "80kg×8" strings, KG/REPS stay equal. */
+/** Column proportions measured off the Hevy reference (prev 1.4 : inputs 1). */
 export const SET_FLEX = {
-  prev: 1.25,
+  prev: 1.4,
   input: 1,
 } as const;
 

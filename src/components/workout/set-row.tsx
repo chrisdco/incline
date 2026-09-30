@@ -39,11 +39,11 @@ const SET_TYPE_LABEL: Record<SetType, string> = {
 /** A single set row: index, previous, weight, reps, and a complete toggle.
  *
  * Reference anatomy (Hevy, Sep 2026 screenshots — do not regress):
- * number | PREV dim text (tappable = copy, never a box) | KG box | REPS box
- * | DONE circle. Touch targets must not bleed into neighboring cells
- * (no full-height stretch on text cells). The next set's circle carries the
- * accent ring. Any restyle must be checked side-by-side against the
- * reference before PR.
+ * fixed number + tick at the edges; PREV dim text (tappable = copy, never
+ * a box) flexes widest; KG/REPS boxes share the rest equally. Geometry is
+ * locked to these proportions — see set-layout.ts. Any restyle needs a
+ * device screenshot proving the current geometry wrong, side-by-side
+ * against the reference, before PR.
  */
 export function SetRow({
   ref,
