@@ -77,8 +77,7 @@ export function NumberStepper({
       className={cn('flex-row items-center justify-center', className)}
       style={[{ height: SET_INPUT_HEIGHT }, style]}>
       <TextInput
-        ref={inputRef}
-        value={focused ? draft : value > 0 ? String(value) : ''}
+        ref={inputRef}        value={focused ? draft : value > 0 ? String(value) : ''}
         placeholder="—"
         placeholderTextColor={PLACEHOLDER_COLOR}
         onFocus={() => {
@@ -110,7 +109,10 @@ export function NumberStepper({
           fontWeight: '600',
           fontVariant: ['tabular-nums'],
         }}
-        className="rounded-lg bg-muted/60 px-1 text-foreground"
+        className={cn(
+          'rounded-xl border bg-muted px-1 text-foreground',
+          focused ? 'border-primary' : 'border-transparent',
+        )}
       />
       {suffix && !focused ? (
         <Text className="absolute right-2 text-xs text-muted-foreground">{suffix}</Text>

@@ -420,9 +420,8 @@ export default function EditWorkoutScreen() {
               <View className="mb-1 flex-row items-center gap-2 px-1">
                 <View style={{ width: SET_COL.index }} className="items-center"><Caption>SET</Caption></View>
                 <View style={{ width: SET_COL.prev }} className="items-center"><Caption>PREV</Caption></View>
-                <View style={{ width: SET_COL.weight }} className="items-center"><Caption>{unit === 'metric' ? 'KG' : 'LB'}</Caption></View>
-                <View style={{ width: SET_COL.reps }} className="items-center"><Caption>REPS</Caption></View>
-                <View className="flex-1" />
+                <View className="flex-1 items-center"><Caption>{unit === 'metric' ? 'KG' : 'LB'}</Caption></View>
+                <View className="flex-1 items-center"><Caption>REPS</Caption></View>
                 <View style={{ width: SET_COL.done }} />
               </View>
 
