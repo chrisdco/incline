@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo, useLayoutEffect } from 'react';
+import { useState, useEffect, useMemo, useLayoutEffect, useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { Dumbbell, Lightbulb, Trophy } from 'lucide-react-native';
+import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
+import { Lightbulb, Trophy, Plus, Play } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
-import { ExerciseMedia } from '@/components/exercise/exercise-media';
+import { ExerciseMedia, ExerciseThumb } from '@/components/exercise/exercise-media';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { EmptyState, ErrorState } from '@/components/common/states';
@@ -15,16 +16,21 @@ import { SeriesAreaChart } from '@/components/progress/series-area-chart';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { useExercise, useExerciseHistory } from '@/hooks/use-data';
 import {
+  addExerciseToWorkout,
   getExerciseByExternalId,
   getExercisePRSummary,
   getExerciseRepRecords,
   getExerciseSeries,
+  startWorkout,
   type ExercisePRSummary,
   type RepRecord,
   type ExerciseSeriesPoint,
 } from '@/db/queries';
+import { useActiveWorkout } from '@/store/active-workout-store';
+import { useToast } from '@/components/ui/toast';
+import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
-import { MOVEMENT_LABELS, MUSCLE_LABELS } from '@/lib/labels';
+import { MOVEMENT_LABELS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/lib/labels';
 import { estimated1RM, formatWeight, formatVolume, relativeTime } from '@/db/calc';
 import type { Exercise, ExerciseHistoryRow, Unit } from '@/db/types';
 
@@ -43,7 +49,13 @@ export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { unit } = useSettings();
   const navigation = useNavigation();
+  const router = useRouter();
+  const { toast } = useToast();
+  const { impact } = useHaptics();
+  const activeLogId = useActiveWorkout((s) => s.activeLogId);
+  const setActiveLogId = useActiveWorkout((s) => s.setActive);
   const [tab, setTab] = useState<Tab>('Summary');
+  const [adding, setAdding] = useState(false);
 
   const isSupabaseId = typeof id === 'string' && id.startsWith('supabase:');
   const externalId = isSupabaseId ? id.replace('supabase:', '') : null;
@@ -53,20 +65,27 @@ export default function ExerciseDetailScreen() {
   const [supabaseExercise, setSupabaseExercise] = useState<Exercise | null>(null);
   const [supabaseLoading, setSupabaseLoading] = useState(false);
 
-  useEffect(() => {
-    if (externalId) {
-      setSupabaseLoading(true);
-      getExerciseByExternalId(externalId).then((ex) => {
-        setSupabaseExercise(ex);
-        setSupabaseLoading(false);
-      });
+  // Real retry for linked catalog exercises (previously a no-op).
+  const fetchSupabaseExercise = useCallback(async () => {
+    if (!externalId) return;
+    setSupabaseLoading(true);
+    try {
+      setSupabaseExercise(await getExerciseByExternalId(externalId));
+    } catch {
+      setSupabaseExercise(null);
+    } finally {
+      setSupabaseLoading(false);
     }
   }, [externalId]);
+
+  useEffect(() => {
+    if (externalId) void fetchSupabaseExercise();
+  }, [externalId, fetchSupabaseExercise]);
 
   const exercise = isSupabaseId ? supabaseExercise : localExercise;
   const loading = isSupabaseId ? supabaseLoading : localLoading;
   const error = isSupabaseId ? !supabaseExercise && !supabaseLoading : localError;
-  const refetch = isSupabaseId ? () => {} : localRefetch;
+  const refetch = isSupabaseId ? fetchSupabaseExercise : localRefetch;
   const exerciseId = exercise?.id ?? 0;
 
   const { data: history } = useExerciseHistory(exerciseId);
@@ -102,6 +121,36 @@ export default function ExerciseDetailScreen() {
   const maxWeight = prSummary?.heaviestWeight ?? 0;
   const max1RM = prSummary?.best1RM ?? 0;
 
+  // Discovery → training: add to the live session, or start one with this.
+  const addToActiveWorkout = async () => {
+    if (!exercise || adding || !activeLogId) return;
+    setAdding(true);
+    impact();
+    try {
+      await addExerciseToWorkout(activeLogId, exercise.id);
+      toast({ title: `${exercise.name} added`, variant: 'success' });
+      router.push(`/session/${activeLogId}` as Href);
+    } catch {
+      toast({ title: 'Could not add exercise', variant: 'destructive' });
+      setAdding(false);
+    }
+  };
+
+  const startWithExercise = async () => {
+    if (!exercise || adding) return;
+    setAdding(true);
+    impact();
+    try {
+      const logId = await startWorkout(null, exercise.name);
+      setActiveLogId(logId);
+      await addExerciseToWorkout(logId, exercise.id);
+      router.push(`/session/${logId}` as Href);
+    } catch {
+      toast({ title: 'Could not start workout', variant: 'destructive' });
+      setAdding(false);
+    }
+  };
+
   if (loading) return <ListSkeleton count={2} />;
   if (error || !exercise)
     return <ErrorState onRetry={refetch} title="Exercise not found" description="It may have been removed." />;
@@ -110,13 +159,45 @@ export default function ExerciseDetailScreen() {
     <View className="flex-1 bg-background">
       {/* Exercise header */}
       <View className="flex-row items-center gap-3 px-4 pt-2">
-        <View className="h-10 w-10 items-center justify-center rounded-2xl bg-muted">
-          <Icon icon={Dumbbell} size={20} color="muted-foreground" />
-        </View>
+        <ExerciseThumb name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} size={40} />
         <View className="flex-1">
           <Heading style={{ fontSize: 18 }}>{exercise.name}</Heading>
-          <Caption>Primary: {MUSCLE_LABELS[exercise.primaryMuscle]}</Caption>
+          <Caption>
+            {MUSCLE_LABELS[exercise.primaryMuscle]}
+            {exercise.equipment ? ` · ${EQUIPMENT_LABELS[exercise.equipment] ?? exercise.equipment}` : ''}
+            {exercise.difficulty ? ` · ${exercise.difficulty}` : ''}
+            {exercise.secondaryMuscles.length > 0 ? ` · +${exercise.secondaryMuscles.length} secondary` : ''}
+          </Caption>
         </View>
+      </View>
+
+      {/* Discovery → training */}
+      <View className="flex-row gap-2 px-4 pt-3">
+        {activeLogId ? (
+          <Button
+            className="flex-1"
+            size="sm"
+            leftIcon={<Icon icon={Plus} size={16} color="primary-foreground" />}
+            onPress={() => { void addToActiveWorkout(); }}
+            disabled={adding}>
+            {adding ? 'Adding…' : 'Add to workout'}
+          </Button>
+        ) : (
+          <Button
+            className="flex-1"
+            size="sm"
+            leftIcon={<Icon icon={Play} size={16} color="primary-foreground" />}
+            onPress={() => { void startWithExercise(); }}
+            disabled={adding}>
+            {adding ? 'Starting…' : 'Start workout with this'}
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onPress={() => router.push('/(app)/(tabs)/workouts' as Href)}>
+          Routines
+        </Button>
       </View>
 
       {/* Tab selector */}

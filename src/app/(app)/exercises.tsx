@@ -7,31 +7,46 @@ import { Icon } from '@/components/common/icon';
 
 import { Caption } from '@/components/common/text';
 import { SearchBar } from '@/components/common/search-bar';
-import { FilterChips, type FilterOption } from '@/components/common/chip';
+import { FilterChips } from '@/components/common/chip';
 import { EmptyState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { ExerciseListItem } from '@/components/exercise/exercise-list-item';
 import { useSearchExercises } from '@/hooks/use-data';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
-import { MUSCLE_LABELS } from '@/lib/labels';
-import type { MuscleGroup } from '@/db/types';
-
-const MUSCLE_OPTIONS: FilterOption<MuscleGroup>[] = (
-  ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'quads', 'hamstrings', 'core'] as MuscleGroup[]
-).map((m) => ({ value: m, label: MUSCLE_LABELS[m] }));
+import {
+  EQUIPMENT_FILTER_OPTIONS,
+  MUSCLE_FILTER_OPTIONS,
+  PATTERN_FILTER_OPTIONS,
+} from '@/lib/exercise-filters';
+import type { Equipment, MovementPattern, MuscleGroup } from '@/db/types';
 
 export default function ExercisesScreen() {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
+  const [equipment, setEquipment] = useState<Equipment | null>(null);
+  const [pattern, setPattern] = useState<MovementPattern | null>(null);
   const debouncedQuery = useDebounce(query);
 
-  const exercises = useSearchExercises(debouncedQuery, muscle ? { muscle } : undefined);
+  const filters = muscle || equipment || pattern
+    ? { muscle: muscle ?? undefined, equipment: equipment ?? undefined, pattern: pattern ?? undefined }
+    : undefined;
+  const exercises = useSearchExercises(debouncedQuery, filters);
+  const filtering = muscle !== null || equipment !== null || pattern !== null;
+
+  const clearAll = () => {
+    setQuery('');
+    setMuscle(null);
+    setEquipment(null);
+    setPattern(null);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className={SCREEN_HEADER}>
-        <Caption>{exercises.data?.length ?? 0} exercises in library</Caption>
+        <Caption>
+          {exercises.data?.length ?? 0} exercises in library{filtering ? ' · filtered' : ''}
+        </Caption>
       </View>
 
       <FlashList
@@ -43,7 +58,11 @@ export default function ExercisesScreen() {
         ListHeaderComponent={
           <View className="mb-3 gap-3">
             <SearchBar value={query} onChangeText={setQuery} placeholder="Search exercises..." />
-            <FilterChips options={MUSCLE_OPTIONS} value={muscle} onChange={setMuscle} />
+            <View className="gap-2">
+              <FilterChips options={MUSCLE_FILTER_OPTIONS} value={muscle} onChange={setMuscle} />
+              <FilterChips options={EQUIPMENT_FILTER_OPTIONS} value={equipment} onChange={setEquipment} allLabel="Any equipment" />
+              <FilterChips options={PATTERN_FILTER_OPTIONS} value={pattern} onChange={setPattern} allLabel="Any pattern" />
+            </View>
           </View>
         }
         ListEmptyComponent={
@@ -55,7 +74,7 @@ export default function ExercisesScreen() {
               title="No exercises found"
               description="Try a different search or filter."
               actionLabel="Clear"
-              onAction={() => { setQuery(''); setMuscle(null); }}
+              onAction={clearAll}
             />
           )
         }

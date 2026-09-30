@@ -6,10 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
-import { Heading, Body } from '@/components/common/text';
+import { Heading, Body, Caption } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
+import { SearchBar } from '@/components/common/search-bar';
+import { Chip } from '@/components/common/chip';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
@@ -29,6 +31,7 @@ import { usePrimaryHex } from '@/lib/theme';
 import { isAuroraAccent } from '@/lib/accent-themes';
 import type { TemplateSummary } from '@/db/queries';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
+import { filterRoutineSummaries, sortRoutineSummaries, type RoutineSort } from '@/lib/exercise-filters';
 
 type Tab = 'routines' | 'programs';
 
@@ -51,6 +54,8 @@ export default function WorkoutsScreen() {
   const [deleteTarget, setDeleteTarget] = useState<TemplateSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [routineQuery, setRoutineQuery] = useState('');
+  const [routineSort, setRoutineSort] = useState<RoutineSort>('recent');
   const sawLoadingRef = useRef(false);
   const didFocus = useRef(false);
 
@@ -166,6 +171,15 @@ export default function WorkoutsScreen() {
 
   const openNewRoutine = () => router.push({ pathname: '/(app)/template/[id]', params: { id: 'new' } } as Href);
 
+  // In-memory search + sort: routine lists are tiny (dozens). If that ever
+  // reaches the hundreds, move this into SQL LIKE + ORDER BY (see
+  // exercise-filters.ts) instead of growing the JS path.
+  const visibleRoutines = sortRoutineSummaries(
+    filterRoutineSummaries(templates.data ?? [], routineQuery),
+    routineSort,
+  );
+  const routineFiltering = routineQuery.trim().length > 0;
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className={SCREEN_HEADER}>
@@ -184,7 +198,7 @@ export default function WorkoutsScreen() {
 
       {tab === 'routines' ? (
         <FlashList
-          data={templates.data ?? []}
+          data={visibleRoutines}
           renderItem={({ item }) => (
             <WorkoutCard
               id={item.template.id}
@@ -194,6 +208,7 @@ export default function WorkoutsScreen() {
               estimatedMinutes={item.template.estimatedMinutes}
               exerciseCount={item.exerciseCount}
               muscleFocus={item.muscleFocus}
+              exerciseNames={item.exerciseNames}
               onStart={() => handleStart(item.template.id, item.template.name)}
               onMenuPress={() => setMenuTarget(item)}
             />
@@ -219,6 +234,16 @@ export default function WorkoutsScreen() {
                 </Pressable>
               </View>
 
+              <SearchBar value={routineQuery} onChangeText={setRoutineQuery} placeholder="Search routines..." />
+              <View className="flex-row items-center gap-2">
+                <Caption>Sort</Caption>
+                <Chip size="sm" label="Recent" selected={routineSort === 'recent'} onPress={() => setRoutineSort('recent')} />
+                <Chip size="sm" label="A–Z" selected={routineSort === 'name'} onPress={() => setRoutineSort('name')} />
+                {routineFiltering ? (
+                  <Caption>{visibleRoutines.length} match{visibleRoutines.length === 1 ? '' : 'es'}</Caption>
+                ) : null}
+              </View>
+
               <View className="flex-row gap-2">
                 <Button
                   variant="outline"
@@ -242,6 +267,8 @@ export default function WorkoutsScreen() {
               <ListSkeleton count={3} />
             ) : templates.error ? (
               <ErrorState onRetry={templates.refetch} />
+            ) : routineFiltering ? (
+              <EmptyState icon={<Icon icon={Search} size={28} color="muted-foreground" />} title="No routines match" description="Try a different search." actionLabel="Clear" onAction={() => setRoutineQuery('')} />
             ) : (
               <EmptyState icon={<Icon icon={Dumbbell} size={28} color="muted-foreground" />} title="No routines yet" description="Create your first workout routine." actionLabel="Create" onAction={openNewRoutine} />
             )
