@@ -9,7 +9,7 @@ import { Check, Trash2 } from 'lucide-react-native';
 import { useHaptics } from '@/hooks/use-haptics';
 import * as Haptics from 'expo-haptics';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
-import { SET_COL, SET_ROW_HEIGHT } from './set-layout';
+import { SET_COL, SET_FLEX, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
 import type { SetType, Unit } from '@/db/types';
 
@@ -129,7 +129,7 @@ export function SetRow({
       </Pressable>
 
       <Pressable
-        style={({ pressed }) => [{ width: SET_COL.prev, opacity: pressed ? 0.55 : 1 }]}
+        style={({ pressed }) => [{ flex: SET_FLEX.prev, opacity: pressed ? 0.55 : 1 }]}
         className="items-center justify-center"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
@@ -159,7 +159,7 @@ export function SetRow({
         onChange={onChangeWeight}
         decimals={1}
         label={`Weight, set ${index + 1}`}
-        style={{ flex: 1 }}
+        style={{ flex: SET_FLEX.input }}
         onSubmitNext={() => repsRef.current?.focus()}
       />
       <NumberStepper
@@ -167,7 +167,7 @@ export function SetRow({
         value={reps}
         onChange={onChangeReps}
         label={`Reps, set ${index + 1}`}
-        style={{ flex: 1 }}
+        style={{ flex: SET_FLEX.input }}
         onSubmitNext={onSubmitReps}
       />
 
