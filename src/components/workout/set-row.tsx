@@ -9,7 +9,7 @@ import { Check, Trash2 } from 'lucide-react-native';
 import { useHaptics } from '@/hooks/use-haptics';
 import * as Haptics from 'expo-haptics';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
-import { SET_COL, SET_FLEX, SET_ROW_HEIGHT } from './set-layout';
+import { SET_COL, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
 import type { SetType, Unit } from '@/db/types';
 
@@ -39,11 +39,11 @@ const SET_TYPE_LABEL: Record<SetType, string> = {
 /** A single set row: index, previous, weight, reps, and a complete toggle.
  *
  * Reference anatomy (Hevy, Sep 2026 screenshots — do not regress):
- * fixed number + tick at the edges; PREV dim text (tappable = copy, never
- * a box) flexes widest; KG/REPS boxes share the rest equally. Geometry is
- * locked to these proportions — see set-layout.ts. Any restyle needs a
- * device screenshot proving the current geometry wrong, side-by-side
- * against the reference, before PR.
+ * fixed 28/88/72/64/48 + spacer (Sep 19 baseline, restored after two
+ * regressing resizes); PREV dim text (tappable = copy, never a box);
+ * KG/REPS fixed compact boxes; DONE circle at row end. The next set's
+ * circle carries the accent ring. Do not resize without a device
+ * screenshot proving the current geometry wrong.
  */
 export function SetRow({
   ref,
@@ -129,7 +129,7 @@ export function SetRow({
       </Pressable>
 
       <Pressable
-        style={({ pressed }) => [{ flex: SET_FLEX.prev, opacity: pressed ? 0.55 : 1 }]}
+        style={({ pressed }) => [{ width: SET_COL.prev, opacity: pressed ? 0.55 : 1 }]}
         className="items-center justify-center"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
@@ -159,7 +159,7 @@ export function SetRow({
         onChange={onChangeWeight}
         decimals={1}
         label={`Weight, set ${index + 1}`}
-        style={{ flex: SET_FLEX.input }}
+        style={{ width: SET_COL.weight }}
         onSubmitNext={() => repsRef.current?.focus()}
       />
       <NumberStepper
@@ -167,11 +167,13 @@ export function SetRow({
         value={reps}
         onChange={onChangeReps}
         label={`Reps, set ${index + 1}`}
-        style={{ flex: SET_FLEX.input }}
+        style={{ width: SET_COL.reps }}
         onSubmitNext={onSubmitReps}
       />
 
-      <View style={{ width: SET_COL.done }} className="items-center justify-center self-stretch">
+      <View className="flex-1" />
+
+      <View style={{ width: SET_COL.done }} className="items-center">
         {onToggleComplete ? (
           <Pressable
             accessibilityRole="button"
