@@ -7,38 +7,39 @@ import { Icon } from '@/components/common/icon';
 
 import { Caption } from '@/components/common/text';
 import { SearchBar } from '@/components/common/search-bar';
-import { FilterChips } from '@/components/common/chip';
+import {
+  ExerciseFilterBar,
+  hasExerciseFilters,
+  type ExerciseFilterValues,
+} from '@/components/exercise/exercise-filter-bar';
 import { EmptyState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { ExerciseListItem } from '@/components/exercise/exercise-list-item';
 import { useSearchExercises } from '@/hooks/use-data';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
-import {
-  EQUIPMENT_FILTER_OPTIONS,
-  MUSCLE_FILTER_OPTIONS,
-  PATTERN_FILTER_OPTIONS,
-} from '@/lib/exercise-filters';
-import type { Equipment, MovementPattern, MuscleGroup } from '@/db/types';
 
 export default function ExercisesScreen() {
   const [query, setQuery] = useState('');
-  const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
-  const [equipment, setEquipment] = useState<Equipment | null>(null);
-  const [pattern, setPattern] = useState<MovementPattern | null>(null);
+  const [filters, setFilters] = useState<ExerciseFilterValues>({ muscle: null, equipment: null, pattern: null });
   const debouncedQuery = useDebounce(query);
 
-  const filters = muscle || equipment || pattern
-    ? { muscle: muscle ?? undefined, equipment: equipment ?? undefined, pattern: pattern ?? undefined }
-    : undefined;
-  const exercises = useSearchExercises(debouncedQuery, filters);
-  const filtering = muscle !== null || equipment !== null || pattern !== null;
+  const active = hasExerciseFilters(filters);
+  const exercises = useSearchExercises(
+    debouncedQuery,
+    active
+      ? {
+          muscle: filters.muscle ?? undefined,
+          equipment: filters.equipment ?? undefined,
+          pattern: filters.pattern ?? undefined,
+        }
+      : undefined,
+  );
+  const filtering = active;
 
   const clearAll = () => {
     setQuery('');
-    setMuscle(null);
-    setEquipment(null);
-    setPattern(null);
+    setFilters({ muscle: null, equipment: null, pattern: null });
   };
 
   return (
@@ -58,11 +59,7 @@ export default function ExercisesScreen() {
         ListHeaderComponent={
           <View className="mb-3 gap-3">
             <SearchBar value={query} onChangeText={setQuery} placeholder="Search exercises..." />
-            <View className="gap-2">
-              <FilterChips options={MUSCLE_FILTER_OPTIONS} value={muscle} onChange={setMuscle} />
-              <FilterChips options={EQUIPMENT_FILTER_OPTIONS} value={equipment} onChange={setEquipment} allLabel="Any equipment" />
-              <FilterChips options={PATTERN_FILTER_OPTIONS} value={pattern} onChange={setPattern} allLabel="Any pattern" />
-            </View>
+            <ExerciseFilterBar value={filters} onChange={setFilters} />
           </View>
         }
         ListEmptyComponent={
