@@ -144,7 +144,9 @@ export function SetRow({
         }
         hitSlop={6}>
         {hasPrevious ? (
-          <Text className="text-center text-xs text-muted-foreground" numberOfLines={2}>
+          <Text
+            style={{ textAlign: 'center', fontSize: 12 }}
+            className="text-muted-foreground">
             {formatWeight(previousWeight!, unit)}×{previousReps}
           </Text>
         ) : (
