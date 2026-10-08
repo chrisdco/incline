@@ -25,7 +25,7 @@ policies already scope every table to `user_id = sub`.
 
 Run `supabase/account-deletions.sql` once for the grace-period table. The
 daily purge cron (`.github/workflows/account-purge.yml`, free) needs repo
-secrets `WEB_URL` + `CRON_SECRET`. See `docs/ACCOUNT-DELETION.md`.
+secrets `WEB_URL` + `CRON_SECRET`. See `../docs/decisions/ACCOUNT-DELETION.md`.
 
 ## What's here
 

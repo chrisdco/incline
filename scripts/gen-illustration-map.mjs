@@ -8,8 +8,8 @@
  *
  * Outputs (all read-only against the database):
  *  - src/lib/generated/illustration-map.ts   runtime name->slug map (committed)
- *  - docs/exercise-media-audit.csv           Excel-openable coverage matrix
- *  - docs/exercise-media-audit-summary.md    human-readable stats
+ *  - docs/archive/exercise-media-audit.csv           Excel-openable coverage matrix
+ *  - docs/archive/exercise-media-audit-summary.md    human-readable stats
  *
  * Run: node scripts/gen-illustration-map.mjs [--no-db] [--skip-map]
  */
@@ -358,7 +358,7 @@ async function main() {
         .join(','),
     ),
   ].join('\n');
-  writeFileSync(join(ROOT, 'docs', 'exercise-media-audit.csv'), csv, 'utf8');
+  writeFileSync(join(ROOT, 'docs', 'archive', 'exercise-media-audit.csv'), csv, 'utf8');
 
   /* Summary markdown */
   const neither = rows.filter((r) => r.status === 'none').map((r) => `- ${r.name} (${r.equipment})`);
@@ -380,7 +380,7 @@ async function main() {
     ...(neither.length ? neither : ['- (none)']),
     '',
   ].join('\n');
-  writeFileSync(join(ROOT, 'docs', 'exercise-media-audit-summary.md'), md, 'utf8');
+  writeFileSync(join(ROOT, 'docs', 'archive', 'exercise-media-audit-summary.md'), md, 'utf8');
 
   /* Runtime map */
   if (!SKIP_MAP) {
@@ -404,7 +404,7 @@ async function main() {
     console.log(`\nWrote src/lib/generated/illustration-map.ts (${Object.keys(nameToSlug).length} name keys)`);
   }
 
-  console.log('Wrote docs/exercise-media-audit.csv and docs/exercise-media-audit-summary.md');
+  console.log('Wrote docs/archive/exercise-media-audit.csv and docs/archive/exercise-media-audit-summary.md');
 }
 
 main().catch((err) => {
