@@ -53,14 +53,13 @@ Offline-first strength training app for React Native + Expo. Log sets in the gym
 
 | Doc | Purpose |
 |-----|---------|
-| [docs/HANDOFF.md](docs/HANDOFF.md) | **Start here after `git pull`** — current state, next issues |
-| [docs/SPRINT-2026-08.md](docs/SPRINT-2026-08.md) | Two-week plan (prove sync) + small-agent slices |
-| [docs/P1-P2-COACHING.md](docs/P1-P2-COACHING.md) | P1 habit closeout + P2 coaching (Stages A–C) |
-| [docs/AUDIT-2026-09.md](docs/AUDIT-2026-09.md) | Full-app critique tracker (fix or rule out) |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | **Start here after `git pull`** — current state (generated), next pointers |
+| [docs/WORK-QUEUE.md](docs/WORK-QUEUE.md) | **The only pickup list** — batches, verify-to-close, slices, deferred |
 | [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) | Satellite directions + reference catalog |
-| [docs/DESIGN-INSPO.md](docs/DESIGN-INSPO.md) | Aurora theme reference notes |
-| [ROADMAP.md](ROADMAP.md) | Milestones P0–P4 |
-| [AGENTS.md](AGENTS.md) | Agent entry (Expo SDK 57 + doc pointers + data/UI rules) |
+| [ROADMAP.md](ROADMAP.md) | Milestones P0–P4 index |
+| [docs/decisions/](docs/decisions/) | Standing decisions (storage/lists, deletion, Amber port) |
+| [docs/archive/](docs/archive/) | Shipped history (sprint, P1–P2 notes, audits) — read-only |
+| [AGENTS.md](AGENTS.md) | Agent entry (Expo SDK 57 + rules) |
 
 Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
 
@@ -109,7 +108,7 @@ src/
 ├── store/               # Settings, active workout
 ├── hooks/               # Data, rest timer, sync, reminders
 └── auth/                # Clerk secure token cache
-docs/                    # HANDOFF, P1-P2 coaching notes
+docs/                    # HANDOFF (state), WORK-QUEUE (pickup list), decisions/, archive/
 supabase/                # Catalog + sync SQL
 ```
 

@@ -2,7 +2,7 @@
 
 Status: **pre-alpha**. Core loop (onboarding → log → finish → progress) is local-first and working.
 
-**Agents:** After pulling, read [docs/HANDOFF.md](docs/HANDOFF.md) for current state and [docs/SPRINT-2026-08.md](docs/SPRINT-2026-08.md) for the current two-week plan.
+**Agents:** After pulling, read [docs/HANDOFF.md](docs/HANDOFF.md) for current state and [docs/WORK-QUEUE.md](docs/WORK-QUEUE.md) for the only pickup list. Run `node scripts/refresh-handoff.mjs` to refresh HANDOFF state.
 
 Tracking lives in **GitHub milestones** (architecture notes are on each milestone description):
 
@@ -22,13 +22,15 @@ Tracking lives in **GitHub milestones** (architecture notes are on each mileston
 - Clerk auth + password reset
 - Cloud **sync foundation** (UUIDs, outbox, `src/sync/`, `supabase/sync-schema.sql`) — **ops still P0 (#57)**
 - Program builder (local); share card; milestones; calendar heat/year; rest OS alerts; PR assist; template duplicate/notes
-- **P1 habit loops:** dynamic Home context, weekly goal, announcements pack, measurement export, template duration — see [docs/P1-P2-COACHING.md](docs/P1-P2-COACHING.md)
-- **P2 Stage A–C:** explainable progressive overload, guardrails, RPE/readiness, program diffs — see [docs/P1-P2-COACHING.md](docs/P1-P2-COACHING.md)
+- **P1 habit loops:** dynamic Home context, weekly goal, announcements pack, measurement export, template duration — see [docs/archive/P1-P2-COACHING.md](docs/archive/P1-P2-COACHING.md)
+- **P2 Stage A–C:** explainable progressive overload, guardrails, RPE/readiness, program diffs — see [docs/archive/P1-P2-COACHING.md](docs/archive/P1-P2-COACHING.md)
 
-## Next (P2 → P3)
+## Next (see [docs/WORK-QUEUE.md](docs/WORK-QUEUE.md) verify-to-close first)
 
+- **Prove sync ops** — deploy schema + Edge Function, two-device matrix, then close #119–#122 on proof
 - **Deploy AI narrations** — run `supabase/coach-narrate.sql`, deploy function, set secrets ([#99](https://github.com/ChrisDc777/incline/issues/99) code on main)
 - **Photo cloud sync** — Storage backup for session pics ([#109](https://github.com/ChrisDc777/incline/issues/109)); local week-vs-week compare already shipped ([#23](https://github.com/ChrisDc777/incline/issues/23))
+- Then pick exactly one Week-2 track (session alerts, #126 volume, or narration polish) per WORK-QUEUE
 
 ## Sync model (keep)
 

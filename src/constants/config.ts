@@ -18,7 +18,7 @@ export const STORAGE_KEYS = {
 } as const;
 
 /**
- * Account deletion with a 30-day grace period (docs/ACCOUNT-DELETION.md).
+ * Account deletion with a 30-day grace period (docs/decisions/ACCOUNT-DELETION.md).
  * Shipped dark: entry points and the gate check stay dormant until this is
  * true. Flip when the app goes to real users — no other code changes needed.
  */
