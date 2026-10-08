@@ -392,6 +392,7 @@ const ExercisePickRow = memo(function ExercisePickRow({
         onPress={() => onPick(exerciseId)}
         disabled={disabled}
         style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1, flex: 1 })}
+        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
         accessibilityRole="button"
         accessibilityLabel={`Choose ${name}`}
         className="flex-row items-center gap-3">

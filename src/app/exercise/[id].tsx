@@ -27,6 +27,7 @@ import {
   type ExerciseSeriesPoint,
 } from '@/db/queries';
 import { useActiveWorkout } from '@/store/active-workout-store';
+import { useActiveSession } from '@/hooks/use-active-session';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
@@ -54,6 +55,7 @@ export default function ExerciseDetailScreen() {
   const { impact } = useHaptics();
   const activeLogId = useActiveWorkout((s) => s.activeLogId);
   const setActiveLogId = useActiveWorkout((s) => s.setActive);
+  const { session: activeSession } = useActiveSession();
   const [tab, setTab] = useState<Tab>('Summary');
   const [adding, setAdding] = useState(false);
 
@@ -121,6 +123,13 @@ export default function ExerciseDetailScreen() {
   const maxWeight = prSummary?.heaviestWeight ?? 0;
   const max1RM = prSummary?.best1RM ?? 0;
 
+  // Discovery → training: adding an exercise that is already in the live
+  // session would duplicate it — offer the session instead.
+  const inActiveSession =
+    exercise != null &&
+    activeLogId != null &&
+    (activeSession?.sets.some((s) => s.exerciseId === exercise.id) ?? false);
+
   // Discovery → training: add to the live session, or start one with this.
   const addToActiveWorkout = async () => {
     if (!exercise || adding || !activeLogId) return;
@@ -173,7 +182,15 @@ export default function ExerciseDetailScreen() {
 
       {/* Discovery → training */}
       <View className="flex-row gap-2 px-4 pt-3">
-        {activeLogId ? (
+        {inActiveSession && activeLogId ? (
+          <Button
+            className="flex-1"
+            size="sm"
+            leftIcon={<Icon icon={Play} size={16} color="primary-foreground" />}
+            onPress={() => router.push(`/session/${activeLogId}` as Href)}>
+            Open workout
+          </Button>
+        ) : activeLogId ? (
           <Button
             className="flex-1"
             size="sm"

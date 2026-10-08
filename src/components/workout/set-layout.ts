@@ -1,13 +1,21 @@
 /**
  * Shared column widths for session set headers + rows — keep in sync.
- * Hevy-style: index/prev/done are fixed; weight/reps flex to fill so the
- * done toggle sits snug at the row end instead of drifting to the edge.
+ * Proportional flex: fixed number + tick at the edges, PREV flexes widest
+ * (fits full "36.29kg×10" centered on one line), KG/REPS share the rest
+ * equally. Uniform 8px gaps — no spacer void, tick never drifts.
+ * (Fixed pixels left a spacer gap on wide screens; inputs-only flex
+ * ballooned. Locked to these proportions.)
  */
 export const SET_COL = {
   index: 28,
-  prev: 88,
   done: 44,
 } as const;
 
-export const SET_ROW_HEIGHT = 52;
-export const SET_INPUT_HEIGHT = 44;
+/** Column proportions: prev carries the longest strings, inputs stay equal. */
+export const SET_FLEX = {
+  prev: 1.4,
+  input: 1,
+} as const;
+
+export const SET_ROW_HEIGHT = 48;
+export const SET_INPUT_HEIGHT = 40;

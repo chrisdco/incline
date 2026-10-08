@@ -20,7 +20,7 @@ import type { ExercisePRSummary } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
 import { detectSetFatigue } from '@/coaching/fatigue';
 import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical } from 'lucide-react-native';
-import { SET_COL } from './set-layout';
+import { SET_COL, SET_FLEX } from './set-layout';
 
 const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
   { id: 'working', label: 'Working set', hint: 'Counts toward PRs and progression' },
@@ -163,6 +163,7 @@ export function ExerciseBlock({
             onPress={onOpenExercise}
             disabled={!onOpenExercise}
             style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+            android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
             accessibilityRole={onOpenExercise ? 'button' : undefined}
             accessibilityLabel={onOpenExercise ? `Open ${name} details` : undefined}
             className="flex-row items-center gap-1 self-start">
@@ -262,13 +263,13 @@ export function ExerciseBlock({
         <View style={{ width: SET_COL.index }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
         </View>
-        <View style={{ width: SET_COL.prev }} className="items-center">
+        <View style={{ flex: SET_FLEX.prev }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Prev</Text>
         </View>
-        <View className="flex-1 items-center">
+        <View style={{ flex: SET_FLEX.input }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{weightLabel}</Text>
         </View>
-        <View className="flex-1 items-center">
+        <View style={{ flex: SET_FLEX.input }} className="items-center">
           <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Reps</Text>
         </View>
         <View style={{ width: SET_COL.done }} className="items-center">

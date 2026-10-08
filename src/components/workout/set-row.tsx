@@ -9,7 +9,7 @@ import { Check, Trash2 } from 'lucide-react-native';
 import { useHaptics } from '@/hooks/use-haptics';
 import * as Haptics from 'expo-haptics';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
-import { SET_COL, SET_ROW_HEIGHT } from './set-layout';
+import { SET_COL, SET_FLEX, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
 import type { SetType, Unit } from '@/db/types';
 
@@ -36,7 +36,14 @@ const SET_TYPE_LABEL: Record<SetType, string> = {
   failure: 'To failure',
 };
 
-/** A single set row: index, previous, weight, reps, and a complete toggle. */
+/** A single set row: index, previous, weight, reps, and a complete toggle.
+ *
+ * Reference anatomy (Hevy Sep 30 shot — do not regress): fixed number +
+ * tick at the edges; PREV dim text flexes widest (full "36.29kg×10"
+ * centered, never a box); KG/REPS share the rest equally. Uniform gaps,
+ * tick snug. Locked to set-layout.ts proportions — device screenshot
+ * required before any geometry change.
+ */
 export function SetRow({
   ref,
   index,
@@ -87,8 +94,12 @@ export function SetRow({
   const hasPrevious = previousWeight !== undefined && previousWeight > 0;
 
   const toggleClass = cn(
-    'h-11 w-11 items-center justify-center rounded-full',
-    completed ? 'bg-success' : isNext ? 'border-2 border-primary bg-primary/10' : 'border-2 border-border',
+    'h-11 w-11 items-center justify-center rounded-full border-2',
+    completed
+      ? 'border-success bg-success'
+      : isNext
+        ? 'border-primary bg-primary/10'
+        : 'border-muted-foreground/40',
   );
   const toggleIconColor = completed ? 'success-foreground' : isNext ? 'primary' : 'muted-foreground';
 
@@ -104,10 +115,11 @@ export function SetRow({
         className="items-center justify-center self-stretch"
         disabled={!onOpenSetType}
         onPress={onOpenSetType}
+        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
         accessibilityRole={onOpenSetType ? 'button' : undefined}
         accessibilityLabel={onOpenSetType ? `Set ${index + 1} type: ${SET_TYPE_LABEL[setType]}. Activate to change.` : undefined}
         hitSlop={6}>
-        <Text className="text-sm font-bold text-muted-foreground">{index + 1}</Text>
+        <Text className="text-sm font-bold text-foreground">{index + 1}</Text>
         {setType !== 'working' ? (
           <Text className={cn('text-[9px] font-bold leading-none', SET_TYPE_LETTER_COLOR[setType])}>
             {SET_TYPE_LETTER[setType]}
@@ -116,22 +128,25 @@ export function SetRow({
       </Pressable>
 
       <Pressable
-        style={({ pressed }) => [{ width: SET_COL.prev, opacity: pressed ? 0.55 : 1 }]}
-        className="items-center justify-center self-stretch"
+        style={({ pressed }) => [{ flex: SET_FLEX.prev, opacity: pressed ? 0.55 : 1 }]}
+        className="items-center justify-center"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
           selection();
           onApplyPrevious?.();
         }}
+        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
         accessibilityRole={hasPrevious ? 'button' : undefined}
         accessibilityLabel={
           hasPrevious
             ? `Use previous ${formatWeight(previousWeight!, unit)} times ${previousReps ?? 0}`
             : undefined
         }
-        hitSlop={10}>
+        hitSlop={6}>
         {hasPrevious ? (
-          <Text className="text-center text-xs text-muted-foreground" numberOfLines={2}>
+          <Text
+            style={{ textAlign: 'center', fontSize: 12 }}
+            className="text-muted-foreground">
             {formatWeight(previousWeight!, unit)}×{previousReps}
           </Text>
         ) : (
@@ -145,7 +160,7 @@ export function SetRow({
         onChange={onChangeWeight}
         decimals={1}
         label={`Weight, set ${index + 1}`}
-        style={{ flex: 1 }}
+        style={{ flex: SET_FLEX.input }}
         onSubmitNext={() => repsRef.current?.focus()}
       />
       <NumberStepper
@@ -153,11 +168,11 @@ export function SetRow({
         value={reps}
         onChange={onChangeReps}
         label={`Reps, set ${index + 1}`}
-        style={{ flex: 1 }}
+        style={{ flex: SET_FLEX.input }}
         onSubmitNext={onSubmitReps}
       />
 
-      <View style={{ width: SET_COL.done }} className="items-center justify-center self-stretch">
+      <View style={{ width: SET_COL.done }} className="items-center">
         {onToggleComplete ? (
           <Pressable
             accessibilityRole="button"
