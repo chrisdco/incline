@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+  type ScrollViewInstance,
+  type TextInputInstance,
+  type ViewInstance,
+} from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -137,8 +145,8 @@ export default function SessionScreen() {
   const [suggestionMap, setSuggestionMap] = useState<Record<number, TrainingSuggestion>>({});
   const [ghost, setGhost] = useState<SessionGhost | null>(null);
   const [loading, setLoading] = useState(() => getCachedSession(logId) == null);
-  const scrollRef = useRef<ScrollView>(null);
-  const groupRefs = useRef<(View | null)[]>([]);
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const groupRefs = useRef<(ViewInstance | null)[]>([]);
   const prevActiveGroupRef = useRef<number | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ exerciseId: number; name: string } | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
@@ -148,7 +156,7 @@ export default function SessionScreen() {
   const [restSecondsMap, setRestSecondsMap] = useState<Record<number, number>>({});
   const [notes, setNotes] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
-  const notesRef = useRef<TextInput>(null);
+  const notesRef = useRef<TextInputInstance>(null);
   const [removedSet, setRemovedSet] = useState<{ setEntry: SetEntry; exerciseId: number; logId: number } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRemovedExerciseRef = useRef<{ name: string; setIds: number[] } | null>(null);

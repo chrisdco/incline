@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, View, type ViewInstance } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
@@ -50,7 +50,7 @@ export default function ShareMonthScreen() {
   const [busy, setBusy] = useState(false);
   const [settling, setSettling] = useState(false);
   const [bgId, setBgId] = useState<ShareBackgroundId>('navy');
-  const captureRef = useRef<View>(null);
+  const captureRef = useRef<ViewInstance>(null);
 
   const athleteName = profile?.name?.trim() || 'Athlete';
   const handle = shareHandleFromName(athleteName);

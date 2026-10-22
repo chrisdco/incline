@@ -1,7 +1,9 @@
 import { Pressable, View } from 'react-native';
+import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, Dumbbell, BarChart3, User } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import type { ComponentProps } from 'react';
 
 import { cn } from '@/lib/cn';
 import { themeHex } from '@/lib/theme';
@@ -23,22 +25,15 @@ const LABELS: Record<string, string> = {
   profile: 'Profile',
 };
 
-/** Minimal shape of the props Expo Router's Tabs passes to a custom tabBar. */
-interface TabBarProps {
-  state: { index: number; routes: { key: string; name: string }[] };
-  descriptors: Record<string, { options: { tabBarAccessibilityLabel?: string } }>;
-  navigation: {
-    emit: (e: { type: 'tabPress'; target: string; canPreventDefault: true }) => { defaultPrevented: boolean };
-    navigate: (name: string) => void;
-  };
-}
+/** Derived from Expo Router so a tab-bar prop change fails here, not at the call site. */
+type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
 /**
  * Custom premium tab bar. The active-session pill is rendered separately by
  * the tabs layout as a floating overlay, so it is not part of the tab bar's
  * background.
  */
-export function AppTabBar({ state, descriptors, navigation }: TabBarProps) {
+export function AppTabBar({ state, descriptors, emitter, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const scheme = useAppColorScheme();
   const accent = useSettings((s) => s.accentTheme);
@@ -56,8 +51,8 @@ export function AppTabBar({ state, descriptors, navigation }: TabBarProps) {
           const label = LABELS[route.name] ?? route.name;
           const { options } = descriptors[route.key];
           const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!event.defaultPrevented) navigation.navigate(route.name);
+            const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!event.defaultPrevented) navigateToTab(route.key);
           };
           return (
             <Pressable

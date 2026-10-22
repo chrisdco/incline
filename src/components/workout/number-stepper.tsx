@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type TextInputInstance, type ViewStyle } from 'react-native';
 // Gesture-handler TextInput cooperates with the parent Swipeable: a swipe
 // starting on the input still drives the row instead of being eaten by focus.
 import { TextInput } from 'react-native-gesture-handler';
@@ -50,7 +50,7 @@ export function NumberStepper({
   void _step;
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState(value > 0 ? String(value) : '');
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const committedRef = useRef(false);
 
   useImperativeHandle(ref, () => ({

@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import type { ViewInstance } from 'react-native';
 import { Share } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -13,7 +14,7 @@ export {
 } from '@/lib/share-chrome';
 
 export async function captureSharePng(
-  ref: RefObject<unknown>,
+  ref: RefObject<ViewInstance | null>,
 ): Promise<string | null> {
   if (!ref.current) return null;
   try {

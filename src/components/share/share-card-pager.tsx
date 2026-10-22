@@ -5,6 +5,7 @@ import {
   useWindowDimensions,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
+  type ViewInstance,
 } from 'react-native';
 
 import { cn } from '@/lib/cn';
@@ -23,13 +24,13 @@ export function ShareCardPager<T>({
   index: number;
   onIndexChange: (index: number) => void;
   renderCard: (item: T, index: number) => ReactNode;
-  captureRef: RefObject<View | null>;
+  captureRef: RefObject<ViewInstance | null>;
   pageBackground?: string;
   /** Fires around pager motion: capturing mid-swipe grabs the wrong page. */
   onSettlingChange?: (settling: boolean) => void;
 }) {
   const { width } = useWindowDimensions();
-  const pageRefs = useCallback((el: View | null, i: number) => {
+  const pageRefs = useCallback((el: ViewInstance | null, i: number) => {
     if (i === index) captureRef.current = el;
   }, [captureRef, index]);
 
