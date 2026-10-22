@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, LayoutChangeEvent, Pressable, ScrollView, View, type ViewToken } from 'react-native';
+import { FlatList, LayoutChangeEvent, Pressable, ScrollView, View, type ListViewToken } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -464,7 +464,7 @@ export default function CalendarScreen() {
     </View>
   ), [metricsByDate, calendarHeatMetric, maxMetric, weekStartsOn, handleDayPress, today]);
 
-  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ListViewToken[] }) => {
     if (viewableItems.length === 0) return;
     const first = viewableItems[0];
     if (first.index != null) {

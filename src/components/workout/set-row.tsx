@@ -1,6 +1,8 @@
 import { useImperativeHandle, useRef, type Ref } from 'react';
 import { Pressable, View } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { cn } from '@/lib/cn';
 import { Text } from '@/components/ui/text';
@@ -85,7 +87,7 @@ export function SetRow({
 }) {
   const weightRef = useRef<NumberStepperHandle>(null);
   const repsRef = useRef<NumberStepperHandle>(null);
-  const swipeRef = useRef<Swipeable>(null);
+  const swipeRef = useRef<SwipeableMethods>(null);
 
   useImperativeHandle(ref, () => ({ focusWeight: () => weightRef.current?.focus() }), []);
 
@@ -203,7 +205,7 @@ export function SetRow({
   if (!onRemove) return row;
 
   return (
-    <Swipeable
+    <ReanimatedSwipeable
       ref={swipeRef}
       friction={1}
       rightThreshold={48}
@@ -222,6 +224,6 @@ export function SetRow({
         </Pressable>
       )}>
       {row}
-    </Swipeable>
+    </ReanimatedSwipeable>
   );
 }

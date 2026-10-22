@@ -454,9 +454,9 @@ export default function HomeScreen() {
             </View>
           ) : feed.loading ? (
             <View className="mt-8 px-4"><CardSkeleton /></View>
-          ) : null
+          ) : undefined
         }
-        ListFooterComponent={feed.loading && feed.items.length > 0 ? <View className="px-4 py-4"><CardSkeleton /></View> : null}
+        ListFooterComponent={feed.loading && feed.items.length > 0 ? <View className="px-4 py-4"><CardSkeleton /></View> : undefined}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         refreshing={refreshing}

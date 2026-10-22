@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, View, type ViewInstance } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
@@ -62,7 +62,7 @@ export default function ShareWorkoutScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [bgId, setBgId] = useState<ShareBackgroundId>('navy');
-  const shareRef = useRef<View>(null);
+  const shareRef = useRef<ViewInstance>(null);
 
   useFocusEffect(
     useCallback(() => {

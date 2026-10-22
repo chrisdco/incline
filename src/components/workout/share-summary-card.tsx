@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { View } from 'react-native';
+import { View, type ViewInstance } from 'react-native';
 
 import { Body, Caption } from '@/components/common/text';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
@@ -12,7 +12,7 @@ import type { MuscleGroup } from '@/db/types';
  * brand name + workout name + metrics + optional body map.
  */
 export const ShareSummaryCard = forwardRef<
-  View,
+  ViewInstance,
   {
     athleteName: string;
     workoutName: string;
