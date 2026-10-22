@@ -38,6 +38,7 @@ import { buildFeaturePackV1 } from '@/coaching/feature-pack';
 import { requestCoachNarration, type CoachNarration } from '@/coaching/narrate-client';
 import { detectSetFatigue } from '@/coaching/fatigue';
 import type { TrainingSuggestion } from '@/coaching/types';
+import { refreshWidgets } from '@/lib/widgets/refresh';
 import { useSettings } from '@/store/settings-store';
 import { useProfile } from '@/hooks/use-data';
 import { formatDuration, formatVolume, formatWeight, formatFullDateTime } from '@/db/calc';
@@ -260,6 +261,7 @@ export default function SummaryScreen() {
     setDeleting(true);
     try {
       await deleteWorkout(logId);
+      void refreshWidgets();
       setDeleteOpen(false);
       toast({ title: 'Workout deleted', variant: 'info' });
       if (router.canGoBack()) router.back();

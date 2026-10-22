@@ -54,3 +54,20 @@ Short-lived alternatives log. Revisit only when a trigger below fires; otherwise
 - **Tray:** whole bar opens, only the trash circle deletes; feedback is opacity (works on iOS too — `android_ripple` is Android-only, so iOS taps felt dead).
 - **Swipe over inputs:** `TextInput` must come from `react-native-gesture-handler`, not `react-native` — native inputs eat the swipe gesture on Android. Set-type sheet also carries Delete as a discoverable fallback.
 - **Home hero:** skeletons gate on `loading && data == null`, never `loading` alone — focus refetches must not flash placeholders over content. Same rule anywhere `useAsync` preserves data.
+
+## 9. Android widgets: display-only, platform-split, refresh at write sites
+
+- **Decision:** two fixed-size Jetpack Compose widgets via `expo-widgets` + `@expo/ui` — `NextUp` 4×2 (in-progress / today / suggested / ready, plus weekly progress and streak) and `ThisWeek` 2×2 (sessions vs goal). `resizeMode: "none"`, `updatePeriodMillis=0`. Android-only: `enablePushNotifications` is deliberately omitted so the plugin skips the iOS target (it throws without `ios.bundleIdentifier`).
+- **Why display-only:** expo-widgets Android has no tap-to-open action (widget buttons only broadcast prop updates), so we ship no fake CTA. Copy says what to train; opening the app stays the launcher icon's job.
+- **Platform split:** `src/lib/widgets/refresh.ts` is a no-op; the implementation is `refresh.android.ts`, so Metro keeps the widget runtime and `@expo/ui/jetpack-compose` out of iOS/web bundles (verified in exported Hermes bytecode).
+- **Data:** pure `buildNextUpProps` / `buildThisWeekProps` own all copy/formatting and are unit-tested. Both light and dark palettes arrive in props because Android's `environment` only carries `colorScheme`; the `Updated` stamp is absolute because widgets cannot recompute a relative label.
+- **Refresh:** app mount/foreground (30 s throttle), session mount/finish/discard, workout delete, and accent/weekly-goal settings changes. Never a timer; SQLite stays the source of truth.
+- **Revisit when:** expo-widgets ships tap-to-open/deep links → add a real CTA; or a third surface is proposed → keep one job per widget instead of growing `NextUp`.
+
+## 10. Rest alerts: exact alarms, foregrounded +1 min
+
+- **Decision:** `rest_complete` uses a wall-clock DATE trigger with `delivery: 'alarmClock'` and declares `SCHEDULE_EXACT_ALARM`. The channel is HIGH importance, lock-screen `PUBLIC`, no badge.
+- **Why:** rest is time-critical. Inexact delivery defers under Doze and lands after the set; `alarmClock` is the documented user-visible alarm path. Android 12–13 grant exact alarms by default; Android 14+ denies them until the user allows "Alarms & reminders", so Settings shows a "Precise rest alerts" grant row while rest alerts are on and the grant is missing.
+- **+1 min:** foregrounds the app (`opensAppToForeground: true`) and deep-links to `/session/:id`; `rest-timer-signal` restarts the in-app countdown, including cold start. Background actions are only delivered while the process is alive, which is exactly when the old dead-button behavior hurt. Skip stays background (nothing to re-arm).
+- **Dedupe:** notification responses key on request id **plus delivery date**, so a re-fired alert is handled again while a cold-start replay of the same delivery is ignored.
+- **Revisit when:** expo-widgets' Android custom-notification API can host a live countdown → move the countdown out of the notification body; or an OEM still defers `alarmClock` → document the per-OEM battery setting instead of adding a timer.

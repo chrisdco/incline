@@ -29,6 +29,7 @@ import { useMonthlyRecapSync } from '@/hooks/use-monthly-recap-sync';
 import { useNudgeSync } from '@/hooks/use-nudge-sync';
 import { useCatalogPrefetch } from '@/hooks/use-catalog-prefetch';
 import { useWeeklyDigestSync } from '@/hooks/use-weekly-digest-sync';
+import { useWidgetRefresh } from '@/hooks/use-widget-refresh';
 import { useWorkoutReminderSync } from '@/hooks/use-workout-reminder-sync';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { useSettings } from '@/store/settings-store';
@@ -42,6 +43,11 @@ function NotificationBootstrap() {
   useMonthlyRecapSync();
   useNudgeSync();
   useCatalogPrefetch();
+  return null;
+}
+
+function WidgetBootstrap() {
+  useWidgetRefresh();
   return null;
 }
 
@@ -96,6 +102,7 @@ function AppShell() {
             <View className={cn('flex-1', isDark && 'dark', `theme-${accentTheme}`)}>
                 <ToastProvider>
                   <NotificationBootstrap />
+                  <WidgetBootstrap />
                   <Stack
                     screenOptions={{
                       headerShown: false,

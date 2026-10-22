@@ -18,7 +18,8 @@
       },
       "package": "com.chrisdc777.incline",
       "softwareKeyboardLayoutMode": "resize",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"]
     },
     "web": {
       "output": "static",
@@ -54,7 +55,41 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-asset",
-      "@clerk/expo"
+      "@clerk/expo",
+      [
+        "expo-widgets",
+        {
+          "enableAndroid": true,
+          "widgets": [
+            {
+              "name": "NextUp",
+              "displayName": "Next workout",
+              "description": "Your next session and this week's progress at a glance.",
+              "android": {
+                "targetCellWidth": 4,
+                "targetCellHeight": 2,
+                "minWidth": 250,
+                "minHeight": 110,
+                "resizeMode": "none",
+                "initialLayout": "./src/widgets/next-up.tsx"
+              }
+            },
+            {
+              "name": "ThisWeek",
+              "displayName": "This week",
+              "description": "Sessions logged this week against your goal.",
+              "android": {
+                "targetCellWidth": 2,
+                "targetCellHeight": 2,
+                "minWidth": 110,
+                "minHeight": 110,
+                "resizeMode": "none",
+                "initialLayout": "./src/widgets/this-week.tsx"
+              }
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

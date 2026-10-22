@@ -54,6 +54,7 @@ async function ensureAndroidChannel(
   channelId: NotificationChannelId,
   name: string,
   importance: number,
+  extra?: { lockscreenVisibility?: number; showBadge?: boolean },
 ): Promise<void> {
   if (Platform.OS !== 'android' || channelsReady.has(channelId)) return;
   await mod.setNotificationChannelAsync(channelId, {
@@ -61,6 +62,7 @@ async function ensureAndroidChannel(
     importance,
     vibrationPattern: [0, 250, 150, 250],
     sound: 'default',
+    ...extra,
   });
   channelsReady.add(channelId);
 }
@@ -71,7 +73,13 @@ export async function ensureNotificationChannel(
   channelId: NotificationChannelId,
 ): Promise<void> {
   if (channelId === NOTIFICATION_CHANNELS.restTimer) {
-    await ensureAndroidChannel(mod, channelId, 'Rest timer', mod.AndroidImportance.HIGH);
+    // Rest alerts matter while the phone is on a bench or half-locked — show
+    // the content on the lock screen (default is private on some builds) and
+    // keep the badge clean (the notification is only meaningful right now).
+    await ensureAndroidChannel(mod, channelId, 'Rest timer', mod.AndroidImportance.HIGH, {
+      lockscreenVisibility: mod.AndroidNotificationVisibility.PUBLIC,
+      showBadge: false,
+    });
     return;
   }
   if (channelId === NOTIFICATION_CHANNELS.workoutReminders) {
@@ -79,6 +87,38 @@ export async function ensureNotificationChannel(
     return;
   }
   await ensureAndroidChannel(mod, channelId, 'Training digests', mod.AndroidImportance.DEFAULT);
+}
+
+export type ExactAlarmStatus = 'granted' | 'denied' | 'unsupported';
+
+/**
+ * Android 12+ gates exact alarms (`SCHEDULE_EXACT_ALARM`) behind a user grant,
+ * denied by default on Android 14+. Without it a rest alert silently falls
+ * back to inexact delivery, so Settings surfaces a one-tap grant row.
+ */
+export async function getExactAlarmStatus(mod: NotificationsModule): Promise<ExactAlarmStatus> {
+  if (Platform.OS !== 'android') return 'unsupported';
+  try {
+    const status = await mod.getExactAlarmPermissionsAsync();
+    return status.granted ? 'granted' : 'denied';
+  } catch {
+    return 'unsupported';
+  }
+}
+
+/**
+ * Opens the system "Alarms & reminders" screen for this app. If the user
+ * revokes the permission there, Android restarts the app and the promise never
+ * resolves — callers should re-check with `getExactAlarmStatus`.
+ */
+export async function requestExactAlarmPermission(mod: NotificationsModule): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  try {
+    const status = await mod.requestExactAlarmPermissionsAsync();
+    return status.granted;
+  } catch {
+    return false;
+  }
 }
 
 export async function ensureNotificationPermission(mod: NotificationsModule): Promise<boolean> {

@@ -54,9 +54,10 @@ Matrix bugfix (outranks everything): if Device B restore fails, open a
 slice named after the failing row (`matrix-photos`, `matrix-programs`,
 …). Fix only that path. Re-run the matching matrix row before merging.
 
-Explicitly not slices: Home-screen widgets, #94 measurement goals, #112
-Google sheet, #78 / #125 signed public photos, #83, chat coach, program
-generation, logging a set from a notification.
+Explicitly not slices: #94 measurement goals, #112 Google sheet, #78 / #125
+signed public photos, #83, chat coach, program generation, logging a set
+from a notification. (Android home-screen widgets shipped separately; they
+are a surface, not a queue slice.)
 
 ## Verify-to-close (merged code, proof still owed)
 
@@ -159,7 +160,7 @@ Verify: no stuck screens, every tap lands somewhere sane.
 Forms/editors, measures, tools, photo quota, template identity, infra,
 a11y/sweeps:
 
-[#247](https://github.com/chrisdco/incline/issues/247) (Expo SDK 58 upgrade — **landed in #249**; device/release smoke + feature adoptions still tracked there),
+[#247](https://github.com/chrisdco/incline/issues/247) (Expo SDK 58 upgrade — **landed in #249**; Android widgets + `alarmClock` rest delivery adopted from it; device/release smoke still owed),
 [#160](https://github.com/chrisdco/incline/issues/160),
 [#161](https://github.com/chrisdco/incline/issues/161),
 [#162](https://github.com/chrisdco/incline/issues/162),
@@ -236,7 +237,8 @@ a11y/sweeps:
 - **Track A — Session alerts** (recommended if gym use is daily): rest
   remaining on lock (needs native build), one abandoned-session ping
   (~20–30 min, tap → session), rest-tap deep-links to the live session.
-  Out of scope: log-set from notification, extra nags, widgets.
+  Out of scope: log-set from notification, extra nags. Home-screen widgets
+  and `alarmClock` rest delivery already shipped; Track A builds on that.
   SDK 58 supplies the native path for `rest-lock` (Android ongoing
   notification via `expo-widgets` `createCustomNotification`, iOS Live
   Activity + `delivery: 'alarmClock'`) — see

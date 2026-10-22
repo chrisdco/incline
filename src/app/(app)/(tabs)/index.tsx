@@ -32,6 +32,7 @@ import { setCachedSession } from '@/db/session-cache';
 import { formatVolume, formatFullDate } from '@/db/calc';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
+import { refreshWidgets } from '@/lib/widgets/refresh';
 import { ReadinessCheckIn } from '@/components/home/readiness-checkin';
 import type { FeedWorkoutLog, MuscleGroup } from '@/db/types';
 
@@ -504,6 +505,7 @@ export default function HomeScreen() {
             <Button variant="destructive" onPress={async () => {
               if (deleteId !== null) {
                 await deleteWorkout(deleteId);
+                void refreshWidgets();
                 feed.refresh();
                 setDeleteId(null);
                 toast({ title: 'Workout deleted', variant: 'info' });

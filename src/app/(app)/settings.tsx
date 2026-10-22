@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -29,6 +30,9 @@ import {
   notificationsAvailable,
   prepareNotifications,
   NOTIFICATION_CHANNELS,
+  getNotifications,
+  getExactAlarmStatus,
+  requestExactAlarmPermission,
 } from '@/lib/notifications';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { cn } from '@/lib/cn';
@@ -131,6 +135,30 @@ export default function SettingsScreen() {
   const selectedAccent = ACCENT_THEME_LIST.find((t) => t.id === accentTheme) ?? ACCENT_THEME_LIST[0];
   const auroraActive = isAuroraAccent(accentTheme);
   const { status, pending, syncing, enabled, syncNow } = useCloudSync({ auto: false });
+
+  // Android 14+ denies exact alarms by default; without the grant a rest alert
+  // can arrive minutes late, so surface a one-tap fix next to the toggle.
+  const [exactAlarmDenied, setExactAlarmDenied] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const mod = getNotifications();
+    if (!mod) return;
+    let cancelled = false;
+    void getExactAlarmStatus(mod).then((alarmStatus) => {
+      if (!cancelled) setExactAlarmDenied(alarmStatus === 'denied');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const allowExactAlarms = async () => {
+    const mod = getNotifications();
+    if (!mod) return;
+    const granted = await requestExactAlarmPermission(mod);
+    setExactAlarmDenied(!granted);
+  };
 
   const changeUnit = (u: Unit) => {
     setUnit(u);
@@ -320,6 +348,17 @@ export default function SettingsScreen() {
           <Row icon={restSoundEnabled ? <Icon icon={Bell} size={18} color="muted-foreground" /> : <Icon icon={BellOff} size={18} color="muted-foreground" />} title="Rest timer alerts" subtitle="Chime in-app and notify if you leave the session">
             <Switch value={restSoundEnabled} onValueChange={setRestSound} accessibilityLabel="Rest timer alerts" />
           </Row>
+          {Platform.OS === 'android' && restSoundEnabled && exactAlarmDenied ? (
+            <>
+              <View className="h-px bg-border/60" />
+              <Row
+                icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
+                title="Precise rest alerts"
+                subtitle="Allow exact alarms so rest alerts arrive on time">
+                <Chip label="Allow" onPress={allowExactAlarms} />
+              </Row>
+            </>
+          ) : null}
           <View className="h-px bg-border/60" />
           <Row icon={<Icon icon={METRIC_ICONS.warmUp} size={18} color="muted-foreground" />} title="Warm-up set button" subtitle="Quick 50% set in the session">
             <Switch value={showWarmUpSets} onValueChange={setShowWarmUpSets} accessibilityLabel="Warm-up set button" />

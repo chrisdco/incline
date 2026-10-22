@@ -30,6 +30,7 @@ import { useHaptics } from '@/hooks/use-haptics';
 import { useActiveWorkout } from '@/store/active-workout-store';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
+import { refreshWidgets } from '@/lib/widgets/refresh';
 import {
   addSet,
   addWarmUpSet,
@@ -115,6 +116,11 @@ export default function SessionScreen() {
   const { unit, setUnit, restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe, keepScreenAwake, showSessionGhost } = useSettings();
   const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId });
   const restSound = useRestTimerSound();
+
+  // Starting or resuming a session changes the widget's "next up" state.
+  useEffect(() => {
+    void refreshWidgets();
+  }, []);
 
   useEffect(() => {
     if (!keepScreenAwake) return;
@@ -635,6 +641,7 @@ export default function SessionScreen() {
       await finishWorkout(logId, { pausedMs });
       clear();
       dropCachedSession(logId);
+      void refreshWidgets();
       toast({ title: 'Workout saved', variant: 'success' });
       router.replace(`/summary/${logId}?celebrate=1`);
     } catch {
@@ -651,6 +658,7 @@ export default function SessionScreen() {
       await discardWorkout(logId);
       clear();
       dropCachedSession(logId);
+      void refreshWidgets();
       router.replace('/(app)/(tabs)');
     } catch {
       setDiscarding(false);
