@@ -98,6 +98,14 @@ describe('actionForResponse', () => {
     expect(pathForNotificationAction({ kind: 'open_routines' })).toBe('/(app)/(tabs)/workouts');
     expect(pathForNotificationAction({ kind: 'skip_rest' })).toBe(null);
   });
+
+  it('sends +1 min back to the live session so the timer restarts', () => {
+    expect(pathForNotificationAction({ kind: 'snooze_rest', seconds: 60, sessionId: 9 })).toBe(
+      '/session/9',
+    );
+    // No session id (legacy/corrupt payload) — re-arm only, don't navigate.
+    expect(pathForNotificationAction({ kind: 'snooze_rest', seconds: 60 })).toBe(null);
+  });
 });
 
 describe('reminderBodyForDay', () => {

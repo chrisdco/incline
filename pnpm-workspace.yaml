@@ -52,3 +52,4 @@ minimumReleaseAgeExclude:
   - expo-sharing@58.0.20
   - expo-splash-screen@58.0.11
   - expo-status-bar@58.0.4
+  - expo-widgets@58.0.22

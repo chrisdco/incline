@@ -26,7 +26,11 @@ export async function ensureNotificationCategories(mod: NotificationsModule): Pr
   if (categoriesReady) return;
   try {
     await mod.setNotificationCategoryAsync(NOTIFICATION_CATEGORIES.rest, [
-      { identifier: NOTIFICATION_ACTIONS.restSnooze, buttonTitle: '+1 min', options: { opensAppToForeground: false } },
+      // +1 min must foreground the app: with `opensAppToForeground: false`
+      // Android only runs the response listener while the process is alive,
+      // so the button was dead exactly when rest alerts matter (app killed).
+      { identifier: NOTIFICATION_ACTIONS.restSnooze, buttonTitle: '+1 min', options: { opensAppToForeground: true } },
+      // Skip has nothing to re-arm — the system dismisses the notification.
       { identifier: NOTIFICATION_ACTIONS.restSkip, buttonTitle: 'Skip', options: { opensAppToForeground: false } },
     ]);
     await mod.setNotificationCategoryAsync(NOTIFICATION_CATEGORIES.reminder, [
@@ -64,8 +68,14 @@ export function actionForResponse(
   return null;
 }
 
-/** Deep-link target for actions that open the app (null = stay/dismiss). */
+/**
+ * Deep-link target for actions that open the app (null = stay/dismiss).
+ *
+ * Snooze lands on the live session so the rest countdown restarts with the
+ * notification (the timer picks it up via `rest-timer-signal`).
+ */
 export function pathForNotificationAction(action: NotificationAction): string | null {
   if (action.kind === 'open_routines') return '/(app)/(tabs)/workouts';
+  if (action.kind === 'snooze_rest' && action.sessionId != null) return `/session/${action.sessionId}`;
   return null;
 }

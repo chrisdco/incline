@@ -4,6 +4,9 @@ export {
   prepareNotifications,
   ensureNotificationPermission,
   cancelNotification,
+  getExactAlarmStatus,
+  requestExactAlarmPermission,
+  type ExactAlarmStatus,
 } from '@/lib/notifications/core';
 export {
   syncWorkoutReminderSchedules,

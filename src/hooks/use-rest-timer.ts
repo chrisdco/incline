@@ -5,6 +5,11 @@ import {
   cancelRestCompleteNotification,
   scheduleRestCompleteNotification,
 } from '@/lib/rest-notification';
+import {
+  consumeRestRequest,
+  subscribeRestRequest,
+  type RestRequest,
+} from '@/lib/rest-timer-signal';
 
 /**
  * Local rest-timer countdown. Kept local to the session screen (no global
@@ -89,6 +94,18 @@ export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
     },
     [applyRemaining, syncNotification],
   );
+
+  useEffect(() => {
+    // A "+1 min" tap in the shade restarts rest here — including a cold start,
+    // where the request waits in the signal bus until this screen mounts.
+    const accept = (request: RestRequest) => {
+      if (request.sessionId != null && sessionId != null && request.sessionId !== sessionId) return;
+      if (request.seconds > 0) start(request.seconds);
+    };
+    const pending = consumeRestRequest(sessionId);
+    if (pending) accept(pending);
+    return subscribeRestRequest(accept);
+  }, [start, sessionId]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
