@@ -159,7 +159,7 @@ Verify: no stuck screens, every tap lands somewhere sane.
 Forms/editors, measures, tools, photo quota, template identity, infra,
 a11y/sweeps:
 
-[#247](https://github.com/chrisdco/incline/issues/247) (Expo SDK 58 upgrade — audited breaking changes + phased checklist),
+[#247](https://github.com/chrisdco/incline/issues/247) (Expo SDK 58 upgrade — **landed in #249**; device/release smoke + feature adoptions still tracked there),
 [#160](https://github.com/chrisdco/incline/issues/160),
 [#161](https://github.com/chrisdco/incline/issues/161),
 [#162](https://github.com/chrisdco/incline/issues/162),
