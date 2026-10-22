@@ -159,6 +159,7 @@ Verify: no stuck screens, every tap lands somewhere sane.
 Forms/editors, measures, tools, photo quota, template identity, infra,
 a11y/sweeps:
 
+[#247](https://github.com/chrisdco/incline/issues/247) (Expo SDK 58 upgrade — audited breaking changes + phased checklist),
 [#160](https://github.com/chrisdco/incline/issues/160),
 [#161](https://github.com/chrisdco/incline/issues/161),
 [#162](https://github.com/chrisdco/incline/issues/162),
@@ -236,6 +237,10 @@ a11y/sweeps:
   remaining on lock (needs native build), one abandoned-session ping
   (~20–30 min, tap → session), rest-tap deep-links to the live session.
   Out of scope: log-set from notification, extra nags, widgets.
+  SDK 58 supplies the native path for `rest-lock` (Android ongoing
+  notification via `expo-widgets` `createCustomNotification`, iOS Live
+  Activity + `delivery: 'alarmClock'`) — see
+  [#247](https://github.com/chrisdco/incline/issues/247) before designing it.
 - **Track B — Analytics honesty** ([#126](https://github.com/chrisdco/incline/issues/126)):
   stored vs working volume, one definition across Progress / recap / ghost.
 - **Track C — AI narrations live**: only with a real key deployed; prove
