@@ -178,7 +178,9 @@ async function downloadPhoto(
   if (!dir.exists) dir.create({ intermediates: true });
   const file = new File(dest);
   const buf = await data.arrayBuffer();
-  file.write(new Uint8Array(buf));
+  // SDK 58 makes File.write async; await so the row below never points at
+  // a file whose bytes have not landed.
+  await file.write(new Uint8Array(buf));
   await db.runAsync('UPDATE workout_photos SET uri = ? WHERE uuid = ?', dest, photoUuid);
 }
 
