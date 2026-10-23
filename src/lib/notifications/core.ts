@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 
 import {
+  LEGACY_REST_TIMER_CHANNEL,
   NOTIFICATION_CHANNELS,
   type NotificationChannelId,
 } from '@/lib/notifications/types';
@@ -19,6 +20,7 @@ export type { NotificationsModule };
 
 let Notifications: NotificationsModule | null = null;
 let handlerReady = false;
+let legacyRestChannelCleared = false;
 const channelsReady = new Set<NotificationChannelId>();
 
 export function getNotifications(): NotificationsModule | null {
@@ -67,6 +69,22 @@ async function ensureAndroidChannel(
   channelsReady.add(channelId);
 }
 
+/**
+ * Android channels are immutable once created. `rest-timer` predates the
+ * PUBLIC/no-badge settings in #251, so existing installs would keep the old
+ * behavior forever. Version the channel and remove the old one so users see a
+ * single "Rest timer" entry with the current settings.
+ */
+async function clearLegacyRestTimerChannel(mod: NotificationsModule): Promise<void> {
+  if (Platform.OS !== 'android' || legacyRestChannelCleared) return;
+  legacyRestChannelCleared = true;
+  try {
+    await mod.deleteNotificationChannelAsync(LEGACY_REST_TIMER_CHANNEL);
+  } catch {
+    // Channel never existed (fresh install) or the OEM rejected the delete.
+  }
+}
+
 /** Ensure the Android channel used by this family exists. */
 export async function ensureNotificationChannel(
   mod: NotificationsModule,
@@ -80,6 +98,7 @@ export async function ensureNotificationChannel(
       lockscreenVisibility: mod.AndroidNotificationVisibility.PUBLIC,
       showBadge: false,
     });
+    await clearLegacyRestTimerChannel(mod);
     return;
   }
   if (channelId === NOTIFICATION_CHANNELS.workoutReminders) {
@@ -154,6 +173,17 @@ export async function cancelNotification(id: string): Promise<void> {
   if (!mod) return;
   try {
     await mod.cancelScheduledNotificationAsync(id);
+  } catch {
+    // ignore
+  }
+}
+
+/** Remove an already-presented notification from the shade/lock screen. */
+export async function dismissNotification(id: string): Promise<void> {
+  const mod = getNotifications();
+  if (!mod) return;
+  try {
+    await mod.dismissNotificationAsync(id);
   } catch {
     // ignore
   }

@@ -4,6 +4,10 @@
  * Same rules as NextUp: the runtime only gets props, so the count, goal,
  * progress ratio, footer copy and both palettes arrive pre-formatted from
  * `src/lib/widgets/build-this-week.ts`.
+ *
+ * Layout note: `spaceBetween` is not mapped by the Android converter, so the
+ * footer is pinned with a `Box contentAlignment="bottomStart"` overlay. Keep
+ * the footer on that overlay, not on a Column arrangement.
  */
 import { Box, Column, LinearProgressIndicator, Row, Text } from '@expo/ui/jetpack-compose';
 import {
@@ -24,9 +28,7 @@ const ThisWeekWidget = (props: ThisWeekProps, environment: { colorScheme?: 'ligh
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
   return (
-    <Column
-      verticalArrangement="spaceBetween"
-      modifiers={[fillMaxSize(), background(c.background), cornerRadius(24), paddingAll(14)]}>
+    <Box modifiers={[fillMaxSize(), background(c.background), cornerRadius(24), paddingAll(14)]}>
       <Column>
         <Box modifiers={[width(20), height(3), background(c.primary), cornerRadius(2)]} />
         <Text
@@ -57,10 +59,12 @@ const ThisWeekWidget = (props: ThisWeekProps, environment: { colorScheme?: 'ligh
           />
         ) : null}
       </Column>
-      <Text color={c.muted} maxLines={1} overflow="ellipsis" style={{ fontSize: 10 }}>
-        {props.footer}
-      </Text>
-    </Column>
+      <Box contentAlignment="bottomStart" modifiers={[fillMaxSize()]}>
+        <Text color={c.muted} maxLines={1} overflow="ellipsis" style={{ fontSize: 10 }}>
+          {props.footer}
+        </Text>
+      </Box>
+    </Box>
   );
 };
 
@@ -76,7 +80,7 @@ export default createWidget<ThisWeekProps>('ThisWeek', ThisWeekWidget, {
     card: '#ffffff',
     foreground: '#09090b',
     muted: '#62626a',
-    primary: '#6D5DF6',
+    primary: '#0D9488',
     border: '#e4e4e7',
   },
   dark: {
@@ -84,7 +88,7 @@ export default createWidget<ThisWeekProps>('ThisWeek', ThisWeekWidget, {
     card: '#151519',
     foreground: '#fafafa',
     muted: '#afafb6',
-    primary: '#8B7CFF',
+    primary: '#2DD4BF',
     border: '#242428',
   },
 });

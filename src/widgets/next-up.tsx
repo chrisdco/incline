@@ -13,6 +13,12 @@
  *
  * Android widgets cannot launch the app on tap with expo-widgets (buttons only
  * update props), so this surface is intentionally display-only.
+ *
+ * Layout note: the Android converter maps `Column`/`Row` arrangements only to
+ * top/center/bottom (start/center/end) — `spaceBetween` silently collapses to
+ * start. Pin the footer and the streak pill with `Box` `contentAlignment`
+ * overlays instead. Re-check this against the Hevy/Strong reference before
+ * changing the spacing.
  */
 import { Box, Column, Row, Text } from '@expo/ui/jetpack-compose';
 import {
@@ -33,31 +39,30 @@ const NextUpWidget = (props: NextUpProps, environment: { colorScheme?: 'light' |
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
   return (
-    <Column
-      verticalArrangement="spaceBetween"
-      modifiers={[fillMaxSize(), background(c.background), cornerRadius(24), paddingAll(16)]}>
+    <Box modifiers={[fillMaxSize(), background(c.background), cornerRadius(24), paddingAll(16)]}>
       <Column>
         <Box modifiers={[width(20), height(3), background(c.primary), cornerRadius(2)]} />
-        <Row
-          horizontalArrangement="spaceBetween"
-          verticalAlignment="center"
-          modifiers={[fillMaxWidth(), padding(0, 10, 0, 0)]}>
+        <Box
+          contentAlignment="centerStart"
+          modifiers={[fillMaxWidth(), padding(0, 6, 0, 0), height(22)]}>
           <Text color={c.muted} style={{ fontSize: 10, fontWeight: '600', letterSpacing: 1.2 }}>
             {props.eyebrow}
           </Text>
           {props.streakLabel ? (
-            <Row modifiers={[background(c.card), cornerRadius(999), padding(8, 3, 8, 3)]}>
-              <Text color={c.primary} style={{ fontSize: 10, fontWeight: '600' }}>
-                {props.streakLabel}
-              </Text>
-            </Row>
+            <Box contentAlignment="centerEnd" modifiers={[fillMaxSize()]}>
+              <Row modifiers={[background(c.card), cornerRadius(999), padding(8, 3, 8, 3)]}>
+                <Text color={c.primary} style={{ fontSize: 10, fontWeight: '600' }}>
+                  {props.streakLabel}
+                </Text>
+              </Row>
+            </Box>
           ) : null}
-        </Row>
+        </Box>
         <Text
           color={c.foreground}
           maxLines={1}
           overflow="ellipsis"
-          modifiers={[padding(0, 12, 0, 2)]}
+          modifiers={[padding(0, 6, 0, 2)]}
           style={{ fontSize: 22, fontWeight: '700', letterSpacing: -0.4 }}>
           {props.title}
         </Text>
@@ -65,10 +70,12 @@ const NextUpWidget = (props: NextUpProps, environment: { colorScheme?: 'light' |
           {props.detail}
         </Text>
       </Column>
-      <Text color={c.muted} maxLines={1} overflow="ellipsis" style={{ fontSize: 11 }}>
-        {props.footer}
-      </Text>
-    </Column>
+      <Box contentAlignment="bottomStart" modifiers={[fillMaxSize()]}>
+        <Text color={c.muted} maxLines={1} overflow="ellipsis" style={{ fontSize: 11 }}>
+          {props.footer}
+        </Text>
+      </Box>
+    </Box>
   );
 };
 
@@ -83,7 +90,7 @@ export default createWidget<NextUpProps>('NextUp', NextUpWidget, {
     card: '#ffffff',
     foreground: '#09090b',
     muted: '#62626a',
-    primary: '#6D5DF6',
+    primary: '#0D9488',
     border: '#e4e4e7',
   },
   dark: {
@@ -91,7 +98,7 @@ export default createWidget<NextUpProps>('NextUp', NextUpWidget, {
     card: '#151519',
     foreground: '#fafafa',
     muted: '#afafb6',
-    primary: '#8B7CFF',
+    primary: '#2DD4BF',
     border: '#242428',
   },
 });

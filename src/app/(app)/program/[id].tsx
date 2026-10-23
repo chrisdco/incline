@@ -27,6 +27,7 @@ import {
 } from '@/db/queries';
 import { setCachedSession } from '@/db/session-cache';
 import { SCREEN_CONTENT } from '@/lib/layout';
+import { refreshWidgets } from '@/lib/widgets/refresh';
 import type { Program, ProgramWorkout } from '@/db/types';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -133,6 +134,7 @@ export default function ProgramDetailScreen() {
         setIsActive(true);
         toast({ title: 'Program activated', variant: 'success' });
       }
+      void refreshWidgets();
       impact();
     } catch {
       toast({ title: 'Could not update program', variant: 'destructive' });

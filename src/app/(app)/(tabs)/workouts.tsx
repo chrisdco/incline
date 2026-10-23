@@ -32,6 +32,7 @@ import { isAuroraAccent } from '@/lib/accent-themes';
 import type { TemplateSummary } from '@/db/queries';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
 import { filterRoutineSummaries, sortRoutineSummaries, type RoutineSort } from '@/lib/exercise-filters';
+import { refreshWidgets } from '@/lib/widgets/refresh';
 
 type Tab = 'routines' | 'programs';
 
@@ -142,6 +143,7 @@ export default function WorkoutsScreen() {
     setDeleting(true);
     try {
       await deleteTemplate(deleteTarget.template.id);
+      void refreshWidgets();
       impact();
       toast({ title: 'Routine deleted', variant: 'info' });
       templates.refetch();
@@ -160,6 +162,7 @@ export default function WorkoutsScreen() {
     setMenuTarget(null);
     try {
       const newId = await duplicateTemplate(source.template.id);
+      void refreshWidgets();
       impact();
       toast({ title: 'Routine duplicated', variant: 'success' });
       templates.refetch();
