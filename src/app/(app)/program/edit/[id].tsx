@@ -26,6 +26,7 @@ import {
   listTemplateSummaries,
 } from '@/db/queries';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
+import { refreshWidgets } from '@/lib/widgets/refresh';
 import type { ProgramWorkout } from '@/db/types';
 import type { TemplateSummary } from '@/db/queries';
 
@@ -94,6 +95,7 @@ export default function ProgramEditScreen() {
     try {
       const idSaved = await ensureProgram();
       if (!idSaved) return;
+      void refreshWidgets();
       impact();
       toast({ title: 'Program saved', variant: 'success' });
       if (isNew) {
@@ -115,6 +117,7 @@ export default function ProgramEditScreen() {
       const idSaved = await ensureProgram();
       if (!idSaved) return;
       await setProgramDay(idSaved, slotPicker.week, slotPicker.day, templateId);
+      void refreshWidgets();
       await reload(idSaved);
       setSlotPicker(null);
       impact();
@@ -129,6 +132,7 @@ export default function ProgramEditScreen() {
     if (!programId) return;
     try {
       await clearProgramDay(programId, week, day);
+      void refreshWidgets();
       await reload(programId);
       impact();
     } catch {
@@ -143,6 +147,7 @@ export default function ProgramEditScreen() {
     }
     try {
       await applyWeek1ToAllWeeks(programId);
+      void refreshWidgets();
       await reload(programId);
       toast({ title: 'Week 1 applied to all weeks', variant: 'success' });
       impact();
@@ -155,6 +160,7 @@ export default function ProgramEditScreen() {
     if (!programId) return;
     try {
       await deleteProgram(programId);
+      void refreshWidgets();
       toast({ title: 'Program deleted', variant: 'info' });
       router.replace('/(app)/(tabs)/workouts');
     } catch {

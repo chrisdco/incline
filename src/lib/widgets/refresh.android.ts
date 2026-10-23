@@ -3,33 +3,29 @@
  *
  * Widgets cannot poll and cannot run app code (the runtime is isolated), so
  * values are written at the same places the app already invalidates its own
- * views — app start/foreground plus session start/finish/discard and settings
- * changes (see `useWidgetRefresh`), never on a timer.
+ * views — app start/foreground plus session/program/template writes and
+ * settings changes (see `useWidgetRefresh`), never on a timer.
  */
 import { isRunningInExpoGo } from 'expo';
 
 import { getTodayProgramSlot } from '@/db/queries/programs';
 import { getWeeklyConsistency } from '@/db/queries/progress';
-import { getActiveWorkout } from '@/db/queries/sessions';
+import { getActiveWorkoutSummary } from '@/db/queries/sessions';
 import { getSuggestedTemplate } from '@/db/queries/templates';
 import { useSettings } from '@/store/settings-store';
 
 import { buildNextUpProps } from './build-next-up';
 import { buildThisWeekProps } from './build-this-week';
+import { createLatestRunner } from './latest-runner';
 import { widgetPalettes } from './palette';
 
-let inFlight = false;
-
-export async function refreshWidgets(now = Date.now()): Promise<void> {
-  if (isRunningInExpoGo()) return;
-  if (inFlight) return;
-  inFlight = true;
+async function pushSnapshots(now: number): Promise<void> {
   try {
     const settings = useSettings.getState();
     const [active, todaySlot, consistency, suggested] = await Promise.all([
-      getActiveWorkout(),
+      getActiveWorkoutSummary(),
       getTodayProgramSlot(now),
-      getWeeklyConsistency(settings.weeklyWorkoutGoal, now),
+      getWeeklyConsistency(settings.weeklyWorkoutGoal, now, { includeBestStreak: false }),
       getSuggestedTemplate(),
     ]);
 
@@ -79,7 +75,13 @@ export async function refreshWidgets(now = Date.now()): Promise<void> {
     );
   } catch {
     // Widgets are a bonus surface — a failure here must never reach the app.
-  } finally {
-    inFlight = false;
   }
+}
+
+/** One run at a time; bursts coalesce to the newest snapshot. */
+const pushLatest = createLatestRunner(pushSnapshots);
+
+export async function refreshWidgets(now = Date.now()): Promise<void> {
+  if (isRunningInExpoGo()) return;
+  await pushLatest(now);
 }
