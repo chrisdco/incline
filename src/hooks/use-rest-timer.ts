@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import {
@@ -10,10 +10,22 @@ import {
   subscribeRestRequest,
   type RestRequest,
 } from '@/lib/rest-timer-signal';
+import {
+  REST_TIMER_IDLE,
+  selectRestJustFinished,
+  selectRestVisible,
+  useRestTimerStore,
+} from '@/store/rest-timer-store';
+
+const store = useRestTimerStore;
 
 /**
- * Local rest-timer countdown. Kept local to the session screen (no global
- * ticking) so the rest of the app doesn't re-render every second.
+ * Rest-timer controller for the session screen.
+ *
+ * The countdown lives in `rest-timer-store`, and this hook only subscribes to
+ * the rarely-changing flags (`running`, `visible`, `justFinished`). The 1s
+ * tick writes `remaining`, which only the timer bar reads (`RestTimerBar`),
+ * so a rest — most of a gym session — no longer re-renders every set row.
  *
  * Handles backgrounding via wall-clock deadlines, and schedules a local
  * notification so rest completion still alerts when the user leaves the session.
@@ -21,19 +33,17 @@ import {
 export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
   const notify = opts?.notify !== false;
   const sessionId = opts?.sessionId;
-  const [remaining, setRemaining] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [running, setRunning] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const deadlineRef = useRef<number>(0);
-  // Mirror of `remaining` so callback bodies can read the live value without
-  // doing side effects inside a state updater (updaters must stay pure — React
-  // may invoke them twice, which would double-fire notification scheduling).
-  const remainingRef = useRef(0);
-  const applyRemaining = useCallback((next: number) => {
-    remainingRef.current = next;
-    setRemaining(next);
-  }, []);
+  const running = useRestTimerStore((s) => s.running);
+  const visible = useRestTimerStore(selectRestVisible);
+  const justFinished = useRestTimerStore(selectRestJustFinished);
+
+  // A different session must not inherit the previous one's countdown.
+  useEffect(() => {
+    const cur = store.getState();
+    if (cur.sessionId !== (sessionId ?? null)) {
+      store.setState({ sessionId: sessionId ?? null, ...REST_TIMER_IDLE });
+    }
+  }, [sessionId]);
 
   const syncNotification = useCallback(
     async (seconds: number | null) => {
@@ -50,49 +60,59 @@ export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
     [notify, sessionId],
   );
 
+  /** Recompute from the deadline; ends the rest when it has passed. */
+  const tick = useCallback(() => {
+    const { deadline } = store.getState();
+    if (deadline <= 0) return;
+    const diff = deadline - Date.now();
+    if (diff <= 0) {
+      store.setState({ remaining: 0, running: false, deadline: 0 });
+      void syncNotification(null);
+    } else {
+      const next = Math.ceil(diff / 1000);
+      if (next !== store.getState().remaining) store.setState({ remaining: next });
+    }
+  }, [syncNotification]);
+
   const start = useCallback(
     (seconds: number): { replaced: boolean; discardedSeconds: number } => {
       if (seconds <= 0) return { replaced: false, discardedSeconds: 0 };
       // Auto-start replacing auto-start is standard (Strong/Hevy do the
       // same). Only report when a genuinely large remainder is discarded —
       // per-round superset restarts stay quiet.
+      const { deadline } = store.getState();
       const discardedSeconds =
-        deadlineRef.current > 0 ? Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)) : 0;
-      const replaced = discardedSeconds > 0;
-      setTotal(seconds);
-      applyRemaining(seconds);
-      setRunning(true);
-      deadlineRef.current = Date.now() + seconds * 1000;
+        deadline > 0 ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : 0;
+      store.setState({
+        total: seconds,
+        remaining: seconds,
+        running: true,
+        deadline: Date.now() + seconds * 1000,
+      });
       void syncNotification(seconds);
-      return { replaced, discardedSeconds };
+      return { replaced: discardedSeconds > 0, discardedSeconds };
     },
-    [applyRemaining, syncNotification],
+    [syncNotification],
   );
 
   const stop = useCallback(() => {
-    setRunning(false);
-    applyRemaining(0);
-    setTotal(0);
-    deadlineRef.current = 0;
+    store.setState(REST_TIMER_IDLE);
     void syncNotification(null);
-  }, [applyRemaining, syncNotification]);
+  }, [syncNotification]);
 
   const add = useCallback(
     (delta: number) => {
-      const next = Math.max(0, remainingRef.current + delta);
-      applyRemaining(next);
+      const next = Math.max(0, store.getState().remaining + delta);
       if (next === 0) {
         // Dropping to zero ends the rest instead of leaving a dead 0s timer.
-        deadlineRef.current = 0;
-        setRunning(false);
+        store.setState({ remaining: 0, running: false, deadline: 0 });
         void syncNotification(null);
       } else {
-        deadlineRef.current = Date.now() + next * 1000;
-        setRunning(true);
+        store.setState({ remaining: next, running: true, deadline: Date.now() + next * 1000 });
         void syncNotification(next);
       }
     },
-    [applyRemaining, syncNotification],
+    [syncNotification],
   );
 
   useEffect(() => {
@@ -108,59 +128,26 @@ export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
   }, [start, sessionId]);
 
   useEffect(() => {
+    if (!running) return;
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active' && running && deadlineRef.current > 0) {
-        const now = Date.now();
-        const diff = deadlineRef.current - now;
-        if (diff <= 0) {
-          applyRemaining(0);
-          setRunning(false);
-          deadlineRef.current = 0;
-          void syncNotification(null);
-        } else {
-          applyRemaining(Math.ceil(diff / 1000));
-        }
-      }
+      if (state === 'active') tick();
     });
-    return () => sub.remove();
-  }, [running, syncNotification, applyRemaining]);
-
-  useEffect(() => {
-    if (!running) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-    intervalRef.current = setInterval(() => {
-      const now = Date.now();
-      const diff = deadlineRef.current - now;
-      if (diff <= 0) {
-        applyRemaining(0);
-        setRunning(false);
-        deadlineRef.current = 0;
-        void syncNotification(null);
-      } else {
-        applyRemaining(Math.ceil(diff / 1000));
-      }
-    }, 1000);
+    tick();
+    const iv = setInterval(tick, 1000);
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      clearInterval(iv);
+      sub.remove();
     };
-  }, [running, syncNotification, applyRemaining]);
-
-  const justFinished = total > 0 && remaining === 0 && !running;
+  }, [running, tick]);
 
   useEffect(() => {
     if (!justFinished) return;
     void syncNotification(null);
     const t = setTimeout(() => {
-      setTotal(0);
-      deadlineRef.current = 0;
+      store.setState({ total: 0, deadline: 0 });
     }, 1400);
     return () => clearTimeout(t);
   }, [justFinished, syncNotification]);
 
-  return { remaining, total, running, justFinished, start, stop, add };
+  return { running, visible, justFinished, start, stop, add };
 }
