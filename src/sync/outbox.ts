@@ -63,9 +63,24 @@ export async function listOutbox(limit = 100): Promise<OutboxRow[]> {
   }));
 }
 
-export async function removeOutbox(id: number): Promise<void> {
+/**
+ * Ack a pushed row — only if it still holds the payload that was pushed.
+ * `enqueueSync` coalesces in place (same id), so an edit landing while the
+ * push is in flight rewrites this row; deleting by id alone would drop that
+ * newer mutation unpushed (local updated_at is newer, so pull never repairs
+ * it). A changed row survives and goes out on the next run.
+ */
+export async function removeOutbox(
+  item: Pick<OutboxRow, 'id' | 'op' | 'payload' | 'createdAt'>,
+): Promise<void> {
   const db = await openDatabase();
-  await db.runAsync('DELETE FROM sync_outbox WHERE id = ?', id);
+  await db.runAsync(
+    'DELETE FROM sync_outbox WHERE id = ? AND op = ? AND payload IS ? AND created_at = ?',
+    item.id,
+    item.op,
+    item.payload,
+    item.createdAt,
+  );
 }
 
 export async function bumpOutboxAttempt(id: number): Promise<void> {

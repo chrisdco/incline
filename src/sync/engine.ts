@@ -869,7 +869,7 @@ export async function runSync(opts: {
     for (const item of pending) {
       const result = await pushOne(client, opts.userId, item);
       if (result === 'ok') {
-        await removeOutbox(item.id);
+        await removeOutbox(item);
         pushed++;
       } else {
         await bumpOutboxAttempt(item.id);
