@@ -36,7 +36,7 @@ import {
   addWarmUpSet,
   discardWorkout,
   finishWorkout,
-  getExercisePRSummary,
+  getExercisePRSummaries,
   getLastSetsForExercises,
   getRestDefaultsForSession,
   getTemplateSuggestions,
@@ -204,9 +204,9 @@ export default function SessionScreen() {
   const loadAssist = useCallback(async (s: SessionWorkout) => {
     const run = (assistRunRef.current += 1);
     const exIds = [...new Set(s.sets.map((x) => x.exerciseId))];
-    const [lastMap, prEntries, templateSug, ghostRow] = await Promise.all([
+    const [lastMap, prSummaries, templateSug, ghostRow] = await Promise.all([
       getLastSetsForExercises(exIds),
-      Promise.all(exIds.map(async (eid) => [eid, await getExercisePRSummary(eid)] as const)),
+      getExercisePRSummaries(exIds),
       s.templateId ? getTemplateSuggestions(s.templateId, unit) : Promise.resolve([]),
       showSessionGhost
         ? getSessionGhost({
@@ -219,7 +219,7 @@ export default function SessionScreen() {
     ]);
     if (assistRunRef.current !== run) return;
     setLastSetsMap(lastMap);
-    setPrMap(Object.fromEntries(prEntries));
+    setPrMap(prSummaries);
     setSuggestionMap(Object.fromEntries(templateSug.map((sug) => [sug.exerciseId, sug])));
     setGhost(ghostRow);
   }, [logId, unit, showSessionGhost]);

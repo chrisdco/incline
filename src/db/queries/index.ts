@@ -17,6 +17,7 @@ export {
   getRecentExercises,
   getExerciseHistory,
   getExercisePRSummary,
+  getExercisePRSummaries,
   getExerciseRepRecords,
   getExerciseProgression,
   getExerciseSeries,
