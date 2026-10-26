@@ -398,45 +398,87 @@ export interface ExercisePRSummary {
   heaviestWeightAt: number;
 }
 
+const EMPTY_PR_SUMMARY: ExercisePRSummary = {
+  heaviestWeight: 0,
+  best1RM: 0,
+  bestSetVolume: 0,
+  bestSessionVolume: 0,
+  heaviestWeightAt: 0,
+};
+
 export async function getExercisePRSummary(exerciseId: number): Promise<ExercisePRSummary> {
+  return (await getExercisePRSummaries([exerciseId]))[exerciseId] ?? { ...EMPTY_PR_SUMMARY };
+}
+
+/**
+ * PR summaries for many exercises in three grouped queries (session open
+ * used to run three per exercise). Exercises with no working history map to
+ * zeros, same as the single-id call.
+ */
+export async function getExercisePRSummaries(
+  exerciseIds: number[],
+): Promise<Record<number, ExercisePRSummary>> {
+  const ids = [...new Set(exerciseIds)];
+  const out: Record<number, ExercisePRSummary> = {};
+  if (ids.length === 0) return out;
+  for (const id of ids) out[id] = { ...EMPTY_PR_SUMMARY };
   const db = await openDatabase();
-  const base = await db.getFirstAsync<{ max_weight: number; best_1rm: number; best_set_vol: number }>(
-    `SELECT MAX(s.weight) as max_weight,
+  const placeholders = ids.map(() => '?').join(',');
+
+  const base = await db.getAllAsync<{
+    exercise_id: number;
+    max_weight: number;
+    best_1rm: number;
+    best_set_vol: number;
+  }>(
+    `SELECT s.exercise_id,
+            MAX(s.weight) as max_weight,
             MAX(CASE WHEN s.reps <= 1 THEN s.weight
                      ELSE s.weight * (1.0 + s.reps / 30.0) END) as best_1rm,
             MAX(s.weight * s.reps) as best_set_vol
      FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
-     WHERE s.exercise_id = ? AND ${WORKING_PR_PREDICATE}`,
-    exerciseId,
+     WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}
+     GROUP BY s.exercise_id`,
+    ...ids,
   );
-  const maxWeight = base?.max_weight ?? 0;
-  const best1RM = Math.round((base?.best_1rm ?? 0) * 100) / 100;
-  const bestSetVol = base?.best_set_vol ?? 0;
+  for (const r of base) {
+    out[r.exercise_id] = {
+      ...out[r.exercise_id],
+      heaviestWeight: r.max_weight ?? 0,
+      best1RM: Math.round((r.best_1rm ?? 0) * 100) / 100,
+      bestSetVolume: r.best_set_vol ?? 0,
+    };
+  }
 
-  // Best session volume: max sum(weight*reps) per workout_log
-  const sessionVol = await db.getFirstAsync<{ vol: number }>(
-    `SELECT SUM(s.weight * s.reps) as vol
+  // Best session volume: max over logs of sum(weight*reps) per exercise.
+  const sessionVol = await db.getAllAsync<{ exercise_id: number; vol: number }>(
+    `SELECT exercise_id, MAX(vol) as vol FROM (
+       SELECT s.exercise_id, SUM(s.weight * s.reps) as vol
+       FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
+       WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}
+       GROUP BY s.exercise_id, w.id
+     ) GROUP BY exercise_id`,
+    ...ids,
+  );
+  for (const r of sessionVol) out[r.exercise_id].bestSessionVolume = r.vol ?? 0;
+
+  // When the heaviest weight was (most recently) achieved.
+  const atMax = await db.getAllAsync<{ exercise_id: number; at: number }>(
+    `SELECT s.exercise_id, MAX(s.created_at) as at
      FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
-     WHERE s.exercise_id = ? AND ${WORKING_PR_PREDICATE}
-     GROUP BY w.id ORDER BY vol DESC LIMIT 1`,
-    exerciseId,
+     JOIN (
+       SELECT s.exercise_id as eid, MAX(s.weight) as mw
+       FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
+       WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}
+       GROUP BY s.exercise_id
+     ) m ON m.eid = s.exercise_id AND s.weight = m.mw
+     WHERE ${WORKING_PR_PREDICATE}
+     GROUP BY s.exercise_id`,
+    ...ids,
   );
+  for (const r of atMax) out[r.exercise_id].heaviestWeightAt = r.at ?? 0;
 
-  // When was heaviest weight achieved
-  const atMax = await db.getFirstAsync<{ created_at: number }>(
-    `SELECT s.created_at FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
-     WHERE s.exercise_id = ? AND ${WORKING_PR_PREDICATE} AND s.weight = ?
-     ORDER BY s.created_at DESC LIMIT 1`,
-    exerciseId, maxWeight,
-  );
-
-  return {
-    heaviestWeight: maxWeight,
-    best1RM,
-    bestSetVolume: bestSetVol,
-    bestSessionVolume: sessionVol?.vol ?? 0,
-    heaviestWeightAt: atMax?.created_at ?? 0,
-  };
+  return out;
 }
 
 export interface RepRecord {

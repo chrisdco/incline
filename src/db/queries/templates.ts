@@ -4,9 +4,10 @@ import { enqueueSync } from '@/sync/outbox';
 import { exerciseRefForId } from '@/sync/exercise-ref';
 import { scaleDeloadSets } from '@/coaching/deload';
 import type { Difficulty, MuscleGroup, TemplateExercise, WorkoutTemplate } from '../types';
-import { getExercise } from './exercises';
 import {
+  mapExerciseRows,
   mapTemplate,
+  type ExerciseRow,
   type TemplateExerciseRow,
   type TemplateRow,
 } from './helpers';
@@ -30,23 +31,28 @@ export async function getTemplate(id: number): Promise<WorkoutTemplate | null> {
     'SELECT * FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL ORDER BY sort_order',
     id,
   );
-  const exercises: TemplateExercise[] = [];
-  for (const te of teRows) {
-    const exercise = await getExercise(te.exercise_id);
-    exercises.push({
-      id: te.id,
-      templateId: te.template_id,
-      exerciseId: te.exercise_id,
-      sortOrder: te.sort_order,
-      targetSets: te.target_sets,
-      targetRepsMin: te.target_reps_min,
-      targetRepsMax: te.target_reps_max,
-      restSeconds: te.rest_seconds,
-      notes: te.notes,
-      supersetGroup: te.superset_group ?? null,
-      exercise: exercise ?? undefined,
-    });
-  }
+  // One batched exercise load (4 queries) instead of getExercise per row.
+  const exerciseIds = [...new Set(teRows.map((te) => te.exercise_id))];
+  const exerciseRows = exerciseIds.length
+    ? await db.getAllAsync<ExerciseRow>(
+        `SELECT * FROM exercises WHERE id IN (${exerciseIds.map(() => '?').join(',')}) AND deleted_at IS NULL`,
+        ...exerciseIds,
+      )
+    : [];
+  const exerciseById = new Map((await mapExerciseRows(db, exerciseRows)).map((e) => [e.id, e]));
+  const exercises: TemplateExercise[] = teRows.map((te) => ({
+    id: te.id,
+    templateId: te.template_id,
+    exerciseId: te.exercise_id,
+    sortOrder: te.sort_order,
+    targetSets: te.target_sets,
+    targetRepsMin: te.target_reps_min,
+    targetRepsMax: te.target_reps_max,
+    restSeconds: te.rest_seconds,
+    notes: te.notes,
+    supersetGroup: te.superset_group ?? null,
+    exercise: exerciseById.get(te.exercise_id),
+  }));
   return mapTemplate(t, exercises);
 }
 
@@ -63,27 +69,39 @@ export async function listTemplateSummaries(): Promise<TemplateSummary[]> {
   const rows = await db.getAllAsync<TemplateRow>(
     'SELECT * FROM workout_templates WHERE deleted_at IS NULL ORDER BY name',
   );
-  const out: TemplateSummary[] = [];
-  for (const t of rows) {
-    const countRow = await db.getFirstAsync<{ c: number }>(
-      'SELECT COUNT(*) as c FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL',
-      t.id,
-    );
-    const muscleRows = await db.getAllAsync<{ primary_muscle: string }>(
-      'SELECT DISTINCT e.primary_muscle FROM template_exercises te JOIN exercises e ON e.id = te.exercise_id WHERE te.template_id = ? AND te.deleted_at IS NULL AND e.deleted_at IS NULL',
-      t.id,
-    );
-    const exerciseRows = await db.getAllAsync<{ name: string }>(
-      'SELECT e.name FROM template_exercises te JOIN exercises e ON e.id = te.exercise_id WHERE te.template_id = ? AND te.deleted_at IS NULL AND e.deleted_at IS NULL ORDER BY te.sort_order LIMIT 4',
-      t.id,
-    );
-    out.push({
-      template: mapTemplate(t, []),
-      exerciseCount: countRow?.c ?? 0,
-      muscleFocus: muscleRows.map((r) => r.primary_muscle as MuscleGroup),
-      exerciseNames: exerciseRows.map((r) => r.name),
-    });
+  if (rows.length === 0) return [];
+  // Three batched queries total (was three per template). Rows arrive in
+  // template sort order so per-template muscles/names keep their order.
+  const ids = rows.map((t) => t.id);
+  const placeholders = ids.map(() => '?').join(',');
+  const exRows = await db.getAllAsync<{ template_id: number; name: string; primary_muscle: string }>(
+    `SELECT te.template_id, e.name, e.primary_muscle
+     FROM template_exercises te JOIN exercises e ON e.id = te.exercise_id
+     WHERE te.template_id IN (${placeholders}) AND te.deleted_at IS NULL AND e.deleted_at IS NULL
+     ORDER BY te.template_id, te.sort_order`,
+    ...ids,
+  );
+  const countRows = await db.getAllAsync<{ template_id: number; c: number }>(
+    `SELECT template_id, COUNT(*) as c FROM template_exercises
+     WHERE template_id IN (${placeholders}) AND deleted_at IS NULL GROUP BY template_id`,
+    ...ids,
+  );
+  const countById = new Map(countRows.map((r) => [r.template_id, r.c]));
+  const musclesById = new Map<number, Set<MuscleGroup>>();
+  const namesById = new Map<number, string[]>();
+  for (const r of exRows) {
+    if (!musclesById.has(r.template_id)) musclesById.set(r.template_id, new Set());
+    musclesById.get(r.template_id)!.add(r.primary_muscle as MuscleGroup);
+    const names = namesById.get(r.template_id) ?? [];
+    if (names.length < 4) names.push(r.name);
+    namesById.set(r.template_id, names);
   }
+  const out: TemplateSummary[] = rows.map((t) => ({
+    template: mapTemplate(t, []),
+    exerciseCount: countById.get(t.id) ?? 0,
+    muscleFocus: [...(musclesById.get(t.id) ?? [])],
+    exerciseNames: namesById.get(t.id) ?? [],
+  }));
   return out;
 }
 
