@@ -1,6 +1,6 @@
 # Expo HAS CHANGED
 
-Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
+Read the exact versioned docs at https://docs.expo.dev/versions/v58.0.0/ before writing any code.
 
 **Project context:** See [docs/HANDOFF.md](docs/HANDOFF.md) (current state — refresh via `node scripts/refresh-handoff.mjs`) and [docs/WORK-QUEUE.md](docs/WORK-QUEUE.md) (the only pickup list). Standing decisions live in `docs/decisions/`; shipped history in `docs/archive/` (read-only).
 

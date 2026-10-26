@@ -68,7 +68,9 @@ or the stated smoke.
 
 Deploy first (both still required):
 
-- Re-run full `supabase/sync-schema.sql` (idempotent).
+- Re-run full `supabase/sync-schema.sql` (idempotent). **Blocking since #259:**
+  it creates the `sync_push` RPC; until it is deployed every sync stops with
+  “Sync server is out of date” and edits wait in the outbox.
 - Confirm tables: `body_measurements`, `user_programs`,
   `user_program_workouts`, `user_active_program`, `user_preferences`,
   `workout_photos` (+ private Storage bucket `workout-photos`).
@@ -104,9 +106,14 @@ Verify in session plus charts. Related: #126.
 
 Verify: kill the app mid-anything, no half-states, no lost edits.
 
+Foundation landed: `mutate()` (`src/db/write.ts`, #260) runs each write plus
+its outbox enqueues in one transaction and rethrows enqueue failures. Session,
+template, exercise and measure writes use it; profile/program/notes/photos
+are migrating next. #142 and #197 belong to the session-engine work.
+
 - [#137](https://github.com/chrisdco/incline/issues/137) outbox coalesce non-atomic, crash loses mutations
-- [#138](https://github.com/chrisdco/incline/issues/138) background enqueues swallow errors
-- [#141](https://github.com/chrisdco/incline/issues/141) finish / discard / remove not transactional
+- [#138](https://github.com/chrisdco/incline/issues/138) background enqueues swallow errors — **addressed** where writes use `mutate()`; close when profile/programs migrate
+- [#141](https://github.com/chrisdco/incline/issues/141) finish / discard / remove not transactional — **addressed** (#260); close after a kill-mid-finish smoke
 - [#142](https://github.com/chrisdco/incline/issues/142) duplicate open logs + double-tap finish guards
 - [#197](https://github.com/chrisdco/incline/issues/197) duration edit can implicitly finish a workout
 
@@ -115,14 +122,14 @@ Verify: kill the app mid-anything, no half-states, no lost edits.
 Verify with the two-device matrix. Related: #83.
 
 Protocol rewrite landed (batched `sync_push` RPC, server-side LWW, per-table
-cursors; see [TECH-DECISIONS §11](./decisions/TECH-DECISIONS.md)). It needs
+cursors; see [TECH-DECISIONS §13](./decisions/TECH-DECISIONS.md)). It needs
 `supabase/sync-schema.sql` deployed first, then the two-device matrix run on
 the new protocol before #139/#140/#201 close.
 
 - [#139](https://github.com/chrisdco/incline/issues/139) push batch head-of-line blocking + poison rows — **addressed** (per-row status, quarantine at 8 attempts, keyset paging past 200); close after the matrix
 - [#140](https://github.com/chrisdco/incline/issues/140) shared pull cursor stalls / under-pulls big restores — **addressed** (per-table `(updated_at, id)` cursors, page until exhausted, transactional pages, blocked-row retry set); close after the matrix
 - [#143](https://github.com/chrisdco/incline/issues/143) two-device concurrent edits silently lose one side — **partly**: LWW is now atomic server-side with deterministic ties; still whole-row and device clock (decide server timestamps / field merge from the matrix)
-- [#199](https://github.com/chrisdco/incline/issues/199) outbox write amplification per keystroke
+- [#199](https://github.com/chrisdco/incline/issues/199) outbox write amplification per keystroke — **addressed** (one transaction per committed field, volume recomputed at finish, #260); close after a session smoke
 - [#201](https://github.com/chrisdco/incline/issues/201) wrong-audience JWT retries forever — **addressed** (local aud/role/exp/sub pre-flight, auth errors stop the run and never bump attempts); close after the matrix
 
 ### D. Trust and visibility
@@ -278,7 +285,7 @@ ping); Track B → work #126; Track C → comment on #99. Close children
   SafeAreaView→contentInset; fonts config plugin (needs rebuild)
 - Monorepo React version split (accepted: pinned per runtime)
 - Session-set virtualization; useTransition refactors (manual busy states are fine)
-- SWR (no shared polling to dedupe); serialization micro-cuts
+- Serialization micro-cuts
 
 Rule going forward: a deferred item re-enters only via a tracked issue
 linked from its milestone — never as an untracked bullet in a new doc.
