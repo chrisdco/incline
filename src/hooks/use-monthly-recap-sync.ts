@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 
 import { getMonthlyRecap, monthlyRecapNotificationBody } from '@/db/queries';
 import { syncMonthlyRecapSchedule } from '@/lib/notifications/recap';
+import { runExclusive } from '@/lib/run-exclusive';
 import { useSettings } from '@/store/settings-store';
 
 /**
@@ -20,10 +21,8 @@ export function useMonthlyRecapSync() {
   useEffect(() => {
     let cancelled = false;
 
-    const run = async () => {
-      if (syncing.current) return;
-      syncing.current = true;
-      try {
+    const run = () =>
+      runExclusive(syncing, async () => {
         if (cancelled) return;
         let body = 'Open Incline for your monthly training report.';
         if (enabled) {
@@ -38,10 +37,7 @@ export function useMonthlyRecapSync() {
         }
         if (cancelled) return;
         await syncMonthlyRecapSchedule({ enabled, hour, minute, body });
-      } finally {
-        syncing.current = false;
-      }
-    };
+      });
 
     void run();
 

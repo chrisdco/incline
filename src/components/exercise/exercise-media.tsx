@@ -64,10 +64,12 @@ export function ExerciseMedia({
   const togglePause = async () => {
     const next = !paused;
     setPaused(next);
+    const image = imageRef.current;
+    if (!image) return;
     try {
       // Native controls only apply to animated GIFs; frame cycling pauses via state.
-      if (next) await imageRef.current?.stopAnimating();
-      else await imageRef.current?.startAnimating();
+      if (next) await image.stopAnimating();
+      else await image.startAnimating();
     } catch {
       // Native animation controls are best-effort on some platforms.
     }

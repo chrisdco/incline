@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { useAppAuth } from '@/auth/use-app-auth';
+import { clearCoachNarrationCache } from '@/coaching/narrate-client';
 
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { DeletionScheduledScreen } from '@/components/auth/deletion-scheduled-screen';
@@ -19,6 +20,12 @@ import { runSync, syncBackendReady } from '@/sync';
  * Root gate: routes based on auth state → deletion check → onboarding → app.
  * Flow: unauthenticated → (auth)/sign-in → (onboarding) → (app)/(tabs)
  */
+// Module-level so the bind effect's try block stays free of logical
+// expressions, which React Compiler can't lower inside try/catch.
+function switchWouldDropUploads(prepared: { switched: boolean; pending: number }): boolean {
+  return prepared.switched && prepared.pending > 0;
+}
+
 export default function Gate() {
   const ready = useDatabaseReady();
   const { isSignedIn, isLoaded: authLoaded, userId, getToken, signOut } = useAppAuth();
@@ -45,7 +52,6 @@ export default function Gate() {
   const finishBindFlow = useCallback(async (uid: string, switched: boolean) => {
     if (switched) {
       try {
-        const { clearCoachNarrationCache } = await import('@/coaching/narrate-client');
         await clearCoachNarrationCache();
       } catch {
         // narration cache is best-effort; bind must not fail on it
@@ -92,7 +98,7 @@ export default function Gate() {
       try {
         const prepared = await prepareAccountSwitch(userId);
         if (!active) return;
-        if (prepared.switched && prepared.pending > 0) {
+        if (switchWouldDropUploads(prepared)) {
           // Hold: completing the switch destroys these uploads. The dialog
           // below resumes via confirmSwitch.
           setSwitchGuard({ pending: prepared.pending });
@@ -131,9 +137,11 @@ export default function Gate() {
     setSwitchGuard(null);
     try {
       await signOut();
-    } finally {
+    } catch (error) {
       router.replace('/(auth)/sign-in');
+      throw error;
     }
+    router.replace('/(auth)/sign-in');
   };
 
   useEffect(() => {

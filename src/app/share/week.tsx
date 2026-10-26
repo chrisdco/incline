@@ -62,6 +62,8 @@ export default function ShareWeekScreen() {
   const run = async (mode: 'stories' | 'more' | 'download') => {
     if (!recap || busy || settling) return;
     setBusy(true);
+    // Computed outside the try: the compiler can't lower conditionals inside one.
+    const shareTitle = mode === 'stories' ? 'Share to Stories' : 'Share weekly report';
     try {
       const uri = await captureSharePng(captureRef);
       if (!uri) {
@@ -77,15 +79,14 @@ export default function ShareWeekScreen() {
       } else {
         await sharePngOrMessage({
           uri,
-          title: mode === 'stories' ? 'Share to Stories' : 'Share weekly report',
+          title: shareTitle,
           message,
         });
       }
     } catch {
       toast({ title: 'Could not share week', variant: 'destructive' });
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   if (loading || !recap) {

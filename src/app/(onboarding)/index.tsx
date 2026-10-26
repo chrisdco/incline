@@ -72,23 +72,24 @@ export default function OnboardingScreen() {
       return;
     }
     setSaving(true);
+    // Computed outside the try: the compiler can't lower conditionals inside one.
+    const bw = parseFloat(bodyweight);
+    const savedBodyweight = isNaN(bw) ? undefined : bw;
     try {
-      const bw = parseFloat(bodyweight);
       await completeOnboarding({
         name: name.trim(),
         goal,
         unit,
         experienceLevel,
-        bodyweight: isNaN(bw) ? undefined : bw,
+        bodyweight: savedBodyweight,
       });
       setUnitStore(unit);
       router.replace('/(app)/(tabs)');
     } catch (err) {
       console.error('ONBOARDING ERROR:', err);
       toast({ title: 'Something went wrong', variant: 'destructive' });
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   return (

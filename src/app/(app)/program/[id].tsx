@@ -31,6 +31,12 @@ import type { Program, ProgramWorkout } from '@/db/types';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Module-level so the loader's try block stays free of optional chaining
+// (React Compiler can't lower it inside try/catch).
+function isActiveProgram(active: Awaited<ReturnType<typeof getActiveProgramState>>, programId: number): boolean {
+  return active?.programId === programId;
+}
+
 export default function ProgramDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const programId = Number(id);
@@ -55,18 +61,17 @@ export default function ProgramDetailScreen() {
       const p = await getProgram(programId);
       if (!p) {
         setError(true);
-        return;
+      } else {
+        setProgram(p);
+        setError(false);
+        const active = await getActiveProgramState();
+        setIsActive(isActiveProgram(active, programId));
+        navigation.setOptions({ title: p.name });
       }
-      setProgram(p);
-      setError(false);
-      const active = await getActiveProgramState();
-      setIsActive(active?.programId === programId);
-      navigation.setOptions({ title: p.name });
     } catch {
       setError(true);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, [programId, navigation]);
 
   useEffect(() => {
@@ -88,9 +93,8 @@ export default function ProgramDetailScreen() {
       router.push(`/session/${logId}`);
     } catch {
       toast({ title: 'Could not start workout', variant: 'destructive' });
-    } finally {
-      setStarting(false);
     }
+    setStarting(false);
   };
 
   const handleStart = (templateId: number, name: string) => {

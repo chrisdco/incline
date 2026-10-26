@@ -69,21 +69,24 @@ export default function ProgramAdjustScreen() {
   const onConfirm = async () => {
     if (!diff || busy) return;
     setBusy(true);
+    // Computed outside the try: the compiler can't lower conditionals inside one.
+    const clearSlot =
+      diff.kind === 'catch_up' && diff.clearWeek != null && diff.clearDay != null
+        ? { week: diff.clearWeek, day: diff.clearDay }
+        : null;
+    const title = diff.kind === 'catch_up' ? 'Catch-up scheduled' : 'Lighter day added';
+    const description = `${diff.templateName} → week ${diff.targetWeek} ${DAY_LABEL[diff.targetDay] ?? ''}`.trim();
     try {
       let templateId = diff.templateId;
       if (diff.kind === 'deload_insert') {
         templateId = await createDeloadTemplate(diff.templateId);
       }
       await setProgramDay(diff.programId, diff.targetWeek, diff.targetDay, templateId);
-      if (diff.kind === 'catch_up' && diff.clearWeek != null && diff.clearDay != null) {
-        await clearProgramDay(diff.programId, diff.clearWeek, diff.clearDay);
+      if (clearSlot) {
+        await clearProgramDay(diff.programId, clearSlot.week, clearSlot.day);
       }
       await kvStorage.setItem(PLAN_APPLIED_KEY, String(Date.now()));
-      toast({
-        title: diff.kind === 'catch_up' ? 'Catch-up scheduled' : 'Lighter day added',
-        description: `${diff.templateName} → week ${diff.targetWeek} ${DAY_LABEL[diff.targetDay] ?? ''}`.trim(),
-        variant: 'success',
-      });
+      toast({ title, description, variant: 'success' });
       router.replace(`/program/${diff.programId}` as Href);
     } catch (e) {
       toast({
@@ -91,9 +94,8 @@ export default function ProgramAdjustScreen() {
         description: e instanceof Error ? e.message : 'Try again.',
         variant: 'destructive',
       });
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const onSnooze = async () => {

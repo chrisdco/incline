@@ -34,6 +34,7 @@ import {
   type SessionWorkout,
   type SessionSet,
 } from '@/db/queries';
+import { openDatabase } from '@/db/client';
 import { formatDuration, formatVolume, formatFullDateTime } from '@/db/calc';
 import { workingSetVolume } from '@/lib/session-ghost';
 import type { Exercise, SetEntry } from '@/db/types';
@@ -100,13 +101,13 @@ export default function EditWorkoutScreen() {
     setGroups([...map.values()]);
   }, [log]);
 
-  // Load image URLs for exercises
+  // Load image URLs for exercises. Keyed on the exercise ids (not `groups`)
+  // so the image merge below doesn't re-trigger this effect.
+  const exerciseIdsKey = groups.map((g) => g.exerciseId).join(',');
   useEffect(() => {
-    if (groups.length === 0) return;
-    const ids = groups.map((g) => g.exerciseId);
-    if (ids.length === 0) return;
+    if (exerciseIdsKey === '') return;
+    const ids = exerciseIdsKey.split(',').map(Number);
     (async () => {
-      const { openDatabase } = await import('@/db/client');
       const db = await openDatabase();
       const placeholders = ids.map(() => '?').join(',');
       const rows = await db.getAllAsync<{ exercise_id: number; url: string }>(
@@ -119,8 +120,7 @@ export default function EditWorkoutScreen() {
         prev.map((g) => ({ ...g, imageUrl: imgMap.get(g.exerciseId) ?? g.imageUrl })),
       );
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups.length]);
+  }, [exerciseIdsKey]);
 
   // Every mutation below goes through here: like the live session, a failed
   // write toasts and reloads instead of rejecting unhandled. (Enqueues are
@@ -220,9 +220,11 @@ export default function EditWorkoutScreen() {
       if (notes.trim()) await updateWorkoutNotes(logId, notes.trim());
       toast({ title: 'Changes saved', variant: 'success' });
       router.back();
-    } finally {
+    } catch (error) {
       setSaving(false);
+      throw error;
     }
+    setSaving(false);
   };
 
   const openDatePicker = () => {

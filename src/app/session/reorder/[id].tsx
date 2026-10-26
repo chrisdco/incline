@@ -33,6 +33,10 @@ function itemsFromSessionSets(
   return [...seen.values()];
 }
 
+function itemsFromSession(session: { sets: { exerciseId: number; exerciseName: string }[] } | null | undefined): ReorderItem[] {
+  return itemsFromSessionSets(session?.sets) ?? [];
+}
+
 /**
  * Reorder the exercises of a live session. Drag to arrange, Done persists —
  * saved for this session only (display-local `sort_order`, never synced).
@@ -60,7 +64,7 @@ export default function ReorderSessionScreen() {
       try {
         const session = await getWorkoutLog(logId);
         if (!active) return;
-        setItems(itemsFromSessionSets(session?.sets) ?? []);
+        setItems(itemsFromSession(session));
       } catch {
         if (!active) return;
         toast({ title: 'Could not load exercises', variant: 'destructive' });

@@ -26,6 +26,9 @@ export function useCloudSync(options?: { auto?: boolean }) {
     getTokenRef.current = getToken;
   }, [getToken]);
 
+  // Latest syncNow for the auto-sync effect, which keys on identity only.
+  const syncNowRef = useRef<() => Promise<unknown>>(async () => {});
+
   const refresh = useCallback(async () => {
     const [s, count] = await Promise.all([getSyncStatus(), outboxCount()]);
     if (!mounted.current) return;
@@ -61,18 +64,24 @@ export function useCloudSync(options?: { auto?: boolean }) {
     }
     syncingRef.current = true;
     setSyncing(true);
-    try {
-      const result = await runSync({
-        userId,
-        getToken: (opts) => getTokenRef.current(opts),
+    // Promise chain instead of try/finally, which React Compiler can't lower.
+    return runSync({
+      userId,
+      getToken: (opts) => getTokenRef.current(opts),
+    })
+      .then(async (result) => {
+        await refresh();
+        return result;
+      })
+      .finally(() => {
+        syncingRef.current = false;
+        if (mounted.current) setSyncing(false);
       });
-      await refresh();
-      return result;
-    } finally {
-      syncingRef.current = false;
-      if (mounted.current) setSyncing(false);
-    }
   }, [isSignedIn, userId, refresh]);
+
+  useEffect(() => {
+    syncNowRef.current = syncNow;
+  }, [syncNow]);
 
   useEffect(() => {
     mounted.current = true;
@@ -86,14 +95,13 @@ export function useCloudSync(options?: { auto?: boolean }) {
   useEffect(() => {
     if (!auto || !isSignedIn || !userId) return;
 
-    void syncNow();
+    void syncNowRef.current();
 
     const onChange = (next: AppStateStatus) => {
-      if (next === 'active') void syncNow();
+      if (next === 'active') void syncNowRef.current();
     };
     const sub = AppState.addEventListener('change', onChange);
     return () => sub.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncNow deliberately omitted; identity deps only
   }, [auto, isSignedIn, userId]);
 
   return {

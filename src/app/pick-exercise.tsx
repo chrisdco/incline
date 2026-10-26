@@ -135,9 +135,11 @@ export default function PickExerciseScreen() {
       if (applying || Number.isNaN(sessionId)) return;
       setApplying(true);
       impact();
+      // Computed outside the try: the compiler can't lower conditionals inside one.
+      const replaceTarget = isReplace ? replaceId : null;
       try {
-        if (isReplace && replaceId != null) {
-          await replaceExerciseInWorkout(sessionId, replaceId, ex.id);
+        if (replaceTarget != null) {
+          await replaceExerciseInWorkout(sessionId, replaceTarget, ex.id);
           toast({
             title: `Replaced with ${ex.name}`,
             description: 'Completed sets on the original stay in the log.',

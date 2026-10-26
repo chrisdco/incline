@@ -28,6 +28,26 @@ const EXPORT_RANGES: { id: ExportRange; label: string }[] = [
   { id: '365d', label: '1y' },
 ];
 
+// Module-level so the share handler's try block stays free of conditionals
+// (React Compiler can't lower them inside try/catch).
+function exportResultToast(result: Awaited<ReturnType<typeof shareSelectedExport>>) {
+  if (!result.shared) {
+    return {
+      title: 'Nothing to export',
+      description: 'Try a wider date range or another type.',
+      variant: 'warning' as const,
+    };
+  }
+  const asJson = result.format === 'json';
+  return {
+    title: asJson ? 'JSON ready to share' : 'CSV ready to share',
+    description: result.usedJsonFallback
+      ? 'Mixed types exported as JSON'
+      : `${result.itemCount} item${result.itemCount === 1 ? '' : 's'}`,
+    variant: 'success' as const,
+  };
+}
+
 export default function ExportScreen() {
   const router = useRouter();
   const { toast } = useToast();
@@ -55,27 +75,11 @@ export default function ExportScreen() {
     setBusy(true);
     try {
       const result = await shareSelectedExport(format, range, selection);
-      if (!result.shared) {
-        toast({
-          title: 'Nothing to export',
-          description: 'Try a wider date range or another type.',
-          variant: 'warning',
-        });
-        return;
-      }
-      const asJson = result.format === 'json';
-      toast({
-        title: asJson ? 'JSON ready to share' : 'CSV ready to share',
-        description: result.usedJsonFallback
-          ? 'Mixed types exported as JSON'
-          : `${result.itemCount} item${result.itemCount === 1 ? '' : 's'}`,
-        variant: 'success',
-      });
+      toast(exportResultToast(result));
     } catch {
       toast({ title: 'Could not export data', variant: 'destructive' });
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   return (

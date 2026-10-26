@@ -51,15 +51,14 @@ export default function SignInScreen() {
         redirectUrl: Linking.createURL('/'),
       });
       if (result.createdSessionId) {
-        await result.setActive?.({ session: result.createdSessionId });
+        if (result.setActive) await result.setActive({ session: result.createdSessionId });
         // Root gate binds Clerk user → local SQLite (wipes on account switch).
         router.replace('/');
       }
     } catch (err: any) {
       setError(err?.message ?? 'Google sign-in failed. Please try again.');
-    } finally {
-      setGoogleLoading(false);
     }
+    setGoogleLoading(false);
   }, [startSSOFlow, router]);
 
   const onSignInPress = async () => {
@@ -74,9 +73,8 @@ export default function SignInScreen() {
       }
     } catch (err: any) {
       setError(err?.errors?.[0]?.message ?? 'Sign in failed. Please try again.');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const openReset = () => {

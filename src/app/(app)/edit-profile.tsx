@@ -70,13 +70,15 @@ export default function EditProfileScreen() {
 
   const save = async () => {
     setSaving(true);
+    // Computed outside the try: the compiler can't lower conditionals inside one.
+    const bw = bodyweight.trim() ? parseFloat(bodyweight.replace(',', '.')) : null;
+    const savedBodyweight = Number.isFinite(bw as number) ? bw : null;
     try {
-      const bw = bodyweight.trim() ? parseFloat(bodyweight.replace(',', '.')) : null;
       await saveProfile({
         name: name.trim(),
         goal,
         experienceLevel,
-        bodyweight: Number.isFinite(bw as number) ? bw : null,
+        bodyweight: savedBodyweight,
         avatarUrl,
       });
       refetch();
@@ -84,9 +86,8 @@ export default function EditProfileScreen() {
       router.back();
     } catch {
       toast({ title: 'Could not save profile', variant: 'destructive' });
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   return (

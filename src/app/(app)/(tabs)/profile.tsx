@@ -113,17 +113,16 @@ export default function ProfileScreen() {
       await resetUserData();
     } catch (err) {
       console.warn('[profile] local wipe incomplete after scheduled deletion', err);
-    } finally {
-      useActiveWorkout.getState().clear();
-      setDeleteOpen(false);
-      setDeleting(false);
-      try {
-        await signOut();
-      } catch {
-        // Clerk sign-out is best-effort here; the gate re-routes regardless.
-      }
-      router.replace('/(auth)/sign-in' as Href);
     }
+    useActiveWorkout.getState().clear();
+    setDeleteOpen(false);
+    setDeleting(false);
+    try {
+      await signOut();
+    } catch {
+      // Clerk sign-out is best-effort here; the gate re-routes regardless.
+    }
+    router.replace('/(auth)/sign-in' as Href);
   };
 
   const achievements = evaluateAchievements(stats);
@@ -318,7 +317,6 @@ export default function ProfileScreen() {
             <View className="mt-4 gap-2 rounded-3xl border border-dashed border-border p-4">
               <Caption className="mb-1 font-semibold">Dev Tools</Caption>
               <Button variant="outline" size="sm" onPress={async () => {
-                const { resetUserData } = await import('@/db/queries');
                 await resetUserData();
                 Alert.alert('Done', 'Logs, bodyweight, and profile cleared. Routines kept.');
                 router.replace('/(onboarding)');

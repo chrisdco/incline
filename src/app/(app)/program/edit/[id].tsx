@@ -93,19 +93,19 @@ export default function ProgramEditScreen() {
     setSaving(true);
     try {
       const idSaved = await ensureProgram();
-      if (!idSaved) return;
-      impact();
-      toast({ title: 'Program saved', variant: 'success' });
-      if (isNew) {
-        router.replace(`/program/edit/${idSaved}`);
-      } else {
-        await reload(idSaved);
+      if (idSaved) {
+        impact();
+        toast({ title: 'Program saved', variant: 'success' });
+        if (isNew) {
+          router.replace(`/program/edit/${idSaved}`);
+        } else {
+          await reload(idSaved);
+        }
       }
     } catch {
       toast({ title: 'Could not save', variant: 'destructive' });
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   const assignSlot = async (templateId: number) => {
@@ -113,16 +113,16 @@ export default function ProgramEditScreen() {
     setSaving(true);
     try {
       const idSaved = await ensureProgram();
-      if (!idSaved) return;
-      await setProgramDay(idSaved, slotPicker.week, slotPicker.day, templateId);
-      await reload(idSaved);
-      setSlotPicker(null);
-      impact();
+      if (idSaved) {
+        await setProgramDay(idSaved, slotPicker.week, slotPicker.day, templateId);
+        await reload(idSaved);
+        setSlotPicker(null);
+        impact();
+      }
     } catch {
       toast({ title: 'Could not assign routine', variant: 'destructive' });
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   const clearSlot = async (week: number, day: number) => {
@@ -159,9 +159,8 @@ export default function ProgramEditScreen() {
       router.replace('/(app)/(tabs)/workouts');
     } catch {
       toast({ title: 'Could not delete', variant: 'destructive' });
-    } finally {
-      setDeleteOpen(false);
     }
+    setDeleteOpen(false);
   };
 
   const slotFor = (week: number, day: number) =>

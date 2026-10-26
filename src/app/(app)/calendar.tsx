@@ -93,6 +93,10 @@ interface MonthItem {
   offset: number;
 }
 
+function weekGoalLabel(c: { goal: number; sessionsThisWeek: number }): string | null {
+  return c.goal > 0 ? `${c.sessionsThisWeek}/${c.goal} this week` : null;
+}
+
 function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -383,11 +387,7 @@ export default function CalendarScreen() {
         setMetricsByDate(metrics);
         setStreak(consistency.currentWeeklyStreak);
         setBestStreak(consistency.bestWeeklyStreak);
-        setWeekGoalProgress(
-          consistency.goal > 0
-            ? `${consistency.sessionsThisWeek}/${consistency.goal} this week`
-            : null,
-        );
+        setWeekGoalProgress(weekGoalLabel(consistency));
       } catch {
         // Leave the calendar usable even if stats fail to load.
       }

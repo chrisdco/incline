@@ -18,7 +18,7 @@ export function Progress({
   const rowW = useSharedValue(0);
 
   useEffect(() => {
-    fill.value = withTiming(pct / 100, { duration: 320 });
+    fill.set(withTiming(pct / 100, { duration: 320 }));
   }, [pct, fill]);
 
   // GPU-only fill (see rest-timer): scaleX instead of width %.
@@ -34,7 +34,7 @@ export function Progress({
     <View
       className={cn('h-2.5 w-full overflow-hidden rounded-full bg-muted', className)}
       onLayout={(e) => {
-        rowW.value = e.nativeEvent.layout.width;
+        rowW.set(e.nativeEvent.layout.width);
       }}
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: pct }}>

@@ -86,11 +86,11 @@ export function Button({
   }));
 
   const onPressIn = useCallback(() => {
-    scale.value = withSpring(motionPress.scale, motionPress.spring);
+    scale.set(withSpring(motionPress.scale, motionPress.spring));
   }, [scale]);
 
   const onPressOut = useCallback(() => {
-    scale.value = withSpring(1, motionPress.spring);
+    scale.set(withSpring(1, motionPress.spring));
   }, [scale]);
 
   const label = asButtonLabel(children);

@@ -47,9 +47,8 @@ export default function DeloadScreen() {
         description: e instanceof Error ? e.message : 'Try again.',
         variant: 'destructive',
       });
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const onSnooze = async () => {

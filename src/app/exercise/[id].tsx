@@ -75,9 +75,8 @@ export default function ExerciseDetailScreen() {
       setSupabaseExercise(await getExerciseByExternalId(externalId));
     } catch {
       setSupabaseExercise(null);
-    } finally {
-      setSupabaseLoading(false);
     }
+    setSupabaseLoading(false);
   }, [externalId]);
 
   useEffect(() => {
