@@ -11,6 +11,21 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/cn';
 import { useHaptics } from '@/hooks/use-haptics';
 import * as Haptics from 'expo-haptics';
+import { useRestTimerStore } from '@/store/rest-timer-store';
+
+/**
+ * RestTimer bound to the rest-timer store. The only subscriber to the 1s
+ * `remaining` tick, so the session tree above it stays still during rest.
+ */
+export function RestTimerBar(props: {
+  onAdd: (delta: number) => void;
+  onSkip: () => void;
+  caption?: string;
+}) {
+  const remaining = useRestTimerStore((s) => s.remaining);
+  const total = useRestTimerStore((s) => s.total);
+  return <RestTimer remaining={remaining} total={total} {...props} />;
+}
 
 /**
  * Compact rest-timer bar shown at the bottom of the session screen.

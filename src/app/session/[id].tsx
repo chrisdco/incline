@@ -22,7 +22,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
 import { ExerciseBlock } from '@/components/workout/exercise-block';
 import { DiscardSessionDialog } from '@/components/workout/discard-session-dialog';
-import { RestTimer } from '@/components/workout/rest-timer';
+import { RestTimerBar } from '@/components/workout/rest-timer';
 import { RestPresetBar } from '@/components/workout/rest-preset-bar';
 import { useRestTimer } from '@/hooks/use-rest-timer';
 import { useRestTimerSound } from '@/hooks/use-rest-timer-sound';
@@ -907,10 +907,8 @@ export default function SessionScreen() {
         </View>
       ) : null}
 
-      {rest.running || rest.remaining > 0 || rest.justFinished ? (
-        <RestTimer
-          remaining={rest.remaining}
-          total={rest.total}
+      {rest.visible ? (
+        <RestTimerBar
           caption={restKind === 'superset' ? 'Superset rest' : undefined}
           onAdd={rest.add}
           onSkip={rest.stop}
