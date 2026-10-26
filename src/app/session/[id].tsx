@@ -9,6 +9,7 @@ import {
   type ViewInstance,
 } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, MessageSquarePlus, Pause, Play, Plus, Undo2, X } from 'lucide-react-native';
@@ -106,6 +107,16 @@ function SessionClock({
   return <Body className={className}>{formatClock(elapsed)}</Body>;
 }
 
+/** Sequential on purpose: each restore re-enqueues its log row. */
+async function restoreSetsInOrder(setIds: number[]): Promise<void> {
+  for (const setId of setIds) await restoreSet(setId);
+}
+
+function removedSetsDescription(removed: number): string | undefined {
+  if (removed <= 0) return undefined;
+  return `${removed} set${removed === 1 ? '' : 's'} left this session. Your routine is untouched.`;
+}
+
 export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const logId = Number(id);
@@ -124,15 +135,9 @@ export default function SessionScreen() {
 
   useEffect(() => {
     if (!keepScreenAwake) return;
-    let cancelled = false;
-    void import('expo-keep-awake').then(({ activateKeepAwakeAsync }) => {
-      if (!cancelled) void activateKeepAwakeAsync('incline-session');
-    });
+    void activateKeepAwakeAsync('incline-session');
     return () => {
-      cancelled = true;
-      void import('expo-keep-awake').then(({ deactivateKeepAwake }) => {
-        deactivateKeepAwake('incline-session');
-      });
+      void deactivateKeepAwake('incline-session');
     };
   }, [keepScreenAwake]);
 
@@ -178,13 +183,9 @@ export default function SessionScreen() {
   useEffect(() => {
     if (!keepScreenAwake) return;
     if (pausedAt !== null) {
-      void import('expo-keep-awake').then(({ deactivateKeepAwake }) => {
-        deactivateKeepAwake('incline-session');
-      });
+      void deactivateKeepAwake('incline-session');
     } else {
-      void import('expo-keep-awake').then(({ activateKeepAwakeAsync }) => {
-        void activateKeepAwakeAsync('incline-session');
-      });
+      void activateKeepAwakeAsync('incline-session');
     }
   }, [keepScreenAwake, pausedAt]);
 
@@ -393,11 +394,10 @@ export default function SessionScreen() {
     const target = groupSets.find((s) => !s.completed) ?? groupSets.at(-1);
     if (!target) return;
     impact();
+    // Built outside the try: the compiler can't lower conditionals inside one.
+    const patch = reps != null && reps > 0 ? { weight, reps } : { weight };
     try {
-      await updateSet(target.id, {
-        weight,
-        ...(reps != null && reps > 0 ? { reps } : null),
-      });
+      await updateSet(target.id, patch);
       reload();
     } catch {
       toast({ title: 'Could not apply load', variant: 'destructive' });
@@ -595,10 +595,7 @@ export default function SessionScreen() {
       lastRemovedExerciseRef.current = snapshot;
       toast({
         title: `${target.name} removed`,
-        description:
-          removed > 0
-            ? `${removed} set${removed === 1 ? '' : 's'} left this session. Your routine is untouched.`
-            : undefined,
+        description: removedSetsDescription(removed),
         variant: 'info',
         durationMs: 6000,
         action: {
@@ -609,9 +606,7 @@ export default function SessionScreen() {
               if (!snap) return;
               lastRemovedExerciseRef.current = null;
               try {
-                for (const setId of snap.setIds) {
-                  await restoreSet(setId);
-                }
+                await restoreSetsInOrder(snap.setIds);
                 reloadAll();
                 toast({ title: `${snap.name} restored`, variant: 'success' });
               } catch {
@@ -634,10 +629,12 @@ export default function SessionScreen() {
     setFinishing(true);
     setFinishOpen(false);
     rest.stop();
+    // Computed outside the try: the compiler can't lower conditionals inside one.
+    const finalNotes = notes.trim();
+    const pauseBonus = pausedAt ? Date.now() - pausedAt : 0;
+    const pausedMs = totalPausedMsRef.current + pauseBonus;
     try {
-      if (notes.trim()) await updateWorkoutNotes(logId, notes.trim());
-      const pauseBonus = pausedAt ? Date.now() - pausedAt : 0;
-      const pausedMs = totalPausedMsRef.current + pauseBonus;
+      if (finalNotes) await updateWorkoutNotes(logId, finalNotes);
       await finishWorkout(logId, { pausedMs });
       clear();
       dropCachedSession(logId);
