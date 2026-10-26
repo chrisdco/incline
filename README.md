@@ -59,7 +59,7 @@ Offline-first strength training app for React Native + Expo. Log sets in the gym
 | [ROADMAP.md](ROADMAP.md) | Milestones P0–P4 index |
 | [docs/decisions/](docs/decisions/) | Standing decisions (storage/lists, deletion, Amber port) |
 | [docs/archive/](docs/archive/) | Shipped history (sprint, P1–P2 notes, audits) — read-only |
-| [AGENTS.md](AGENTS.md) | Agent entry (Expo SDK 57 + rules) |
+| [AGENTS.md](AGENTS.md) | Agent entry (Expo SDK 58 + rules) |
 
 Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
 
@@ -67,9 +67,9 @@ Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
 
 | Layer | Technology |
 |-------|------------|
-| App | Expo SDK 57, React Native 0.86, Expo Router |
+| App | Expo SDK 58, React Native 0.88, Expo Router, React Compiler |
 | UI | NativeWind v4, Reanimated, Lucide, Gifted Charts, FlashList, Geist |
-| Local data | expo-sqlite (schema v19: search text, set order, session notes), Zustand + SQLite `kv` |
+| Local data | expo-sqlite (schema v19: search text, set order, session notes), `mutate()` write path, TanStack Query reads, Zustand + SQLite `kv` |
 | Auth | Clerk (`@clerk/expo`) |
 | Cloud | Supabase (exercise catalog + user sync tables / RLS) |
 | Coaching | Pure TypeScript rules in `src/coaching/` (no model keys in the app) |
