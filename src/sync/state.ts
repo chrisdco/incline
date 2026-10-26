@@ -1,5 +1,6 @@
 import { openDatabase } from '@/db/client';
-import type { SyncStatus } from './types';
+import { EMPTY_CURSOR, type TableCursor } from './cursor';
+import type { SyncStatus, SyncTable } from './types';
 
 const KEYS = {
   lastPullAt: 'sync_last_pull_at',
@@ -8,6 +9,8 @@ const KEYS = {
   status: 'sync_status',
   lastError: 'sync_last_error',
 } as const;
+
+const TABLE_CURSOR_PREFIX = 'sync_cursor:';
 
 async function getMeta(key: string): Promise<string | null> {
   const db = await openDatabase();
@@ -59,4 +62,58 @@ export async function resetSyncState(): Promise<void> {
   for (const key of Object.values(KEYS)) {
     await db.runAsync('DELETE FROM schema_meta WHERE key = ?', key);
   }
+  await db.runAsync('DELETE FROM schema_meta WHERE key LIKE ?', `${TABLE_CURSOR_PREFIX}%`);
+}
+
+function parseCursor(raw: string | null): TableCursor | null {
+  if (!raw) return null;
+  try {
+    const c = JSON.parse(raw) as Partial<TableCursor>;
+    return {
+      ts: typeof c.ts === 'string' ? c.ts : null,
+      id: typeof c.id === 'string' ? c.id : null,
+      retry: c.retry && typeof c.retry === 'object' ? c.retry : {},
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Per-table pull cursors (#140). First call after upgrade seeds every table
+ * from the old shared ms cursor (id = null → inclusive `>=` fetch, harmless
+ * re-apply) and deletes it, so a table added later starts from zero instead
+ * of inheriting a position it never pulled to.
+ */
+export async function getTableCursors(
+  tables: readonly SyncTable[],
+): Promise<Record<string, TableCursor>> {
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<{ key: string; value: string }>(
+    'SELECT key, value FROM schema_meta WHERE key LIKE ?',
+    `${TABLE_CURSOR_PREFIX}%`,
+  );
+  const out: Record<string, TableCursor> = {};
+  for (const r of rows) {
+    const c = parseCursor(r.value);
+    if (c) out[r.key.slice(TABLE_CURSOR_PREFIX.length)] = c;
+  }
+
+  const legacy = Number(await getMeta(KEYS.cursor));
+  if (Number.isFinite(legacy) && legacy > 0) {
+    const seed: TableCursor = { ...EMPTY_CURSOR, ts: new Date(legacy).toISOString() };
+    for (const t of tables) {
+      if (out[t]) continue;
+      out[t] = seed;
+      await setTableCursor(t, seed);
+    }
+    await db.runAsync('DELETE FROM schema_meta WHERE key = ?', KEYS.cursor);
+  }
+
+  for (const t of tables) out[t] ??= EMPTY_CURSOR;
+  return out;
+}
+
+export async function setTableCursor(table: SyncTable, cursor: TableCursor): Promise<void> {
+  await setMeta(`${TABLE_CURSOR_PREFIX}${table}`, JSON.stringify(cursor));
 }

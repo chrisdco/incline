@@ -62,6 +62,60 @@ export async function getAuthedSupabase(getToken: GetToken): Promise<SupabaseCli
   return _authed;
 }
 
+export type TokenCheck = { ok: true } | { ok: false; reason: string };
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const part = token.split('.')[1];
+  if (!part) return null;
+  try {
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    return JSON.parse(atob(padded)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Local pre-flight on the sync JWT (#201). The bare `getToken()` fallback
+ * yields a Clerk session token Supabase rejects (wrong audience, no role), so
+ * every run used to fail RLS and burn outbox attempts — looking like a bad
+ * network forever. Accept `aud` containing "authenticated" (JWT template) or
+ * `role: "authenticated"` (Clerk native Supabase integration).
+ */
+export function inspectSyncToken(token: string, userId: string, nowMs = Date.now()): TokenCheck {
+  const claims = decodeJwtPayload(token);
+  if (!claims) return { ok: false, reason: 'Sync token is not a JWT' };
+  const aud = claims.aud;
+  const audOk = Array.isArray(aud) ? aud.includes('authenticated') : aud === 'authenticated';
+  if (!audOk && claims.role !== 'authenticated') {
+    return {
+      ok: false,
+      reason: 'Sync sign-in misconfigured: token is not for Supabase (check the Clerk "supabase" JWT template)',
+    };
+  }
+  if (typeof claims.exp === 'number' && claims.exp * 1000 <= nowMs) {
+    return { ok: false, reason: 'Sync token expired — sign in again' };
+  }
+  if (claims.sub !== userId) {
+    return { ok: false, reason: 'Sync token belongs to a different account' };
+  }
+  return { ok: true };
+}
+
+export type SyncClientResult =
+  | { ok: true; client: SupabaseClient }
+  | { ok: false; reason: string };
+
+/** Authed client for runSync, refusing tokens that would only fail RLS. */
+export async function getSyncClient(getToken: GetToken, userId: string): Promise<SyncClientResult> {
+  const client = await getAuthedSupabase(getToken);
+  if (!client || !_token) return { ok: false, reason: 'Not authenticated for sync' };
+  const check = inspectSyncToken(_token, userId);
+  if (!check.ok) return check;
+  return { ok: true, client };
+}
+
 export function clearAuthedSupabase(): void {
   _authed = null;
   _token = null;

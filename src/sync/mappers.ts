@@ -1,4 +1,4 @@
-import type { ExerciseRef, TemplateRef } from './types';
+import type { ExerciseRef, SyncOp, SyncTable, TemplateRef } from './types';
 import { isSetType, type SetType } from '@/db/types';
 
 export function msToIso(ms: number | null | undefined): string | null {
@@ -251,4 +251,126 @@ export function buildCloudUpsertRow(
   }
 
   return row;
+}
+
+/** One element of the `sync_push` RPC's p_ops array (see supabase/sync-schema.sql). */
+export interface PushOp {
+  op: SyncOp;
+  row: Record<string, unknown>;
+}
+
+function singletonPushOp(
+  table: 'profiles' | 'user_active_program' | 'user_preferences',
+  userId: string,
+  op: SyncOp,
+  payload: Record<string, unknown>,
+  updatedAt: number,
+  deletedAt: number | null,
+): PushOp {
+  const updated_at = msToIso(updatedAt);
+
+  if (table === 'profiles') {
+    if (op === 'delete') {
+      return {
+        op: 'delete',
+        row: { user_id: userId, updated_at, deleted_at: msToIso(deletedAt ?? updatedAt) },
+      };
+    }
+    return {
+      op: 'upsert',
+      row: {
+        user_id: userId,
+        name: payload.name ?? '',
+        goal: payload.goal ?? 'build_muscle',
+        bodyweight: payload.bodyweight ?? null,
+        unit: payload.unit ?? 'metric',
+        experience_level: payload.experience_level ?? 'intermediate',
+        onboarding_completed: !!payload.onboarding_completed,
+        avatar_url: payload.avatar_url ?? null,
+        updated_at,
+        deleted_at: msToIso(deletedAt),
+      },
+    };
+  }
+
+  if (table === 'user_active_program') {
+    // Clearing the active program is a full-row upsert of nulls + tombstone,
+    // so it lands even when the cloud never had a row.
+    if (op === 'delete' || deletedAt != null) {
+      return {
+        op: 'upsert',
+        row: {
+          user_id: userId,
+          custom_program_id: null,
+          seed_program_id: null,
+          started_at: null,
+          updated_at,
+          deleted_at: msToIso(deletedAt ?? updatedAt),
+        },
+      };
+    }
+    return {
+      op: 'upsert',
+      row: {
+        user_id: userId,
+        custom_program_id: payload.custom_program_uuid ?? null,
+        seed_program_id: payload.seed_program_id ?? null,
+        started_at: msToIso(payload.started_at as number),
+        updated_at,
+        deleted_at: null,
+      },
+    };
+  }
+
+  return {
+    op: 'upsert',
+    row: {
+      user_id: userId,
+      payload: {
+        themeMode: payload.themeMode,
+        accentTheme: payload.accentTheme,
+        calendarHeatMetric: payload.calendarHeatMetric,
+        weekStartsOn: payload.weekStartsOn,
+        weeklyWorkoutGoal: payload.weeklyWorkoutGoal,
+        enabledBodyMetrics: payload.enabledBodyMetrics,
+        showWarmUpSets: payload.showWarmUpSets,
+        showRpe: payload.showRpe,
+        autoStartRest: payload.autoStartRest,
+        defaultRestSeconds: payload.defaultRestSeconds,
+        showSessionGhost: payload.showSessionGhost,
+      },
+      updated_at,
+      deleted_at: msToIso(deletedAt),
+    },
+  };
+}
+
+/**
+ * Map one outbox row to its `sync_push` op. Throws on an unreadable payload
+ * (the caller counts it as a failed attempt). Deletes on id-keyed tables are
+ * tombstone-only: their payloads carry just updated_at / deleted_at.
+ */
+export function buildPushOp(
+  table: SyncTable,
+  item: { rowUuid: string; op: SyncOp; payload: string | null },
+  userId: string,
+  nowMs = Date.now(),
+): PushOp {
+  const payload = item.payload ? (JSON.parse(item.payload) as Record<string, unknown>) : {};
+  const updatedAt = typeof payload.updated_at === 'number' ? payload.updated_at : nowMs;
+  const deletedAt = typeof payload.deleted_at === 'number' ? payload.deleted_at : null;
+
+  if (table === 'profiles' || table === 'user_active_program' || table === 'user_preferences') {
+    return singletonPushOp(table, userId, item.op, payload, updatedAt, deletedAt);
+  }
+  if (item.op === 'delete') {
+    return {
+      op: 'delete',
+      row: baseCloudRow(item.rowUuid, userId, updatedAt, deletedAt ?? updatedAt),
+    };
+  }
+  return {
+    op: 'upsert',
+    row: buildCloudUpsertRow(table, item.rowUuid, userId, payload, updatedAt, deletedAt),
+  };
 }

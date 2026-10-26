@@ -4,28 +4,23 @@ import { openDatabase } from '@/db/client';
 import { newUuid } from '@/lib/uuid';
 import { buildSearchText } from '@/lib/exercise-search';
 import type { SyncTable } from './types';
-import {
-  bumpOutboxAttempt,
-  listOutbox,
-  removeOutbox,
-  type OutboxRow,
-} from './outbox';
-import { getSyncStatus, setSyncStatus } from './state';
-import { getAuthedSupabase, syncBackendReady, type GetToken } from './supabase-auth';
+import { quarantinedOutboxCount } from './outbox';
+import { getTableCursors, setSyncStatus, setTableCursor } from './state';
+import { getSyncClient, syncBackendReady, type GetToken } from './supabase-auth';
 import { resolveExerciseRef } from './exercise-ref';
 import {
   asNum,
   asNumOrNull,
   asSetType,
   asStr,
-  buildCloudUpsertRow,
   cloudToExerciseRef,
   cloudToTemplateRef,
   isoToMs,
-  msToIso,
 } from './mappers';
-import { PUSH_ORDER, PULL_TABLES, cloudTableFor } from './tables';
-import { foldPullCursor, type ApplyStatus } from './cursor';
+import { PULL_TABLES } from './tables';
+import type { ApplyStatus } from './cursor';
+import { MAX_PUSH_ATTEMPTS, pushOutbox, supabasePushRpc } from './push';
+import { pullTable, supabasePullSource } from './pull';
 import { resolveTemplateRef } from './template-ref';
 import { drainPhotoBlobs, enqueuePhotoBlob, localPhotoPath } from './photo-blobs';
 import { File } from 'expo-file-system';
@@ -34,190 +29,7 @@ import { ACTIVE_PROGRAM_KEY } from '@/db/queries/programs';
 import { applyRemoteAccountPrefs } from '@/store/settings-store';
 import { ACCOUNT_PREFS_UPDATED_AT_KEY } from './account-prefs';
 
-function sortOutbox(rows: OutboxRow[]): OutboxRow[] {
-  return [...rows].sort((a, b) => {
-    const ai = PUSH_ORDER.indexOf(a.tableName);
-    const bi = PUSH_ORDER.indexOf(b.tableName);
-    if (ai !== bi) return ai - bi;
-    return a.id - b.id;
-  });
-}
-
-async function pushOne(
-  client: SupabaseClient,
-  userId: string,
-  item: OutboxRow,
-): Promise<'ok' | 'retry'> {
-  const payload = item.payload ? (JSON.parse(item.payload) as Record<string, unknown>) : {};
-  const updatedAt = (payload.updated_at as number) ?? Date.now();
-  const deletedAt = (payload.deleted_at as number | null) ?? null;
-
-  try {
-    if (item.tableName === 'profiles') {
-      if (item.op === 'delete') {
-        const { error } = await client
-          .from('profiles')
-          .update({ deleted_at: msToIso(deletedAt ?? Date.now()), updated_at: msToIso(updatedAt) })
-          .eq('user_id', userId);
-        if (error) throw error;
-        return 'ok';
-      }
-      const { data: existing } = await client
-        .from('profiles')
-        .select('updated_at, name, onboarding_completed')
-        .eq('user_id', userId)
-        .maybeSingle();
-      const remoteMs = isoToMs(existing?.updated_at as string | undefined) ?? 0;
-      if (existing && remoteMs > updatedAt) return 'ok'; // LWW: remote newer
-
-      // Never clobber a named cloud profile with an empty local placeholder.
-      const localEmpty =
-        !String(payload.name ?? '').trim() && !payload.onboarding_completed;
-      const remoteHasProfile =
-        !!existing &&
-        (!!String(existing.name ?? '').trim() || !!existing.onboarding_completed);
-      if (localEmpty && remoteHasProfile) return 'ok';
-
-      const { error } = await client.from('profiles').upsert({
-        user_id: userId,
-        name: payload.name ?? '',
-        goal: payload.goal ?? 'build_muscle',
-        bodyweight: payload.bodyweight ?? null,
-        unit: payload.unit ?? 'metric',
-        experience_level: payload.experience_level ?? 'intermediate',
-        onboarding_completed: !!(payload.onboarding_completed),
-        avatar_url: payload.avatar_url ?? null,
-        updated_at: msToIso(updatedAt),
-        deleted_at: msToIso(deletedAt),
-      });
-      if (error) throw error;
-      return 'ok';
-    }
-
-    if (item.tableName === 'user_active_program') {
-      if (item.op === 'delete' || payload.deleted_at) {
-        const { data: existing } = await client
-          .from('user_active_program')
-          .select('updated_at')
-          .eq('user_id', userId)
-          .maybeSingle();
-        const remoteMs = isoToMs(existing?.updated_at as string | undefined) ?? 0;
-        if (existing && remoteMs > updatedAt) return 'ok';
-        const { error } = await client.from('user_active_program').upsert({
-          user_id: userId,
-          custom_program_id: null,
-          seed_program_id: null,
-          started_at: null,
-          updated_at: msToIso(updatedAt),
-          deleted_at: msToIso(deletedAt ?? Date.now()),
-        });
-        if (error) throw error;
-        return 'ok';
-      }
-      const { data: existing } = await client
-        .from('user_active_program')
-        .select('updated_at')
-        .eq('user_id', userId)
-        .maybeSingle();
-      const remoteMs = isoToMs(existing?.updated_at as string | undefined) ?? 0;
-      if (existing && remoteMs > updatedAt) return 'ok';
-      const { error } = await client.from('user_active_program').upsert({
-        user_id: userId,
-        custom_program_id: payload.custom_program_uuid ?? null,
-        seed_program_id: payload.seed_program_id ?? null,
-        started_at: msToIso(payload.started_at as number),
-        updated_at: msToIso(updatedAt),
-        deleted_at: null,
-      });
-      if (error) throw error;
-      return 'ok';
-    }
-
-    if (item.tableName === 'user_preferences') {
-      const { data: existing } = await client
-        .from('user_preferences')
-        .select('updated_at')
-        .eq('user_id', userId)
-        .maybeSingle();
-      const remoteMs = isoToMs(existing?.updated_at as string | undefined) ?? 0;
-      if (existing && remoteMs > updatedAt) return 'ok';
-      const { error } = await client.from('user_preferences').upsert({
-        user_id: userId,
-        payload: {
-          themeMode: payload.themeMode,
-          accentTheme: payload.accentTheme,
-          calendarHeatMetric: payload.calendarHeatMetric,
-          weekStartsOn: payload.weekStartsOn,
-          weeklyWorkoutGoal: payload.weeklyWorkoutGoal,
-          enabledBodyMetrics: payload.enabledBodyMetrics,
-          showWarmUpSets: payload.showWarmUpSets,
-          showRpe: payload.showRpe,
-          autoStartRest: payload.autoStartRest,
-          defaultRestSeconds: payload.defaultRestSeconds,
-          showSessionGhost: payload.showSessionGhost,
-        },
-        updated_at: msToIso(updatedAt),
-        deleted_at: msToIso(deletedAt),
-      });
-      if (error) throw error;
-      return 'ok';
-    }
-
-    const cloudTable = cloudTableFor(item.tableName);
-    if (
-      !cloudTable ||
-      cloudTable === 'profiles' ||
-      cloudTable === 'user_active_program' ||
-      cloudTable === 'user_preferences'
-    ) {
-      console.warn('[sync] refusing to ack unknown table', item.tableName);
-      return 'retry';
-    }
-
-    if (item.op === 'delete') {
-      const { data: existing } = await client
-        .from(cloudTable)
-        .select('updated_at')
-        .eq('id', item.rowUuid)
-        .maybeSingle();
-      const remoteMs = isoToMs(existing?.updated_at as string | undefined) ?? 0;
-      if (existing && remoteMs > updatedAt) return 'ok';
-      const { error } = await client
-        .from(cloudTable)
-        .update({ deleted_at: msToIso(deletedAt ?? Date.now()), updated_at: msToIso(updatedAt) })
-        .eq('id', item.rowUuid)
-        .eq('user_id', userId);
-      if (error) throw error;
-      return 'ok';
-    }
-
-    const { data: existing } = await client
-      .from(cloudTable)
-      .select('updated_at')
-      .eq('id', item.rowUuid)
-      .maybeSingle();
-    const remoteMs = isoToMs(existing?.updated_at as string | undefined) ?? 0;
-    if (existing && remoteMs > updatedAt) return 'ok';
-
-    const row = buildCloudUpsertRow(
-      cloudTable,
-      item.rowUuid,
-      userId,
-      payload,
-      updatedAt,
-      deletedAt,
-    );
-
-    const { error } = await client.from(cloudTable).upsert(row);
-    if (error) throw error;
-    return 'ok';
-  } catch (err) {
-    console.warn('[sync] push failed', item.tableName, item.rowUuid, err);
-    return 'retry';
-  }
-}
-
-async function applyRemoteRow(
+export async function applyRemoteRow(
   table: SyncTable,
   remote: Record<string, unknown>,
   userId: string,
@@ -775,10 +587,21 @@ async function applyRemoteRow(
   return 'ok';
 }
 
-async function pullAll(client: SupabaseClient, userId: string, cursor: number): Promise<number> {
-  const cursorIso = new Date(cursor).toISOString();
-  const results: { ms: number; status: ApplyStatus }[] = [];
+/** Apply one pulled page in a single SQLite transaction (#140): all-or-nothing per page. */
+async function applyPage(
+  table: SyncTable,
+  rows: Record<string, unknown>[],
+  userId: string,
+): Promise<ApplyStatus[]> {
+  const db = await openDatabase();
+  const statuses: ApplyStatus[] = [];
+  await db.withTransactionAsync(async () => {
+    for (const row of rows) statuses.push(await applyRemoteRow(table, row, userId));
+  });
+  return statuses;
+}
 
+async function pullAll(client: SupabaseClient, userId: string): Promise<void> {
   // If local profile is still an empty placeholder, always fetch the cloud row
   // (ignores cursor). Fixes account-switch races where workouts pulled but name did not.
   const db = await openDatabase();
@@ -790,48 +613,21 @@ async function pullAll(client: SupabaseClient, userId: string, cursor: number): 
   if (needsProfileHydrate) {
     const res = await client.from('profiles').select('*').eq('user_id', userId).maybeSingle();
     if (res.error) throw res.error;
-    if (res.data) {
-      const status = await applyRemoteRow('profiles', res.data as Record<string, unknown>, userId);
-      const ms = isoToMs(res.data.updated_at as string) ?? 0;
-      results.push({ ms, status });
-    }
+    if (res.data) await applyRemoteRow('profiles', res.data as Record<string, unknown>, userId);
   }
 
-  for (const { table, cloud } of PULL_TABLES) {
-    if (cloud === 'profiles' && needsProfileHydrate) continue;
-
-    const { data, error } = await client
-      .from(cloud)
-      .select('*')
-      .eq('user_id', userId)
-      .gt('updated_at', cursorIso)
-      .order('updated_at', { ascending: true })
-      .limit(500);
-
-    if (error) {
-      if (cloud === 'profiles' || cloud === 'user_active_program' || cloud === 'user_preferences') {
-        const res = await client.from(cloud).select('*').eq('user_id', userId).maybeSingle();
-        if (res.error) throw res.error;
-        if (res.data) {
-          const ms = isoToMs(res.data.updated_at as string) ?? 0;
-          if (ms > cursor) {
-            const status = await applyRemoteRow(table, res.data as Record<string, unknown>, userId);
-            results.push({ ms, status });
-          }
-        }
-        continue;
-      }
-      throw error;
-    }
-
-    for (const row of data ?? []) {
-      const status = await applyRemoteRow(table, row as Record<string, unknown>, userId);
-      const ms = isoToMs((row as { updated_at?: string }).updated_at) ?? 0;
-      results.push({ ms, status });
-    }
+  const source = supabasePullSource(client, userId);
+  const cursors = await getTableCursors(PULL_TABLES.map((t) => t.table));
+  for (const spec of PULL_TABLES) {
+    if (spec.table === 'profiles' && needsProfileHydrate) continue;
+    await pullTable(
+      spec,
+      cursors[spec.table],
+      source,
+      (table, rows) => applyPage(table, rows, userId),
+      (cursor) => setTableCursor(spec.table, cursor),
+    );
   }
-
-  return foldPullCursor(cursor, results);
 }
 
 let _running = false;
@@ -858,42 +654,27 @@ export async function runSync(opts: {
   await setSyncStatus({ status: 'syncing', lastError: null });
 
   try {
-    const client = await getAuthedSupabase(opts.getToken);
-    if (!client) {
-      await setSyncStatus({ status: 'error', lastError: 'Not authenticated for sync' });
-      return { ok: false, pushed: 0, error: 'Not authenticated for sync' };
+    // Token pre-flight is local: a misconfigured / wrong-audience token stops
+    // here with a clear status and never touches outbox attempts (#201).
+    const auth = await getSyncClient(opts.getToken, opts.userId);
+    if (!auth.ok) {
+      await setSyncStatus({ status: 'error', lastError: auth.reason });
+      return { ok: false, pushed: 0, error: auth.reason };
     }
+    const client = auth.client;
 
-    const pending = sortOutbox(await listOutbox(200));
-    let pushed = 0;
-    for (const item of pending) {
-      const result = await pushOne(client, opts.userId, item);
-      if (result === 'ok') {
-        await removeOutbox(item);
-        pushed++;
-      } else {
-        await bumpOutboxAttempt(item.id);
-        // Exponential-ish backoff: stop batch after first failure to preserve order
-        if (item.attempts >= 8) {
-          await setSyncStatus({
-            status: 'error',
-            lastError: `Failed to sync ${item.tableName} after retries`,
-          });
-          return { ok: false, pushed, error: `Failed to sync ${item.tableName}` };
-        }
-        break;
-      }
-    }
+    const { pushed } = await pushOutbox(opts.userId, supabasePushRpc(client));
+    await setSyncStatus({ lastPushAt: Date.now() });
 
-    const status = await getSyncStatus();
-    const newCursor = await pullAll(client, opts.userId, status.cursor);
-    const now = Date.now();
+    await pullAll(client, opts.userId);
+
+    const parked = await quarantinedOutboxCount(MAX_PUSH_ATTEMPTS);
     await setSyncStatus({
       status: 'idle',
-      lastError: null,
-      lastPushAt: now,
-      lastPullAt: now,
-      cursor: newCursor,
+      lastError: parked > 0
+        ? `${parked} change${parked === 1 ? '' : 's'} could not upload — editing ${parked === 1 ? 'it' : 'them'} again retries`
+        : null,
+      lastPullAt: Date.now(),
     });
 
     void drainPhotoBlobs(opts).catch((err) => console.warn('[photos] drain failed', err));

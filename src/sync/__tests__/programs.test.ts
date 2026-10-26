@@ -1,32 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { foldPullCursor } from '../cursor';
 import { cloudToTemplateRef, templateRefToCloud } from '../mappers';
-
-describe('foldPullCursor', () => {
-  it('advances past applied rows when nothing is blocked', () => {
-    expect(
-      foldPullCursor(100, [
-        { ms: 200, status: 'ok' },
-        { ms: 500, status: 'ok' },
-      ]),
-    ).toBe(500);
-  });
-
-  it('does not advance past a blocked child', () => {
-    expect(
-      foldPullCursor(100, [
-        { ms: 200, status: 'ok' },
-        { ms: 300, status: 'blocked' },
-        { ms: 800, status: 'ok' },
-      ]),
-    ).toBe(299);
-  });
-
-  it('keeps the current cursor when the first blocked row is next', () => {
-    expect(foldPullCursor(100, [{ ms: 101, status: 'blocked' }])).toBe(100);
-  });
-});
 
 describe('template refs', () => {
   it('never sends a seed template UUID to cloud', () => {

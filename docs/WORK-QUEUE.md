@@ -28,6 +28,7 @@ Rules for every slice:
 - Take **one** slice. Name it in the first message (`Slice: rest-deeplink`).
 - Do not expand into Week-2 Track A Live Activities, #126 volume rewrite, #83, or social.
 - Do not rewrite `src/sync/engine.ts` unless the slice is a **matrix bugfix** with a failing case.
+  (The Batch C protocol rewrite was an owner-approved exception; the rule stands again.)
 - Session logging must never await network / AI / upload.
 - Prefer a focused PR. Do not mix docs-only with behavior changes.
 
@@ -113,11 +114,16 @@ Verify: kill the app mid-anything, no half-states, no lost edits.
 
 Verify with the two-device matrix. Related: #83.
 
-- [#139](https://github.com/chrisdco/incline/issues/139) push batch head-of-line blocking + poison rows
-- [#140](https://github.com/chrisdco/incline/issues/140) shared pull cursor stalls / under-pulls big restores
-- [#143](https://github.com/chrisdco/incline/issues/143) two-device concurrent edits silently lose one side
+Protocol rewrite landed (batched `sync_push` RPC, server-side LWW, per-table
+cursors; see [TECH-DECISIONS §11](./decisions/TECH-DECISIONS.md)). It needs
+`supabase/sync-schema.sql` deployed first, then the two-device matrix run on
+the new protocol before #139/#140/#201 close.
+
+- [#139](https://github.com/chrisdco/incline/issues/139) push batch head-of-line blocking + poison rows — **addressed** (per-row status, quarantine at 8 attempts, keyset paging past 200); close after the matrix
+- [#140](https://github.com/chrisdco/incline/issues/140) shared pull cursor stalls / under-pulls big restores — **addressed** (per-table `(updated_at, id)` cursors, page until exhausted, transactional pages, blocked-row retry set); close after the matrix
+- [#143](https://github.com/chrisdco/incline/issues/143) two-device concurrent edits silently lose one side — **partly**: LWW is now atomic server-side with deterministic ties; still whole-row and device clock (decide server timestamps / field merge from the matrix)
 - [#199](https://github.com/chrisdco/incline/issues/199) outbox write amplification per keystroke
-- [#201](https://github.com/chrisdco/incline/issues/201) wrong-audience JWT retries forever
+- [#201](https://github.com/chrisdco/incline/issues/201) wrong-audience JWT retries forever — **addressed** (local aud/role/exp/sub pre-flight, auth errors stop the run and never bump attempts); close after the matrix
 
 ### D. Trust and visibility
 
