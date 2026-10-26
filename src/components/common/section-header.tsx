@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 
 /** Section heading with an optional trailing action (e.g. "See all"). */
 export function SectionHeader({

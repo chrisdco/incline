@@ -2,8 +2,10 @@ import { View } from 'react-native';
 import { Image } from 'expo-image';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 
+// Identity palette, not theme colors: a name must keep the same avatar hue
+// across accents and schemes, so the hex entries are deliberately fixed.
 const COLORS = [
   'bg-primary',
   'bg-info',

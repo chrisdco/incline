@@ -1,55 +1,16 @@
 /**
  * Theme hex tokens for native props that cannot use Tailwind classNames
  * (ActivityIndicator, chart libs, etc.).
- * Accent primary comes from the selected brand theme; neutrals stay fixed.
+ * Values and the pure resolver live in `src/styles/tokens.ts`; this module
+ * adds the settings-aware hooks.
  */
-import { ACCENT_THEMES, DEFAULT_ACCENT_THEME, type AccentTheme } from '@/lib/accent-themes';
+import { DEFAULT_ACCENT_THEME, type AccentTheme } from '@/lib/accent-themes';
 import { useSettings } from '@/store/settings-store';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
+import { themeHex, type Scheme } from '@/styles/tokens';
 
-const NEUTRALS = {
-  light: {
-    muted: '#e4e4e7',
-    mutedForeground: '#62626a',
-    foreground: '#09090b',
-    background: '#f9f9fb',
-    surface1: '#ffffff',
-    surface2: '#f4f4f5',
-    card: '#ffffff',
-    border: '#e4e4e7',
-  },
-  dark: {
-    muted: '#3f3f46',
-    mutedForeground: '#afafb6',
-    foreground: '#fafafa',
-    background: '#0c0c0e',
-    surface1: '#151519',
-    surface2: '#1d1d20',
-    card: '#151519',
-    border: '#242428',
-  },
-} as const;
-
-export type ThemeScheme = 'light' | 'dark';
-
-/** Tinted dark bases for the aurora skins — must match global.css. */
-const DARK_BASE: Partial<Record<AccentTheme, string>> = {
-  rose: '#0b0509',
-  electron: '#04070b',
-};
-
-export function themeHex(
-  scheme: ThemeScheme | null | undefined,
-  accent: AccentTheme = DEFAULT_ACCENT_THEME,
-) {
-  const mode = scheme === 'dark' ? 'dark' : 'light';
-  const def = ACCENT_THEMES[accent] ?? ACCENT_THEMES[DEFAULT_ACCENT_THEME];
-  return {
-    ...NEUTRALS[mode],
-    background: mode === 'dark' ? (DARK_BASE[accent] ?? NEUTRALS.dark.background) : NEUTRALS.light.background,
-    primary: def.hex[mode],
-  };
-}
+export { themeHex };
+export type ThemeScheme = Scheme;
 
 export function primaryHex(
   scheme: ThemeScheme | null | undefined,

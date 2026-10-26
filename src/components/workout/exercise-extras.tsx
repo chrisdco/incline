@@ -3,9 +3,8 @@ import { Pressable, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { MessageSquarePlus } from 'lucide-react-native';
 
-import { Caption } from '@/components/common/text';
+import { Caption, Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
-import { Text } from '@/components/ui/text';
 import { getExercise, getSessionExerciseNote, saveSessionExerciseNote } from '@/db/queries';
 import { calculatePlates } from '@/lib/plate-calculator';
 import { METRIC_ICONS } from '@/lib/metric-icons';

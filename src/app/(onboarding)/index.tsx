@@ -4,8 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInRight } from 'react-native-reanimated';
 
-import { Heading, Body, Caption } from '@/components/common/text';
-import { Text } from '@/components/ui/text';
+import { Heading, Body, Caption, Text } from '@/components/common/text';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InitialsAvatar } from '@/components/common/initials-avatar';

@@ -1,10 +1,9 @@
 /**
- * Accent-aware palettes for the widgets. Kept apart from the pure snapshot
- * builders so those never drag the settings store (and SQLite) into tests or
- * the widget bundle.
+ * Accent-aware palettes for the widgets. Reads `src/styles/tokens.ts` (the
+ * same source as `themeHex` in lib/theme) directly, so neither the snapshot
+ * builders nor the widget bundle drag the settings store (and SQLite) in.
  */
-import type { AccentTheme } from '@/lib/accent-themes';
-import { themeHex, type ThemeScheme } from '@/lib/theme';
+import { themeHex, type AccentTheme, type Scheme as ThemeScheme } from '@/styles/tokens';
 
 import type { WidgetPalette, WidgetPalettes } from './types';
 

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { View } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { cn } from '@/lib/cn';
 import { useThemeHex } from '@/lib/theme';
 import { formatVolume } from '@/db/calc';

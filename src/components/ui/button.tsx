@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
 import { motionControl, motionPress } from '@/styles/motion';
-import { Text } from './text';
+import { Text } from '@/components/common/text';
 
 const buttonVariants = cva('flex-row items-center justify-center gap-2 rounded-full', {
   variants: {

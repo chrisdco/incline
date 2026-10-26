@@ -23,7 +23,7 @@ import {
 import { useProfile } from '@/hooks/use-data';
 import { useCloudSync } from '@/hooks/use-cloud-sync';
 import { saveProfile } from '@/db/queries';
-import { ACCENT_THEME_LIST, CLASSIC_ACCENTS, isAuroraAccent } from '@/lib/accent-themes';
+import { ACCENT_THEMES, ACCENT_THEME_LIST, CLASSIC_ACCENTS, isAuroraAccent } from '@/lib/accent-themes';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import {
@@ -36,6 +36,7 @@ import {
 } from '@/lib/notifications';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { cn } from '@/lib/cn';
+import { NATIVE_NEUTRALS } from '@/styles/tokens';
 import type { Unit } from '@/db/types';
 
 const WEEKDAY_CHIPS: { jsDay: number; label: string }[] = [
@@ -616,9 +617,9 @@ export default function SettingsScreen() {
             <View className="gap-2 px-1">
               {(
                 [
-                  { id: 'classic', label: 'Classic', hint: 'Clean base + accent dots below', swatch: scheme === 'dark' ? '#0c0c0e' : '#f9f9fb', ring: scheme === 'dark' ? '#3f3f46' : '#e4e4e7' },
-                  { id: 'electron', label: 'Electron', hint: 'Cyan aurora · neon dark skin', swatch: scheme === 'dark' ? '#3DCDF5' : '#0B8A9E', ring: null },
-                  { id: 'rose', label: 'Rose', hint: 'Pink aurora · neon dark skin', swatch: scheme === 'dark' ? '#F368AB' : '#DB3A7B', ring: null },
+                  { id: 'classic', label: 'Classic', hint: 'Clean base + accent dots below', swatch: NATIVE_NEUTRALS[scheme].background, ring: NATIVE_NEUTRALS[scheme].muted },
+                  { id: 'electron', label: 'Electron', hint: 'Cyan aurora · neon dark skin', swatch: ACCENT_THEMES.electron.hex[scheme], ring: null },
+                  { id: 'rose', label: 'Rose', hint: 'Pink aurora · neon dark skin', swatch: ACCENT_THEMES.rose.hex[scheme], ring: null },
                 ] as const
               ).map((preset) => {
                 const selected = preset.id === 'classic' ? !auroraActive : accentTheme === preset.id;

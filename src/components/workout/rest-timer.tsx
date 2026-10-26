@@ -7,7 +7,7 @@ import Animated, {
 import { useEffect } from 'react';
 
 import { formatClock } from '@/db/calc';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { cn } from '@/lib/cn';
 import { useHaptics } from '@/hooks/use-haptics';
 import * as Haptics from 'expo-haptics';

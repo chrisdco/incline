@@ -1,6 +1,11 @@
-import { View } from 'react-native';
+import { View, type ViewProps } from 'react-native';
 
-import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/cn';
+
+/** Base placeholder block. */
+export function Skeleton({ className, ...props }: ViewProps) {
+  return <View className={cn('rounded-xl bg-muted', className)} {...props} />;
+}
 
 /** Skeleton presets that mirror common screen layouts. */
 export function CardSkeleton() {

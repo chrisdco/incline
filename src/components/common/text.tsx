@@ -1,8 +1,12 @@
 import type { ReactNode } from 'react';
-import { type TextProps } from 'react-native';
+import { Text as RNText, type TextProps } from 'react-native';
 
-import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/cn';
+
+/** Base text primitive: Geist + foreground. The semantic wrappers below build on it. */
+export function Text({ className, ...props }: TextProps) {
+  return <RNText className={cn('font-sans text-base text-foreground', className)} {...props} />;
+}
 
 /**
  * Semantic text components. Thin wrappers over <Text> with sensible default

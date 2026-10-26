@@ -5,7 +5,7 @@ import ReanimatedSwipeable, {
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
 import { Check, Trash2 } from 'lucide-react-native';
 import { useHaptics } from '@/hooks/use-haptics';

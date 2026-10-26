@@ -3,10 +3,9 @@ import { Pressable, View } from 'react-native';
 import { Settings } from 'lucide-react-native';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
 import { Sheet } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Caption } from '@/components/common/text';
+import { Caption, Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
 import { REST_PRESETS } from '@/constants/rest-presets';
 import { updateExerciseDefaultRest } from '@/db/queries';

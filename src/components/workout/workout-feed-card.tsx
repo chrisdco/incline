@@ -4,8 +4,7 @@ import { useRouter, type Href } from 'expo-router';
 import { Clock, Weight, Medal, MoreHorizontal, Share2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
-import { Text } from '@/components/ui/text';
-import { Caption, Body } from '@/components/common/text';
+import { Caption, Body, Text } from '@/components/common/text';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { ExerciseThumb } from '@/components/exercise/exercise-media';
 import { formatDuration, formatVolume, relativeTime } from '@/db/calc';

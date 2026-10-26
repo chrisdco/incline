@@ -1,3 +1,7 @@
+/*
+ * GENERATED from src/styles/tokens.ts — do not edit by hand.
+ * Change tokens.ts, then run `pnpm tokens:css` (CI fails when this is stale).
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

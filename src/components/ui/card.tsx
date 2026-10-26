@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 
 import { cn } from '@/lib/cn';
 import { useAuroraSkin } from '@/lib/use-color-scheme';
-import { Text } from './text';
+import { Text } from '@/components/common/text';
 
 type CardProps = ViewProps & {
   elevation?: 'flat' | 'raised';

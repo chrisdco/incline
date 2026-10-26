@@ -3,7 +3,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 
 /**
  * Custom segmented control with animated sliding indicator.

@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { View, type ViewProps } from 'react-native';
 
 import { cn } from '@/lib/cn';
-import { Text } from './text';
+import { Text } from '@/components/common/text';
 
 const badgeVariants = cva('flex-row items-center rounded-full px-2.5 py-1', {
   variants: {

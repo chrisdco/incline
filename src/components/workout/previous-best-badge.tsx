@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { formatWeight } from '@/db/calc';
 import type { SetEntry, Unit } from '@/db/types';
 

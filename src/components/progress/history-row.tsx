@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { PressableCard } from '@/components/ui/card';
 import { formatDuration, formatFullDate, formatVolume } from '@/db/calc';
 import type { Unit, WorkoutLog } from '@/db/types';

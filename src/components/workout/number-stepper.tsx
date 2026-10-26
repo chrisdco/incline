@@ -5,7 +5,7 @@ import { View, type StyleProp, type TextInputInstance, type ViewStyle } from 're
 import { TextInput } from 'react-native-gesture-handler';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { clamp } from '@/db/calc';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
 import { SET_INPUT_HEIGHT } from './set-layout';

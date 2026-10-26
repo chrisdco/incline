@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { normalizeRpe } from '@/coaching/rpe';
 
 const PRIMARY = [6, 7, 8, 9, 10] as const;

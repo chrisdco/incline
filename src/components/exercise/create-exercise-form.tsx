@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
-import { Caption, Body } from '@/components/common/text';
+import { Caption, Body, Text } from '@/components/common/text';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/common/chip';

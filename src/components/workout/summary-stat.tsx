@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
-import { Caption } from '@/components/common/text';
+import { Caption, Text } from '@/components/common/text';
 
 /** Labeled metric used in the workout summary. */
 export function SummaryStat({
