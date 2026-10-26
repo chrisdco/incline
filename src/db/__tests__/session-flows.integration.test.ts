@@ -274,6 +274,28 @@ describe('exercise-level ops', () => {
     expect(ids).not.toContain(2);
   });
 
+  it('keeps the replaced exercise in its slot (#169)', async () => {
+    await seedExercise(1);
+    await seedExercise(2);
+    await seedExercise(3);
+    await seedExercise(4);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    await addExerciseToWorkout(logId, 2);
+    await addExerciseToWorkout(logId, 3);
+    // Nothing completed on 2: every old set drops, the slot must survive.
+    await replaceExerciseInWorkout(logId, 2, 4);
+    let session = await getWorkoutLog(logId);
+    expect([...new Set(session?.sets.map((s) => s.exerciseId))]).toEqual([1, 4, 3]);
+
+    // Completed work on the old exercise stays, directly after the replacement.
+    const one = session?.sets.find((s) => s.exerciseId === 1);
+    await updateSet(one!.id, { completed: true, weight: 50, reps: 5 });
+    await replaceExerciseInWorkout(logId, 1, 2);
+    session = await getWorkoutLog(logId);
+    expect([...new Set(session?.sets.map((s) => s.exerciseId))]).toEqual([2, 1, 4, 3]);
+  });
+
   it('restores a removed set', async () => {
     await seedExercise(1);
     const logId = await startWorkout(null, 'Push');

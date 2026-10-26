@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react-native';
+import { create } from 'zustand';
 
 import { Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
@@ -41,6 +42,13 @@ interface ToastContextValue {
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+
+/**
+ * Bottom offset override for the snackbar. A screen that owns a bottom dock
+ * (session: rest timer + keyboard) publishes its height here so the toast
+ * stacks above it instead of colliding; null = default tab-bar clearance.
+ */
+export const useToastInset = create<{ bottom: number | null }>(() => ({ bottom: null }));
 
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
@@ -87,6 +95,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   // nested Pressables both fire, and the second dismiss would eat the queue.
   const actionFiredRef = useRef(false);
   const insets = useSafeAreaInsets();
+  const insetOverride = useToastInset((s) => s.bottom);
   const current = queue[0] ?? null;
 
   const dismiss = useCallback(() => {
@@ -140,7 +149,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <View pointerEvents="box-none" className="absolute inset-0 z-50 justify-end" style={{ bottom: insets.bottom + 88 }}>
+      <View pointerEvents="box-none" className="absolute inset-0 z-50 justify-end" style={{ bottom: insetOverride ?? insets.bottom + 88 }}>
         {current ? (
           <View className="items-center px-6">
             <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOutDown.duration(160)}>
