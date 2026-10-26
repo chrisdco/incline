@@ -46,19 +46,18 @@ export async function enqueueSync(
   );
 }
 
-export async function listOutbox(limit = 100): Promise<OutboxRow[]> {
-  const db = await openDatabase();
-  const rows = await db.getAllAsync<{
-    id: number;
-    table_name: string;
-    row_uuid: string;
-    op: string;
-    payload: string | null;
-    created_at: number;
-    attempts: number;
-  }>('SELECT * FROM sync_outbox ORDER BY id ASC LIMIT ?', limit);
+interface OutboxDbRow {
+  id: number;
+  table_name: string;
+  row_uuid: string;
+  op: string;
+  payload: string | null;
+  created_at: number;
+  attempts: number;
+}
 
-  return rows.map((r) => ({
+function mapOutboxRow(r: OutboxDbRow): OutboxRow {
+  return {
     id: r.id,
     tableName: r.table_name as SyncTable,
     rowUuid: r.row_uuid,
@@ -66,7 +65,63 @@ export async function listOutbox(limit = 100): Promise<OutboxRow[]> {
     payload: r.payload,
     createdAt: r.created_at,
     attempts: r.attempts,
-  }));
+  };
+}
+
+export async function listOutbox(limit = 100): Promise<OutboxRow[]> {
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<OutboxDbRow>(
+    'SELECT * FROM sync_outbox ORDER BY id ASC LIMIT ?',
+    limit,
+  );
+  return rows.map(mapOutboxRow);
+}
+
+/**
+ * One keyset page of a table's pushable rows (id > afterId, attempts below
+ * the quarantine threshold). Keyset, not OFFSET, so rows that fail and stay
+ * behind never get re-read within the same run.
+ */
+export async function listPushableOutbox(
+  tableName: SyncTable,
+  opts: { afterId: number; maxAttempts: number; limit: number },
+): Promise<OutboxRow[]> {
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<OutboxDbRow>(
+    `SELECT * FROM sync_outbox
+     WHERE table_name = ? AND id > ? AND attempts < ?
+     ORDER BY id ASC LIMIT ?`,
+    tableName,
+    opts.afterId,
+    opts.maxAttempts,
+    opts.limit,
+  );
+  return rows.map(mapOutboxRow);
+}
+
+/** Rows parked at/after the attempt threshold. A new edit resets attempts (see enqueueSync). */
+export async function quarantinedOutboxCount(maxAttempts: number): Promise<number> {
+  const db = await openDatabase();
+  const row = await db.getFirstAsync<{ c: number }>(
+    'SELECT COUNT(*) as c FROM sync_outbox WHERE attempts >= ?',
+    maxAttempts,
+  );
+  return row?.c ?? 0;
+}
+
+/** Park rows for tables this build cannot push, instead of retrying them forever (#139). */
+export async function quarantineUnknownTables(
+  known: readonly string[],
+  maxAttempts: number,
+): Promise<void> {
+  const db = await openDatabase();
+  await db.runAsync(
+    `UPDATE sync_outbox SET attempts = ?
+     WHERE attempts < ? AND table_name NOT IN (${known.map(() => '?').join(', ')})`,
+    maxAttempts,
+    maxAttempts,
+    ...known,
+  );
 }
 
 /**
@@ -89,9 +144,23 @@ export async function removeOutbox(
   );
 }
 
-export async function bumpOutboxAttempt(id: number): Promise<void> {
+/**
+ * Count a failed push against the row — same match as removeOutbox, so an
+ * edit that coalesced in mid-push starts fresh instead of inheriting the
+ * failure (and never gets quarantined for the old payload's error).
+ */
+export async function bumpOutboxAttempt(
+  item: Pick<OutboxRow, 'id' | 'op' | 'payload' | 'createdAt'>,
+): Promise<void> {
   const db = await openDatabase();
-  await db.runAsync('UPDATE sync_outbox SET attempts = attempts + 1 WHERE id = ?', id);
+  await db.runAsync(
+    `UPDATE sync_outbox SET attempts = attempts + 1
+     WHERE id = ? AND op = ? AND payload IS ? AND created_at = ?`,
+    item.id,
+    item.op,
+    item.payload,
+    item.createdAt,
+  );
 }
 
 export async function clearOutbox(): Promise<void> {
