@@ -163,8 +163,8 @@ export async function bumpOutboxAttempt(
   );
 }
 
-export async function clearOutbox(): Promise<void> {
-  const db = await openDatabase();
+export async function clearOutbox(tx?: Tx): Promise<void> {
+  const db = tx ?? (await openDatabase());
   await db.execAsync('DELETE FROM sync_outbox');
 }
 

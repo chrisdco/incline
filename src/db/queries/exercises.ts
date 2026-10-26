@@ -1,5 +1,4 @@
 import { openDatabase } from '../client';
-import { emitTablesChanged } from '../changes';
 import { newUuid } from '@/lib/uuid';
 import { buildSearchText, scoreField, tokenize } from '@/lib/exercise-search';
 import { enqueueSync } from '@/sync/outbox';
@@ -269,8 +268,9 @@ export async function getCustomExerciseUsage(exerciseId: number): Promise<number
 }
 
 export async function updateExerciseDefaultRest(exerciseId: number, seconds: number): Promise<void> {
-  const db = await openDatabase();
-  await db.runAsync('UPDATE exercises SET default_rest_seconds = ?, updated_at = ? WHERE id = ?', seconds, Date.now(), exerciseId);
+  await mutate(['exercises'], async (tx) => {
+    await tx.runAsync('UPDATE exercises SET default_rest_seconds = ?, updated_at = ? WHERE id = ?', seconds, Date.now(), exerciseId);
+  });
 }
 
 export async function getExerciseDefaultRest(exerciseId: number): Promise<number> {
@@ -310,36 +310,36 @@ export async function ensureExerciseExists(
   if (existing) return existing.id;
 
   const now = Date.now();
-  const res = await db.runAsync(
-     `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, external_id, difficulty, default_rest_seconds, tips, search_text, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 0, 'exercisedb', ?, 'intermediate', ?, '', ?, ?, ?)`,
-    exercise.name, exercise.primaryMuscle, exercise.movementPattern ?? 'isolation', exercise.equipment,
-    exercise.category, exercise.isCompound ? 1 : 0, externalId,
-    exercise.defaultRestSeconds ?? 90,
-    buildSearchText({ name: exercise.name, primaryMuscle: exercise.primaryMuscle, equipment: exercise.equipment, pattern: exercise.movementPattern, category: exercise.category }),
-    now, now,
-  );
-  const id = res.lastInsertRowId as number;
-
-  // Secondary muscles
-  for (const muscle of exercise.secondaryMuscles ?? []) {
-    await db.runAsync(
-      'INSERT INTO exercise_secondary_muscles (exercise_id, muscle) VALUES (?, ?)',
-      id, muscle,
+  return mutate(['exercises', 'exercise_secondary_muscles', 'exercise_instructions'], async (tx) => {
+    const res = await tx.runAsync(
+       `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, external_id, difficulty, default_rest_seconds, tips, search_text, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 0, 'exercisedb', ?, 'intermediate', ?, '', ?, ?, ?)`,
+      exercise.name, exercise.primaryMuscle, exercise.movementPattern ?? 'isolation', exercise.equipment,
+      exercise.category, exercise.isCompound ? 1 : 0, externalId,
+      exercise.defaultRestSeconds ?? 90,
+      buildSearchText({ name: exercise.name, primaryMuscle: exercise.primaryMuscle, equipment: exercise.equipment, pattern: exercise.movementPattern, category: exercise.category }),
+      now, now,
     );
-  }
+    const id = res.lastInsertRowId as number;
 
-  // Instructions
-  for (let i = 0; i < (exercise.instructions ?? []).length; i++) {
-    await db.runAsync(
-      'INSERT INTO exercise_instructions (exercise_id, step, text) VALUES (?, ?, ?)',
-      id, i + 1, exercise.instructions![i],
-    );
-  }
+    // Secondary muscles
+    for (const muscle of exercise.secondaryMuscles ?? []) {
+      await tx.runAsync(
+        'INSERT INTO exercise_secondary_muscles (exercise_id, muscle) VALUES (?, ?)',
+        id, muscle,
+      );
+    }
 
-  // Written on the shared connection, not mutate(): announce it explicitly.
-  emitTablesChanged(['exercises']);
-  return id;
+    // Instructions
+    for (let i = 0; i < (exercise.instructions ?? []).length; i++) {
+      await tx.runAsync(
+        'INSERT INTO exercise_instructions (exercise_id, step, text) VALUES (?, ?, ?)',
+        id, i + 1, exercise.instructions![i],
+      );
+    }
+
+    return id;
+  });
 }
 
 /** Most recent completed sets for an exercise (used for carry-over values). */

@@ -80,6 +80,12 @@ Short-lived alternatives log. Revisit only when a trigger below fires; otherwise
 - **Cached-first, no spinner regressions:** `placeholderData: keepPreviousData`; hooks keep the `{ data, loading, error, refetch }` shape so the §8 skeleton rule (`loading && data == null`) is unchanged. The catalog query never GCs and is prefetched 2 s after launch; the live session entry is read/written via `getCachedSession` / `setCachedSession` and is never observed while the session screen owns it, so per-edit invalidation costs nothing.
 - **Over-including a table is cheap** (one extra refetch on focus); missing one leaves a screen stale — err wide when adding a key.
 - **Revisit when:** the session screen moves onto a query of its own (session-engine refactor) → give it a narrow key and optimistic `setQueryData` instead of local state.
+- **Writes: every app write in `src/db/queries/` goes through `mutate()`** (`src/db/write.ts`, #141/#138): the row changes and their outbox enqueues share one BEGIN IMMEDIATE transaction and roll back together; enqueue failures propagate to the caller. Reads inside a write use the `tx`; helpers that write take it as a parameter (never nest `mutate()`). File I/O stays outside the transaction (photos: copy first, delete the copy if the DB write fails; deletes remove files only after commit). `resetUserData` is one transaction over every user table, the outbox and sync cursors, and still clears the `QueryClient` up front for both reset paths (Profile → reset, account switch).
+- **Deliberate exceptions** (write on the shared connection, outside `mutate()`; covered by the update hook):
+  - `src/sync/*` — pull apply, push bookkeeping (`removeOutbox`, `bumpOutboxAttempt`, quarantine), cursors/status, `photo_blob_queue`. `clearOutbox` / `resetSyncState` accept a `tx` so `resetUserData` can include them.
+  - Seeding (`src/db/seed*`) and migrations — run before the app reads anything.
+  - `src/db/kv.ts` (`kvStorage`, Zustand persistence) — UI/session state, no outbox. The active program is the one synced kv key: `programs.ts` writes it on the `mutate()` tx so the kv row and its outbox entry commit together.
+  - `src/db/account.ts` owner claim in `schema_meta`.
 
 ## 12. Theme tokens: one TS source, generated `global.css` (2026-10-26)
 

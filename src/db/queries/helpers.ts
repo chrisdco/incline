@@ -319,13 +319,12 @@ export function isSubsequence(needle: string, hay: string): boolean {
   return i === needle.length;
 }
 
-export async function recomputeVolume(logId: number, tx?: Tx): Promise<void> {
-  const db = tx ?? (await openDatabase());
-  const r = await db.getFirstAsync<{ v: number }>(
+export async function recomputeVolume(logId: number, tx: Tx): Promise<void> {
+  const r = await tx.getFirstAsync<{ v: number }>(
     'SELECT COALESCE(SUM(weight * reps), 0) as v FROM set_entries WHERE workout_log_id = ? AND completed = 1 AND deleted_at IS NULL',
     logId,
   );
-  await db.runAsync('UPDATE workout_logs SET total_volume = ?, updated_at = ? WHERE id = ?', r?.v ?? 0, Date.now(), logId);
+  await tx.runAsync('UPDATE workout_logs SET total_volume = ?, updated_at = ? WHERE id = ?', r?.v ?? 0, Date.now(), logId);
 }
 
 /**
