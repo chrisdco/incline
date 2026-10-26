@@ -1,3 +1,4 @@
+import { cmToDisplay, kgToDisplay } from '@/lib/units';
 import type { BodyMetric, Unit } from '@/db/types';
 import { BODY_METRICS } from '@/db/types';
 
@@ -10,6 +11,11 @@ export const BODY_METRIC_LABELS: Record<BodyMetric, string> = {
   thighs: 'Thighs',
   calves: 'Calves',
 };
+
+/** Canonical kg (bodyweight) or cm (circumference) → the display number. */
+export function bodyMetricToDisplay(metric: BodyMetric, canonical: number, unit: Unit): number {
+  return metric === 'bodyweight' ? kgToDisplay(canonical, unit) : cmToDisplay(canonical, unit);
+}
 
 export function bodyMetricUnit(metric: BodyMetric, unit: Unit): string {
   if (metric === 'bodyweight') return unit === 'metric' ? 'kg' : 'lb';

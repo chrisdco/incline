@@ -1,4 +1,17 @@
-/** Number/date formatting mirrored from the mobile app (db/calc). */
+/**
+ * Number/date formatting mirrored from the mobile app (db/calc).
+ *
+ * Storage rule (TECH-DECISIONS §15): loads in Supabase are canonical kg.
+ * `formatWeight`/`formatVolume` take a value already in the display unit —
+ * convert with `toDisplayWeight` (or `kgToDisplay`) first.
+ */
+
+export const LB_PER_KG = 2.2046226218;
+
+/** Canonical kg → the number shown in `unit` ('metric' | 'imperial'). */
+export function kgToDisplay(kg: number, unit: string): number {
+  return unit === "imperial" ? kg * LB_PER_KG : kg;
+}
 
 export function formatWeight(weight: number, unit: string): string {
   const suffix = unit === "imperial" ? "lb" : "kg";
@@ -23,10 +36,13 @@ export function formatDuration(totalSeconds: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-/** Convert a stored weight to the display unit (rows carry their own unit). */
+/**
+ * Convert a stored weight to the display unit. Logs written before §15 by
+ * the web importer may still carry 'imperial' (see supabase/units-canonical.sql).
+ */
 export function toDisplayWeight(value: number, fromUnit: string, displayUnit: string): number {
   if (fromUnit === displayUnit) return value;
-  return fromUnit === "imperial" ? value / 2.20462 : value * 2.20462;
+  return fromUnit === "imperial" ? value / LB_PER_KG : value * LB_PER_KG;
 }
 
 export function formatDateTime(iso: string): string {

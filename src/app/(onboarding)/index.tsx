@@ -15,6 +15,7 @@ import { useSettings } from '@/store/settings-store';
 import { GOAL_LABELS } from '@/lib/labels';
 import type { Goal, Unit, ExperienceLevel } from '@/db/types';
 import { Dumbbell, Target, ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { displayToKg } from '@/lib/units';
 
 const GOALS: Goal[] = ['build_muscle', 'gain_strength', 'lose_fat', 'improve_endurance'];
 const LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced'];
@@ -74,7 +75,8 @@ export default function OnboardingScreen() {
     setSaving(true);
     // Computed outside the try: the compiler can't lower conditionals inside one.
     const bw = parseFloat(bodyweight);
-    const savedBodyweight = isNaN(bw) ? undefined : bw;
+    // Typed in the chosen unit; profile stores canonical kg.
+    const savedBodyweight = isNaN(bw) ? undefined : displayToKg(bw, unit);
     try {
       await completeOnboarding({
         name: name.trim(),

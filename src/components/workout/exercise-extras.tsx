@@ -7,6 +7,7 @@ import { Caption, Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
 import { getExercise, getSessionExerciseNote, saveSessionExerciseNote } from '@/db/queries';
 import { calculatePlates } from '@/lib/plate-calculator';
+import { kgToInput } from '@/lib/units';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
 import { motionDuration } from '@/styles/motion';
@@ -124,9 +125,11 @@ export function PlatesHint({
   }, [exerciseId]);
 
   if (equipment !== 'barbell' || weight <= 0) return null;
+  // `weight` is canonical kg; plates are loaded in the display unit.
+  const shown = kgToInput(weight, unit);
   const bar = unit === 'metric' ? 20 : 45;
-  if (weight <= bar) return null;
-  const result = calculatePlates(weight, unit === 'metric' ? 'kg' : 'lb', bar);
+  if (shown <= bar) return null;
+  const result = calculatePlates(shown, unit === 'metric' ? 'kg' : 'lb', bar);
   if (!result) return null;
   const breakdown =
     result.plates.length === 0

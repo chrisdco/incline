@@ -4,7 +4,8 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 
 import { supabaseForUser } from "./supabase";
-import { convertWeight, normalizeExerciseName } from "./csv-import";
+import { normalizeExerciseName } from "./csv-import";
+import { LB_PER_KG } from "./format";
 
 /** Small catalog projection for client-side name matching. */
 export async function getCatalogNameMapAction(): Promise<{ name: string; external_id: string; target_muscle: string }[]> {
@@ -56,13 +57,16 @@ export interface ImportBatchResult {
 /**
  * Insert one batch of parsed workouts as finished logs. Idempotent per
  * (started_at, name): re-running an import skips what is already there.
- * Weights convert to the user's unit; mobile pulls these rows on next sync.
+ * Weights are stored canonical kg with log unit 'metric' (the app's storage
+ * rule, TECH-DECISIONS §15); `targetUnit` only affects display. Mobile pulls
+ * these rows on next sync.
  */
 export async function importBatchAction(input: unknown): Promise<ImportBatchResult> {
   const batch = importBatchSchema.parse(input);
   const { supabase, userId } = await supabaseForUser();
   const now = new Date().toISOString();
-  const toUnit = batch.targetUnit === "kg" ? "metric" : "imperial";
+  // Storage is always kg; never write pound numbers the app would read as kg.
+  const toUnit = "metric";
 
   let importedWorkouts = 0;
   let importedSets = 0;
@@ -148,7 +152,7 @@ export async function importBatchAction(input: unknown): Promise<ImportBatchResu
             };
       if (ex.ref.kind === "custom" && !ref.user_exercise_id) continue;
       ex.sets.forEach((s, i) => {
-        const weight = convertWeight(s.weight, w.fileUnit, batch.targetUnit);
+        const weight = w.fileUnit === "lb" ? s.weight / LB_PER_KG : s.weight;
         if (s.setType === "working") volume += weight * s.reps;
         setRows.push({
           id: randomUUID(),

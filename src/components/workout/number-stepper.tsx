@@ -68,7 +68,8 @@ export function NumberStepper({
     committedRef.current = true;
     const parsed = parseFloat(draft.replace(',', '.'));
     const next = Number.isFinite(parsed) ? clamp(parsed, min, max) : min;
-    onChange(decimals > 0 ? Math.round(next * 10) / 10 : Math.round(next));
+    const scale = 10 ** decimals;
+    onChange(Math.round(next * scale) / scale);
     setFocused(false);
   };
 

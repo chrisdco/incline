@@ -1,4 +1,5 @@
 import type { Unit } from './types';
+import { kgToDisplay, LB_PER_KG, weightLabel } from '@/lib/units';
 
 /** Format a millisecond timestamp as a local YYYY-MM-DD string. */
 export function isoDate(ms: number): string {
@@ -106,18 +107,25 @@ export function setVolume(weight: number, reps: number): number {
   return Math.round(weight * reps * 100) / 100;
 }
 
-export const KG_TO_LB = 2.2046226218;
+export const KG_TO_LB = LB_PER_KG;
 
 export function convertWeight(value: number, from: Unit, to: Unit): number {
   if (from === to) return value;
   return from === 'metric' ? value * KG_TO_LB : value / KG_TO_LB;
 }
 
-export function formatWeight(value: number, unit: Unit): string {
+/** Canonical kg → "61.2 kg" / "135 lb" in the display unit. */
+export function formatWeight(kg: number, unit: Unit): string {
+  if (kg <= 0) return '—';
+  return formatDisplayWeight(kgToDisplay(kg, unit), unit);
+}
+
+/** A number already in the display unit (chart axes, tools) → "135 lb". */
+export function formatDisplayWeight(value: number, unit: Unit): string {
   if (value <= 0) return '—';
   const v = Math.round(value * 10) / 10;
   const str = v % 1 === 0 ? v.toFixed(0) : v.toFixed(1);
-  return `${str} ${unit === 'metric' ? 'kg' : 'lb'}`;
+  return `${str} ${weightLabel(unit)}`;
 }
 
 export function formatReps(reps: number): string {
@@ -141,9 +149,15 @@ export function formatClock(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
 }
 
-export function formatVolume(value: number, unit: Unit): string {
+/** Canonical kg volume → "12.3k kg" / "980 lb" in the display unit. */
+export function formatVolume(kg: number, unit: Unit): string {
+  return formatDisplayVolume(kgToDisplay(kg, unit), unit);
+}
+
+/** A volume already in the display unit (chart axes) → "12.3k lb". */
+export function formatDisplayVolume(value: number, unit: Unit): string {
   const v = Math.round(value);
-  const suffix = unit === 'metric' ? 'kg' : 'lb';
+  const suffix = weightLabel(unit);
   if (v >= 1000) return `${(v / 1000).toFixed(1)}k ${suffix}`;
   return `${v} ${suffix}`;
 }

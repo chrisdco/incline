@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
 import { SET_COL, SET_FLEX, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
+import { commitInputToKg, kgToInput } from '@/lib/units';
 import type { SetType, Unit } from '@/db/types';
 
 export interface SetRowHandle {
@@ -158,9 +159,13 @@ export function SetRow({
 
       <NumberStepper
         ref={weightRef}
-        value={weight}
-        onChange={onChangeWeight}
-        decimals={1}
+        value={kgToInput(weight, unit)}
+        onChange={(v) => {
+          // `weight` is canonical kg; the field edits in the display unit.
+          const kg = commitInputToKg(v, weight, unit);
+          if (kg != null) onChangeWeight(kg);
+        }}
+        decimals={2}
         label={`Weight, set ${index + 1}`}
         style={{ flex: SET_FLEX.input }}
         onSubmitNext={() => repsRef.current?.focus()}

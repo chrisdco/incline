@@ -1,6 +1,8 @@
 import * as Crypto from 'expo-crypto';
 
 import { COACHING_RULE_VERSION, type CoachingInsight, type TrainingSuggestion } from './types';
+import type { Unit } from '@/db/types';
+import { kgToDisplay } from '@/lib/units';
 
 export const FEATURE_PACK_VERSION = 'FeaturePackV1' as const;
 export const COACH_NARRATE_PROMPT_VERSION = 'narrate-1.0.0';
@@ -122,12 +124,22 @@ function sanitizeInsight(item: CoachingInsight | FeaturePackInsight): FeaturePac
   };
 }
 
+/**
+ * Pack numbers are in `pack.unit` (display), never canonical kg: the model
+ * must quote the same numbers the user sees, and narrate-validate checks the
+ * reply against these exact values.
+ */
+function displayRound(kg: number, unit: Unit, step: number): number {
+  return Math.round(kgToDisplay(kg, unit) / step) * step;
+}
+
 function sanitizeSuggestion(
   item: TrainingSuggestion | FeaturePackSuggestion,
+  unit: Unit,
 ): FeaturePackSuggestion {
   return {
     exerciseName: item.exerciseName,
-    weight: item.weight,
+    weight: Math.round(displayRound(item.weight, unit, 0.1) * 10) / 10,
     reps: item.reps,
     targetSets: item.targetSets,
     reasonCode: item.reasonCode,
@@ -135,7 +147,7 @@ function sanitizeSuggestion(
   };
 }
 
-function sanitizeAggregates(aggregates: FeaturePackAggregates | undefined): FeaturePackAggregates {
+function sanitizeAggregates(aggregates: FeaturePackAggregates | undefined, unit: Unit): FeaturePackAggregates {
   if (!aggregates) return {};
   const out: FeaturePackAggregates = {};
   if (aggregates.sessionsThisWeek !== undefined) out.sessionsThisWeek = aggregates.sessionsThisWeek;
@@ -146,7 +158,7 @@ function sanitizeAggregates(aggregates: FeaturePackAggregates | undefined): Feat
   if (aggregates.recentWeeks !== undefined) {
     out.recentWeeks = aggregates.recentWeeks.slice(0, MAX_FEATURE_PACK_RECENT_WEEKS).map((week) => ({
       sessions: week.sessions,
-      volume: week.volume,
+      volume: displayRound(week.volume, unit, 1),
     }));
   }
   if (aggregates.muscleGap !== undefined) {
@@ -170,8 +182,8 @@ export function buildFeaturePackV1(input: FeaturePackBuildInput): FeaturePackV1 
     insights: (input.insights ?? []).slice(0, MAX_FEATURE_PACK_INSIGHTS).map(sanitizeInsight),
     suggestions: (input.suggestions ?? [])
       .slice(0, MAX_FEATURE_PACK_SUGGESTIONS)
-      .map(sanitizeSuggestion),
-    aggregates: sanitizeAggregates(input.aggregates),
+      .map((item) => sanitizeSuggestion(item, input.unit)),
+    aggregates: sanitizeAggregates(input.aggregates, input.unit),
   };
   if (input.generatedAt != null) pack.generatedAt = input.generatedAt;
   return pack;

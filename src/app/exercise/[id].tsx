@@ -32,7 +32,8 @@ import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
 import { MOVEMENT_LABELS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/lib/labels';
-import { estimated1RM, formatWeight, formatVolume, relativeTime } from '@/db/calc';
+import { estimated1RM, formatDisplayVolume, formatDisplayWeight, formatWeight, relativeTime } from '@/db/calc';
+import { kgToDisplay, weightLabel } from '@/lib/units';
 import type { Exercise, ExerciseHistoryRow, Unit } from '@/db/types';
 
 const TABS = ['Summary', 'Progress', 'History', 'How to'] as const;
@@ -368,21 +369,21 @@ function ProgressTab({
     <View className="gap-4">
       <SeriesAreaChart
         title="Estimated 1RM"
-        points={chartPoints.map((p) => ({ label: p.label, value: p.e1rm }))}
-        formatValue={(v) => formatWeight(v, unit)}
-        valueHint={unit === 'metric' ? 'kg' : 'lb'}
+        points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.e1rm, unit) }))}
+        formatValue={(v) => formatDisplayWeight(v, unit)}
+        valueHint={weightLabel(unit)}
       />
       <SeriesAreaChart
         title="Set Volume"
-        points={chartPoints.map((p) => ({ label: p.label, value: p.setVolume }))}
-        formatValue={(v) => formatVolume(v, unit)}
+        points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.setVolume, unit) }))}
+        formatValue={(v) => formatDisplayVolume(v, unit)}
         valueHint="volume"
       />
       <SeriesAreaChart
         title="Heaviest weight"
-        points={chartPoints.map((p) => ({ label: p.label, value: p.weight }))}
-        formatValue={(v) => formatWeight(v, unit)}
-        valueHint={unit === 'metric' ? 'kg' : 'lb'}
+        points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.weight, unit) }))}
+        formatValue={(v) => formatDisplayWeight(v, unit)}
+        valueHint={weightLabel(unit)}
       />
     </View>
   );

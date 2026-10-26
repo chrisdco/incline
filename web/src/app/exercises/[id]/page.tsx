@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { getCatalogExercise, getCustomExercise, getExerciseHistory, getProfile } from "@/lib/queries";
-import { formatDate, formatWeight } from "@/lib/format";
+import { formatDate, formatWeight, kgToDisplay } from "@/lib/format";
 import { Badge, Card, EmptyState, SectionTitle } from "@/components/ui";
 
 const TrendChart = dynamicChart(() => import("@/components/charts").then((m) => m.TrendChart), {
@@ -33,7 +33,10 @@ export default async function ExerciseDetailPage({ params }: { params: Promise<{
     getProfile(),
   ]);
   const unit = profile?.unit ?? "metric";
-  const working = history.filter((h) => h.weight > 0);
+  // History rows are canonical kg; convert once for every display below.
+  const working = history
+    .filter((h) => h.weight > 0)
+    .map((h) => ({ ...h, weight: kgToDisplay(h.weight, unit), oneRm: kgToDisplay(h.oneRm, unit) }));
   const heaviest = working.reduce((m, h) => Math.max(m, h.weight), 0);
   const bestE1rm = working.reduce((m, h) => Math.max(m, h.oneRm), 0);
 
@@ -82,7 +85,7 @@ export default async function ExerciseDetailPage({ params }: { params: Promise<{
           <EmptyState title="No history yet" description="Sets you log on mobile appear here after sync." />
         ) : (
           <div className="flex flex-col gap-2">
-            {[...history].reverse().slice(0, 30).map((h, i) => (
+            {[...history].reverse().slice(0, 30).map((raw) => ({ ...raw, weight: kgToDisplay(raw.weight, unit), oneRm: kgToDisplay(raw.oneRm, unit) })).map((h, i) => (
               <Link key={`${h.logId}-${i}`} href={`/workouts/${h.logId}`}>
                 <Card className="py-3 transition-colors motion-reduce:transition-none hover:border-zinc-300 dark:hover:border-zinc-700">
                   <div className="flex items-center justify-between gap-3">
