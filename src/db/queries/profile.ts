@@ -4,25 +4,50 @@ import { queryClient } from '@/lib/query-client';
 import { clearOutbox, enqueueSync } from '@/sync/outbox';
 import { resetSyncState } from '@/sync/state';
 import type { ExperienceLevel, Goal, Unit, UserProfile } from '../types';
+import { mutate, type Tx } from '../write';
 import {
   mapProfile,
   type ProfileRow,
 } from './helpers';
+import { ACTIVE_PROGRAM_KEY } from './programs';
 
-async function ensureProfileRow(): Promise<{ uuid: string }> {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<ProfileRow>('SELECT * FROM user_profile WHERE id = 1 AND deleted_at IS NULL');
+const PROFILE_TABLES = ['user_profile'] as const;
+
+/** Every table resetUserData wipes (kv: coach narration + active program). */
+const RESET_TABLES = [
+  'set_entries',
+  'workout_photos',
+  'photo_blob_queue',
+  'workout_logs',
+  'session_exercise_notes',
+  'bodyweight_entries',
+  'body_measurements',
+  'user_profile',
+  'template_exercises',
+  'workout_templates',
+  'exercise_aliases',
+  'exercise_secondary_muscles',
+  'exercise_instructions',
+  'exercise_images',
+  'exercises',
+  'program_workouts',
+  'programs',
+  'kv',
+] as const;
+
+async function ensureProfileRow(tx: Tx): Promise<{ uuid: string }> {
+  const row = await tx.getFirstAsync<ProfileRow>('SELECT * FROM user_profile WHERE id = 1 AND deleted_at IS NULL');
   if (row?.uuid) return { uuid: row.uuid };
   const uuid = row?.uuid ?? newUuid();
   if (!row) {
     // updated_at = 0 so any cloud profile wins LWW until the user actually edits/onboards.
-    await db.runAsync(
+    await tx.runAsync(
       `INSERT INTO user_profile (id, name, goal, bodyweight, unit, experience_level, onboarding_completed, uuid, updated_at)
        VALUES (1, '', 'build_muscle', NULL, 'metric', 'intermediate', 0, ?, 0)`,
       uuid,
     );
   } else if (!row.uuid) {
-    await db.runAsync('UPDATE user_profile SET uuid = ? WHERE id = 1', uuid);
+    await tx.runAsync('UPDATE user_profile SET uuid = ? WHERE id = 1', uuid);
   }
   return { uuid };
 }
@@ -31,7 +56,7 @@ export async function getProfile(): Promise<UserProfile> {
   const db = await openDatabase();
   const row = await db.getFirstAsync<ProfileRow>('SELECT * FROM user_profile WHERE id = 1 AND deleted_at IS NULL');
   if (!row) {
-    await ensureProfileRow();
+    await mutate(PROFILE_TABLES, (tx) => ensureProfileRow(tx));
     const now = Date.now();
     return {
       id: 1,
@@ -49,8 +74,6 @@ export async function getProfile(): Promise<UserProfile> {
 }
 
 export async function saveProfile(patch: Partial<Pick<UserProfile, 'name' | 'goal' | 'bodyweight' | 'unit' | 'experienceLevel' | 'avatarUrl'>>): Promise<void> {
-  const db = await openDatabase();
-  const { uuid } = await ensureProfileRow();
   const sets: string[] = [];
   const args: (string | number | null)[] = [];
   if (patch.name !== undefined) { sets.push('name = ?'); args.push(patch.name); }
@@ -59,14 +82,18 @@ export async function saveProfile(patch: Partial<Pick<UserProfile, 'name' | 'goa
   if (patch.unit !== undefined) { sets.push('unit = ?'); args.push(patch.unit); }
   if (patch.experienceLevel !== undefined) { sets.push('experience_level = ?'); args.push(patch.experienceLevel); }
   if (patch.avatarUrl !== undefined) { sets.push('avatar_url = ?'); args.push(patch.avatarUrl); }
-  if (sets.length === 0) return;
-  const now = Date.now();
+  if (sets.length === 0) {
+    await mutate(PROFILE_TABLES, (tx) => ensureProfileRow(tx));
+    return;
+  }
   sets.push('updated_at = ?');
-  args.push(now);
+  args.push(Date.now());
   args.push(1);
-  await db.runAsync(`UPDATE user_profile SET ${sets.join(', ')} WHERE id = ?`, ...args);
-  const row = await db.getFirstAsync<ProfileRow>('SELECT * FROM user_profile WHERE id = 1');
-  if (row) {
+  await mutate(PROFILE_TABLES, async (tx) => {
+    const { uuid } = await ensureProfileRow(tx);
+    await tx.runAsync(`UPDATE user_profile SET ${sets.join(', ')} WHERE id = ?`, ...args);
+    const row = await tx.getFirstAsync<ProfileRow>('SELECT * FROM user_profile WHERE id = 1');
+    if (!row) return;
     await enqueueSync('profiles', uuid, 'upsert', {
       name: row.name,
       goal: row.goal,
@@ -77,52 +104,91 @@ export async function saveProfile(patch: Partial<Pick<UserProfile, 'name' | 'goa
       avatar_url: row.avatar_url,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,
-    });
-  }
+    }, tx);
+  });
 }
 
 export async function completeOnboarding(patch: { name: string; goal: Goal; unit: Unit; experienceLevel?: ExperienceLevel; bodyweight?: number }): Promise<void> {
-  const db = await openDatabase();
   const now = Date.now();
-  const { uuid } = await ensureProfileRow();
-  await db.runAsync(
-    `UPDATE user_profile SET name = ?, goal = ?, bodyweight = ?, unit = ?, experience_level = ?, onboarding_completed = 1, updated_at = ? WHERE id = 1`,
-    patch.name, patch.goal, patch.bodyweight ?? null, patch.unit, patch.experienceLevel ?? 'intermediate', now,
-  );
-  await enqueueSync('profiles', uuid, 'upsert', {
-    name: patch.name,
-    goal: patch.goal,
-    bodyweight: patch.bodyweight ?? null,
-    unit: patch.unit,
-    experience_level: patch.experienceLevel ?? 'intermediate',
-    onboarding_completed: 1,
-    avatar_url: null,
-    updated_at: now,
-    deleted_at: null,
+  await mutate(PROFILE_TABLES, async (tx) => {
+    const { uuid } = await ensureProfileRow(tx);
+    await tx.runAsync(
+      `UPDATE user_profile SET name = ?, goal = ?, bodyweight = ?, unit = ?, experience_level = ?, onboarding_completed = 1, updated_at = ? WHERE id = 1`,
+      patch.name, patch.goal, patch.bodyweight ?? null, patch.unit, patch.experienceLevel ?? 'intermediate', now,
+    );
+    await enqueueSync('profiles', uuid, 'upsert', {
+      name: patch.name,
+      goal: patch.goal,
+      bodyweight: patch.bodyweight ?? null,
+      unit: patch.unit,
+      experience_level: patch.experienceLevel ?? 'intermediate',
+      onboarding_completed: 1,
+      avatar_url: null,
+      updated_at: now,
+      deleted_at: null,
+    }, tx);
   });
 }
 
 /**
  * Clear all user-owned local data (logs, bodyweight, profile, custom exercises,
- * custom templates, outbox). Keeps catalog exercises and seed templates.
+ * custom templates, custom programs, active program, outbox, sync cursors).
+ * Keeps catalog exercises and seed templates. All row deletes are one
+ * mutate() transaction, so a failure leaves the previous data intact; photo
+ * files are removed only after the wipe commits.
  */
 export async function resetUserData(): Promise<void> {
   // Drop every cached query first: ids restart after a full wipe, so a stale
   // entry could otherwise resurrect another account's session or exercises.
   queryClient.clear();
-  const db = await openDatabase();
-  await db.execAsync('DELETE FROM set_entries');
-  await db.execAsync('DELETE FROM workout_photos');
-  try {
-    await db.execAsync('DELETE FROM photo_blob_queue');
-  } catch {
-    // table added in v16
-  }
-  await db.execAsync('DELETE FROM workout_logs');
-  await db.execAsync('DELETE FROM session_exercise_notes');
-  await db.execAsync('DELETE FROM bodyweight_entries');
-  await db.execAsync('DELETE FROM body_measurements');
-  await db.execAsync('DELETE FROM user_profile');
+  await mutate(RESET_TABLES, async (tx) => {
+    await tx.execAsync('DELETE FROM set_entries');
+    await tx.execAsync('DELETE FROM workout_photos');
+    await tx.execAsync('DELETE FROM photo_blob_queue');
+    await tx.execAsync('DELETE FROM workout_logs');
+    await tx.execAsync('DELETE FROM session_exercise_notes');
+    await tx.execAsync('DELETE FROM bodyweight_entries');
+    await tx.execAsync('DELETE FROM body_measurements');
+    await tx.execAsync('DELETE FROM user_profile');
+
+    // Soft-deleted or live custom template exercises → remove custom templates
+    await tx.execAsync(`
+      DELETE FROM template_exercises WHERE template_id IN (
+        SELECT id FROM workout_templates WHERE is_custom = 1
+      )
+    `);
+    await tx.execAsync('DELETE FROM workout_templates WHERE is_custom = 1');
+
+    // Custom exercises + children (CASCADE may not fire with plain DELETE if FKs off mid-wipe)
+    await tx.execAsync(`
+      DELETE FROM exercise_aliases WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
+    `);
+    await tx.execAsync(`
+      DELETE FROM exercise_secondary_muscles WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
+    `);
+    await tx.execAsync(`
+      DELETE FROM exercise_instructions WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
+    `);
+    await tx.execAsync(`
+      DELETE FROM exercise_images WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
+    `);
+    await tx.execAsync('DELETE FROM exercises WHERE is_custom = 1');
+
+    // Custom programs
+    await tx.execAsync(`
+      DELETE FROM program_workouts WHERE program_id IN (
+        SELECT id FROM programs WHERE is_custom = 1
+      )
+    `);
+    await tx.execAsync('DELETE FROM programs WHERE is_custom = 1');
+
+    await tx.runAsync("DELETE FROM kv WHERE key LIKE 'coach.narrate.%'");
+    // Local only: the outbox is wiped below, so no active-program delete is queued.
+    await tx.runAsync('DELETE FROM kv WHERE key = ?', ACTIVE_PROGRAM_KEY);
+
+    await clearOutbox(tx);
+    await resetSyncState(tx);
+  });
 
   try {
     const { deleteAsync, documentDirectory } = await import('expo-file-system/legacy');
@@ -132,48 +198,6 @@ export async function resetUserData(): Promise<void> {
   } catch {
     // files optional
   }
-
-  // Soft-deleted or live custom template exercises → remove custom templates
-  await db.execAsync(`
-    DELETE FROM template_exercises WHERE template_id IN (
-      SELECT id FROM workout_templates WHERE is_custom = 1
-    )
-  `);
-  await db.execAsync('DELETE FROM workout_templates WHERE is_custom = 1');
-
-  // Custom exercises + children (CASCADE may not fire with plain DELETE if FKs off mid-wipe)
-  await db.execAsync(`
-    DELETE FROM exercise_aliases WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
-  `);
-  await db.execAsync(`
-    DELETE FROM exercise_secondary_muscles WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
-  `);
-  await db.execAsync(`
-    DELETE FROM exercise_instructions WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
-  `);
-  await db.execAsync(`
-    DELETE FROM exercise_images WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
-  `);
-  await db.execAsync('DELETE FROM exercises WHERE is_custom = 1');
-
-  // Custom programs
-  await db.execAsync(`
-    DELETE FROM program_workouts WHERE program_id IN (
-      SELECT id FROM programs WHERE is_custom = 1
-    )
-  `);
-  await db.execAsync('DELETE FROM programs WHERE is_custom = 1');
-
-  await db.runAsync("DELETE FROM kv WHERE key LIKE 'coach.narrate.%'");
-
-  await clearOutbox();
-  await resetSyncState();
-  try {
-    const { clearActiveProgram } = await import('./programs');
-    await clearActiveProgram({ sync: false });
-  } catch {
-    // ignore
-  }
 }
 
 /**
@@ -181,12 +205,18 @@ export async function resetUserData(): Promise<void> {
  * Returns template IDs for reference.
  */
 export async function seedSampleData(): Promise<{ templateIds: number[] }> {
-  const db = await openDatabase();
+  return mutate(
+    ['workout_templates', 'template_exercises', 'workout_logs', 'set_entries', 'user_profile'],
+    (tx) => insertSampleData(tx),
+  );
+}
+
+async function insertSampleData(tx: Tx): Promise<{ templateIds: number[] }> {
   const now = Date.now();
   const DAY = 86_400_000;
 
   const findId = async (name: string) => {
-    const row = await db.getFirstAsync<{ id: number }>(
+    const row = await tx.getFirstAsync<{ id: number }>(
       'SELECT id FROM exercises WHERE name LIKE ? AND deleted_at IS NULL LIMIT 1',
       `%${name}%`,
     );
@@ -194,7 +224,7 @@ export async function seedSampleData(): Promise<{ templateIds: number[] }> {
   };
 
   const t1Uuid = newUuid();
-  const t1 = await db.runAsync(
+  const t1 = await tx.runAsync(
     `INSERT INTO workout_templates (name, description, category, difficulty, estimated_minutes, is_custom, uuid, created_at, updated_at)
      VALUES (?, ?, 'strength', 'intermediate', 45, 1, ?, ?, ?)`,
     'Upper Body Push', 'Bench, OHP, triceps', t1Uuid, now, now,
@@ -214,7 +244,7 @@ export async function seedSampleData(): Promise<{ templateIds: number[] }> {
   ].filter((e) => e.id);
 
   for (const ex of pushExercises) {
-    await db.runAsync(
+    await tx.runAsync(
       `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?)`,
       t1Id, ex.id, ex.order, ex.sets, ex.repsMin, ex.repsMax, ex.rest, newUuid(), now,
@@ -222,7 +252,7 @@ export async function seedSampleData(): Promise<{ templateIds: number[] }> {
   }
 
   const t2Uuid = newUuid();
-  const t2 = await db.runAsync(
+  const t2 = await tx.runAsync(
     `INSERT INTO workout_templates (name, description, category, difficulty, estimated_minutes, is_custom, uuid, created_at, updated_at)
      VALUES (?, ?, 'strength', 'intermediate', 50, 1, ?, ?, ?)`,
     'Lower Body', 'Squat, RDL, leg press', t2Uuid, now, now,
@@ -244,7 +274,7 @@ export async function seedSampleData(): Promise<{ templateIds: number[] }> {
   ].filter((e) => e.id);
 
   for (const ex of lowerExercises) {
-    await db.runAsync(
+    await tx.runAsync(
       `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?)`,
       t2Id, ex.id, ex.order, ex.sets, ex.repsMin, ex.repsMax, ex.rest, newUuid(), now,
@@ -266,7 +296,7 @@ export async function seedSampleData(): Promise<{ templateIds: number[] }> {
     const started = now - sess.daysAgo * DAY + 10 * 3600_000;
     const ended = started + 50 * 60_000;
     const logUuid = newUuid();
-    const log = await db.runAsync(
+    const log = await tx.runAsync(
       `INSERT INTO workout_logs (template_id, name, started_at, ended_at, duration_seconds, total_volume, unit, notes, uuid, created_at, updated_at)
        VALUES (?, ?, ?, ?, 3000, 0, 'metric', '', ?, ?, ?)`,
       sess.templateId, sess.name, started, ended, logUuid, started, now,
@@ -280,18 +310,18 @@ export async function seedSampleData(): Promise<{ templateIds: number[] }> {
       for (let i = 0; i < ex.sets.length; i++) {
         const s = ex.sets[i];
         totalVolume += s.w * s.r;
-        await db.runAsync(
+        await tx.runAsync(
           `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, uuid, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, 1, 90, ?, ?, ?)`,
           logId, exId, i, s.w, s.r, newUuid(), started + i * 120_000, now,
         );
       }
     }
-    await db.runAsync('UPDATE workout_logs SET total_volume = ? WHERE id = ?', totalVolume, logId);
+    await tx.runAsync('UPDATE workout_logs SET total_volume = ? WHERE id = ?', totalVolume, logId);
   }
 
   const profileUuid = newUuid();
-  await db.runAsync(
+  await tx.runAsync(
     `INSERT OR REPLACE INTO user_profile (id, name, goal, bodyweight, unit, experience_level, onboarding_completed, uuid, updated_at)
      VALUES (1, 'Chris', 'build_muscle', 85, 'metric', 'intermediate', 1, ?, ?)`,
     profileUuid, now,

@@ -4,6 +4,7 @@ import { PAGINATION } from '@/constants/config';
 import { newUuid } from '@/lib/uuid';
 import type { ProgressPhoto, WorkoutPhoto } from '../types';
 import { openDatabase } from '../client';
+import { mutate, type Tx } from '../write';
 import { enqueueSync } from '@/sync/outbox';
 import { checksumFile, compressPhotoToJpeg, enqueuePhotoBlob, localPhotoPath } from '@/sync/photo-blobs';
 
@@ -53,9 +54,10 @@ async function persistPhotoFile(logId: number, sourceUri: string, photoUuid: str
   return { uri: dest, byteSize: meta.byteSize, checksum: meta.checksum };
 }
 
-async function enqueuePhotoMetadata(photoId: number): Promise<void> {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<{
+const PHOTO_TABLES = ['workout_photos'] as const;
+
+async function enqueuePhotoMetadata(tx: Tx, photoId: number): Promise<void> {
+  const row = await tx.getFirstAsync<{
     uuid: string | null;
     log_uuid: string | null;
     storage_path: string | null;
@@ -85,15 +87,19 @@ async function enqueuePhotoMetadata(photoId: number): Promise<void> {
     created_at: row.created_at,
     updated_at: row.updated_at,
     deleted_at: row.deleted_at,
-  });
+  }, tx);
 }
 
+/**
+ * File I/O stays outside the transaction: each photo is copied into the app
+ * directory first, then its row + outbox entry commit in one mutate(). If the
+ * DB write fails the copied file is removed so nothing is orphaned.
+ */
 export async function addWorkoutPhotos(logId: number, sourceUris: string[]): Promise<WorkoutPhoto[]> {
   const existing = await listWorkoutPhotos(logId);
   const room = MAX_SESSION_PHOTOS - existing.length;
   if (room <= 0 || sourceUris.length === 0) return existing;
 
-  const db = await openDatabase();
   const now = Date.now();
   let sort = existing.length === 0 ? 0 : existing[existing.length - 1].sortOrder + 1;
   const added: WorkoutPhoto[] = [];
@@ -101,85 +107,97 @@ export async function addWorkoutPhotos(logId: number, sourceUris: string[]): Pro
   for (const uri of sourceUris.slice(0, room)) {
     const uuid = newUuid();
     const local = await persistPhotoFile(logId, uri, uuid);
-    const res = await db.runAsync(
-      `INSERT INTO workout_photos (workout_log_id, uri, sort_order, uuid, created_at, updated_at, content_type, byte_size, checksum)
-       VALUES (?, ?, ?, ?, ?, ?, 'image/jpeg', ?, ?)`,
-      logId,
-      local.uri,
-      sort,
-      uuid,
-      now,
-      now,
-      local.byteSize,
-      local.checksum,
-    );
-    const photoId = Number(res.lastInsertRowId);
+    const sortOrder = sort;
+    let photoId: number;
+    try {
+      photoId = await mutate(PHOTO_TABLES, async (tx) => {
+        const res = await tx.runAsync(
+          `INSERT INTO workout_photos (workout_log_id, uri, sort_order, uuid, created_at, updated_at, content_type, byte_size, checksum)
+           VALUES (?, ?, ?, ?, ?, ?, 'image/jpeg', ?, ?)`,
+          logId,
+          local.uri,
+          sortOrder,
+          uuid,
+          now,
+          now,
+          local.byteSize,
+          local.checksum,
+        );
+        const id = Number(res.lastInsertRowId);
+        await enqueuePhotoMetadata(tx, id);
+        return id;
+      });
+    } catch (err) {
+      await deleteAsync(local.uri, { idempotent: true }).catch(() => {});
+      throw err;
+    }
     added.push({
       id: photoId,
       workoutLogId: logId,
       uri: local.uri,
-      sortOrder: sort,
+      sortOrder,
       createdAt: now,
     });
-    await enqueuePhotoMetadata(photoId);
     void enqueuePhotoBlob(uuid, 'upload').catch(() => {});
     sort += 1;
   }
   return [...existing, ...added];
 }
 
-export async function deleteWorkoutPhoto(photoId: number): Promise<void> {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<PhotoRow & { uuid: string | null; storage_path: string | null }>(
-    'SELECT id, workout_log_id, uri, sort_order, created_at, uuid, storage_path FROM workout_photos WHERE id = ? AND deleted_at IS NULL',
-    photoId,
-  );
-  const now = Date.now();
-  await db.runAsync(
-    'UPDATE workout_photos SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
-    now,
-    now,
-    photoId,
-  );
-  if (row?.uri.includes('workout-photos/')) {
-    try {
-      await deleteAsync(row.uri, { idempotent: true });
-    } catch {
-      /* file may already be gone */
-    }
+async function deleteLocalPhotoFile(uri: string): Promise<void> {
+  if (!uri.includes('workout-photos/')) return;
+  try {
+    await deleteAsync(uri, { idempotent: true });
+  } catch {
+    /* file may already be gone */
   }
-  await enqueuePhotoMetadata(photoId);
+}
+
+/** Soft-delete commits first; the local file goes only after it has. */
+export async function deleteWorkoutPhoto(photoId: number): Promise<void> {
+  const now = Date.now();
+  const row = await mutate(PHOTO_TABLES, async (tx) => {
+    const r = await tx.getFirstAsync<PhotoRow & { uuid: string | null; storage_path: string | null }>(
+      'SELECT id, workout_log_id, uri, sort_order, created_at, uuid, storage_path FROM workout_photos WHERE id = ? AND deleted_at IS NULL',
+      photoId,
+    );
+    await tx.runAsync(
+      'UPDATE workout_photos SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+      now,
+      now,
+      photoId,
+    );
+    await enqueuePhotoMetadata(tx, photoId);
+    return r;
+  });
+  if (row) await deleteLocalPhotoFile(row.uri);
   if (row?.uuid) {
     void enqueuePhotoBlob(row.uuid, 'delete', row.storage_path).catch(() => {});
   }
 }
 
 export async function deletePhotosForWorkout(logId: number): Promise<void> {
-  const photos = await listWorkoutPhotos(logId);
-  const db = await openDatabase();
-  const queued = await db.getAllAsync<{ id: number; uuid: string | null; storage_path: string | null }>(
-    'SELECT id, uuid, storage_path FROM workout_photos WHERE workout_log_id = ? AND deleted_at IS NULL',
-    logId,
-  );
   const now = Date.now();
-  await db.runAsync(
-    'UPDATE workout_photos SET deleted_at = ?, updated_at = ? WHERE workout_log_id = ? AND deleted_at IS NULL',
-    now,
-    now,
-    logId,
-  );
-  for (const p of photos) {
-    if (!p.uri.includes('workout-photos/')) continue;
-    try {
-      await deleteAsync(p.uri, { idempotent: true });
-    } catch {
-      /* ignore */
+  const rows = await mutate(PHOTO_TABLES, async (tx) => {
+    const live = await tx.getAllAsync<{ id: number; uri: string; uuid: string | null; storage_path: string | null }>(
+      'SELECT id, uri, uuid, storage_path FROM workout_photos WHERE workout_log_id = ? AND deleted_at IS NULL',
+      logId,
+    );
+    await tx.runAsync(
+      'UPDATE workout_photos SET deleted_at = ?, updated_at = ? WHERE workout_log_id = ? AND deleted_at IS NULL',
+      now,
+      now,
+      logId,
+    );
+    for (const r of live) {
+      if (r.uuid) await enqueuePhotoMetadata(tx, r.id);
     }
-  }
-  for (const row of queued) {
-    if (!row.uuid) continue;
-    await enqueuePhotoMetadata(row.id);
-    void enqueuePhotoBlob(row.uuid, 'delete', row.storage_path).catch(() => {});
+    return live;
+  });
+  for (const r of rows) await deleteLocalPhotoFile(r.uri);
+  for (const r of rows) {
+    if (!r.uuid) continue;
+    void enqueuePhotoBlob(r.uuid, 'delete', r.storage_path).catch(() => {});
   }
 }
 

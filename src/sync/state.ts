@@ -1,4 +1,5 @@
 import { openDatabase } from '@/db/client';
+import type { Tx } from '@/db/write';
 import { EMPTY_CURSOR, type TableCursor } from './cursor';
 import type { SyncStatus, SyncTable } from './types';
 
@@ -57,8 +58,9 @@ export async function setSyncStatus(
   if (patch.cursor !== undefined) await setMeta(KEYS.cursor, String(patch.cursor));
 }
 
-export async function resetSyncState(): Promise<void> {
-  const db = await openDatabase();
+/** Pass the `mutate()` tx to wipe sync state atomically with a data reset. */
+export async function resetSyncState(tx?: Tx): Promise<void> {
+  const db = tx ?? (await openDatabase());
   for (const key of Object.values(KEYS)) {
     await db.runAsync('DELETE FROM schema_meta WHERE key = ?', key);
   }
