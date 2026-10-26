@@ -89,9 +89,11 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       await reloadHome();
-    } finally {
+    } catch (error) {
       setRefreshing(false);
+      throw error;
     }
+    setRefreshing(false);
   }, [reloadHome]);
 
   const doStart = async (templateId: number | null, name: string) => {
@@ -103,9 +105,8 @@ export default function HomeScreen() {
       router.push(`/session/${logId}`);
     } catch {
       toast({ title: 'Could not start workout', variant: 'destructive' });
-    } finally {
-      setStarting(false);
     }
+    setStarting(false);
   };
 
   const beginTemplate = async (id: number, name: string) => {
@@ -421,9 +422,8 @@ export default function HomeScreen() {
         description: e instanceof Error ? e.message : 'Try again.',
         variant: 'destructive',
       });
-    } finally {
-      setSavingTemplate(false);
     }
+    setSavingTemplate(false);
   };
 
   return (

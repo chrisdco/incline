@@ -87,9 +87,11 @@ export default function ProgressScreen() {
     try {
       refetch();
       await refreshHistory();
-    } finally {
+    } catch (error) {
       setRefreshing(false);
+      throw error;
     }
+    setRefreshing(false);
   }, [refetch, refreshHistory]);
   const historyFiltered =
     historyRange !== 'all' || historyExercise != null || historyTemplate != null;

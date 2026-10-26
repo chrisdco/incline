@@ -29,9 +29,11 @@ export function RestTimerPickerSheet({
 
   const handleSetDefault = async (seconds: number) => {
     if (!exerciseId) return;
+    // Computed outside the try: the compiler can't lower conditionals inside one.
+    const description = `Default set to ${seconds === 0 ? 'Off' : `${seconds}s`}`;
     try {
       await updateExerciseDefaultRest(exerciseId, seconds);
-      toast({ title: 'Default rest updated', description: `Default set to ${seconds === 0 ? 'Off' : `${seconds}s`}`, variant: 'success' });
+      toast({ title: 'Default rest updated', description, variant: 'success' });
       setConfiguringDefault(false);
     } catch (e) {
       toast({ title: 'Could not save default', description: e instanceof Error ? e.message : 'Try again.', variant: 'destructive' });

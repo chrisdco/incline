@@ -67,9 +67,8 @@ export default function WorkoutPreviewScreen() {
       router.replace(`/session/${logId}`);
     } catch {
       toast({ title: 'Could not start workout', variant: 'destructive' });
-    } finally {
-      setStarting(false);
     }
+    setStarting(false);
   };
 
   const start = async () => {

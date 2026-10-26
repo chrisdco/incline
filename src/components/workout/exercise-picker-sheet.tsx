@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo, type Dispatch, type SetStateAction } from 'react';
 import { Pressable, View } from 'react-native';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { FlashList } from '@shopify/flash-list';
@@ -68,6 +68,66 @@ function toSupabaseItem(ex: Exercise): SupabaseExercise {
 }
 
 /** Module scope: a new component identity per render breaks FlashList recycling. */
+type PickerCatalogSink = {
+  setItems: Dispatch<SetStateAction<SupabaseExercise[]>>;
+  setOffset: (offset: number) => void;
+  setHasMore: (hasMore: boolean) => void;
+  setCloudOnly: (cloudOnly: boolean) => void;
+};
+
+/**
+ * Offline-first load: SQLite answers from the local catalog (search text +
+ * facets, one indexed path). Supabase only tops up thin unfiltered text
+ * searches (<5 local hits) for catalog breadth — facet browsing is
+ * local-only by design, so airplane mode keeps working.
+ *
+ * Module-level (not inside the component) because React Compiler can't
+ * lower conditionals inside try/catch.
+ */
+async function loadPickerCatalog(
+  query: string,
+  activeFilters: Parameters<typeof searchExercises>[1],
+  refreshUsage: (list: SupabaseExercise[]) => Promise<void>,
+  batch: number,
+  { setItems, setOffset, setHasMore, setCloudOnly }: PickerCatalogSink,
+) {
+  const q = query.trim();
+  const hits = await searchExercises(q, activeFilters);
+  const local = hits.map((h) => h.exercise);
+  if (local.length === 0 && !q && !activeFilters) {
+    // Catalog genuinely empty — legacy cloud-paginated fallback.
+    const data = await fetchExercisesFromSupabase(batch, 0);
+    const customs = (await listCustomExercises()).map(toSupabaseItem);
+    await refreshUsage(customs);
+    setItems([...customs, ...data]);
+    setOffset(data.length);
+    setHasMore(data.length === batch);
+    setCloudOnly(true);
+    return;
+  }
+  setCloudOnly(false);
+  const items = local.map(toSupabaseItem);
+  await refreshUsage(items);
+  setItems(items);
+  setOffset(0);
+  setHasMore(false);
+  if (q && !activeFilters && local.length < 5) {
+    try {
+      const data = await searchExercisesFromSupabase(q, batch);
+      const seen = new Set([
+        ...local.map((e) => (e.externalId ?? `local:${e.id}`).toLowerCase()),
+        ...local.map((e) => e.name.toLowerCase()),
+      ]);
+      const extra = data.filter(
+        (d) => !seen.has(d.external_id.toLowerCase()) && !seen.has(d.name.toLowerCase()),
+      );
+      if (extra.length > 0) setItems((prev) => [...prev, ...extra]);
+    } catch {
+      // Offline — local results stand alone.
+    }
+  }
+}
+
 function PickerSeparator() {
   return <View className="h-2" />;
 }
@@ -159,16 +219,17 @@ export function ExercisePickerSheet({
   const [usageMap, setUsageMap] = useState<Record<number, number>>({});
   const BATCH = 50;
 
+  const { muscle, equipment, pattern } = filters;
   const activeFilters = useMemo(
     () =>
-      hasExerciseFilters(filters)
+      hasExerciseFilters({ muscle, equipment, pattern })
         ? {
-            muscle: filters.muscle ?? undefined,
-            equipment: filters.equipment ?? undefined,
-            pattern: filters.pattern ?? undefined,
+            muscle: muscle ?? undefined,
+            equipment: equipment ?? undefined,
+            pattern: pattern ?? undefined,
           }
         : undefined,
-    [filters.muscle, filters.equipment, filters.pattern],
+    [muscle, equipment, pattern],
   );
 
   /** Usage counts for the customs in view (customs are few; per-row is fine). */
@@ -182,56 +243,20 @@ export function ExercisePickerSheet({
     setUsageMap(usage);
   }, []);
 
-  /**
-   * Offline-first load: SQLite answers from the local catalog (search text +
-   * facets, one indexed path). Supabase only tops up thin unfiltered text
-   * searches (<5 local hits) for catalog breadth — facet browsing is
-   * local-only by design, so airplane mode keeps working.
-   */
   const loadInitial = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const q = query.trim();
-      const hits = await searchExercises(q, activeFilters);
-      const local = hits.map((h) => h.exercise);
-      if (local.length === 0 && !q && !activeFilters) {
-        // Catalog genuinely empty — legacy cloud-paginated fallback.
-        const data = await fetchExercisesFromSupabase(BATCH, 0);
-        const customs = (await listCustomExercises()).map(toSupabaseItem);
-        await refreshUsage(customs);
-        setItems([...customs, ...data]);
-        setOffset(data.length);
-        setHasMore(data.length === BATCH);
-        setCloudOnly(true);
-        return;
-      }
-      setCloudOnly(false);
-      const items = local.map(toSupabaseItem);
-      await refreshUsage(items);
-      setItems(items);
-      setOffset(0);
-      setHasMore(false);
-      if (q && !activeFilters && local.length < 5) {
-        try {
-          const data = await searchExercisesFromSupabase(q, BATCH);
-          const seen = new Set([
-            ...local.map((e) => (e.externalId ?? `local:${e.id}`).toLowerCase()),
-            ...local.map((e) => e.name.toLowerCase()),
-          ]);
-          const extra = data.filter(
-            (d) => !seen.has(d.external_id.toLowerCase()) && !seen.has(d.name.toLowerCase()),
-          );
-          if (extra.length > 0) setItems((prev) => [...prev, ...extra]);
-        } catch {
-          // Offline — local results stand alone.
-        }
-      }
+      await loadPickerCatalog(query, activeFilters, refreshUsage, BATCH, {
+        setItems,
+        setOffset,
+        setHasMore,
+        setCloudOnly,
+      });
     } catch {
       setError('Could not load exercises. Check your connection.');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, [query, activeFilters, refreshUsage]);
 
   const loadMore = useCallback(async () => {
@@ -245,7 +270,7 @@ export function ExercisePickerSheet({
       setOffset((prev) => prev + data.length);
       setHasMore(data.length === BATCH);
     } catch { /* ignore */ }
-    finally { setLoading(false); }
+    setLoading(false);
   }, [loading, hasMore, offset, cloudOnly]);
 
   // Debounced search + filter changes re-run the local-first load.

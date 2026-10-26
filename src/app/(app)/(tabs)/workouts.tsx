@@ -40,6 +40,8 @@ export default function WorkoutsScreen() {
   const router = useRouter();
   const templates = useTemplateSummaries();
   const programs = usePrograms();
+  const refetchTemplates = templates.refetch;
+  const refetchPrograms = programs.refetch;
   const { session } = useActiveSession();
   const { accentTheme } = useSettings();
   const primaryHex = usePrimaryHex();
@@ -65,9 +67,9 @@ export default function WorkoutsScreen() {
   const onRefresh = useCallback(() => {
     sawLoadingRef.current = false;
     setRefreshing(true);
-    if (tab === 'routines') templates.refetch();
-    else programs.refetch();
-  }, [tab, templates.refetch, programs.refetch]);
+    if (tab === 'routines') refetchTemplates();
+    else refetchPrograms();
+  }, [tab, refetchTemplates, refetchPrograms]);
 
   // Refetch is fire-and-forget, so end the spinner once we have actually
   // observed the pulled refresh go in flight and come back.
@@ -89,9 +91,8 @@ export default function WorkoutsScreen() {
       router.push(`/session/${logId}`);
     } catch {
       toast({ title: 'Could not start workout', variant: 'destructive' });
-    } finally {
-      setStarting(false);
     }
+    setStarting(false);
   };
 
   const handleStart = (templateId: number | null, name: string) => {
@@ -135,11 +136,10 @@ export default function WorkoutsScreen() {
       templates.refetch();
     } catch {
       toast({ title: 'Could not delete routine', variant: 'destructive' });
-    } finally {
-      setDeleting(false);
-      setDeleteTarget(null);
-      setMenuTarget(null);
     }
+    setDeleting(false);
+    setDeleteTarget(null);
+    setMenuTarget(null);
   };
 
   const handleDuplicate = async () => {

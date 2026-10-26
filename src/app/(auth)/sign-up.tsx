@@ -43,15 +43,14 @@ export default function SignUpScreen() {
         redirectUrl: Linking.createURL('/'),
       });
       if (result.createdSessionId) {
-        await result.setActive?.({ session: result.createdSessionId });
+        if (result.setActive) await result.setActive({ session: result.createdSessionId });
         // Root gate binds Clerk user → local SQLite, then sends to onboarding/app.
         router.replace('/');
       }
     } catch (err: any) {
       setError(err?.message ?? 'Google sign-up failed. Please try again.');
-    } finally {
-      setGoogleLoading(false);
     }
+    setGoogleLoading(false);
   }, [startSSOFlow, router]);
 
   const onSignUpPress = async () => {
@@ -64,9 +63,8 @@ export default function SignUpScreen() {
       setPendingVerification(true);
     } catch (err: any) {
       setError(err?.errors?.[0]?.message ?? 'Sign up failed. Please try again.');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const onVerifyPress = async () => {
@@ -81,9 +79,8 @@ export default function SignUpScreen() {
       }
     } catch (err: any) {
       setError(err?.errors?.[0]?.message ?? 'Verification failed. Check the code and try again.');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   return (

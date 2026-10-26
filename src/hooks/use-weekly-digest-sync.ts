@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 
 import { getWeeklyRecap, weeklyDigestNotificationBody } from '@/db/queries';
 import { syncWeeklyDigestSchedule } from '@/lib/notifications/digest';
+import { runExclusive } from '@/lib/run-exclusive';
 import { useSettings } from '@/store/settings-store';
 
 /**
@@ -18,10 +19,8 @@ export function useWeeklyDigestSync() {
   useEffect(() => {
     let cancelled = false;
 
-    const run = async () => {
-      if (syncing.current) return;
-      syncing.current = true;
-      try {
+    const run = () =>
+      runExclusive(syncing, async () => {
         if (cancelled) return;
         let body = 'Open Incline for your weekly training report.';
         if (enabled) {
@@ -34,10 +33,7 @@ export function useWeeklyDigestSync() {
         }
         if (cancelled) return;
         await syncWeeklyDigestSchedule({ enabled, hour, minute, body });
-      } finally {
-        syncing.current = false;
-      }
-    };
+      });
 
     void run();
 

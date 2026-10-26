@@ -96,9 +96,8 @@ export default function ProgressPhotosScreen() {
       setPhotos([]);
       setLeft(null);
       setRight(null);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, [applyDefaults]);
 
   useFocusEffect(
@@ -136,9 +135,8 @@ export default function ProgressPhotosScreen() {
       await reload();
     } catch {
       toast({ title: 'Could not delete photo', variant: 'destructive' });
-    } finally {
-      setDeleting(false);
     }
+    setDeleting(false);
   };
 
   return (

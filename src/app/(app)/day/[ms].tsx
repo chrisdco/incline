@@ -75,9 +75,8 @@ export default function DayScreen() {
         description: e instanceof Error ? e.message : 'Try again.',
         variant: 'destructive',
       });
-    } finally {
-      setSavingTemplate(false);
     }
+    setSavingTemplate(false);
   };
 
   return (

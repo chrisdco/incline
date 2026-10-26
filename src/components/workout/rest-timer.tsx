@@ -55,7 +55,7 @@ export function RestTimer({
   const { impact, selection } = useHaptics();
 
   useEffect(() => {
-    fill.value = withTiming(progress, { duration: 250 });
+    fill.set(withTiming(progress, { duration: 250 }));
   }, [fill, progress]);
 
   // Light tick on each of the last three seconds.
@@ -81,7 +81,7 @@ export function RestTimer({
       style={{ boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.25)' }}>
       <View
         onLayout={(e) => {
-          rowW.value = e.nativeEvent.layout.width;
+          rowW.set(e.nativeEvent.layout.width);
         }}
         className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
         <Animated.View

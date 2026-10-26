@@ -62,9 +62,11 @@ function ConfettiParticle({ spec }: { spec: ParticleSpec }) {
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    progress.value = withDelay(
-      spec.delay,
-      withTiming(1, { duration: spec.duration, easing: Easing.out(Easing.cubic) }),
+    progress.set(
+      withDelay(
+        spec.delay,
+        withTiming(1, { duration: spec.duration, easing: Easing.out(Easing.cubic) }),
+      ),
     );
   }, [progress, spec.delay, spec.duration]);
 

@@ -38,6 +38,23 @@ type ExercisePatch = Partial<Pick<TemplateExercise, 'targetSets' | 'targetRepsMi
 
 const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'advanced'];
 
+// Module-level so the editor's try blocks stay free of conditionals (React Compiler).
+function templateExercises(t: NonNullable<Awaited<ReturnType<typeof getTemplate>>>): Exercise[] {
+  return (t.exercises ?? []) as Exercise[];
+}
+
+async function addTemplateExercises(templateId: number, exercises: Exercise[]) {
+  for (const ex of exercises) {
+    const teId = await addExerciseToTemplate(templateId, ex.exerciseId, ex.targetSets, ex.targetRepsMin, ex.targetRepsMax, ex.restSeconds);
+    if (ex.notes?.trim() || ex.supersetGroup != null) {
+      await updateTemplateExercise(teId, {
+        ...(ex.notes?.trim() ? { notes: ex.notes } : null),
+        ...(ex.supersetGroup != null ? { supersetGroup: ex.supersetGroup } : null),
+      });
+    }
+  }
+}
+
 export default function TemplateEditorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const isNew = !id || id === 'new';
@@ -99,7 +116,7 @@ export default function TemplateEditorScreen() {
     try {
       await addExerciseToTemplate(templateId, ex.id, 3, 8, 12, 90);
       const full = await getTemplate(templateId);
-      if (full) setExercises((full.exercises ?? []) as Exercise[]);
+      if (full) setExercises(templateExercises(full));
     } catch {
       toast({ title: 'Failed to add exercise', variant: 'destructive' });
     }
@@ -128,15 +145,7 @@ export default function TemplateEditorScreen() {
     try {
       if (isNew) {
         const newId = await createTemplate(name.trim(), description.trim(), difficulty, estimatedMinutes);
-        for (const ex of exercises) {
-          const teId = await addExerciseToTemplate(newId, ex.exerciseId, ex.targetSets, ex.targetRepsMin, ex.targetRepsMax, ex.restSeconds);
-          if (ex.notes?.trim() || ex.supersetGroup != null) {
-            await updateTemplateExercise(teId, {
-              ...(ex.notes?.trim() ? { notes: ex.notes } : null),
-              ...(ex.supersetGroup != null ? { supersetGroup: ex.supersetGroup } : null),
-            });
-          }
-        }
+        await addTemplateExercises(newId, exercises);
         toast({ title: 'Routine created', variant: 'success' });
         router.replace(`/workout/${newId}`);
       } else if (templateId) {
@@ -146,9 +155,8 @@ export default function TemplateEditorScreen() {
       }
     } catch {
       toast({ title: 'Could not save routine', variant: 'destructive' });
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   const handleDelete = async () => {

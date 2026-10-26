@@ -58,11 +58,11 @@ export function PressableCard({
   }));
 
   const onPressIn = useCallback(() => {
-    scale.value = withSpring(0.98, { damping: 18, stiffness: 420 });
+    scale.set(withSpring(0.98, { damping: 18, stiffness: 420 }));
   }, [scale]);
 
   const onPressOut = useCallback(() => {
-    scale.value = withSpring(1, { damping: 18, stiffness: 420 });
+    scale.set(withSpring(1, { damping: 18, stiffness: 420 }));
   }, [scale]);
 
   return (

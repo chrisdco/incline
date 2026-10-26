@@ -101,6 +101,8 @@ export default function ShareWorkoutScreen() {
       completedSets,
       prCount,
     });
+    // Computed outside the try: the compiler can't lower conditionals inside one.
+    const shareTitle = mode === 'stories' ? 'Share to Stories' : 'Share workout';
     try {
       const uri = await captureSharePng(shareRef);
       if (!uri) {
@@ -116,15 +118,14 @@ export default function ShareWorkoutScreen() {
       } else {
         await sharePngOrMessage({
           uri,
-          title: mode === 'stories' ? 'Share to Stories' : 'Share workout',
+          title: shareTitle,
           message,
         });
       }
     } catch {
       toast({ title: 'Could not share workout', variant: 'destructive' });
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   if (loading) {

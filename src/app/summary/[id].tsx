@@ -250,9 +250,8 @@ export default function SummaryScreen() {
         description: e instanceof Error ? e.message : 'Try again.',
         variant: 'destructive',
       });
-    } finally {
-      setSavingTemplate(false);
     }
+    setSavingTemplate(false);
   };
 
   const onDeleteWorkout = async () => {
@@ -266,9 +265,8 @@ export default function SummaryScreen() {
       else router.replace('/(app)/(tabs)');
     } catch {
       toast({ title: 'Could not delete workout', variant: 'destructive' });
-    } finally {
-      setDeleting(false);
     }
+    setDeleting(false);
   };
 
   if (loading) {

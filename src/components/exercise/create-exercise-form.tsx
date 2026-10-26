@@ -42,23 +42,23 @@ export function CreateExerciseForm({
     }
     setSaving(true);
     setError('');
+    // Computed outside the try: the compiler can't lower conditionals inside one.
+    const input: CreateCustomExerciseInput = {
+      name: name.trim(),
+      primaryMuscle,
+      movementPattern: pattern,
+      equipment,
+      category,
+      isCompound,
+      tips: tips.trim() || undefined,
+    };
     try {
-      const input: CreateCustomExerciseInput = {
-        name: name.trim(),
-        primaryMuscle,
-        movementPattern: pattern,
-        equipment,
-        category,
-        isCompound,
-        tips: tips.trim() || undefined,
-      };
       await createCustomExercise(input);
       onCreated();
     } catch {
       setError('Failed to save exercise');
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   return (

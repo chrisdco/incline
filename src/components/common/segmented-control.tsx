@@ -43,7 +43,7 @@ export function SegmentedControl<T extends string>({
   useEffect(() => {
     const x = offsets[selectedIndex] ?? 0;
     if (selectedWidth <= 0) return;
-    indicatorX.value = withSpring(x, { damping: 40, stiffness: 150 });
+    indicatorX.set(withSpring(x, { damping: 40, stiffness: 150 }));
   }, [selectedIndex, selectedWidth, offsets, indicatorX]);
 
   // translateX glides on the GPU; width applies instantly (one layout per tap)

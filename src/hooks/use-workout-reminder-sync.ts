@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { syncWorkoutReminderSchedules } from '@/lib/notifications/reminders';
+import { runExclusive } from '@/lib/run-exclusive';
 import { useSettings } from '@/store/settings-store';
 
 /**
@@ -18,16 +19,11 @@ export function useWorkoutReminderSync() {
   useEffect(() => {
     let cancelled = false;
 
-    const run = async () => {
-      if (syncing.current) return;
-      syncing.current = true;
-      try {
+    const run = () =>
+      runExclusive(syncing, async () => {
         if (cancelled) return;
         await syncWorkoutReminderSchedules({ enabled, days, hour, minute });
-      } finally {
-        syncing.current = false;
-      }
-    };
+      });
 
     void run();
 
