@@ -24,6 +24,11 @@ vi.mock('../client', () => ({
     if (!currentDb) throw new Error('test db not mounted');
     return currentDb;
   },
+  // Same handle: the adapter is one connection, mutate() BEGINs on it.
+  openWriterDatabase: async () => {
+    if (!currentDb) throw new Error('test db not mounted');
+    return currentDb;
+  },
   isDatabaseReady: () => currentDb != null,
   __resetDatabaseCacheForTests: () => {},
 }));

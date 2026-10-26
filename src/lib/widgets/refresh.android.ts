@@ -2,9 +2,9 @@
  * Push fresh snapshots to the Android home-screen widgets.
  *
  * Widgets cannot poll and cannot run app code (the runtime is isolated), so
- * values are written at the same places the app already invalidates its own
- * views — app start/foreground plus session start/finish/discard and settings
- * changes (see `useWidgetRefresh`), never on a timer.
+ * values are written when the data they render changes — app start/foreground,
+ * table-change events from SQLite, and settings changes (see
+ * `useWidgetRefresh`), never on a timer.
  */
 import { isRunningInExpoGo } from 'expo';
 
@@ -19,10 +19,16 @@ import { buildThisWeekProps } from './build-this-week';
 import { widgetPalettes } from './palette';
 
 let inFlight = false;
+let rerun = false;
 
 export async function refreshWidgets(now = Date.now()): Promise<void> {
   if (isRunningInExpoGo()) return;
-  if (inFlight) return;
+  // A call landing mid-refresh re-runs once afterwards instead of being
+  // dropped, so the snapshot always ends on the latest committed state.
+  if (inFlight) {
+    rerun = true;
+    return;
+  }
   inFlight = true;
   try {
     const settings = useSettings.getState();
@@ -81,5 +87,9 @@ export async function refreshWidgets(now = Date.now()): Promise<void> {
     // Widgets are a bonus surface — a failure here must never reach the app.
   } finally {
     inFlight = false;
+    if (rerun) {
+      rerun = false;
+      void refreshWidgets();
+    }
   }
 }

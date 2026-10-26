@@ -42,12 +42,19 @@ vi.mock('../client', () => ({
     if (!currentDb) throw new Error('test db not mounted');
     return currentDb;
   },
+  // Same handle: the adapter is one connection, mutate() BEGINs on it.
+  openWriterDatabase: async () => {
+    if (!currentDb) throw new Error('test db not mounted');
+    return currentDb;
+  },
   isDatabaseReady: () => currentDb != null,
   __resetDatabaseCacheForTests: () => {},
 }));
 
+import { onTablesChanged } from '../changes';
 import {
   addExerciseToWorkout,
+  addSet,
   discardWorkout,
   finishWorkout,
   getWorkoutLog,
@@ -290,5 +297,163 @@ describe('outbox coalesce (real module)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].payload).toBe('{"reps":10}');
     expect(rows[0].attempts).toBe(0);
+  });
+});
+
+describe('mutate(): a failed enqueue rolls back the row change (#138)', () => {
+  const failEnqueue = /INSERT INTO sync_outbox/;
+
+  it('updateSet leaves the set untouched and rethrows', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    const [id] = await setIds(logId);
+    const outboxBefore = await outboxCount();
+
+    faults.failOn = failEnqueue;
+    await expect(updateSet(id, { completed: true, weight: 100, reps: 5 })).rejects.toThrow(
+      'injected fault',
+    );
+    faults.failOn = null;
+
+    const row = await db().getFirstAsync<{ weight: number; completed: number }>(
+      'SELECT weight, completed FROM set_entries WHERE id = ?',
+      id,
+    );
+    expect(row).toEqual({ weight: 0, completed: 0 });
+    expect(await outboxCount()).toBe(outboxBefore);
+  });
+
+  it('addSet inserts nothing', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    const before = await setIds(logId);
+
+    faults.failOn = failEnqueue;
+    await expect(addSet(logId, 1)).rejects.toThrow('injected fault');
+    faults.failOn = null;
+
+    expect(await setIds(logId)).toEqual(before);
+  });
+
+  it('removeSet keeps the set alive', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    const [id] = await setIds(logId);
+
+    faults.failOn = failEnqueue;
+    await expect(removeSet(id)).rejects.toThrow('injected fault');
+    faults.failOn = null;
+
+    expect(await setIds(logId)).toEqual([id]);
+  });
+
+  it('startWorkout opens no log', async () => {
+    faults.failOn = failEnqueue;
+    await expect(startWorkout(null, 'Push')).rejects.toThrow('injected fault');
+    faults.failOn = null;
+
+    expect(await openLogCount()).toBe(0);
+  });
+
+  it('later writes still commit after a rollback', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    const [id] = await setIds(logId);
+
+    faults.failOn = failEnqueue;
+    await expect(updateSet(id, { reps: 3 })).rejects.toThrow('injected fault');
+    faults.failOn = null;
+    await updateSet(id, { reps: 7 });
+
+    const row = await db().getFirstAsync<{ reps: number }>('SELECT reps FROM set_entries WHERE id = ?', id);
+    expect(row?.reps).toBe(7);
+  });
+});
+
+describe('stored total_volume settles at finish, not per edit', () => {
+  it('leaves an open log untouched on set edits, then settles on finish', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    const [id] = await setIds(logId);
+    const logBefore = await db().getFirstAsync<{ total_volume: number; updated_at: number }>(
+      'SELECT total_volume, updated_at FROM workout_logs WHERE id = ?',
+      logId,
+    );
+
+    await updateSet(id, { completed: true, weight: 100, reps: 5 });
+
+    const logAfter = await db().getFirstAsync<{ total_volume: number; updated_at: number }>(
+      'SELECT total_volume, updated_at FROM workout_logs WHERE id = ?',
+      logId,
+    );
+    expect(logAfter).toEqual(logBefore);
+
+    await finishWorkout(logId);
+    const closed = await db().getFirstAsync<{ total_volume: number }>(
+      'SELECT total_volume FROM workout_logs WHERE id = ?',
+      logId,
+    );
+    expect(closed?.total_volume).toBe(500);
+  });
+
+  it('recomputes and re-enqueues a finished log when its sets change', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    const [id] = await setIds(logId);
+    await updateSet(id, { completed: true, weight: 100, reps: 5 });
+    await finishWorkout(logId);
+
+    await updateSet(id, { reps: 6 });
+    const log = await db().getFirstAsync<{ total_volume: number; uuid: string }>(
+      'SELECT total_volume, uuid FROM workout_logs WHERE id = ?',
+      logId,
+    );
+    expect(log?.total_volume).toBe(600);
+    const queued = await db().getFirstAsync<{ payload: string }>(
+      'SELECT payload FROM sync_outbox WHERE row_uuid = ?',
+      log!.uuid,
+    );
+    expect(JSON.parse(queued!.payload).total_volume).toBe(600);
+
+    await removeSet(id);
+    const emptied = await db().getFirstAsync<{ total_volume: number }>(
+      'SELECT total_volume FROM workout_logs WHERE id = ?',
+      logId,
+    );
+    expect(emptied?.total_volume).toBe(0);
+  });
+});
+
+describe('table-change event', () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it('emits the written tables once per commit and nothing on rollback', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    const [id] = await setIds(logId);
+    await tick();
+
+    const seen: string[][] = [];
+    const off = onTablesChanged((tables) => seen.push([...tables].sort()));
+    try {
+      await updateSet(id, { reps: 4 });
+      await tick();
+      expect(seen).toEqual([['set_entries', 'sync_outbox', 'workout_logs']]);
+
+      faults.failOn = /INSERT INTO sync_outbox/;
+      await expect(updateSet(id, { reps: 5 })).rejects.toThrow('injected fault');
+      faults.failOn = null;
+      await tick();
+      expect(seen).toHaveLength(1);
+    } finally {
+      off();
+    }
   });
 });

@@ -1,4 +1,5 @@
 import { openDatabase } from '../client';
+import type { Tx } from '../write';
 import { ghostWorkingSql } from '@/lib/session-ghost';
 import { isSetType } from '../types';
 import type {
@@ -318,8 +319,8 @@ export function isSubsequence(needle: string, hay: string): boolean {
   return i === needle.length;
 }
 
-export async function recomputeVolume(logId: number): Promise<void> {
-  const db = await openDatabase();
+export async function recomputeVolume(logId: number, tx?: Tx): Promise<void> {
+  const db = tx ?? (await openDatabase());
   const r = await db.getFirstAsync<{ v: number }>(
     'SELECT COALESCE(SUM(weight * reps), 0) as v FROM set_entries WHERE workout_log_id = ? AND completed = 1 AND deleted_at IS NULL',
     logId,

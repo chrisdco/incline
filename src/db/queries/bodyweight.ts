@@ -1,22 +1,24 @@
 import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
 import { enqueueSync } from '@/sync/outbox';
+import { mutate } from '../write';
 
 export async function addBodyweightEntry(weight: number, unit: string): Promise<void> {
-  const db = await openDatabase();
   const now = Date.now();
   const uuid = newUuid();
-  await db.runAsync(
-    'INSERT INTO bodyweight_entries (weight, unit, recorded_at, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    weight, unit, now, uuid, now, now,
-  );
-  await enqueueSync('bodyweight_entries', uuid, 'upsert', {
-    weight,
-    unit,
-    recorded_at: now,
-    created_at: now,
-    updated_at: now,
-    deleted_at: null,
+  await mutate(['bodyweight_entries'], async (tx) => {
+    await tx.runAsync(
+      'INSERT INTO bodyweight_entries (weight, unit, recorded_at, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      weight, unit, now, uuid, now, now,
+    );
+    await enqueueSync('bodyweight_entries', uuid, 'upsert', {
+      weight,
+      unit,
+      recorded_at: now,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    }, tx);
   });
 }
 
@@ -38,20 +40,21 @@ export async function getLatestBodyweight(): Promise<number | null> {
 }
 
 export async function deleteBodyweightEntry(id: number): Promise<void> {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<{ uuid: string | null }>(
-    'SELECT uuid FROM bodyweight_entries WHERE id = ?',
-    id,
-  );
   const now = Date.now();
-  await db.runAsync(
-    'UPDATE bodyweight_entries SET deleted_at = ?, updated_at = ? WHERE id = ?',
-    now, now, id,
-  );
-  if (row?.uuid) {
-    await enqueueSync('bodyweight_entries', row.uuid, 'delete', {
-      updated_at: now,
-      deleted_at: now,
-    });
-  }
+  await mutate(['bodyweight_entries'], async (tx) => {
+    const row = await tx.getFirstAsync<{ uuid: string | null }>(
+      'SELECT uuid FROM bodyweight_entries WHERE id = ?',
+      id,
+    );
+    await tx.runAsync(
+      'UPDATE bodyweight_entries SET deleted_at = ?, updated_at = ? WHERE id = ?',
+      now, now, id,
+    );
+    if (row?.uuid) {
+      await enqueueSync('bodyweight_entries', row.uuid, 'delete', {
+        updated_at: now,
+        deleted_at: now,
+      }, tx);
+    }
+  });
 }

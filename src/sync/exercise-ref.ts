@@ -1,13 +1,25 @@
 import { openDatabase } from '@/db/client';
+import type { Tx } from '@/db/write';
 import type { ExerciseRef } from '@/sync/types';
 
 /** Resolve a local exercise id into a stable sync reference. */
-export async function exerciseRefForId(exerciseId: number): Promise<ExerciseRef> {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<{ is_custom: number; uuid: string | null; external_id: string | null }>(
+export async function exerciseRefForId(exerciseId: number, tx?: Tx): Promise<ExerciseRef> {
+  const db = tx ?? (await openDatabase());
+  const row = await db.getFirstAsync<ExerciseRefRow>(
     'SELECT is_custom, uuid, external_id FROM exercises WHERE id = ?',
     exerciseId,
   );
+  return exerciseRefFromRow(exerciseId, row);
+}
+
+export interface ExerciseRefRow {
+  is_custom: number;
+  uuid: string | null;
+  external_id: string | null;
+}
+
+/** Pure half of exerciseRefForId, for callers that already joined `exercises`. */
+export function exerciseRefFromRow(exerciseId: number, row: ExerciseRefRow | null): ExerciseRef {
   if (!row) return { ref: 'unknown' };
   if (row.is_custom) {
     if (!row.uuid) return { ref: 'unknown' };
