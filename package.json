@@ -15,7 +15,8 @@
     "test": "vitest run --config vitest.config.mts --exclude \"**/*.integration.test.ts\"",
     "test:integration": "vitest run --config vitest.config.mts integration",
     "test:all": "vitest run --config vitest.config.mts",
-    "test:watch": "vitest --config vitest.config.mts"
+    "test:watch": "vitest --config vitest.config.mts",
+    "tokens:css": "vitest run --config vitest.config.mts src/styles/__tests__/theme-tokens.test.ts -u"
   },
   "dependencies": {
     "@clerk/expo": "^4.6.6",

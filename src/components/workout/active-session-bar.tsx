@@ -5,7 +5,7 @@ import { ChevronUp, Trash2 } from 'lucide-react-native';
 
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { formatDuration } from '@/db/calc';
 import { getWorkoutLog } from '@/db/queries';
 import { setCachedSession } from '@/lib/query-keys';

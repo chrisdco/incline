@@ -3,8 +3,7 @@ import { View } from 'react-native';
 
 import { cn } from '@/lib/cn';
 import { Card } from '@/components/ui/card';
-import { Text } from '@/components/ui/text';
-import { Caption } from './text';
+import { Caption, Text } from './text';
 
 /** Compact stat tile used in summaries and the dashboard. */
 export function StatCard({

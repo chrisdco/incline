@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 
-import { Text } from './text';
+import { Text } from '@/components/common/text';
 
 export function Dialog({
   open,

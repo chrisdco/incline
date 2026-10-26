@@ -3,6 +3,8 @@ import type { PropsWithChildren } from 'react';
 
 // Web-only: configures the root HTML shell for static rendering.
 // Runs in Node.js only — no browser APIs or global CSS imports here.
+// The #1a1a1a / #fff shell colors are intentionally not theme tokens: they
+// only paint before React hydrates and the themed root View takes over.
 export default function Root({ children }: PropsWithChildren) {
   return (
     <html lang="en">

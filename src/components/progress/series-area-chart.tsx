@@ -2,7 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import { LayoutChangeEvent, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { cn } from '@/lib/cn';
 import { hexToRgba, useThemeHex } from '@/lib/theme';
 

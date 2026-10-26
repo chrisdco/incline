@@ -2,7 +2,7 @@ import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { EQUIPMENT_LABELS, MOVEMENT_LABELS } from '@/lib/labels';
 import type { Exercise } from '@/db/types';
 import { MuscleBadge } from './muscle-badge';

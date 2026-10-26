@@ -6,8 +6,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 
-import { Body, Caption } from '@/components/common/text';
-import { Text } from '@/components/ui/text';
+import { Body, Caption, Text } from '@/components/common/text';
 import { Sheet } from '@/components/ui/sheet';
 import { Chip } from '@/components/common/chip';
 import { SegmentedControl } from '@/components/common/segmented-control';

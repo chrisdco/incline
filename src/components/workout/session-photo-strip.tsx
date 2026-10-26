@@ -77,6 +77,7 @@ export function SessionPhotoStrip({
               accessibilityRole="button"
               accessibilityLabel="Remove photo"
               className="absolute right-1 top-1 h-6 w-6 items-center justify-center rounded-full bg-black/60">
+              {/* Fixed white on the black/60 scrim over a photo — not a theme color. */}
               <Icon icon={X} size={12} color="#ffffff" />
             </Pressable>
           </View>

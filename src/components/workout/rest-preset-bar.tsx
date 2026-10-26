@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { REST_PRESETS } from '@/constants/rest-presets';
 
 /** Quick-pick rest duration chips shown alongside the running timer. */

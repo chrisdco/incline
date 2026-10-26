@@ -3,8 +3,7 @@ import { CalendarDays } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Card } from '@/components/ui/card';
-import { Text } from '@/components/ui/text';
-import { Body, Caption } from '@/components/common/text';
+import { Body, Caption, Text } from '@/components/common/text';
 import type { Program } from '@/db/types';
 
 /** Program card that navigates to the program detail screen. */

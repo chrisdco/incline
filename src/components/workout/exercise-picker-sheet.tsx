@@ -16,7 +16,7 @@ import { MuscleBadge } from '@/components/exercise/muscle-badge';
 import { EmptyState } from '@/components/common/states';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/common/icon';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { fetchExercisesFromSupabase, searchExercisesFromSupabase, type SupabaseExercise } from '@/lib/supabase';
 import { ensureExerciseExists, getExercise, listCustomExercises, deleteCustomExercise, getCustomExerciseUsage, searchExercises } from '@/db/queries';
 import type { Exercise } from '@/db/types';

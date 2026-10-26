@@ -7,9 +7,12 @@ import { useSignIn } from '@clerk/expo/legacy';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
-import { Heading, Caption } from '@/components/common/text';
+import { Heading, Caption, Text } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
+
+// Off-token grey (Tailwind gray-500) kept as-is for zero visual change;
+// converge on PLACEHOLDER_COLOR in the UI polish pass.
+const AUTH_PLACEHOLDER = '#6b7280';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -161,7 +164,7 @@ export default function SignInScreen() {
               value={emailAddress}
               onChangeText={setEmailAddress}
               placeholder="you@example.com"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={AUTH_PLACEHOLDER}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
@@ -175,7 +178,7 @@ export default function SignInScreen() {
               value={password}
               onChangeText={setPassword}
               placeholder="Your password"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={AUTH_PLACEHOLDER}
               secureTextEntry
               autoComplete="password"
               className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
@@ -225,7 +228,7 @@ export default function SignInScreen() {
                     value={resetEmail}
                     onChangeText={setResetEmail}
                     placeholder="you@example.com"
-                    placeholderTextColor="#6b7280"
+                    placeholderTextColor={AUTH_PLACEHOLDER}
                     autoCapitalize="none"
                     keyboardType="email-address"
                     autoComplete="email"
@@ -245,7 +248,7 @@ export default function SignInScreen() {
                     value={resetCode}
                     onChangeText={setResetCode}
                     placeholder="123456"
-                    placeholderTextColor="#6b7280"
+                    placeholderTextColor={AUTH_PLACEHOLDER}
                     autoCapitalize="none"
                     keyboardType="number-pad"
                     autoComplete="one-time-code"
@@ -258,7 +261,7 @@ export default function SignInScreen() {
                     value={resetNewPassword}
                     onChangeText={setResetNewPassword}
                     placeholder="Min 8 characters"
-                    placeholderTextColor="#6b7280"
+                    placeholderTextColor={AUTH_PLACEHOLDER}
                     secureTextEntry
                     autoComplete="new-password"
                     className="rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground"

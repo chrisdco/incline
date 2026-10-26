@@ -1,7 +1,7 @@
 import { Pressable, ScrollView } from 'react-native';
 
 import { cn } from '@/lib/cn';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 
 export function Chip({
   label,

@@ -6,9 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { ChevronLeft, Info, Plus } from 'lucide-react-native';
 
-import { Body, Caption, Heading } from '@/components/common/text';
+import { Body, Caption, Heading, Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
-import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { SearchBar } from '@/components/common/search-bar';
 import { MuscleBadge } from '@/components/exercise/muscle-badge';

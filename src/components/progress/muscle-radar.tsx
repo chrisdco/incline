@@ -9,7 +9,10 @@ import { hexToRgba, useThemeHex } from '@/lib/theme';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import type { MuscleDistribution } from '@/db/types';
 
-/** Distinct from brand primary so current vs previous is obvious. */
+/**
+ * Distinct from brand primary so current vs previous is obvious. Chart series
+ * colors, intentionally fixed rather than theme tokens.
+ */
 const PREVIOUS_LIGHT = '#0284c7';
 const PREVIOUS_DARK = '#38bdf8';
 

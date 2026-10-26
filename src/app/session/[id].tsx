@@ -15,9 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, MessageSquarePlus, Pause, Play, Plus, Undo2, X } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
-import { Body, Caption } from '@/components/common/text';
+import { Body, Caption, Text } from '@/components/common/text';
 import { ListSkeleton } from '@/components/common/skeleton';
-import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';

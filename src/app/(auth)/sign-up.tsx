@@ -7,9 +7,12 @@ import { useSignUp } from '@clerk/expo/legacy';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
-import { Heading, Caption } from '@/components/common/text';
+import { Heading, Caption, Text } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
+
+// Off-token grey (Tailwind gray-500) kept as-is for zero visual change;
+// converge on PLACEHOLDER_COLOR in the UI polish pass.
+const AUTH_PLACEHOLDER = '#6b7280';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -124,7 +127,7 @@ export default function SignUpScreen() {
                 value={emailAddress}
                 onChangeText={setEmailAddress}
                 placeholder="you@example.com"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={AUTH_PLACEHOLDER}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
@@ -138,7 +141,7 @@ export default function SignUpScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="At least 8 characters"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={AUTH_PLACEHOLDER}
                 secureTextEntry
                 autoComplete="new-password"
                 className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
@@ -169,7 +172,7 @@ export default function SignUpScreen() {
                 value={code}
                 onChangeText={setCode}
                 placeholder="Enter the 6-digit code"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={AUTH_PLACEHOLDER}
                 keyboardType="number-pad"
                 autoComplete="one-time-code"
                 className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"

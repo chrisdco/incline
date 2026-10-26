@@ -9,7 +9,7 @@ import { cn } from '@/lib/cn';
 import { themeHex } from '@/lib/theme';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { useSettings } from '@/store/settings-store';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
 
 const ICONS: Record<string, LucideIcon> = {

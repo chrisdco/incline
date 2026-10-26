@@ -6,6 +6,7 @@ import {
 } from '@/lib/accent-themes';
 import { useSettings } from '@/store/settings-store';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
+import { BASE_VARS } from '@/styles/tokens';
 
 export type IconColor =
   | 'primary'
@@ -25,39 +26,37 @@ export type IconColor =
   | 'accent-foreground'
   | 'border';
 
-const LIGHT_BASE: Record<Exclude<IconColor, 'primary' | 'primary-foreground'>, string> = {
-  'secondary-foreground': 'hsl(240 5.9% 10%)',
-  'muted-foreground': 'hsl(240 4% 40%)',
-  destructive: 'hsl(0 72% 51%)',
-  'destructive-foreground': 'hsl(0 0% 98%)',
-  success: 'hsl(142 64% 38%)',
-  'success-foreground': 'hsl(0 0% 100%)',
-  warning: 'hsl(38 92% 50%)',
-  'warning-foreground': 'hsl(0 0% 100%)',
-  info: 'hsl(217 91% 60%)',
-  'info-foreground': 'hsl(0 0% 100%)',
-  foreground: 'hsl(240 10% 3.9%)',
-  'card-foreground': 'hsl(240 10% 3.9%)',
-  'accent-foreground': 'hsl(240 5.9% 10%)',
-  border: 'hsl(240 5.9% 90%)',
+type BaseIconColor = Exclude<IconColor, 'primary' | 'primary-foreground'>;
+
+// Classic neutrals from the token table (aurora skins don't retint icons).
+function iconBase(vars: Record<BaseIconColor, string>): Record<BaseIconColor, string> {
+  return Object.fromEntries(
+    Object.entries(vars).map(([name, channels]) => [name, `hsl(${channels})`]),
+  ) as Record<BaseIconColor, string>;
+}
+
+const pickBase = (scheme: 'light' | 'dark') => {
+  const v = BASE_VARS[scheme];
+  return iconBase({
+    'secondary-foreground': v['secondary-foreground'],
+    'muted-foreground': v['muted-foreground'],
+    destructive: v.destructive,
+    'destructive-foreground': v['destructive-foreground'],
+    success: v.success,
+    'success-foreground': v['success-foreground'],
+    warning: v.warning,
+    'warning-foreground': v['warning-foreground'],
+    info: v.info,
+    'info-foreground': v['info-foreground'],
+    foreground: v.foreground,
+    'card-foreground': v['card-foreground'],
+    'accent-foreground': v['accent-foreground'],
+    border: v.border,
+  });
 };
 
-const DARK_BASE: Record<Exclude<IconColor, 'primary' | 'primary-foreground'>, string> = {
-  'secondary-foreground': 'hsl(0 0% 98%)',
-  'muted-foreground': 'hsl(240 5% 70%)',
-  destructive: 'hsl(0 62.8% 50%)',
-  'destructive-foreground': 'hsl(0 0% 98%)',
-  success: 'hsl(142 60% 45%)',
-  'success-foreground': 'hsl(0 0% 100%)',
-  warning: 'hsl(38 90% 54%)',
-  'warning-foreground': 'hsl(0 0% 100%)',
-  info: 'hsl(217 88% 64%)',
-  'info-foreground': 'hsl(240 10% 4%)',
-  foreground: 'hsl(0 0% 98%)',
-  'card-foreground': 'hsl(0 0% 98%)',
-  'accent-foreground': 'hsl(0 0% 98%)',
-  border: 'hsl(240 5% 15%)',
-};
+const LIGHT_BASE = pickBase('light');
+const DARK_BASE = pickBase('dark');
 
 export function resolveIconColor(
   color: IconColor | string,

@@ -6,7 +6,7 @@ import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react-native';
 
-import { Text } from './text';
+import { Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
 import { useSettings } from '@/store/settings-store';
 

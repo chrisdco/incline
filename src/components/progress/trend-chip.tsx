@@ -4,7 +4,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react-native';
 
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
-import { Text } from '@/components/ui/text';
+import { Text } from '@/components/common/text';
 
 /** Trend chip: "↑12% vs last period" in green/red based on direction. */
 export const TrendChip = memo(function TrendChip({
