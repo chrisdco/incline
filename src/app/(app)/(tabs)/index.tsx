@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Play, Plus, ArrowRight, ChevronRight, Dumbbell } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
@@ -28,7 +28,7 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { startWorkout, discardWorkout, deleteWorkout, createTemplateFromWorkoutLog } from '@/db/queries';
-import { setCachedSession } from '@/db/session-cache';
+import { setCachedSession } from '@/lib/query-keys';
 import { formatVolume, formatFullDate } from '@/db/calc';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
@@ -75,9 +75,9 @@ export default function HomeScreen() {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [today] = useState(() => formatFullDate(Date.now()));
   const [refreshing, setRefreshing] = useState(false);
-  const didFocus = useRef(false);
 
-  // One refresh path for both pull-to-refresh and tab re-focus.
+  // Pull-to-refresh only: queries are invalidated by the tables they read,
+  // so returning to the tab needs no manual refetch.
   const reloadHome = useCallback(async () => {
     refetchProfile();
     refetchStats();
@@ -93,16 +93,6 @@ export default function HomeScreen() {
       setRefreshing(false);
     }
   }, [reloadHome]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (didFocus.current) {
-        void reloadHome();
-      } else {
-        didFocus.current = true;
-      }
-    }, [reloadHome]),
-  );
 
   const doStart = async (templateId: number | null, name: string) => {
     setStarting(true);

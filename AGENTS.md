@@ -7,11 +7,11 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 ## Data-loading rules (non-negotiable)
 
 - **Never query per row in a loop.** Batch with `WHERE id IN (...)` + assemble maps (see `mapExerciseRows`). One list screen once cost 1200+ queries; don't regress it.
-- **Pickers render cached, revalidate behind.** `exercise-cache.ts` / `session-cache.ts` pattern: sync render from memory + background refresh. Invalidate at the write site (create/delete/import/wipe), never on a timer.
-- **SQLite is source of truth; memory is disposable.** Never write through a cache. Worst acceptable failure is one stale open.
+- **Pickers render cached, revalidate behind.** TanStack Query (`src/lib/query-keys.ts`): keys start with the tables read; writes go through `mutate()` (`src/db/write.ts`) and the table-change event invalidates — never call refetch on focus, never a timer. See TECH-DECISIONS §11.
+- **SQLite is source of truth; memory is disposable.** Never write through a cache. Writes + their outbox enqueues go in one `mutate()` transaction. Worst acceptable failure is one stale open.
 - **Lists render virtualized** (FlashList), rows stay presentational, no per-row async work.
 - **List projections stay light.** Browse/search rows need name/muscle/equipment only — don't drag instructions/images into list queries (next escalation when catalog passes low thousands).
-- **No new SWR hand-rolls past five caches** — at that point adopt TanStack Query instead (see issue #228). Until then, zustand + tiny caches.
+- **No new SWR hand-rolls** — reads are TanStack Query (adopted, #228). Zustand stays for UI/session state only.
 
 ## UI changes (screenshots beat memory)
 

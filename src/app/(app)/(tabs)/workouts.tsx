@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy } from 'lucide-react-native';
@@ -25,7 +25,7 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { startWorkout, discardWorkout, deleteTemplate, duplicateTemplate } from '@/db/queries';
-import { setCachedSession } from '@/db/session-cache';
+import { setCachedSession } from '@/lib/query-keys';
 import { useSettings } from '@/store/settings-store';
 import { usePrimaryHex } from '@/lib/theme';
 import { isAuroraAccent } from '@/lib/accent-themes';
@@ -57,20 +57,8 @@ export default function WorkoutsScreen() {
   const [routineQuery, setRoutineQuery] = useState('');
   const [routineSort, setRoutineSort] = useState<RoutineSort>('recent');
   const sawLoadingRef = useRef(false);
-  const didFocus = useRef(false);
-
-  // Routines/programs are edited on pushed screens; refetch when this tab
-  // regains focus so names, counts, and order are never stale.
-  useFocusEffect(
-    useCallback(() => {
-      if (didFocus.current) {
-        templates.refetch();
-        programs.refetch();
-      } else {
-        didFocus.current = true;
-      }
-    }, [templates.refetch, programs.refetch]),
-  );
+  // Routines/programs are edited on pushed screens; those writes invalidate
+  // the template/program queries, which refetch when this tab regains focus.
 
   const activeLoading = tab === 'routines' ? templates.loading : programs.loading;
 

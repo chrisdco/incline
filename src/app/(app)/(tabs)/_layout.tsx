@@ -8,7 +8,7 @@ import { ActiveSessionBar } from '@/components/workout/active-session-bar';
 import { DiscardSessionDialog, ResumeSessionDialog } from '@/components/workout/discard-session-dialog';
 import { useActiveSession } from '@/hooks/use-active-session';
 import { discardWorkout } from '@/db/queries';
-import { setCachedSession } from '@/db/session-cache';
+import { setCachedSession } from '@/lib/query-keys';
 import { useActiveWorkout } from '@/store/active-workout-store';
 
 export default function TabsLayout() {

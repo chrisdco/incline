@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useIsFocused } from 'expo-router';
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
-import { useAsync } from './use-async';
 import {
-  getActiveWorkout,
   getExercise,
   getExerciseHistory,
   getProgram,
@@ -14,190 +14,148 @@ import {
   getTodayProgramSlot,
   getWeeklyRecap,
   getMonthlyRecap,
-  getWorkoutLog,
-  listExercises,
   listPrograms,
   listTemplateSummaries,
   listWorkoutLogs,
   listWorkoutFeedLogs,
   searchExercises,
   type ExerciseFilters,
-  type SessionWorkout,
   type TodayProgramSlot,
   type WorkoutLogFilters,
 } from '@/db/queries';
-import type { Exercise, FeedWorkoutLog, MonthlyRecap, PeriodStats, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutLog, WorkoutTemplate } from '@/db/types';
+import type { Exercise, MonthlyRecap, PeriodStats, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutTemplate } from '@/db/types';
+import type { DbTable } from '@/db/write';
+import { dbKey } from '@/lib/query-client';
+import { TABLES } from '@/lib/query-keys';
 import { useSettings } from '@/store/settings-store';
 
-/* ---- catalog ---- */
-export function useExercises() {
-  return useAsync<Exercise[]>(() => listExercises(), []);
+/**
+ * A SQLite read as a query: keyed by the tables it reads (so writes to them
+ * invalidate it — no focus refetches), previous data kept across key changes
+ * and refetches (skeletons gate on `loading && data == null`, §8).
+ *
+ * Only a focused screen subscribes: tabs stay mounted under the session
+ * stack, and an unfocused observer would refetch on every set edit. Stale
+ * queries refetch when their screen regains focus.
+ */
+function useDbQuery<T>(tables: readonly DbTable[], key: unknown[], fn: () => Promise<T>) {
+  const focused = useIsFocused();
+  const q = useQuery({
+    queryKey: dbKey(tables, ...key),
+    queryFn: fn,
+    placeholderData: keepPreviousData,
+    subscribed: focused,
+  });
+  const { refetch } = q;
+  return {
+    data: q.data ?? null,
+    loading: q.isPending || q.isFetching,
+    error: q.error,
+    refetch: useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  };
 }
+
+/* ---- catalog ---- */
 export function useExercise(id: number) {
-  return useAsync<Exercise | null>(() => getExercise(id), [id]);
+  return useDbQuery<Exercise | null>(TABLES.catalog, ['exercise', id], () => getExercise(id));
 }
 export function useSearchExercises(query: string, filters?: ExerciseFilters) {
-  return useAsync<SearchHit[]>(
+  return useDbQuery<SearchHit[]>(
+    TABLES.catalog,
+    ['search', query, filters?.muscle ?? null, filters?.equipment ?? null, filters?.pattern ?? null],
     () => searchExercises(query, filters),
-    [query, filters?.muscle, filters?.equipment, filters?.pattern],
   );
 }
 export function useExerciseHistory(exerciseId: number) {
-  return useAsync(() => getExerciseHistory(exerciseId), [exerciseId]);
+  return useDbQuery(TABLES.logs, ['exerciseHistory', exerciseId], () => getExerciseHistory(exerciseId));
 }
 
 /* ---- templates & programs ---- */
 export function useTemplateSummaries() {
-  return useAsync(() => listTemplateSummaries(), []);
+  return useDbQuery(TABLES.templates, ['templateSummaries'], () => listTemplateSummaries());
 }
 export function useTemplate(id: number) {
-  return useAsync<WorkoutTemplate | null>(() => getTemplate(id), [id]);
+  return useDbQuery<WorkoutTemplate | null>(TABLES.templates, ['template', id], () => getTemplate(id));
 }
 export function useSuggestedTemplate() {
-  return useAsync<WorkoutTemplate | null>(() => getSuggestedTemplate(), []);
+  return useDbQuery<WorkoutTemplate | null>(TABLES.programs, ['suggestedTemplate'], () => getSuggestedTemplate());
 }
 export function usePrograms() {
-  return useAsync<Program[]>(() => listPrograms(), []);
+  return useDbQuery<Program[]>(TABLES.programs, ['programs'], () => listPrograms());
 }
 export function useProgram(id: number) {
-  return useAsync<Program | null>(() => getProgram(id), [id]);
+  return useDbQuery<Program | null>(TABLES.programs, ['program', id], () => getProgram(id));
 }
 export function useTodayProgramSlot() {
-  return useAsync<TodayProgramSlot | null>(() => getTodayProgramSlot(), []);
+  return useDbQuery<TodayProgramSlot | null>(TABLES.programs, ['todayProgramSlot'], () => getTodayProgramSlot());
 }
 
 /* ---- progress & profile ---- */
 export function useProgressStats(weeks = 8) {
-  return useAsync<ProgressStats>(() => getProgressStats(weeks), [weeks]);
+  return useDbQuery<ProgressStats>(TABLES.progress, ['progressStats', weeks], () => getProgressStats(weeks));
 }
 export function usePeriodStats(range: ProgressRange) {
-  return useAsync<PeriodStats>(() => getPeriodStats(range), [range]);
+  return useDbQuery<PeriodStats>(TABLES.progress, ['periodStats', range], () => getPeriodStats(range));
 }
 export function useWeeklyRecap(weekStartMs?: number) {
   const { unit } = useSettings();
-  return useAsync<WeeklyRecap>(() => getWeeklyRecap(weekStartMs ?? Date.now(), unit), [weekStartMs, unit]);
+  return useDbQuery<WeeklyRecap>(TABLES.progress, ['weeklyRecap', weekStartMs ?? null, unit], () =>
+    getWeeklyRecap(weekStartMs ?? Date.now(), unit),
+  );
 }
 export function useMonthlyRecap(monthStartMs?: number) {
   const { unit } = useSettings();
-  return useAsync<MonthlyRecap>(() => getMonthlyRecap(monthStartMs ?? Date.now(), unit), [monthStartMs, unit]);
+  return useDbQuery<MonthlyRecap>(TABLES.progress, ['monthlyRecap', monthStartMs ?? null, unit], () =>
+    getMonthlyRecap(monthStartMs ?? Date.now(), unit),
+  );
 }
 export function useProfile() {
-  return useAsync<UserProfile>(() => getProfile(), []);
+  return useDbQuery<UserProfile>(TABLES.profile, ['profile'], () => getProfile());
 }
 
 /* ---- paginated history (infinite scroll) ---- */
-export function useWorkoutLogs(filters: WorkoutLogFilters = {}) {
-  const [items, setItems] = useState<WorkoutLog[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const offsetRef = useRef(0);
-  const requestRef = useRef(0);
-  const filtersKey = `${filters.sinceMs ?? ''}:${filters.templateId ?? ''}:${filters.exerciseId ?? ''}`;
-  const filtersRef = useRef(filters);
 
-  useEffect(() => {
-    filtersRef.current = filters;
-  }, [filters]);
-
-  const load = useCallback(async (reset: boolean) => {
-    // Pull-to-refresh and infinite scroll can overlap; only the newest request
-    // may touch items/offset or a stale page would append after a reset.
-    const request = (requestRef.current += 1);
-    setLoading(true);
-    setError(null);
-    try {
-      const offset = reset ? 0 : offsetRef.current;
-      const page = await listWorkoutLogs(offset, undefined, filtersRef.current);
-      if (request !== requestRef.current) return;
-      setItems((prev) => (reset ? page.items : [...prev, ...page.items]));
-      offsetRef.current = page.nextOffset ?? offset;
-      setHasMore(page.nextOffset !== null);
-    } catch (e) {
-      if (request !== requestRef.current) return;
-      setError(e as Error);
-      if (reset) setItems([]);
-    } finally {
-      if (request === requestRef.current) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Keep prior rows until the new page arrives so FlashList doesn't jump
-    // when History date/exercise/template chips change.
-    offsetRef.current = 0;
-    setHasMore(true);
-    load(true);
-  }, [load, filtersKey]);
-
+/** Infinite-scroll page of rows over `useInfiniteQuery`, same shape as before. */
+function usePagedDbQuery<T>(
+  key: unknown[],
+  fetchPage: (offset: number) => Promise<{ items: T[]; nextOffset: number | null }>,
+) {
+  const focused = useIsFocused();
+  const q = useInfiniteQuery({
+    queryKey: dbKey(TABLES.logs, ...key),
+    queryFn: ({ pageParam }) => fetchPage(pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last) => last.nextOffset ?? undefined,
+    // Keep prior rows until the new first page arrives so FlashList doesn't
+    // jump when History date/exercise/template chips change.
+    placeholderData: keepPreviousData,
+    subscribed: focused,
+  });
+  const items = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
+  const { isFetching, hasNextPage, fetchNextPage, refetch } = q;
   return {
     items,
-    loading,
-    error,
-    hasMore,
+    loading: isFetching,
+    error: q.error,
+    hasMore: q.isPending || hasNextPage,
     loadMore: () => {
-      if (!loading && hasMore) load(false);
+      if (!isFetching && hasNextPage) void fetchNextPage();
     },
-    refresh: () => load(true),
+    refresh: () => {
+      void refetch();
+    },
   };
+}
+
+export function useWorkoutLogs(filters: WorkoutLogFilters = {}) {
+  return usePagedDbQuery(
+    ['workoutLogs', filters.sinceMs ?? null, filters.templateId ?? null, filters.exerciseId ?? null],
+    (offset) => listWorkoutLogs(offset, undefined, filters),
+  );
 }
 
 export function useWorkoutFeedLogs() {
-  const [items, setItems] = useState<FeedWorkoutLog[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const offsetRef = useRef(0);
-  const requestRef = useRef(0);
-
-  const load = useCallback(async (reset: boolean) => {
-    // Same guard as history: a refresh must not be clobbered by an in-flight
-    // "load more" page landing afterwards.
-    const request = (requestRef.current += 1);
-    setLoading(true);
-    setError(null);
-    try {
-      const offset = reset ? 0 : offsetRef.current;
-      const page = await listWorkoutFeedLogs(offset);
-      if (request !== requestRef.current) return;
-      setItems((prev) => (reset ? page.items : [...prev, ...page.items]));
-      offsetRef.current = page.nextOffset ?? offset;
-      setHasMore(page.nextOffset !== null);
-    } catch (e) {
-      if (request !== requestRef.current) return;
-      setError(e as Error);
-      if (reset) setItems([]);
-    } finally {
-      if (request === requestRef.current) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load(true);
-  }, [load]);
-
-  const loadMore = useCallback(() => {
-    if (!loading && hasMore) load(false);
-  }, [loading, hasMore, load]);
-  const refresh = useCallback(() => load(true), [load]);
-
-  return {
-    items,
-    loading,
-    error,
-    hasMore,
-    loadMore,
-    refresh,
-  };
+  return usePagedDbQuery(['workoutFeed'], (offset) => listWorkoutFeedLogs(offset));
 }
-
-/* ---- active workout / session ---- */
-export function useActiveSession() {
-  return useAsync<SessionWorkout | null>(() => getActiveWorkout(), []);
-}
-
-export function useWorkoutLog(id: number) {
-  return useAsync<SessionWorkout | null>(() => getWorkoutLog(id), [id]);
-}
-
-

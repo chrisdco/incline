@@ -1,5 +1,5 @@
 import { openDatabase } from '../client';
-import { invalidateCatalog } from '../exercise-cache';
+import { emitTablesChanged } from '../changes';
 import { newUuid } from '@/lib/uuid';
 import { buildSearchText, scoreField, tokenize } from '@/lib/exercise-search';
 import { enqueueSync } from '@/sync/outbox';
@@ -224,7 +224,6 @@ export async function createCustomExercise(input: CreateCustomExerciseInput): Pr
     }, tx);
     return newId;
   });
-  invalidateCatalog();
   return id;
 }
 
@@ -246,7 +245,6 @@ export async function deleteCustomExercise(id: number): Promise<void> {
       }, tx);
     }
   });
-  invalidateCatalog();
 }
 
 /** List only user-created exercises (local SQLite), sorted by name. */
@@ -339,7 +337,8 @@ export async function ensureExerciseExists(
     );
   }
 
-  invalidateCatalog();
+  // Written on the shared connection, not mutate(): announce it explicitly.
+  emitTablesChanged(['exercises']);
   return id;
 }
 

@@ -45,8 +45,8 @@ Short-lived alternatives log. Revisit only when a trigger below fires; otherwise
 
 ## 7. Session reopen: stale-while-revalidate, not remount-and-spinner
 
-- **Decision:** in-memory session cache (`src/db/session-cache.ts`, cap 5). Reopen renders cached rows synchronously + refreshes in background; tray/resume pushes warm it first (`setCachedSession` sync where the object is held, `getWorkoutLog` fire-and-forget from the tray). True cold opens show a layout-matching skeleton, never a bare spinner.
-- **Safety:** single-writer; `resetUserData()` clears the cache (ids restart after wipe, so stale entries could otherwise cross accounts); finish/discard drop their entry.
+- **Decision:** in-memory session cache (originally `src/db/session-cache.ts`, cap 5; since §11 the QueryClient entry behind `getCachedSession` in `src/lib/query-keys.ts`, 30 min gc). Reopen renders cached rows synchronously + refreshes in background; tray/resume pushes warm it first (`setCachedSession` sync where the object is held, `getWorkoutLog` fire-and-forget from the tray). True cold opens show a layout-matching skeleton, never a bare spinner.
+- **Safety:** single-writer; `resetUserData()` clears the cache (now `queryClient.clear()`) (ids restart after wipe, so stale entries could otherwise cross accounts); finish/discard drop their entry.
 - **Rule for elsewhere:** same treatment when a push-then-back flow flashes — cache + warm + skeleton. Do not hand-roll JS transitions; the native Stack push is already the cheapest animation. Candidates if reported: workout preview, exercise detail, summary.
 
 ## 8. Touch + gesture rules learned (tray, swipe, home hero)
@@ -71,3 +71,12 @@ Short-lived alternatives log. Revisit only when a trigger below fires; otherwise
 - **+1 min:** foregrounds the app (`opensAppToForeground: true`) and deep-links to `/session/:id`; `rest-timer-signal` restarts the in-app countdown, including cold start. Background actions are only delivered while the process is alive, which is exactly when the old dead-button behavior hurt. Skip stays background (nothing to re-arm).
 - **Dedupe:** notification responses key on request id **plus delivery date**, so a re-fired alert is handled again while a cold-start replay of the same delivery is ignored.
 - **Revisit when:** expo-widgets' Android custom-notification API can host a live countdown → move the countdown out of the notification body; or an OEM still defers `alarmClock` → document the per-OEM battery setting instead of adding a timer.
+
+## 11. Reads: TanStack Query, invalidated by table (2026-10-26)
+
+- **Decision:** `@tanstack/react-query` replaces the hand-rolled `useAsync`, `exercise-cache.ts` and `session-cache.ts` (adopted ahead of the "five caches" trigger in #228). One `QueryClient` (`src/lib/query-client.ts`): `staleTime: Infinity`, `networkMode: 'always'`, `retry: false`.
+- **Keys start with the tables read** (`dbKey(TABLES.logs, 'workoutLog', id)`; groups in `src/lib/query-keys.ts`). The table-change event (`src/db/changes.ts` — post-commit from `mutate()`, plus expo-sqlite's update hook for everything else) invalidates every query whose key names a changed table. No `useFocusEffect` refetches, no invalidation calls at write sites, never a timer.
+- **Focus-gated:** `use-data` hooks pass `subscribed: useIsFocused()`. Tabs stay mounted under the session stack; without the gate every set edit would refetch Home behind the session screen. Stale queries refetch on refocus.
+- **Cached-first, no spinner regressions:** `placeholderData: keepPreviousData`; hooks keep the `{ data, loading, error, refetch }` shape so the §8 skeleton rule (`loading && data == null`) is unchanged. The catalog query never GCs and is prefetched 2 s after launch; the live session entry is read/written via `getCachedSession` / `setCachedSession` and is never observed while the session screen owns it, so per-edit invalidation costs nothing.
+- **Over-including a table is cheap** (one extra refetch on focus); missing one leaves a screen stale — err wide when adding a key.
+- **Revisit when:** the session screen moves onto a query of its own (session-engine refactor) → give it a narrow key and optimistic `setQueryData` instead of local state.
