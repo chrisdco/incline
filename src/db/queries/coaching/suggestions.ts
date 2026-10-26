@@ -6,6 +6,7 @@ import { getTodayReadiness } from '@/coaching/readiness-store';
 import { rankSubstitutes } from '@/coaching/substitution';
 import type { TrainingSuggestion } from '@/coaching/types';
 import type { Exercise, SetEntry, Unit } from '../../types';
+import { resolveWeightUnit } from '@/lib/units';
 
 function workingSets(sets: SetEntry[]): { weight: number; reps: number; rpe: number | null }[] {
   return sets
@@ -14,9 +15,14 @@ function workingSets(sets: SetEntry[]): { weight: number; reps: number; rpe: num
 }
 
 /** Overload suggestions for every exercise in a template. */
+/**
+ * `unit` is the global display unit; `unitOverrides` (settings
+ * `exerciseWeightUnits`) lets an exercise progress in its own unit's plates.
+ */
 export async function getTemplateSuggestions(
   templateId: number,
   unit: Unit,
+  unitOverrides: Readonly<Record<string, Unit>> = {},
 ): Promise<TrainingSuggestion[]> {
   const template = await getTemplate(templateId);
   if (!template?.exercises?.length) return [];
@@ -37,7 +43,7 @@ export async function getTemplateSuggestions(
       targetRepsMin: te.targetRepsMin,
       targetRepsMax: te.targetRepsMax,
       targetSets: te.targetSets,
-      unit,
+      unit: resolveWeightUnit(unitOverrides, te.exercise?.refKey, unit),
       readiness,
     });
     if (suggestion) out.push(suggestion);

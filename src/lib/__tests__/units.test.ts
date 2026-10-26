@@ -9,6 +9,7 @@ import {
   kgToInput,
   labelledToCanonical,
   LB_PER_KG,
+  resolveWeightUnit,
 } from '../units';
 
 describe('units', () => {
@@ -62,5 +63,21 @@ describe('plate math is canonical in, display-unit increments', () => {
   it('imperial: snaps an off-plate kg weight to the nearest 5 lb', () => {
     // 60 kg = 132.3 lb → 130 lb
     expect(kgToInput(roundToIncrement(60, 'imperial'), 'imperial')).toBe(130);
+  });
+});
+
+describe('per-exercise unit', () => {
+  it('uses the override for its exercise and the global unit otherwise', () => {
+    const overrides = { 'catalog:0025': 'imperial' as const };
+    expect(resolveWeightUnit(overrides, 'catalog:0025', 'metric')).toBe('imperial');
+    expect(resolveWeightUnit(overrides, 'catalog:0031', 'metric')).toBe('metric');
+    expect(resolveWeightUnit(overrides, null, 'metric')).toBe('metric');
+    expect(resolveWeightUnit(undefined, 'catalog:0025', 'imperial')).toBe('imperial');
+  });
+
+  it('switching an exercise unit never changes the stored kg', () => {
+    const storedKg = 100;
+    expect(formatWeight(storedKg, resolveWeightUnit({ x: 'imperial' }, 'x', 'metric'))).toBe('220.5 lb');
+    expect(formatWeight(storedKg, resolveWeightUnit({}, 'x', 'metric'))).toBe('100 kg');
   });
 });

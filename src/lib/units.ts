@@ -78,3 +78,16 @@ export function commitInputToKg(next: number, previousKg: number, unit: Unit): n
   if (Math.abs(next - kgToInput(previousKg, unit)) < 1e-9) return null;
   return displayToKg(next, unit);
 }
+
+/**
+ * Display unit for one exercise: its synced override (keyed by
+ * `exerciseRefKey`) or the global default. Overrides change display only —
+ * stored values are always kg.
+ */
+export function resolveWeightUnit(
+  overrides: Readonly<Record<string, Unit>> | undefined,
+  refKey: string | null | undefined,
+  global: Unit,
+): Unit {
+  return (refKey && overrides ? overrides[refKey] : undefined) ?? global;
+}

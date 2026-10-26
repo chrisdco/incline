@@ -13,6 +13,7 @@ import {
   ACCOUNT_PREFS_UPDATED_AT_KEY,
   accountPrefsChanged,
   pickAccountPrefs,
+  sanitizeExerciseWeightUnits,
 } from '@/sync/account-prefs';
 import { enqueueSync } from '@/sync/outbox';
 
@@ -24,6 +25,8 @@ interface SettingsState extends Settings {
   lastStreakNudgeWeekKey: string | null;
   seenAchievementIds: string[];
   setUnit: (unit: Unit) => void;
+  /** Override one exercise's display unit; null returns it to the global unit. */
+  setExerciseWeightUnit: (refKey: string, unit: Unit | null) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setAccentTheme: (accent: AccentTheme) => void;
   /** Full-skin presets: aurora ids enable the neon skin, anything else is Classic. */
@@ -169,10 +172,18 @@ export const useSettings = create<SettingsState>()(
       weeklyWorkoutGoal: 4,
       dismissedAnnouncementIds: [],
       showSessionGhost: true,
+      exerciseWeightUnits: {},
       exerciseMediaStyle: 'auto',
       exerciseMediaAnimation: 'cycle',
       devExerciseMediaOverride: 'off',
       setUnit: (unit) => set({ unit }),
+      setExerciseWeightUnit: (refKey, unit) =>
+        set((s) => {
+          const next = { ...s.exerciseWeightUnits };
+          if (unit == null) delete next[refKey];
+          else next[refKey] = unit;
+          return { exerciseWeightUnits: next };
+        }),
       setThemeMode: (themeMode) => set({ themeMode }),
       setAccentTheme: (accentTheme) =>
         set((s) => ({
@@ -280,6 +291,7 @@ export const useSettings = create<SettingsState>()(
         weeklyWorkoutGoal: s.weeklyWorkoutGoal,
         dismissedAnnouncementIds: s.dismissedAnnouncementIds,
         showSessionGhost: s.showSessionGhost,
+        exerciseWeightUnits: s.exerciseWeightUnits,
         exerciseMediaStyle: s.exerciseMediaStyle,
         exerciseMediaAnimation: s.exerciseMediaAnimation,
         devExerciseMediaOverride: s.devExerciseMediaOverride,
@@ -295,6 +307,7 @@ export const useSettings = create<SettingsState>()(
           ...current,
           ...p,
           accentTheme: isAccentTheme(p.accentTheme) ? p.accentTheme : DEFAULT_ACCENT_THEME,
+          exerciseWeightUnits: sanitizeExerciseWeightUnits(p.exerciseWeightUnits),
           lastClassicAccent:
             p.lastClassicAccent != null && isAccentTheme(p.lastClassicAccent) && !isAuroraAccent(p.lastClassicAccent)
               ? p.lastClassicAccent
@@ -396,6 +409,7 @@ export function resetAccountPreferences(): void {
       autoStartRest: ACCOUNT_PREF_DEFAULTS.autoStartRest,
       defaultRestSeconds: ACCOUNT_PREF_DEFAULTS.defaultRestSeconds,
       showSessionGhost: ACCOUNT_PREF_DEFAULTS.showSessionGhost,
+      exerciseWeightUnits: {},
       // Local-only prefs never sync, so a new account would otherwise inherit
       // the previous owner's reminders, nudges, media taste, and behavior
       // flags. Reset them; only device taste (classic-accent memory, seen
@@ -451,6 +465,7 @@ export function applyRemoteAccountPrefs(payload: Record<string, unknown>): void 
       autoStartRest: prefs.autoStartRest,
       defaultRestSeconds: prefs.defaultRestSeconds,
       showSessionGhost: prefs.showSessionGhost,
+      exerciseWeightUnits: sanitizeExerciseWeightUnits(prefs.exerciseWeightUnits),
     }));
   } finally {
     suppressPrefSync = false;

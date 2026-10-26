@@ -2,6 +2,7 @@ import { openDatabase } from '../client';
 import type { Tx } from '../write';
 import { ghostWorkingSql } from '@/lib/session-ghost';
 import { isSetType } from '../types';
+import { exerciseRefKeyFromRow } from '@/sync/exercise-ref';
 import type {
   Category,
   Difficulty,
@@ -147,6 +148,8 @@ export interface ProfileRow {
 export interface SessionSet extends SetEntry {
   exerciseName: string;
   primaryMuscle: MuscleGroup;
+  /** Cross-device exercise key; resolves the per-exercise weight unit. */
+  exerciseRefKey: string | null;
 }
 export interface SessionWorkout extends WorkoutLog {
   sets: SessionSet[];
@@ -178,6 +181,7 @@ export async function mapExercise(db: DB, row: ExerciseRow): Promise<Exercise> {
     instructions,
     tips: row.tips,
     imageUrl: imgRow?.url ?? null,
+    refKey: exerciseRefKeyFromRow(row.id, row),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -241,6 +245,7 @@ export async function mapExerciseRows(db: DB, rows: ExerciseRow[]): Promise<Exer
     instructions: instrMap.get(row.id) ?? [],
     tips: row.tips,
     imageUrl: imgMap.get(row.id) ?? null,
+    refKey: exerciseRefKeyFromRow(row.id, row),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
@@ -359,8 +364,15 @@ export async function getWorkingVolume(logId: number): Promise<number> {
 
 export async function getSessionSets(logId: number): Promise<SessionSet[]> {
   const db = await openDatabase();
-  const rows = await db.getAllAsync<SetRow & { exercise_name: string; primary_muscle: string }>(
-    `SELECT s.*, e.name as exercise_name, e.primary_muscle
+  const rows = await db.getAllAsync<SetRow & {
+    exercise_name: string;
+    primary_muscle: string;
+    ex_is_custom: number;
+    ex_uuid: string | null;
+    ex_external_id: string | null;
+  }>(
+    `SELECT s.*, e.name as exercise_name, e.primary_muscle,
+            e.is_custom as ex_is_custom, e.uuid as ex_uuid, e.external_id as ex_external_id
      FROM set_entries s JOIN exercises e ON e.id = s.exercise_id
      WHERE s.workout_log_id = ? AND s.deleted_at IS NULL
      ORDER BY COALESCE(s.sort_order, s.id), s.set_index`,
@@ -370,5 +382,10 @@ export async function getSessionSets(logId: number): Promise<SessionSet[]> {
     ...mapSet(r),
     exerciseName: r.exercise_name,
     primaryMuscle: r.primary_muscle as MuscleGroup,
+    exerciseRefKey: exerciseRefKeyFromRow(r.exercise_id, {
+      is_custom: r.ex_is_custom,
+      uuid: r.ex_uuid,
+      external_id: r.ex_external_id,
+    }),
   }));
 }

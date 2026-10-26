@@ -35,6 +35,7 @@ import { MOVEMENT_LABELS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/lib/labels';
 import { estimated1RM, formatDisplayVolume, formatDisplayWeight, formatWeight, relativeTime } from '@/db/calc';
 import { kgToDisplay, weightLabel } from '@/lib/units';
 import type { Exercise, ExerciseHistoryRow, Unit } from '@/db/types';
+import { resolveWeightUnit } from '@/lib/units';
 
 const TABS = ['Summary', 'Progress', 'History', 'How to'] as const;
 type Tab = typeof TABS[number];
@@ -47,9 +48,16 @@ interface SessionGroup {
   sets: ExerciseHistoryRow[];
 }
 
+const UNIT_VALUES: { value: Unit; label: string }[] = [
+  { value: 'metric', label: 'kg' },
+  { value: 'imperial', label: 'lb' },
+];
+
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { unit } = useSettings();
+  const globalUnit = useSettings((s) => s.unit);
+  const exerciseWeightUnits = useSettings((s) => s.exerciseWeightUnits);
+  const setExerciseWeightUnit = useSettings((s) => s.setExerciseWeightUnit);
   const navigation = useNavigation();
   const router = useRouter();
   const { toast } = useToast();
@@ -89,6 +97,9 @@ export default function ExerciseDetailScreen() {
   const error = isSupabaseId ? !supabaseExercise && !supabaseLoading : localError;
   const refetch = isSupabaseId ? fetchSupabaseExercise : localRefetch;
   const exerciseId = exercise?.id ?? 0;
+  // This exercise's own display unit (override or global, §15).
+  const refKey = exercise && 'refKey' in exercise ? exercise.refKey : null;
+  const unit = resolveWeightUnit(exerciseWeightUnits, refKey, globalUnit);
 
   const { data: history } = useExerciseHistory(exerciseId);
   const [prSummary, setPrSummary] = useState<ExercisePRSummary | null>(null);
@@ -216,6 +227,20 @@ export default function ExerciseDetailScreen() {
           Routines
         </Button>
       </View>
+
+      {/* Per-exercise unit: picking the global unit clears the override. */}
+      {refKey ? (
+        <View className="mt-3 flex-row items-center justify-between px-4">
+          <Caption>Weight unit for this exercise</Caption>
+          <View style={{ width: 112 }}>
+            <SegmentedControl<Unit>
+              values={UNIT_VALUES}
+              value={unit}
+              onChange={(next) => setExerciseWeightUnit(refKey, next === globalUnit ? null : next)}
+            />
+          </View>
+        </View>
+      ) : null}
 
       {/* Tab selector */}
       <View className="mt-3 px-4">

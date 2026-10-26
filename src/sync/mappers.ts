@@ -338,6 +338,7 @@ function singletonPushOp(
         autoStartRest: payload.autoStartRest,
         defaultRestSeconds: payload.defaultRestSeconds,
         showSessionGhost: payload.showSessionGhost,
+        exerciseWeightUnits: payload.exerciseWeightUnits ?? {},
       },
       updated_at,
       deleted_at: msToIso(deletedAt),

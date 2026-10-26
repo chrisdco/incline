@@ -41,6 +41,7 @@ function toLocalExercise(ex: SupabaseExercise): Exercise {
     instructions: ex.instructions ?? [],
     tips: '',
     imageUrl: ex.gif_url ?? null,
+    refKey: `catalog:${ex.external_id}`,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
