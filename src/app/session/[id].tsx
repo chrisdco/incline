@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -12,10 +12,10 @@ import Animated, { LinearTransition } from 'react-native-reanimated';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, MessageSquarePlus, Pause, Play, Plus, Undo2, X } from 'lucide-react-native';
+import { Check, MessageSquarePlus, Pause, Play, Plus, X } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
-import { Body, Caption, Text } from '@/components/common/text';
+import { Body, Caption } from '@/components/common/text';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -24,51 +24,24 @@ import { ExerciseBlock } from '@/components/workout/exercise-block';
 import { DiscardSessionDialog } from '@/components/workout/discard-session-dialog';
 import { RestTimerBar } from '@/components/workout/rest-timer';
 import { RestPresetBar } from '@/components/workout/rest-preset-bar';
+import { SessionDock } from '@/components/workout/session-dock';
 import { useRestTimer } from '@/hooks/use-rest-timer';
 import { useRestTimerSound } from '@/hooks/use-rest-timer-sound';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useActiveWorkout } from '@/store/active-workout-store';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
-import {
-  addSet,
-  addWarmUpSet,
-  discardWorkout,
-  finishWorkout,
-  getExercisePRSummaries,
-  getLastSetsForExercises,
-  getRestDefaultsForSession,
-  getTemplateSuggestions,
-  getSessionGhost,
-  getWorkoutLog,
-  removeExerciseFromWorkout,
-  removeSet,
-  restoreSet,
-  updateSet,
-  updateWorkoutNotes,
-  type ExercisePRSummary,
-  type SessionWorkout,
-} from '@/db/queries';
-import { formatClock, formatVolume, formatWeight } from '@/db/calc';
+import { formatClock, formatVolume } from '@/db/calc';
 import { workingSetVolume } from '@/lib/session-ghost';
 import { dropCachedSession, getCachedSession, setCachedSession } from '@/lib/query-keys';
-import {
-  applySetToBests,
-  bestsFromPrSummary,
-  detectSetRecords,
-  formatCelebrationKinds,
-  isCelebrationPrKind,
-} from '@/coaching/pr';
+import { finishBlock, pausedMsAt, sessionEngine, useSessionEngine } from '@/features/session';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
 import { motionDuration } from '@/styles/motion';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
-import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
 
-import type { MuscleGroup, SetEntry, SetType } from '@/db/types';
-import type { TrainingSuggestion } from '@/coaching/types';
-import type { SessionGhost } from '@/db/queries';
+import type { MuscleGroup, SetEntry } from '@/db/types';
 
 interface Group {
   exerciseId: number;
@@ -79,41 +52,28 @@ interface Group {
 
 /**
  * Elapsed workout clock. Isolated so the 1s tick re-renders only this text,
- * not the whole session (every set row + input) underneath it.
+ * not the whole session (every set row + input) underneath it. Pause state
+ * comes from the session engine (persisted, so a relaunch keeps it).
  */
-function SessionClock({
-  startedAt,
-  pausedAtRef,
-  totalPausedMsRef,
-  className,
-}: {
-  startedAt: number;
-  pausedAtRef: RefObject<number | null>;
-  totalPausedMsRef: RefObject<number>;
-  className?: string;
-}) {
+function SessionClock({ startedAt, className }: { startedAt: number; className?: string }) {
+  const pausedAt = useSessionEngine((s) => s.pausedAt);
+  const totalPausedMs = useSessionEngine((s) => s.totalPausedMs);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     const tick = () => {
-      if (pausedAtRef.current) return;
-      setElapsed(Math.floor((Date.now() - startedAt - totalPausedMsRef.current) / 1000));
+      const now = Date.now();
+      setElapsed(Math.floor((now - startedAt - pausedMsAt({ pausedAt, totalPausedMs }, now)) / 1000));
     };
     tick();
+    if (pausedAt != null) return;
     const iv = setInterval(tick, 1000);
     return () => clearInterval(iv);
-  }, [startedAt, pausedAtRef, totalPausedMsRef]);
+  }, [startedAt, pausedAt, totalPausedMs]);
   return <Body className={className}>{formatClock(elapsed)}</Body>;
 }
 
-/** Sequential on purpose: each restore re-enqueues its log row. */
-async function restoreSetsInOrder(setIds: number[]): Promise<void> {
-  for (const setId of setIds) await restoreSet(setId);
-}
-
-function removedSetsDescription(removed: number): string | undefined {
-  if (removed <= 0) return undefined;
-  return `${removed} set${removed === 1 ? '' : 's'} left this session. Your routine is untouched.`;
-}
+const engine = sessionEngine;
+const EMPTY: Record<number, never> = {};
 
 export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -122,187 +82,95 @@ export default function SessionScreen() {
   const { toast } = useToast();
   const { impact, notify } = useHaptics();
   const clear = useActiveWorkout((s) => s.clear);
-  const { unit, setUnit, restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe, keepScreenAwake, showSessionGhost } = useSettings();
+  const { unit, setUnit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost } = useSettings();
   const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId });
   const restSound = useRestTimerSound();
 
-  useEffect(() => {
-    if (!keepScreenAwake) return;
-    void activateKeepAwakeAsync('incline-session');
-    return () => {
-      void deactivateKeepAwake('incline-session');
-    };
-  }, [keepScreenAwake]);
+  // Until open() claims this id (first effect), paint the reopen cache (§7)
+  // and none of a previous session's assist state.
+  const [initialCached] = useState(() => getCachedSession(logId));
+  const owns = useSessionEngine((s) => s.logId === logId);
+  const engineSession = useSessionEngine((s) => s.session);
+  const engineLoading = useSessionEngine((s) => s.loading && s.session == null);
+  const session = owns ? engineSession : initialCached;
+  const loading = owns ? engineLoading : initialCached == null;
+  const lastSetsMap = useSessionEngine((s) => (s.logId === logId ? s.lastSets : EMPTY));
+  const prMap = useSessionEngine((s) => (s.logId === logId ? s.prs : EMPTY));
+  const suggestionMap = useSessionEngine((s) => (s.logId === logId ? s.suggestions : EMPTY));
+  const ghost = useSessionEngine((s) => (s.logId === logId ? s.ghost : null));
+  const restSecondsMap = useSessionEngine((s) => (s.logId === logId ? s.restSeconds : EMPTY));
+  const restKind = useSessionEngine((s) => s.restKind);
+  const pausedAt = useSessionEngine((s) => s.pausedAt);
+  const notes = useSessionEngine((s) => s.notesDraft);
+  const finishing = useSessionEngine((s) => s.finishing);
+  const discarding = useSessionEngine((s) => s.discarding);
 
-  // Play sound when rest timer finishes
-  useEffect(() => {
-    if (rest.justFinished && restSoundEnabled) restSound.play();
-  }, [rest.justFinished, restSound, restSoundEnabled]);
-
-  // Stale-while-revalidate: reopening (tray tap, resume dialog) renders cached
-  // rows synchronously instead of flashing a spinner mid-transition, then
-  // refreshes from SQLite in the background. Single-writer + wipe-cleared
-  // cache (see getCachedSession in lib/query-keys.ts) keeps this safe.
-  const [session, setSession] = useState<SessionWorkout | null>(() => getCachedSession(logId));
-  const [lastSetsMap, setLastSetsMap] = useState<Record<number, SetEntry[]>>({});
-  const [prMap, setPrMap] = useState<Record<number, ExercisePRSummary>>({});
-  const [suggestionMap, setSuggestionMap] = useState<Record<number, TrainingSuggestion>>({});
-  const [ghost, setGhost] = useState<SessionGhost | null>(null);
-  const [loading, setLoading] = useState(() => getCachedSession(logId) == null);
   const scrollRef = useRef<ScrollViewInstance>(null);
   const groupRefs = useRef<(ViewInstance | null)[]>([]);
   const prevActiveGroupRef = useRef<number | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ exerciseId: number; name: string } | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
-  const [finishing, setFinishing] = useState(false);
-  const [discarding, setDiscarding] = useState(false);
-  const [restSecondsMap, setRestSecondsMap] = useState<Record<number, number>>({});
-  const [notes, setNotes] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
   const notesRef = useRef<TextInputInstance>(null);
-  const [removedSet, setRemovedSet] = useState<{ setEntry: SetEntry; exerciseId: number; logId: number } | null>(null);
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastRemovedExerciseRef = useRef<{ name: string; setIds: number[] } | null>(null);
-  const undoExerciseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [pausedAt, setPausedAt] = useState<number | null>(null);
-  const totalPausedMsRef = useRef(0);
   const [timerSheetOpen, setTimerSheetOpen] = useState(false);
-  const [restKind, setRestKind] = useState<'set' | 'superset'>('set');
-  const pausedAtRef = useRef<number | null>(null);
-  const seededRestRef = useRef(false);
 
-  // Pause keep-awake while the workout is paused
+  // Keep-awake follows pause: no point holding the screen on while paused.
   useEffect(() => {
-    if (!keepScreenAwake) return;
-    if (pausedAt !== null) {
+    if (!keepScreenAwake || pausedAt !== null) return;
+    void activateKeepAwakeAsync('incline-session');
+    return () => {
       void deactivateKeepAwake('incline-session');
-    } else {
-      void activateKeepAwakeAsync('incline-session');
-    }
+    };
   }, [keepScreenAwake, pausedAt]);
 
-  const loadSession = useCallback(async () => {
-    const s = await getWorkoutLog(logId);
-    setSession(s);
-    if (s) setNotes(s.notes ?? '');
-    setLoading(false);
-    return s;
-  }, [logId]);
-
-  // Assist data (last-session values, PRs, suggestions, ghost) is expensive
-  // and never changes on field edits — load it on open / structural change
-  // only, never on tick/type/delete. The run guard drops stale responses when
-  // a newer assist run supersedes (e.g. exercise added mid-flight).
-  const assistRunRef = useRef(0);
-  const loadAssist = useCallback(async (s: SessionWorkout) => {
-    const run = (assistRunRef.current += 1);
-    const exIds = [...new Set(s.sets.map((x) => x.exerciseId))];
-    const [lastMap, prSummaries, templateSug, ghostRow] = await Promise.all([
-      getLastSetsForExercises(exIds),
-      getExercisePRSummaries(exIds),
-      s.templateId ? getTemplateSuggestions(s.templateId, unit) : Promise.resolve([]),
-      showSessionGhost
-        ? getSessionGhost({
-            templateId: s.templateId,
-            name: s.templateId ? null : s.name,
-            beforeStartedAt: s.startedAt,
-            excludeLogId: s.id,
-          })
-        : Promise.resolve(null),
-    ]);
-    if (assistRunRef.current !== run) return;
-    setLastSetsMap(lastMap);
-    setPrMap(prSummaries);
-    setSuggestionMap(Object.fromEntries(templateSug.map((sug) => [sug.exerciseId, sug])));
-    setGhost(ghostRow);
-  }, [logId, unit, showSessionGhost]);
-
+  // Play sound when rest timer finishes
   useEffect(() => {
-    let active = true;
-    void (async () => {
-      const s = await loadSession();
-      if (!active || !s) return;
-      for (const id of new Set(s.sets.map((x) => x.exerciseId))) assistKnownRef.current.add(id);
-      if (!seededRestRef.current) {
-        seededRestRef.current = true;
-        void getRestDefaultsForSession(logId).then(setRestSecondsMap);
-      }
-      void loadAssist(s);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [loadSession, loadAssist, logId]);
+    if (rest.justFinished && restSoundEnabled) restSound.play();
+  }, [rest.justFinished, restSound, restSoundEnabled]);
 
-  // Pick/reorder screens write directly then go back — refresh rows on
-  // return. Cheap SELECT; rest defaults merge for newly added exercises only
-  // (never clobber edits). Assist reloads only for exercises it hasn't seen:
-  // the pick screen's whole point is adding something new, which would
-  // otherwise show empty Last/PR/Suggested until remount.
-  const assistKnownRef = useRef<Set<number>>(new Set());
-  useFocusEffect(
-    useCallback(() => {
-      void (async () => {
-        const s = await loadSession();
-        if (!s) return;
-        const ids = [...new Set(s.sets.map((x) => x.exerciseId))];
-        const unseen = ids.filter((id) => !assistKnownRef.current.has(id));
-        if (unseen.length > 0) {
-          for (const id of ids) assistKnownRef.current.add(id);
-          void loadAssist(s);
-        }
-      })();
-      void getRestDefaultsForSession(logId).then((defaults) => {
-        setRestSecondsMap((prev) => {
-          const next = { ...prev };
-          let changed = false;
-          for (const [key, value] of Object.entries(defaults)) {
-            const id = Number(key);
-            if (next[id] === undefined) {
-              next[id] = value;
-              changed = true;
-            }
-          }
-          return changed ? next : prev;
-        });
-      });
-    }, [loadSession, loadAssist, logId]),
+  // UI side effects the engine fires (toast, rest, PR haptic).
+  const startRest = rest.start;
+  const stopRest = rest.stop;
+  useEffect(
+    () =>
+      engine.bindUi({
+        toast,
+        startRest: (seconds) => {
+          startRest(seconds);
+        },
+        stopRest,
+        celebrate: notify,
+      }),
+    [toast, startRest, stopRest, notify],
   );
 
-  // Keep the reopen cache fresh on every state change (optimistic edits flow
-  // through here too, so the cache never lags the UI).
+  // Stale-while-revalidate: cached rows paint synchronously (§7) while the
+  // engine refreshes from SQLite. A different id fully resets inside open().
+  useEffect(() => {
+    void engine.open(logId, initialCached);
+  }, [logId, initialCached]);
+
+  // Pick/reorder screens write directly then go back: refresh rows, plus
+  // assist and rest defaults for exercises the engine hasn't seen (#157).
+  useFocusEffect(
+    useCallback(() => {
+      if (engine.store.getState().logId === logId) void engine.refresh();
+      // Leaving the screen commits the notes draft (#170).
+      return () => {
+        void engine.commitNotes();
+      };
+    }, [logId]),
+  );
+
+  // Keep the reopen cache fresh on every state change.
   useEffect(() => {
     if (session) setCachedSession(session);
   }, [session]);
 
   useEffect(() => {
-    if (session?.isComplete) router.replace(`/summary/${session.id}`);
-  }, [session?.isComplete, session?.id, router]);
-
-  // Cleanup undo timers on unmount
-  useEffect(() => {
-    return () => {
-      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-      if (undoExerciseTimerRef.current) clearTimeout(undoExerciseTimerRef.current);
-    };
-  }, []);
-
-  const onPause = () => {
-    const now = Date.now();
-    setPausedAt(now);
-    pausedAtRef.current = now;
-    impact();
-  };
-
-  const onResume = () => {
-    if (pausedAt) {
-      totalPausedMsRef.current += Date.now() - pausedAt;
-      setPausedAt(null);
-      pausedAtRef.current = null;
-      impact();
-    }
-  };
+    if (session?.isComplete && !finishing) router.replace(`/summary/${session.id}`);
+  }, [session?.isComplete, session?.id, router, finishing]);
 
   const groups: Group[] = [];
   for (const s of session?.sets ?? []) {
@@ -346,218 +214,29 @@ export default function SessionScreen() {
     return () => clearTimeout(t);
   }, [session, activeGroupIndex, loading]);
 
-  // Cheap path: session rows only (field edits never need assist data).
-  const reload = () => {
-    void loadSession();
-  };
-  // Structural path: rows + assist (exercise added / set undeleted).
-  const reloadAll = () => {
-    void (async () => {
-      const s = await loadSession();
-      if (s) void loadAssist(s);
-    })();
-  };
-  // Optimistic field edits: paint immediately, persist in the background.
-  // Reloads are failure-only — assist maps (last/PR/suggestions) don't change
-  // on a weight/reps keystroke, so a full refetch per edit is pure jank.
-  const onChangeWeight = (setId: number, v: number) => {
-    setSession((prev) =>
-      prev
-        ? { ...prev, sets: prev.sets.map((s) => (s.id === setId ? { ...s, weight: v } : s)) }
-        : prev,
-    );
-    updateSet(setId, { weight: v }).catch(() => {
-      toast({ title: 'Could not save weight', variant: 'destructive' });
-      reload();
-    });
-  };
-  const onChangeReps = (setId: number, v: number) => {
-    setSession((prev) =>
-      prev
-        ? { ...prev, sets: prev.sets.map((s) => (s.id === setId ? { ...s, reps: v } : s)) }
-        : prev,
-    );
-    updateSet(setId, { reps: v }).catch(() => {
-      toast({ title: 'Could not save reps', variant: 'destructive' });
-      reload();
-    });
-  };
-  const onApplyLoad = async (exerciseId: number, weight: number, reps?: number) => {
-    const groupSets = session?.sets.filter((s) => s.exerciseId === exerciseId) ?? [];
-    const target = groupSets.find((s) => !s.completed) ?? groupSets.at(-1);
-    if (!target) return;
+  // Id-keyed handlers: stable references, so an ExerciseBlock only re-renders
+  // when its own data changes. Completion haptics live in SetRow.
+  const onAddSet = useCallback((exerciseId: number) => {
     impact();
-    // Built outside the try: the compiler can't lower conditionals inside one.
-    const patch = reps != null && reps > 0 ? { weight, reps } : { weight };
-    try {
-      await updateSet(target.id, patch);
-      reload();
-    } catch {
-      toast({ title: 'Could not apply load', variant: 'destructive' });
-    }
-  };
-  const onChangeRestSeconds = (exerciseId: number, seconds: number) => {
-    setRestSecondsMap((prev) => ({ ...prev, [exerciseId]: seconds }));
-  };
-  const applyRestToAll = (seconds: number) => {
-    const map: Record<number, number> = {};
-    for (const s of session?.sets ?? []) {
-      map[s.exerciseId] = seconds;
-    }
-    setRestSecondsMap(map);
-  };
-  const onToggleComplete = (setId: number) => {
-    const target = session?.sets.find((x) => x.id === setId);
-    if (!target) return;
-    const next = !target.completed;
-    const restSec = next ? (restSecondsMap[target.exerciseId] ?? 0) : null;
-    // Optimistic update: flip the row and start the rest timer immediately,
-    // then persist to the DB in the background (no full reload/refetch).
-    setSession((prev) =>
-      prev
-        ? {
-            ...prev,
-            sets: prev.sets.map((s) =>
-              s.id === setId ? { ...s, completed: next, restSeconds: restSec } : s,
-            ),
-          }
-        : prev,
-    );
-    updateSet(setId, { completed: next, restSeconds: restSec }).catch(() => {
-      toast({ title: 'Could not save set', description: 'Please try again.', variant: 'destructive' });
-      reload();
-    });
-    // Haptics handled in SetRow (Medium + Success on complete, Light on uncheck)
-    if (next) {
-      // Celebrate only a genuine record: heavier weight or better estimated
-      // 1RM than the best ever logged for this exercise. Requires prior
-      // history so first-time lifts don't spam.
-      const pr = prMap[target.exerciseId];
-      if (pr && (pr.heaviestWeight > 0 || pr.best1RM > 0)) {
-        const prior = bestsFromPrSummary(pr);
-        const kinds = detectSetRecords(
-          {
-            exerciseId: target.exerciseId,
-            weight: target.weight,
-            reps: target.reps,
-            completed: true,
-            setType: target.setType,
-            createdAt: Date.now(),
-          },
-          prior,
-          { requirePriorHistory: true },
-        ).filter(isCelebrationPrKind);
-        if (kinds.length > 0) {
-          setPrMap((prev) => {
-            const cur = prev[target.exerciseId];
-            if (!cur) return prev;
-            const next = applySetToBests(prior, {
-              exerciseId: target.exerciseId,
-              weight: target.weight,
-              reps: target.reps,
-              completed: true,
-              setType: target.setType,
-              createdAt: Date.now(),
-            });
-            return {
-              ...prev,
-              [target.exerciseId]: {
-                ...cur,
-                heaviestWeight: next.heaviestWeight,
-                best1RM: next.estimated1RM,
-                bestSetVolume: Math.max(cur.bestSetVolume, next.bestSetVolume),
-              },
-            };
-          });
-          notify();
-          toast({
-            title: 'New PR!',
-            description: `${target.exerciseName} · ${formatWeight(target.weight, unit)} × ${target.reps} · ${formatCelebrationKinds(kinds, target.reps)}`,
-            variant: 'success',
-          });
-        }
-      }
-      if (autoStartRest) {
-        const nextSets = (session?.sets ?? []).map((s) =>
-          s.id === setId ? { ...s, completed: true } : s,
-        );
-        const decision = shouldStartRestAfterComplete(nextSets, setId);
-        if (decision.start) {
-          const exRest = restSecondsMap[target.exerciseId] ?? defaultRestSeconds;
-          if (exRest > 0) {
-            setRestKind(decision.kind);
-            // Silent replace, like Strong/Hevy: the visible timer bar already
-            // shows the restart. A toast here fired on nearly every set for
-            // long rests (150s+) and read as noise on top of real signals.
-            rest.start(exRest);
-          }
-        }
-      }
-    }
-  };
-  const onChangeRpe = (setId: number, rpe: number | null) => {
-    setSession((prev) =>
-      prev
-        ? {
-            ...prev,
-            sets: prev.sets.map((s) => (s.id === setId ? { ...s, rpe } : s)),
-          }
-        : prev,
-    );
-    updateSet(setId, { rpe }).catch(() => {
-      toast({ title: 'Could not save RPE', variant: 'destructive' });
-      reload();
-    });
-  };
-  const onChangeSetType = (setId: number, setType: SetType) => {
-    setSession((prev) =>
-      prev
-        ? { ...prev, sets: prev.sets.map((s) => (s.id === setId ? { ...s, setType } : s)) }
-        : prev,
-    );
-    updateSet(setId, { setType }).catch(() => {
-      toast({ title: 'Could not save set type', variant: 'destructive' });
-      reload();
-    });
-  };
-  const onRemoveSet = (setId: number) => {
-    const target = session?.sets.find((s) => s.id === setId);
-    if (!target) return;
-    // Save the removed set for undo
-    setRemovedSet({ setEntry: target, exerciseId: target.exerciseId, logId });
-    // Clear any existing undo timer
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    // Auto-dismiss after 5 seconds
-    undoTimerRef.current = setTimeout(() => setRemovedSet(null), 5000);
-    // Optimistic removal: drop the row now, persist in the background.
-    setSession((prev) =>
-      prev ? { ...prev, sets: prev.sets.filter((s) => s.id !== setId) } : prev,
-    );
-    removeSet(setId).catch(() => {
-      toast({ title: 'Could not delete set', variant: 'destructive' });
-      setRemovedSet(null);
-      reload();
-    });
-  };
-  const onUndoRemove = async () => {
-    if (!removedSet) return;
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    try {
-      await restoreSet(removedSet.setEntry.id);
-      setRemovedSet(null);
-      reloadAll();
-    } catch {
-      toast({ title: 'Could not undo', variant: 'destructive' });
-      reload();
-    }
-  };
-  const onAddSet = async (exerciseId: number) => { impact(); await addSet(logId, exerciseId); reload(); };
-  const onAddWarmUp = async (exerciseId: number) => { impact(); await addWarmUpSet(logId, exerciseId); reload(); };
+    void engine.addSet(exerciseId);
+  }, [impact]);
+  const onAddWarmUp = useCallback((exerciseId: number) => {
+    impact();
+    void engine.addWarmUp(exerciseId);
+  }, [impact]);
+  const onApplyLoad = useCallback((exerciseId: number, weight: number, reps?: number) => {
+    impact();
+    void engine.applyLoad(exerciseId, weight, reps);
+  }, [impact]);
+  const openExercise = useCallback((exerciseId: number) => {
+    router.push(`/exercise/${exerciseId}` as Href);
+  }, [router]);
   const openAddExercise = () => {
     router.push(`/pick-exercise?logId=${logId}&mode=add` as Href);
   };
-  const openReplaceExercise = (exerciseId: number, name: string) => {
-    const logged = groups.find((g) => g.exerciseId === exerciseId)?.sets.filter((s) => s.completed).length ?? 0;
+  const openReplaceExercise = useCallback((exerciseId: number, name: string) => {
+    const logged =
+      engine.store.getState().session?.sets.filter((s) => s.exerciseId === exerciseId && s.completed).length ?? 0;
     const params = new URLSearchParams({
       logId: String(logId),
       mode: 'replace',
@@ -566,92 +245,36 @@ export default function SessionScreen() {
       logged: String(logged),
     });
     router.push(`/pick-exercise?${params.toString()}` as Href);
-  };
-  const openReorder = () => {
+  }, [logId, router]);
+  const openReorder = useCallback(() => {
     router.push(`/session/reorder/${logId}` as Href);
-  };
-  const removeTargetExercise = async () => {
+  }, [logId, router]);
+  const askRemoveExercise = useCallback((exerciseId: number, name: string) => {
+    setRemoveTarget({ exerciseId, name });
+  }, []);
+  const removeTargetExercise = () => {
     if (!removeTarget) return;
     const target = removeTarget;
     setRemoveTarget(null);
     impact();
-    try {
-      const { removed, setIds } = await removeExerciseFromWorkout(logId, target.exerciseId);
-      reloadAll();
-      // Undo window lives exactly as long as the toast: a second remove
-      // replaces both (latest-wins queue), which is standard snackbar behavior.
-      if (undoExerciseTimerRef.current) clearTimeout(undoExerciseTimerRef.current);
-      const snapshot = { name: target.name, setIds };
-      undoExerciseTimerRef.current = setTimeout(() => {
-        lastRemovedExerciseRef.current = null;
-      }, 6500);
-      lastRemovedExerciseRef.current = snapshot;
-      toast({
-        title: `${target.name} removed`,
-        description: removedSetsDescription(removed),
-        variant: 'info',
-        durationMs: 6000,
-        action: {
-          label: 'Undo',
-          onPress: () => {
-            void (async () => {
-              const snap = lastRemovedExerciseRef.current;
-              if (!snap) return;
-              lastRemovedExerciseRef.current = null;
-              try {
-                await restoreSetsInOrder(snap.setIds);
-                reloadAll();
-                toast({ title: `${snap.name} restored`, variant: 'success' });
-              } catch {
-                toast({ title: 'Could not undo', variant: 'destructive' });
-                reload();
-              }
-            })();
-          },
-        },
-      });
-    } catch {
-      toast({ title: 'Could not remove exercise', variant: 'destructive' });
-    }
+    void engine.removeExercise(target.exerciseId, target.name);
   };
 
   const finish = async () => {
-    // Guard double-tap: finishWorkout now awaits enqueues, widening the
-    // window where a second tap would double-close and double-navigate.
-    if (finishing) return;
-    setFinishing(true);
     setFinishOpen(false);
-    rest.stop();
-    // Computed outside the try: the compiler can't lower conditionals inside one.
-    const finalNotes = notes.trim();
-    const pauseBonus = pausedAt ? Date.now() - pausedAt : 0;
-    const pausedMs = totalPausedMsRef.current + pauseBonus;
-    try {
-      if (finalNotes) await updateWorkoutNotes(logId, finalNotes);
-      await finishWorkout(logId, { pausedMs });
-      clear();
-      dropCachedSession(logId);
-      toast({ title: 'Workout saved', variant: 'success' });
-      router.replace(`/summary/${logId}?celebrate=1`);
-    } catch {
-      setFinishing(false);
-      toast({ title: 'Could not save workout', description: 'Please try again.', variant: 'destructive' });
-    }
+    const ok = await engine.finish();
+    if (!ok) return;
+    clear();
+    dropCachedSession(logId);
+    router.replace(`/summary/${logId}?celebrate=1`);
   };
   const discard = async () => {
-    if (discarding) return;
-    setDiscarding(true);
     setDiscardOpen(false);
-    rest.stop();
-    try {
-      await discardWorkout(logId);
-      clear();
-      dropCachedSession(logId);
-      router.replace('/(app)/(tabs)');
-    } catch {
-      setDiscarding(false);
-      toast({ title: 'Could not discard workout', variant: 'destructive' });
-    }
+    const ok = await engine.discard();
+    if (!ok) return;
+    clear();
+    dropCachedSession(logId);
+    router.replace('/(app)/(tabs)');
   };
 
   if (loading)
@@ -677,6 +300,7 @@ export default function SessionScreen() {
 
   const completedSets = session.sets.filter((s) => s.completed).length;
   const totalSets = session.sets.length;
+  const block = finishBlock(session);
   // Working-only live total: matches the ghost + progress definition so a
   // warm-up can never inflate the number mid-session.
   const totalVolume = workingSetVolume(session.sets);
@@ -718,12 +342,7 @@ export default function SessionScreen() {
           accessibilityLabel="Workout timer"
           className="flex-1 items-center">
           <Caption>Duration</Caption>
-          <SessionClock
-            startedAt={session.startedAt}
-            pausedAtRef={pausedAtRef}
-            totalPausedMsRef={totalPausedMsRef}
-            className="mt-0.5 font-semibold text-primary"
-          />
+          <SessionClock startedAt={session.startedAt} className="mt-0.5 font-semibold text-primary" />
           {pausedAt ? (
             <Caption className="mt-0.5 text-amber-500">Paused</Caption>
           ) : null}
@@ -808,19 +427,19 @@ export default function SessionScreen() {
                   lastSets={lastSetsMap[g.exerciseId] ?? []}
                   prSummary={prMap[g.exerciseId] ?? null}
                   restSeconds={restSecondsMap[g.exerciseId] ?? 0}
-                  onChangeRestSeconds={(s) => onChangeRestSeconds(g.exerciseId, s)}
-                  onChangeWeight={onChangeWeight}
-                  onChangeReps={onChangeReps}
-                  onToggleComplete={onToggleComplete}
-                  onRemoveSet={onRemoveSet}
-                  onAddSet={() => onAddSet(g.exerciseId)}
-                  onAddWarmUp={() => onAddWarmUp(g.exerciseId)}
-                  onApplyLoad={(weight, reps) => onApplyLoad(g.exerciseId, weight, reps)}
-                  onChangeRpe={onChangeRpe}
-                  onChangeSetType={onChangeSetType}
-                  onOpenExercise={() => router.push(`/exercise/${g.exerciseId}` as Href)}
-                  onReplaceExercise={() => openReplaceExercise(g.exerciseId, g.exerciseName)}
-                  onRemoveExercise={() => setRemoveTarget({ exerciseId: g.exerciseId, name: g.exerciseName })}
+                  onChangeRestSeconds={engine.setRest}
+                  onChangeWeight={engine.changeWeight}
+                  onChangeReps={engine.changeReps}
+                  onToggleComplete={engine.toggleComplete}
+                  onRemoveSet={engine.removeSet}
+                  onAddSet={onAddSet}
+                  onAddWarmUp={onAddWarmUp}
+                  onApplyLoad={onApplyLoad}
+                  onChangeRpe={engine.changeRpe}
+                  onChangeSetType={engine.changeSetType}
+                  onOpenExercise={openExercise}
+                  onReplaceExercise={openReplaceExercise}
+                  onRemoveExercise={askRemoveExercise}
                   onReorderExercises={openReorder}
                   showWarmUpSets={showWarmUpSets}
                   showRpe={showRpe}
@@ -835,12 +454,16 @@ export default function SessionScreen() {
         {session.sets.length > 0 ? (
           <View className="mt-5 mb-3 rounded-2xl bg-card p-3">
             <Caption className="mb-2 text-muted-foreground">Set rest for all exercises</Caption>
-            <RestPresetBar onSelect={applyRestToAll} />
+            <RestPresetBar onSelect={engine.setRestForAll} />
           </View>
         ) : null}
 
         <Pressable
-          onPress={() => setNotesOpen(!notesOpen)}
+          onPress={() => {
+            // Collapsing commits the draft, same as blur (#170).
+            if (notesOpen) void engine.commitNotes();
+            setNotesOpen(!notesOpen);
+          }}
           className="mb-3 flex-row items-center gap-2 rounded-xl bg-card px-4 py-3">
           <Icon icon={MessageSquarePlus} size={16} color="primary" />
           <Body className="text-sm text-foreground">{notesOpen ? 'Hide notes' : notes ? 'Show notes' : 'Add notes'}</Body>
@@ -852,8 +475,8 @@ export default function SessionScreen() {
             <TextInput
               ref={notesRef}
               value={notes}
-              onChangeText={setNotes}
-              onBlur={() => { if (session) updateWorkoutNotes(logId, notes); }}
+              onChangeText={engine.setNotesDraft}
+              onBlur={() => { void engine.commitNotes(); }}
               placeholder="How did this session feel?"
               placeholderTextColor={PLACEHOLDER_COLOR}
               multiline
@@ -879,29 +502,16 @@ export default function SessionScreen() {
         ) : null}
       </ScrollView>
 
-      {removedSet ? (
-        <View className="absolute inset-x-0 bottom-20 z-30 px-4">
-          <View className="flex-row items-center justify-between rounded-xl bg-card px-4 py-3 border border-border shadow-lg">
-            <Body className="text-sm text-foreground">Set removed</Body>
-            <Pressable
-              onPress={onUndoRemove}
-              accessibilityRole="button"
-              accessibilityLabel="Undo remove set"
-              className="flex-row items-center gap-1.5 rounded-lg bg-primary px-3 py-2">
-              <Icon icon={Undo2} size={14} color="primary-foreground" />
-              <Text className="text-sm font-semibold text-primary-foreground">Undo</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-
-      {rest.visible ? (
-        <RestTimerBar
-          caption={restKind === 'superset' ? 'Superset rest' : undefined}
-          onAdd={rest.add}
-          onSkip={rest.stop}
-        />
-      ) : null}
+      <SessionDock>
+        {rest.visible ? (
+          <RestTimerBar
+            docked
+            caption={restKind === 'superset' ? 'Superset rest' : undefined}
+            onAdd={rest.add}
+            onSkip={rest.stop}
+          />
+        ) : null}
+      </SessionDock>
 
       <Dialog
         open={removeTarget != null}
@@ -911,7 +521,7 @@ export default function SessionScreen() {
         footer={
           <>
             <Button variant="outline" onPress={() => setRemoveTarget(null)}>Keep</Button>
-            <Button variant="destructive" onPress={() => { void removeTargetExercise(); }}>Remove</Button>
+            <Button variant="destructive" onPress={removeTargetExercise}>Remove</Button>
           </>
         }
       />
@@ -921,28 +531,25 @@ export default function SessionScreen() {
         onOpenChange={setFinishOpen}
         title="Finish workout?"
         description={
-          completedSets < totalSets
-            ? `You completed ${completedSets} of ${totalSets} sets — ${totalSets - completedSets} still open. Save this session to your history?`
-            : `You completed ${completedSets} of ${totalSets} sets. Save this session to your history.`
+          block
+            ? block.message
+            : completedSets < totalSets
+              ? `You completed ${completedSets} of ${totalSets} sets — ${totalSets - completedSets} still open. Save this session to your history?`
+              : `You completed ${completedSets} of ${totalSets} sets. Save this session to your history.`
         }
         footer={
           <>
             <Button variant="outline" onPress={() => setFinishOpen(false)} disabled={finishing}>Keep logging</Button>
-            <Button variant="success" onPress={finish} disabled={finishing} loading={finishing}>Finish &amp; save</Button>
+            <Button variant="success" onPress={() => { void finish(); }} disabled={finishing || block != null} loading={finishing}>Finish &amp; save</Button>
           </>
         }
       />
-      <DiscardSessionDialog open={discardOpen} onOpenChange={(open) => { if (!discarding) setDiscardOpen(open); }} onConfirm={discard} pending={discarding} />
+      <DiscardSessionDialog open={discardOpen} onOpenChange={(open) => { if (!discarding) setDiscardOpen(open); }} onConfirm={() => { void discard(); }} pending={discarding} />
 
       <Sheet open={timerSheetOpen} onOpenChange={setTimerSheetOpen} title="Workout Timer" mode="fit">
         <View className="items-center gap-3 py-2">
           <Body className="text-sm text-muted-foreground">Elapsed time</Body>
-          <SessionClock
-            startedAt={session.startedAt}
-            pausedAtRef={pausedAtRef}
-            totalPausedMsRef={totalPausedMsRef}
-            className="text-5xl font-bold tracking-tight text-foreground"
-          />
+          <SessionClock startedAt={session.startedAt} className="text-5xl font-bold tracking-tight text-foreground" />
           {pausedAt ? (
             <Caption className="text-amber-500">Paused</Caption>
           ) : null}
@@ -952,14 +559,20 @@ export default function SessionScreen() {
                 size="lg"
                 leftIcon={<Icon icon={Play} size={18} color="success-foreground" />}
                 variant="success"
-                onPress={onResume}>
+                onPress={() => {
+                  engine.resume();
+                  impact();
+                }}>
                 Resume
               </Button>
             ) : (
               <Button
                 size="lg"
                 leftIcon={<Icon icon={Pause} size={18} color="primary-foreground" />}
-                onPress={onPause}>
+                onPress={() => {
+                  engine.pause();
+                  impact();
+                }}>
                 Pause
               </Button>
             )}

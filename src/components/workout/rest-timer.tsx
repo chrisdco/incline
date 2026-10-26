@@ -21,6 +21,8 @@ export function RestTimerBar(props: {
   onAdd: (delta: number) => void;
   onSkip: () => void;
   caption?: string;
+  /** In a layout host (SessionDock) instead of absolutely pinned. */
+  docked?: boolean;
 }) {
   const remaining = useRestTimerStore((s) => s.remaining);
   const total = useRestTimerStore((s) => s.total);
@@ -37,12 +39,14 @@ export function RestTimer({
   onAdd,
   onSkip,
   caption,
+  docked = false,
 }: {
   remaining: number;
   total: number;
   onAdd: (delta: number) => void;
   onSkip: () => void;
   caption?: string;
+  docked?: boolean;
 }) {
   const done = remaining <= 0 && total > 0;
   const progress = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
@@ -77,7 +81,10 @@ export function RestTimer({
 
   return (
     <View
-      className="absolute inset-x-0 bottom-0 z-30 border-t border-border bg-background px-4 py-3 pb-6"
+      className={cn(
+        docked ? undefined : 'absolute inset-x-0 bottom-0 z-30',
+        'border-t border-border bg-background px-4 py-3 pb-6',
+      )}
       style={{ boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.25)' }}>
       <View
         onLayout={(e) => {

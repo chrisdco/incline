@@ -453,6 +453,16 @@ export async function replaceExerciseInWorkout(
       'SELECT MIN(sort_order) as sort_order FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
       logId, oldExerciseId,
     );
+    // Read the display order BEFORE dropping: an old exercise with no
+    // completed sets vanishes from set_entries, and an order read afterwards
+    // would push the replacement to the end (#169).
+    const order = await tx.getAllAsync<{ exercise_id: number }>(
+      `SELECT exercise_id FROM set_entries
+       WHERE workout_log_id = ? AND deleted_at IS NULL
+       GROUP BY exercise_id
+       ORDER BY COALESCE(MIN(sort_order), 9223372036854775807), MIN(id)`,
+      logId,
+    );
     const dropped = await tx.getAllAsync<{ id: number }>(
       'SELECT id FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND completed = 0 AND deleted_at IS NULL',
       logId, oldExerciseId,
@@ -465,18 +475,15 @@ export async function replaceExerciseInWorkout(
     await insertExerciseSet(tx, logId, newExerciseId, last[0], oldPos?.sort_order ?? undefined);
     // Renormalize dense 0..n with the replacement at the old slot. Without
     // this the kept completed old sets and the new row share one sort value
-    // and the groups interleave; a NULL old position appends at the end.
-    const order = await tx.getAllAsync<{ exercise_id: number }>(
-      `SELECT exercise_id FROM set_entries
-       WHERE workout_log_id = ? AND deleted_at IS NULL
-       GROUP BY exercise_id
-       ORDER BY COALESCE(MIN(sort_order), 9223372036854775807), MIN(id)`,
-      logId,
+    // and the groups interleave. Old completed sets (if any) stay right after.
+    const kept = await tx.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) as c FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
+      logId, oldExerciseId,
     );
     const ids = order.map((r) => r.exercise_id).filter((id) => id !== newExerciseId);
     const oldIndex = ids.indexOf(oldExerciseId);
     if (oldIndex === -1) ids.push(newExerciseId);
-    else ids.splice(oldIndex, 0, newExerciseId);
+    else ids.splice(oldIndex, (kept?.c ?? 0) > 0 ? 0 : 1, newExerciseId);
     for (let i = 0; i < ids.length; i++) {
       await tx.runAsync(
         'UPDATE set_entries SET sort_order = ? WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',

@@ -78,23 +78,23 @@ export function ExerciseBlock({
   lastSets: SetEntry[];
   prSummary?: ExercisePRSummary | null;
   restSeconds: number;
-  onChangeRestSeconds: (seconds: number) => void;
+  onChangeRestSeconds: (exerciseId: number, seconds: number) => void;
   onChangeWeight: (setId: number, v: number) => void;
   onChangeReps: (setId: number, v: number) => void;
   onToggleComplete: (setId: number) => void;
   onRemoveSet: (setId: number) => void;
-  onAddSet: () => void;
-  onAddWarmUp: () => void;
+  onAddSet: (exerciseId: number) => void;
+  onAddWarmUp: (exerciseId: number) => void;
   /** Prefill the next incomplete set with a weight/reps suggestion. */
-  onApplyLoad?: (weight: number, reps?: number) => void;
+  onApplyLoad?: (exerciseId: number, weight: number, reps?: number) => void;
   onChangeRpe?: (setId: number, rpe: number | null) => void;
   onChangeSetType: (setId: number, setType: SetType) => void;
   /** Open exercise detail (history / charts). */
-  onOpenExercise?: () => void;
+  onOpenExercise?: (exerciseId: number) => void;
   /** Replace with another exercise (full-screen chooser). */
-  onReplaceExercise?: () => void;
+  onReplaceExercise?: (exerciseId: number, name: string) => void;
   /** Remove this exercise from the session (confirm lives with caller). */
-  onRemoveExercise?: () => void;
+  onRemoveExercise?: (exerciseId: number, name: string) => void;
   /** Open the session reorder screen. */
   onReorderExercises?: () => void;
   showWarmUpSets?: boolean;
@@ -150,7 +150,7 @@ export function ExerciseBlock({
   const fatigue = useMemo(() => detectSetFatigue(sets, unit), [sets, unit]);
 
   const applyAndClose = (weight: number, reps?: number) => {
-    onApplyLoad?.(weight, reps);
+    onApplyLoad?.(exerciseId, weight, reps);
     setAssistOpen(false);
   };
 
@@ -159,7 +159,7 @@ export function ExerciseBlock({
       <View className="flex-row items-center justify-between px-1">
         <View className="min-w-0 flex-1 pr-2">
           <Pressable
-            onPress={onOpenExercise}
+            onPress={() => onOpenExercise?.(exerciseId)}
             disabled={!onOpenExercise}
             style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
             android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
@@ -246,7 +246,7 @@ export function ExerciseBlock({
           <Caption className="mt-0.5">{fatigue.body}</Caption>
           {onApplyLoad ? (
             <Pressable
-              onPress={() => onApplyLoad(fatigue.suggestedWeight, fatigue.suggestedReps)}
+              onPress={() => onApplyLoad(exerciseId, fatigue.suggestedWeight, fatigue.suggestedReps)}
               accessibilityRole="button"
               accessibilityLabel="Drop load on next set"
               className="mt-2 self-start">
@@ -313,7 +313,7 @@ export function ExerciseBlock({
       </View>
 
       <Pressable
-        onPress={onAddSet}
+        onPress={() => onAddSet(exerciseId)}
         className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
         accessibilityRole="button"
         accessibilityLabel="Add set">
@@ -323,7 +323,7 @@ export function ExerciseBlock({
 
       {showWarmUpSets ? (
         <Pressable
-          onPress={onAddWarmUp}
+          onPress={() => onAddWarmUp(exerciseId)}
           className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
           accessibilityRole="button"
           accessibilityLabel="Add warm-up set">
@@ -338,7 +338,7 @@ export function ExerciseBlock({
         onOpenChange={setRestPickerOpen}
         currentValue={restSeconds}
         exerciseId={exerciseId}
-        onSelect={onChangeRestSeconds}
+        onSelect={(seconds) => onChangeRestSeconds(exerciseId, seconds)}
       />
 
       <Sheet
@@ -351,7 +351,7 @@ export function ExerciseBlock({
             <Pressable
               onPress={() => {
                 setOptionsOpen(false);
-                onReplaceExercise();
+                onReplaceExercise(exerciseId, name);
               }}
               accessibilityRole="button"
               accessibilityLabel={`Replace ${name}`}
@@ -383,7 +383,7 @@ export function ExerciseBlock({
             <Pressable
               onPress={() => {
                 setOptionsOpen(false);
-                onRemoveExercise();
+                onRemoveExercise(exerciseId, name);
               }}
               accessibilityRole="button"
               accessibilityLabel={`Remove ${name} from this workout`}
@@ -516,7 +516,7 @@ export function ExerciseBlock({
               variant="ghost"
               onPress={() => {
                 setAssistOpen(false);
-                onOpenExercise();
+                onOpenExercise(exerciseId);
               }}>
               Open exercise details
             </Button>
