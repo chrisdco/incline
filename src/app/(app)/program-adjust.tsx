@@ -24,6 +24,7 @@ import {
   setProgramDay,
 } from '@/db/queries';
 import { SCREEN_CONTENT } from '@/lib/layout';
+import { refreshWidgets } from '@/lib/widgets/refresh';
 
 const DAY_LABEL = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -79,6 +80,7 @@ export default function ProgramAdjustScreen() {
         await clearProgramDay(diff.programId, diff.clearWeek, diff.clearDay);
       }
       await kvStorage.setItem(PLAN_APPLIED_KEY, String(Date.now()));
+      void refreshWidgets();
       toast({
         title: diff.kind === 'catch_up' ? 'Catch-up scheduled' : 'Lighter day added',
         description: `${diff.templateName} → week ${diff.targetWeek} ${DAY_LABEL[diff.targetDay] ?? ''}`.trim(),

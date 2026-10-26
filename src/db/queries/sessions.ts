@@ -122,6 +122,24 @@ export async function getActiveWorkout(): Promise<SessionWorkout | null> {
   return { ...mapLog(log), sets: await getSessionSets(log.id) };
 }
 
+/** The three fields the home-screen widget needs — no set rows. */
+export interface ActiveWorkoutSummary {
+  id: number;
+  name: string;
+  startedAt: number;
+}
+
+export async function getActiveWorkoutSummary(): Promise<ActiveWorkoutSummary | null> {
+  const db = await openDatabase();
+  return db.getFirstAsync<ActiveWorkoutSummary>(
+    `SELECT id, name, started_at AS startedAt
+     FROM workout_logs
+     WHERE ended_at IS NULL AND deleted_at IS NULL
+     ORDER BY started_at DESC
+     LIMIT 1`,
+  );
+}
+
 export async function getWorkoutLog(id: number): Promise<SessionWorkout | null> {
   const db = await openDatabase();
   const log = await db.getFirstAsync<LogRow>(

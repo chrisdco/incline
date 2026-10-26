@@ -14,10 +14,18 @@ export type NotificationPayload =
   | { type: 'milestone'; achievementId: string };
 
 export const NOTIFICATION_CHANNELS = {
-  restTimer: 'rest-timer',
+  /**
+   * Bump the suffix when channel settings change: Android channels are
+   * immutable after first creation, and the channel ID is what appears in
+   * system settings. `core.ts` deletes the legacy `rest-timer` channel.
+   */
+  restTimer: 'rest-timer-v2',
   workoutReminders: 'workout-reminders',
   digests: 'digests',
 } as const;
+
+/** Channel shipped before #251 settings (PUBLIC lock screen, no badge). */
+export const LEGACY_REST_TIMER_CHANNEL = 'rest-timer';
 
 export type NotificationChannelId =
   (typeof NOTIFICATION_CHANNELS)[keyof typeof NOTIFICATION_CHANNELS];

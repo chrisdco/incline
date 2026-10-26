@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import {
-  cancelRestCompleteNotification,
+  clearRestCompleteNotification,
   scheduleRestCompleteNotification,
 } from '@/lib/rest-notification';
 import {
@@ -48,11 +48,11 @@ export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
   const syncNotification = useCallback(
     async (seconds: number | null) => {
       if (!notify) {
-        await cancelRestCompleteNotification();
+        await clearRestCompleteNotification();
         return;
       }
       if (seconds == null || seconds <= 0) {
-        await cancelRestCompleteNotification();
+        await clearRestCompleteNotification();
         return;
       }
       await scheduleRestCompleteNotification(seconds, { sessionId });

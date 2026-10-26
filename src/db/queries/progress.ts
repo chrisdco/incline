@@ -58,15 +58,21 @@ export async function getBestWeeklyStreak(): Promise<number> {
   return computeBestWeeklyStreak(rows.map((r) => r.started_at));
 }
 
-export async function getWeeklyConsistency(weeklyGoal: number, now = Date.now()): Promise<WeeklyConsistency> {
+export async function getWeeklyConsistency(
+  weeklyGoal: number,
+  now = Date.now(),
+  opts?: { includeBestStreak?: boolean },
+): Promise<WeeklyConsistency> {
   const weekStartMs = startOfWeek(now);
   const sessionsThisWeek = await getSessionsInWeek(weekStartMs);
   const goal = Math.max(0, weeklyGoal);
   const goalMet = goal > 0 && sessionsThisWeek >= goal;
   const sessionsToGoal = goal > 0 ? Math.max(0, goal - sessionsThisWeek) : 0;
+  // Widgets only show the current streak; skip the full-history best-streak
+  // scan when the caller explicitly opts out.
   const [currentWeeklyStreak, bestWeeklyStreak] = await Promise.all([
     getStreak(now),
-    getBestWeeklyStreak(),
+    opts?.includeBestStreak === false ? Promise.resolve(0) : getBestWeeklyStreak(),
   ]);
   return {
     weekStartMs,

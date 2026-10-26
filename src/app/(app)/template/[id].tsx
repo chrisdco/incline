@@ -31,6 +31,7 @@ import {
 } from '@/db/queries';
 import { DIFFICULTY_LABELS } from '@/lib/labels';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
+import { refreshWidgets } from '@/lib/widgets/refresh';
 import type { Difficulty, TemplateExercise } from '@/db/types';
 
 type Exercise = TemplateExercise & { exercise?: { id: number; name: string; primaryMuscle: string; equipment: string } };
@@ -137,10 +138,12 @@ export default function TemplateEditorScreen() {
             });
           }
         }
+        void refreshWidgets();
         toast({ title: 'Routine created', variant: 'success' });
         router.replace(`/workout/${newId}`);
       } else if (templateId) {
         await updateTemplate(templateId, { name: name.trim(), description: description.trim(), difficulty, estimatedMinutes });
+        void refreshWidgets();
         toast({ title: 'Routine saved', variant: 'success' });
         router.back();
       }
@@ -154,6 +157,7 @@ export default function TemplateEditorScreen() {
   const handleDelete = async () => {
     if (!templateId) return;
     await deleteTemplate(templateId);
+    void refreshWidgets();
     setDeleteOpen(false);
     toast({ title: 'Routine deleted', variant: 'success' });
     router.replace('/(app)/(tabs)/workouts');

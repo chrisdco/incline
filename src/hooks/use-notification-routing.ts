@@ -5,7 +5,11 @@ import { actionForResponse, pathForNotificationAction } from '@/lib/notification
 import { getNotifications } from '@/lib/notifications/core';
 import { navigateFromNotificationData } from '@/lib/notifications/deep-link';
 import { isNotificationPayload } from '@/lib/notifications/types';
-import { cancelRestCompleteNotification, scheduleRestCompleteNotification } from '@/lib/rest-notification';
+import {
+  cancelRestCompleteNotification,
+  clearRestCompleteNotification,
+  scheduleRestCompleteNotification,
+} from '@/lib/rest-notification';
 import { signalRestRequest } from '@/lib/rest-timer-signal';
 
 /**
@@ -59,7 +63,7 @@ export function useNotificationRouting() {
         return;
       }
       if (action?.kind === 'skip_rest') {
-        void cancelRestCompleteNotification();
+        void clearRestCompleteNotification();
         return;
       }
       if (action) {
