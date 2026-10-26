@@ -20,7 +20,6 @@ import { useSettings } from '@/store/settings-store';
 import { useProfile } from '@/hooks/use-data';
 import { useToast } from '@/components/ui/toast';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
-import { refreshWidgets } from '@/lib/widgets/refresh';
 import type { FeedWorkoutLog } from '@/db/types';
 
 /** Day detail: every completed workout for a calendar date, styled like the home feed. */
@@ -153,7 +152,6 @@ export default function DayScreen() {
               onPress={async () => {
                 if (deleteId === null) return;
                 await deleteWorkout(deleteId);
-                void refreshWidgets();
                 setDeleteId(null);
                 reload();
                 toast({ title: 'Workout deleted', variant: 'info' });

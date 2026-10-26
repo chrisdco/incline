@@ -2,6 +2,7 @@ import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
 import { enqueueSync } from '@/sync/outbox';
 import { exerciseRefForId } from '@/sync/exercise-ref';
+import { mutate, type Tx } from '../write';
 import { scaleDeloadSets } from '@/coaching/deload';
 import type { Difficulty, MuscleGroup, TemplateExercise, WorkoutTemplate } from '../types';
 import {
@@ -131,9 +132,8 @@ export async function getSuggestedTemplate(): Promise<WorkoutTemplate | null> {
   return first ? getTemplate(first.id) : null;
 }
 
-async function enqueueTemplateUpsert(templateId: number): Promise<void> {
-  const db = await openDatabase();
-  const t = await db.getFirstAsync<TemplateRow>('SELECT * FROM workout_templates WHERE id = ?', templateId);
+async function enqueueTemplateUpsert(tx: Tx, templateId: number): Promise<void> {
+  const t = await tx.getFirstAsync<TemplateRow>('SELECT * FROM workout_templates WHERE id = ?', templateId);
   if (!t?.uuid || !t.is_custom) return;
   await enqueueSync('user_templates', t.uuid, 'upsert', {
     name: t.name,
@@ -144,12 +144,11 @@ async function enqueueTemplateUpsert(templateId: number): Promise<void> {
     created_at: t.created_at,
     updated_at: t.updated_at,
     deleted_at: t.deleted_at,
-  });
+  }, tx);
 }
 
-async function enqueueTemplateExerciseUpsert(teId: number): Promise<void> {
-  const db = await openDatabase();
-  const te = await db.getFirstAsync<TemplateExerciseRow & { template_uuid: string | null; is_custom: number }>(
+async function enqueueTemplateExerciseUpsert(tx: Tx, teId: number): Promise<void> {
+  const te = await tx.getFirstAsync<TemplateExerciseRow & { template_uuid: string | null; is_custom: number }>(
     `SELECT te.*, t.uuid as template_uuid, t.is_custom as is_custom
      FROM template_exercises te
      JOIN workout_templates t ON t.id = te.template_id
@@ -157,7 +156,7 @@ async function enqueueTemplateExerciseUpsert(teId: number): Promise<void> {
     teId,
   );
   if (!te?.uuid || !te.is_custom || !te.template_uuid) return;
-  const exRef = await exerciseRefForId(te.exercise_id);
+  const exRef = await exerciseRefForId(te.exercise_id, tx);
   await enqueueSync('user_template_exercises', te.uuid, te.deleted_at ? 'delete' : 'upsert', {
     template_uuid: te.template_uuid,
     exercise_ref: exRef,
@@ -170,8 +169,10 @@ async function enqueueTemplateExerciseUpsert(teId: number): Promise<void> {
     superset_group: te.superset_group ?? null,
     updated_at: te.updated_at,
     deleted_at: te.deleted_at,
-  });
+  }, tx);
 }
+
+const TEMPLATE_TABLES = ['workout_templates', 'template_exercises'] as const;
 
 /** Sanitize routine duration to a sane 5–240 min window. */
 export function sanitizeEstimatedMinutes(value: unknown, fallback = 45): number {
@@ -185,20 +186,19 @@ export async function createTemplate(
   difficulty: Difficulty,
   estimatedMinutes = 45,
 ): Promise<number> {
-  const db = await openDatabase();
   const now = Date.now();
   const uuid = newUuid();
-  const res = await db.runAsync(
-    `INSERT INTO workout_templates (name, description, category, difficulty, estimated_minutes, is_custom, uuid, created_at, updated_at) VALUES (?, ?, 'strength', ?, ?, 1, ?, ?, ?)`,
-    name, description, difficulty, sanitizeEstimatedMinutes(estimatedMinutes), uuid, now, now,
-  );
-  const id = res.lastInsertRowId as number;
-  await enqueueTemplateUpsert(id);
-  return id;
+  return mutate(TEMPLATE_TABLES, async (tx) => {
+    const res = await tx.runAsync(
+      `INSERT INTO workout_templates (name, description, category, difficulty, estimated_minutes, is_custom, uuid, created_at, updated_at) VALUES (?, ?, 'strength', ?, ?, 1, ?, ?, ?)`,
+      name, description, difficulty, sanitizeEstimatedMinutes(estimatedMinutes), uuid, now, now,
+    );
+    await enqueueTemplateUpsert(tx, res.lastInsertRowId);
+    return res.lastInsertRowId;
+  });
 }
 
 export async function updateTemplate(id: number, patch: Partial<Pick<WorkoutTemplate, 'name' | 'description' | 'difficulty' | 'estimatedMinutes'>>): Promise<void> {
-  const db = await openDatabase();
   const sets: string[] = [];
   const args: (string | number)[] = [];
   if (patch.name !== undefined) { sets.push('name = ?'); args.push(patch.name); }
@@ -209,49 +209,52 @@ export async function updateTemplate(id: number, patch: Partial<Pick<WorkoutTemp
   sets.push('updated_at = ?');
   args.push(Date.now());
   args.push(id);
-  await db.runAsync(`UPDATE workout_templates SET ${sets.join(', ')} WHERE id = ?`, ...args);
-  await enqueueTemplateUpsert(id);
+  await mutate(TEMPLATE_TABLES, async (tx) => {
+    await tx.runAsync(`UPDATE workout_templates SET ${sets.join(', ')} WHERE id = ?`, ...args);
+    await enqueueTemplateUpsert(tx, id);
+  });
 }
 
 export async function deleteTemplate(id: number): Promise<void> {
-  const db = await openDatabase();
-  const t = await db.getFirstAsync<TemplateRow>('SELECT * FROM workout_templates WHERE id = ?', id);
-  if (!t) return;
   const now = Date.now();
+  await mutate(TEMPLATE_TABLES, async (tx) => {
+    const t = await tx.getFirstAsync<TemplateRow>('SELECT * FROM workout_templates WHERE id = ?', id);
+    if (!t) return;
 
-  if (!t.is_custom) {
-    // Seed templates: hard-delete children only if explicitly deleted (legacy behavior)
-    await db.runAsync('DELETE FROM template_exercises WHERE template_id = ?', id);
-    await db.runAsync('DELETE FROM workout_templates WHERE id = ?', id);
-    return;
-  }
+    if (!t.is_custom) {
+      // Seed templates: hard-delete children only if explicitly deleted (legacy behavior)
+      await tx.runAsync('DELETE FROM template_exercises WHERE template_id = ?', id);
+      await tx.runAsync('DELETE FROM workout_templates WHERE id = ?', id);
+      return;
+    }
 
-  const children = await db.getAllAsync<{ id: number; uuid: string | null }>(
-    'SELECT id, uuid FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL',
-    id,
-  );
-  for (const child of children) {
-    await db.runAsync(
-      'UPDATE template_exercises SET deleted_at = ?, updated_at = ? WHERE id = ?',
-      now, now, child.id,
+    const children = await tx.getAllAsync<{ id: number; uuid: string | null }>(
+      'SELECT id, uuid FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL',
+      id,
     );
-    if (child.uuid) {
-      await enqueueSync('user_template_exercises', child.uuid, 'delete', {
+    await tx.runAsync(
+      'UPDATE template_exercises SET deleted_at = ?, updated_at = ? WHERE template_id = ? AND deleted_at IS NULL',
+      now, now, id,
+    );
+    for (const child of children) {
+      if (child.uuid) {
+        await enqueueSync('user_template_exercises', child.uuid, 'delete', {
+          updated_at: now,
+          deleted_at: now,
+        }, tx);
+      }
+    }
+    await tx.runAsync(
+      'UPDATE workout_templates SET deleted_at = ?, updated_at = ? WHERE id = ?',
+      now, now, id,
+    );
+    if (t.uuid) {
+      await enqueueSync('user_templates', t.uuid, 'delete', {
         updated_at: now,
         deleted_at: now,
-      });
+      }, tx);
     }
-  }
-  await db.runAsync(
-    'UPDATE workout_templates SET deleted_at = ?, updated_at = ? WHERE id = ?',
-    now, now, id,
-  );
-  if (t.uuid) {
-    await enqueueSync('user_templates', t.uuid, 'delete', {
-      updated_at: now,
-      deleted_at: now,
-    });
-  }
+  });
 }
 
 export async function addExerciseToTemplate(
@@ -262,30 +265,30 @@ export async function addExerciseToTemplate(
   targetRepsMax: number,
   restSeconds: number,
 ): Promise<number> {
-  const db = await openDatabase();
   const now = Date.now();
   const uuid = newUuid();
-  const maxOrder = await db.getFirstAsync<{ m: number }>(
-    'SELECT COALESCE(MAX(sort_order), -1) as m FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL',
-    templateId,
-  );
-  const nextOrder = (maxOrder?.m ?? -1) + 1;
-  const res = await db.runAsync(
-    `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?)`,
-    templateId, exerciseId, nextOrder, targetSets, targetRepsMin, targetRepsMax, restSeconds, uuid, now,
-  );
-  const id = res.lastInsertRowId as number;
-  await db.runAsync('UPDATE workout_templates SET updated_at = ? WHERE id = ?', now, templateId);
-  await enqueueTemplateUpsert(templateId);
-  await enqueueTemplateExerciseUpsert(id);
-  return id;
+  return mutate(TEMPLATE_TABLES, async (tx) => {
+    const maxOrder = await tx.getFirstAsync<{ m: number }>(
+      'SELECT COALESCE(MAX(sort_order), -1) as m FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL',
+      templateId,
+    );
+    const nextOrder = (maxOrder?.m ?? -1) + 1;
+    const res = await tx.runAsync(
+      `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?)`,
+      templateId, exerciseId, nextOrder, targetSets, targetRepsMin, targetRepsMax, restSeconds, uuid, now,
+    );
+    const id = res.lastInsertRowId;
+    await tx.runAsync('UPDATE workout_templates SET updated_at = ? WHERE id = ?', now, templateId);
+    await enqueueTemplateUpsert(tx, templateId);
+    await enqueueTemplateExerciseUpsert(tx, id);
+    return id;
+  });
 }
 
 export async function updateTemplateExercise(
   id: number,
   patch: Partial<Pick<TemplateExercise, 'targetSets' | 'targetRepsMin' | 'targetRepsMax' | 'restSeconds' | 'notes' | 'supersetGroup'>>,
 ): Promise<void> {
-  const db = await openDatabase();
   const sets: string[] = [];
   const args: (string | number | null)[] = [];
   if (patch.targetSets !== undefined) { sets.push('target_sets = ?'); args.push(patch.targetSets); }
@@ -299,42 +302,46 @@ export async function updateTemplateExercise(
   sets.push('updated_at = ?');
   args.push(now);
   args.push(id);
-  await db.runAsync(`UPDATE template_exercises SET ${sets.join(', ')} WHERE id = ?`, ...args);
-  await enqueueTemplateExerciseUpsert(id);
+  await mutate(TEMPLATE_TABLES, async (tx) => {
+    await tx.runAsync(`UPDATE template_exercises SET ${sets.join(', ')} WHERE id = ?`, ...args);
+    await enqueueTemplateExerciseUpsert(tx, id);
+  });
 }
 
 export async function removeTemplateExercise(id: number): Promise<void> {
-  const db = await openDatabase();
-  const te = await db.getFirstAsync<TemplateExerciseRow & { is_custom: number }>(
-    `SELECT te.*, t.is_custom as is_custom FROM template_exercises te
-     JOIN workout_templates t ON t.id = te.template_id WHERE te.id = ?`,
-    id,
-  );
-  if (!te) return;
   const now = Date.now();
-  if (!te.is_custom) {
-    await db.runAsync('DELETE FROM template_exercises WHERE id = ?', id);
-    return;
-  }
-  await db.runAsync(
-    'UPDATE template_exercises SET deleted_at = ?, updated_at = ? WHERE id = ?',
-    now, now, id,
-  );
-  await enqueueTemplateExerciseUpsert(id);
+  await mutate(TEMPLATE_TABLES, async (tx) => {
+    const te = await tx.getFirstAsync<TemplateExerciseRow & { is_custom: number }>(
+      `SELECT te.*, t.is_custom as is_custom FROM template_exercises te
+       JOIN workout_templates t ON t.id = te.template_id WHERE te.id = ?`,
+      id,
+    );
+    if (!te) return;
+    if (!te.is_custom) {
+      await tx.runAsync('DELETE FROM template_exercises WHERE id = ?', id);
+      return;
+    }
+    await tx.runAsync(
+      'UPDATE template_exercises SET deleted_at = ?, updated_at = ? WHERE id = ?',
+      now, now, id,
+    );
+    await enqueueTemplateExerciseUpsert(tx, id);
+  });
 }
 
 export async function reorderTemplateExercises(templateId: number, exerciseIds: number[]): Promise<void> {
-  const db = await openDatabase();
   const now = Date.now();
-  for (let i = 0; i < exerciseIds.length; i++) {
-    await db.runAsync(
-      'UPDATE template_exercises SET sort_order = ?, updated_at = ? WHERE id = ? AND template_id = ?',
-      i, now, exerciseIds[i], templateId,
-    );
-    await enqueueTemplateExerciseUpsert(exerciseIds[i]);
-  }
-  await db.runAsync('UPDATE workout_templates SET updated_at = ? WHERE id = ?', now, templateId);
-  await enqueueTemplateUpsert(templateId);
+  await mutate(TEMPLATE_TABLES, async (tx) => {
+    for (let i = 0; i < exerciseIds.length; i++) {
+      await tx.runAsync(
+        'UPDATE template_exercises SET sort_order = ?, updated_at = ? WHERE id = ? AND template_id = ?',
+        i, now, exerciseIds[i], templateId,
+      );
+      await enqueueTemplateExerciseUpsert(tx, exerciseIds[i]);
+    }
+    await tx.runAsync('UPDATE workout_templates SET updated_at = ? WHERE id = ?', now, templateId);
+    await enqueueTemplateUpsert(tx, templateId);
+  });
 }
 
 /** Link two adjacent template exercises into one superset group. */

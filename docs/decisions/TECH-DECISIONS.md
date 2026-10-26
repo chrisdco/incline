@@ -61,7 +61,7 @@ Short-lived alternatives log. Revisit only when a trigger below fires; otherwise
 - **Why display-only:** expo-widgets Android has no tap-to-open action (widget buttons only broadcast prop updates), so we ship no fake CTA. Copy says what to train; opening the app stays the launcher icon's job.
 - **Platform split:** `src/lib/widgets/refresh.ts` is a no-op; the implementation is `refresh.android.ts`, so Metro keeps the widget runtime and `@expo/ui/jetpack-compose` out of iOS/web bundles (verified in exported Hermes bytecode).
 - **Data:** pure `buildNextUpProps` / `buildThisWeekProps` own all copy/formatting and are unit-tested. Both light and dark palettes arrive in props because Android's `environment` only carries `colorScheme`; the `Updated` stamp is absolute because widgets cannot recompute a relative label.
-- **Refresh:** app mount/foreground (30 s throttle), session mount/finish/discard, workout delete, and accent/weekly-goal settings changes. Never a timer; SQLite stays the source of truth.
+- **Refresh:** app mount/foreground (30 s throttle), the SQLite table-change event for the tables the snapshot reads (1 s trailing debounce — covers start/finish/discard/delete and sync pulls), and accent/weekly-goal settings changes. Write sites never call it. Never a timer; SQLite stays the source of truth.
 - **Revisit when:** expo-widgets ships tap-to-open/deep links → add a real CTA; or a third surface is proposed → keep one job per widget instead of growing `NextUp`.
 
 ## 10. Rest alerts: exact alarms, foregrounded +1 min

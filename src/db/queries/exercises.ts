@@ -3,6 +3,7 @@ import { invalidateCatalog } from '../exercise-cache';
 import { newUuid } from '@/lib/uuid';
 import { buildSearchText, scoreField, tokenize } from '@/lib/exercise-search';
 import { enqueueSync } from '@/sync/outbox';
+import { mutate } from '../write';
 import type {
   Category,
   Equipment,
@@ -186,61 +187,65 @@ export interface CreateCustomExerciseInput {
 }
 
 export async function createCustomExercise(input: CreateCustomExerciseInput): Promise<number> {
-  const db = await openDatabase();
   const now = Date.now();
   const uuid = newUuid();
-  const res = await db.runAsync(
-    `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, tips, search_text, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'custom', ?, ?, ?, ?, ?)`,
-    input.name, input.primaryMuscle, input.movementPattern, input.equipment, input.category, input.isCompound ? 1 : 0, input.tips ?? '',
-    buildSearchText({ name: input.name, primaryMuscle: input.primaryMuscle, equipment: input.equipment, pattern: input.movementPattern, category: input.category }),
-    uuid, now, now,
-  );
-  const id = res.lastInsertRowId as number;
-  for (const alias of (input.aliases ?? [])) {
-    await db.runAsync(`INSERT INTO exercise_aliases (exercise_id, alias) VALUES (?, ?)`, id, alias.toLowerCase());
-  }
-  for (const muscle of (input.secondaryMuscles ?? [])) {
-    await db.runAsync(`INSERT INTO exercise_secondary_muscles (exercise_id, muscle) VALUES (?, ?)`, id, muscle);
-  }
-  for (let i = 0; i < (input.instructions ?? []).length; i++) {
-    await db.runAsync(`INSERT INTO exercise_instructions (exercise_id, step, text) VALUES (?, ?, ?)`, id, i + 1, input.instructions![i]);
-  }
-  await enqueueSync('user_exercises', uuid, 'upsert', {
-    name: input.name,
-    primary_muscle: input.primaryMuscle,
-    movement_pattern: input.movementPattern,
-    equipment: input.equipment,
-    category: input.category,
-    is_compound: input.isCompound ? 1 : 0,
-    tips: input.tips ?? '',
-    aliases: input.aliases ?? [],
-    secondary_muscles: input.secondaryMuscles ?? [],
-    instructions: input.instructions ?? [],
-    created_at: now,
-    updated_at: now,
-    deleted_at: null,
+  const tables = ['exercises', 'exercise_aliases', 'exercise_secondary_muscles', 'exercise_instructions'] as const;
+  const id = await mutate(tables, async (tx) => {
+    const res = await tx.runAsync(
+      `INSERT INTO exercises (name, primary_muscle, movement_pattern, equipment, category, is_compound, is_custom, source, tips, search_text, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'custom', ?, ?, ?, ?, ?)`,
+      input.name, input.primaryMuscle, input.movementPattern, input.equipment, input.category, input.isCompound ? 1 : 0, input.tips ?? '',
+      buildSearchText({ name: input.name, primaryMuscle: input.primaryMuscle, equipment: input.equipment, pattern: input.movementPattern, category: input.category }),
+      uuid, now, now,
+    );
+    const newId = res.lastInsertRowId;
+    for (const alias of (input.aliases ?? [])) {
+      await tx.runAsync(`INSERT INTO exercise_aliases (exercise_id, alias) VALUES (?, ?)`, newId, alias.toLowerCase());
+    }
+    for (const muscle of (input.secondaryMuscles ?? [])) {
+      await tx.runAsync(`INSERT INTO exercise_secondary_muscles (exercise_id, muscle) VALUES (?, ?)`, newId, muscle);
+    }
+    for (let i = 0; i < (input.instructions ?? []).length; i++) {
+      await tx.runAsync(`INSERT INTO exercise_instructions (exercise_id, step, text) VALUES (?, ?, ?)`, newId, i + 1, input.instructions![i]);
+    }
+    await enqueueSync('user_exercises', uuid, 'upsert', {
+      name: input.name,
+      primary_muscle: input.primaryMuscle,
+      movement_pattern: input.movementPattern,
+      equipment: input.equipment,
+      category: input.category,
+      is_compound: input.isCompound ? 1 : 0,
+      tips: input.tips ?? '',
+      aliases: input.aliases ?? [],
+      secondary_muscles: input.secondaryMuscles ?? [],
+      instructions: input.instructions ?? [],
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    }, tx);
+    return newId;
   });
   invalidateCatalog();
   return id;
 }
 
 export async function deleteCustomExercise(id: number): Promise<void> {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<{ uuid: string | null }>(
-    'SELECT uuid FROM exercises WHERE id = ? AND is_custom = 1',
-    id,
-  );
   const now = Date.now();
-  await db.runAsync(
-    'UPDATE exercises SET deleted_at = ?, updated_at = ? WHERE id = ? AND is_custom = 1',
-    now, now, id,
-  );
-  if (row?.uuid) {
-    await enqueueSync('user_exercises', row.uuid, 'delete', {
-      updated_at: now,
-      deleted_at: now,
-    });
-  }
+  await mutate(['exercises'], async (tx) => {
+    const row = await tx.getFirstAsync<{ uuid: string | null }>(
+      'SELECT uuid FROM exercises WHERE id = ? AND is_custom = 1',
+      id,
+    );
+    await tx.runAsync(
+      'UPDATE exercises SET deleted_at = ?, updated_at = ? WHERE id = ? AND is_custom = 1',
+      now, now, id,
+    );
+    if (row?.uuid) {
+      await enqueueSync('user_exercises', row.uuid, 'delete', {
+        updated_at: now,
+        deleted_at: now,
+      }, tx);
+    }
+  });
   invalidateCatalog();
 }
 

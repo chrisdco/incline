@@ -2,8 +2,9 @@ import { openDatabase } from '../client';
 import { PAGINATION } from '@/constants/config';
 import { newUuid } from '@/lib/uuid';
 import { enqueueSync } from '@/sync/outbox';
-import { exerciseRefForId } from '@/sync/exercise-ref';
+import { exerciseRefFromRow } from '@/sync/exercise-ref';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { mutate, type Tx } from '../write';
 import type {
   FeedWorkoutLog,
   MuscleGroup,
@@ -34,9 +35,8 @@ export interface MuscleSplit {
   sets: number;
 }
 
-async function enqueueLogUpsert(logId: number): Promise<void> {
-  const db = await openDatabase();
-  const log = await db.getFirstAsync<LogRow & { template_uuid: string | null }>(
+async function enqueueLogUpsert(tx: Tx, logId: number): Promise<void> {
+  const log = await tx.getFirstAsync<LogRow & { template_uuid: string | null }>(
     `SELECT w.*, t.uuid as template_uuid
      FROM workout_logs w
      LEFT JOIN workout_templates t ON t.id = w.template_id AND t.is_custom = 1
@@ -44,52 +44,98 @@ async function enqueueLogUpsert(logId: number): Promise<void> {
     logId,
   );
   if (!log?.uuid) return;
-  await enqueueSync('workout_logs', log.uuid, log.deleted_at ? 'delete' : 'upsert', {
-    template_uuid: log.template_uuid,
-    name: log.name,
-    started_at: log.started_at,
-    ended_at: log.ended_at,
-    duration_seconds: log.duration_seconds,
-    total_volume: log.total_volume,
-    unit: log.unit,
-    notes: log.notes,
-    created_at: log.created_at,
-    updated_at: log.updated_at,
-    deleted_at: log.deleted_at,
-  });
-}
-
-async function enqueueSetUpsert(setId: number): Promise<void> {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<SetRow & { log_uuid: string | null }>(
-    `SELECT s.*, w.uuid as log_uuid FROM set_entries s
-     JOIN workout_logs w ON w.id = s.workout_log_id WHERE s.id = ?`,
-    setId,
+  await enqueueSync(
+    'workout_logs',
+    log.uuid,
+    log.deleted_at ? 'delete' : 'upsert',
+    {
+      template_uuid: log.template_uuid,
+      name: log.name,
+      started_at: log.started_at,
+      ended_at: log.ended_at,
+      duration_seconds: log.duration_seconds,
+      total_volume: log.total_volume,
+      unit: log.unit,
+      notes: log.notes,
+      created_at: log.created_at,
+      updated_at: log.updated_at,
+      deleted_at: log.deleted_at,
+    },
+    tx,
   );
-  if (!row?.uuid || !row.log_uuid) return;
-  const exRef = await exerciseRefForId(row.exercise_id);
-  await enqueueSync('set_entries', row.uuid, row.deleted_at ? 'delete' : 'upsert', {
-    workout_log_uuid: row.log_uuid,
-    exercise_ref: exRef,
-    set_index: row.set_index,
-    weight: row.weight,
-    reps: row.reps,
-    completed: row.completed,
-    rest_seconds: row.rest_seconds,
-    superset_group: row.superset_group,
-    set_type: row.set_type ?? 'working',
-    rpe: row.rpe ?? null,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    deleted_at: row.deleted_at,
-  });
 }
 
-/** Awaited batch enqueue. Call sites await this: a failed local enqueue must
-    propagate to the caller (toast + retry) instead of vanishing silently. */
-async function enqueueSetUpserts(setIds: number[]): Promise<void> {
-  if (setIds.length === 0) return;
-  await Promise.all(setIds.map((id) => enqueueSetUpsert(id)));
+type SetSyncRow = SetRow & {
+  log_uuid: string | null;
+  log_ended_at: number | null;
+  ex_is_custom: number | null;
+  ex_uuid: string | null;
+  ex_external_id: string | null;
+};
+
+/**
+ * Enqueue upserts for a batch of sets: one SELECT (sets + log uuid + the
+ * exercise columns the sync ref needs) instead of two per set, then the
+ * outbox rows on the same tx. Returns the rows so callers can settle volume.
+ */
+async function enqueueSetUpserts(tx: Tx, setIds: number[]): Promise<SetSyncRow[]> {
+  if (setIds.length === 0) return [];
+  const placeholders = setIds.map(() => '?').join(',');
+  const rows = await tx.getAllAsync<SetSyncRow>(
+    `SELECT s.*, w.uuid as log_uuid, w.ended_at as log_ended_at,
+            e.is_custom as ex_is_custom, e.uuid as ex_uuid, e.external_id as ex_external_id
+     FROM set_entries s
+     JOIN workout_logs w ON w.id = s.workout_log_id
+     LEFT JOIN exercises e ON e.id = s.exercise_id
+     WHERE s.id IN (${placeholders})`,
+    ...setIds,
+  );
+  for (const row of rows) {
+    if (!row.uuid || !row.log_uuid) continue;
+    const exRef = exerciseRefFromRow(
+      row.exercise_id,
+      row.ex_is_custom == null
+        ? null
+        : { is_custom: row.ex_is_custom, uuid: row.ex_uuid, external_id: row.ex_external_id },
+    );
+    await enqueueSync(
+      'set_entries',
+      row.uuid,
+      row.deleted_at ? 'delete' : 'upsert',
+      {
+        workout_log_uuid: row.log_uuid,
+        exercise_ref: exRef,
+        set_index: row.set_index,
+        weight: row.weight,
+        reps: row.reps,
+        completed: row.completed,
+        rest_seconds: row.rest_seconds,
+        superset_group: row.superset_group,
+        set_type: row.set_type ?? 'working',
+        rpe: row.rpe ?? null,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        deleted_at: row.deleted_at,
+      },
+      tx,
+    );
+  }
+  return rows;
+}
+
+/**
+ * Stored `total_volume` of an OPEN session is settled once, at finish — the
+ * session screen derives live volume in JS, so recomputing (and re-enqueuing
+ * the log) on every committed field was pure write amplification. Edits to a
+ * finished log still recompute here so history stays honest.
+ */
+async function settleVolume(
+  tx: Tx,
+  row: { workout_log_id: number; log_ended_at: number | null } | undefined,
+): Promise<void> {
+  if (!row || row.log_ended_at == null) return;
+  await recomputeVolume(row.workout_log_id, tx);
+  await enqueueLogUpsert(tx, row.workout_log_id);
 }
 
 /** Calculate the muscle group distribution for a completed workout (by completed set count). */
@@ -167,19 +213,13 @@ export async function startWorkout(templateId: number | null, name: string): Pro
   // Coalesce concurrent same-workout starts (double-tap, StrictMode remount):
   // a repeat joins the in-flight start instead of opening an orphan log that
   // getActiveWorkout would hide. Keyed so a genuinely different start is
-  // never swallowed. All bodies additionally chain through one queue because
-  // writers share a single connection — concurrent transactions collide.
-  // Intentional second starts go through the UI conflict dialog, which
-  // discards first.
+  // never swallowed; mutate() serialises the bodies themselves. Intentional
+  // second starts go through the UI conflict dialog, which discards first.
   const key = `${templateId ?? 'empty'}|${name}`;
   const running = _starting.get(key);
   if (running) return running;
-  const pending = _queue.then(() => startWorkoutInner(templateId, name));
+  const pending = startWorkoutInner(templateId, name);
   _starting.set(key, pending);
-  _queue = pending.then(
-    () => undefined,
-    () => undefined,
-  );
   try {
     return await pending;
   } finally {
@@ -188,14 +228,11 @@ export async function startWorkout(templateId: number | null, name: string): Pro
 }
 
 const _starting = new Map<string, Promise<number>>();
-let _queue: Promise<void> = Promise.resolve();
 
 async function startWorkoutInner(templateId: number | null, name: string): Promise<number> {
   const db = await openDatabase();
   const now = Date.now();
   const logUuid = newUuid();
-  let logId = 0;
-  const setIds: number[] = [];
 
   let teRows: TemplateExerciseRow[] = [];
   let lastByExercise: Record<number, Awaited<ReturnType<typeof getLastSetsForExercise>>> = {};
@@ -207,26 +244,27 @@ async function startWorkoutInner(templateId: number | null, name: string): Promi
     lastByExercise = await getLastSetsForExercises(teRows.map((te) => te.exercise_id));
   }
 
-  await db.withTransactionAsync(async () => {
-    const res = await db.runAsync(
+  return mutate(['workout_logs', 'set_entries'], async (tx) => {
+    const res = await tx.runAsync(
       `INSERT INTO workout_logs (template_id, name, started_at, ended_at, duration_seconds, total_volume, unit, notes, uuid, created_at, updated_at) VALUES (?, ?, ?, NULL, 0, 0, 'metric', '', ?, ?, ?)`,
       templateId, name, now, logUuid, now, now,
     );
-    logId = res.lastInsertRowId as number;
+    const logId = res.lastInsertRowId;
+    const setIds: number[] = [];
     for (const te of teRows) {
       const last = lastByExercise[te.exercise_id] ?? [];
       for (let s = 0; s < te.target_sets; s++) {
-        const setRes = await db.runAsync(
+        const setRes = await tx.runAsync(
           `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, superset_group, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
           logId, te.exercise_id, s, last[s]?.weight ?? 0, last[s]?.reps ?? te.target_reps_min, te.superset_group ?? null, newUuid(), now, now,
         );
-        setIds.push(setRes.lastInsertRowId as number);
+        setIds.push(setRes.lastInsertRowId);
       }
     }
+    await enqueueLogUpsert(tx, logId);
+    await enqueueSetUpserts(tx, setIds);
+    return logId;
   });
-  await enqueueLogUpsert(logId);
-  await enqueueSetUpserts(setIds);
-  return logId;
 }
 
 export async function addExerciseToWorkout(
@@ -234,79 +272,84 @@ export async function addExerciseToWorkout(
   exerciseId: number,
   options?: { sortOrder?: number },
 ): Promise<number> {
-  const db = await openDatabase();
-  const now = Date.now();
   const last = await getLastSetsForExercise(exerciseId);
-  const existing = await db.getFirstAsync<{ c: number }>(
+  return mutate(['set_entries'], (tx) =>
+    insertExerciseSet(tx, logId, exerciseId, last[0], options?.sortOrder),
+  );
+}
+
+/** Body of addExerciseToWorkout, composable into a larger mutate(). */
+async function insertExerciseSet(
+  tx: Tx,
+  logId: number,
+  exerciseId: number,
+  last: { weight: number; reps: number } | undefined,
+  sortOrder: number | undefined,
+): Promise<number> {
+  const now = Date.now();
+  const existing = await tx.getFirstAsync<{ c: number }>(
     'SELECT COUNT(*) as c FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
     logId, exerciseId,
   );
   const setIndex = existing?.c ?? 0;
-  const res = await db.runAsync(
+  const res = await tx.runAsync(
     `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, sort_order, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
-    logId, exerciseId, setIndex, last[0]?.weight ?? 0, last[0]?.reps ?? 0, options?.sortOrder ?? null, newUuid(), now, now,
+    logId, exerciseId, setIndex, last?.weight ?? 0, last?.reps ?? 0, sortOrder ?? null, newUuid(), now, now,
   );
-  const setId = res.lastInsertRowId as number;
-  await recomputeVolume(logId);
-  await enqueueSetUpsert(setId);
-  await enqueueLogUpsert(logId);
-  return setId;
+  // A new set is incomplete, so volume cannot move: nothing to settle.
+  await enqueueSetUpserts(tx, [res.lastInsertRowId]);
+  return res.lastInsertRowId;
 }
 
 export async function addWarmUpSet(logId: number, exerciseId: number): Promise<number> {
-  const db = await openDatabase();
-  const now = Date.now();
-  const heaviest = await db.getFirstAsync<SetRow>(
-    'SELECT * FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL ORDER BY weight DESC LIMIT 1',
-    logId, exerciseId,
-  );
-  const last = await db.getFirstAsync<SetRow>(
-    'SELECT * FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL ORDER BY set_index DESC LIMIT 1',
-    logId, exerciseId,
-  );
-  const workingWeight = heaviest?.weight ?? 0;
-  const warmUpWeight = Math.max(0, Math.round((workingWeight * 0.5) / 2.5) * 2.5);
-  const nextIndex = last ? last.set_index + 1 : 0;
-  // Inherit the exercise group's sort slot: without it the new row falls back
-  // to COALESCE(id) and splits the group after a reorder.
-  const slot = await db.getFirstAsync<{ sort_order: number | null }>(
-    'SELECT MIN(sort_order) as sort_order FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
-    logId, exerciseId,
-  );
-  const res = await db.runAsync(
-    `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, set_type, sort_order, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, 'warmup', ?, ?, ?, ?)`,
-    logId, exerciseId, nextIndex, warmUpWeight, heaviest?.reps ?? 10, slot?.sort_order ?? null, newUuid(), now, now,
-  );
-  const setId = res.lastInsertRowId as number;
-  await recomputeVolume(logId);
-  await enqueueSetUpsert(setId);
-  await enqueueLogUpsert(logId);
-  return setId;
+  return mutate(['set_entries'], async (tx) => {
+    const now = Date.now();
+    const heaviest = await tx.getFirstAsync<SetRow>(
+      'SELECT * FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL ORDER BY weight DESC LIMIT 1',
+      logId, exerciseId,
+    );
+    const last = await tx.getFirstAsync<SetRow>(
+      'SELECT * FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL ORDER BY set_index DESC LIMIT 1',
+      logId, exerciseId,
+    );
+    const workingWeight = heaviest?.weight ?? 0;
+    const warmUpWeight = Math.max(0, Math.round((workingWeight * 0.5) / 2.5) * 2.5);
+    const nextIndex = last ? last.set_index + 1 : 0;
+    // Inherit the exercise group's sort slot: without it the new row falls back
+    // to COALESCE(id) and splits the group after a reorder.
+    const slot = await tx.getFirstAsync<{ sort_order: number | null }>(
+      'SELECT MIN(sort_order) as sort_order FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
+      logId, exerciseId,
+    );
+    const res = await tx.runAsync(
+      `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, set_type, sort_order, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, 'warmup', ?, ?, ?, ?)`,
+      logId, exerciseId, nextIndex, warmUpWeight, heaviest?.reps ?? 10, slot?.sort_order ?? null, newUuid(), now, now,
+    );
+    await enqueueSetUpserts(tx, [res.lastInsertRowId]);
+    return res.lastInsertRowId;
+  });
 }
 
 export async function addSet(logId: number, exerciseId: number): Promise<number> {
-  const db = await openDatabase();
-  const now = Date.now();
-  const rows = await db.getAllAsync<SetRow>(
-    'SELECT * FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL ORDER BY set_index DESC LIMIT 1',
-    logId, exerciseId,
-  );
-  const last = rows[0];
-  const nextIndex = last ? last.set_index + 1 : 0;
-  // Same slot inheritance as warm-ups (see above): keeps the group together.
-  const slot = await db.getFirstAsync<{ sort_order: number | null }>(
-    'SELECT MIN(sort_order) as sort_order FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
-    logId, exerciseId,
-  );
-  const res = await db.runAsync(
-    `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, sort_order, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
-    logId, exerciseId, nextIndex, last?.weight ?? 0, last?.reps ?? 0, slot?.sort_order ?? null, newUuid(), now, now,
-  );
-  const setId = res.lastInsertRowId as number;
-  await recomputeVolume(logId);
-  await enqueueSetUpsert(setId);
-  await enqueueLogUpsert(logId);
-  return setId;
+  return mutate(['set_entries'], async (tx) => {
+    const now = Date.now();
+    const last = await tx.getFirstAsync<SetRow>(
+      'SELECT * FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL ORDER BY set_index DESC LIMIT 1',
+      logId, exerciseId,
+    );
+    const nextIndex = last ? last.set_index + 1 : 0;
+    // Same slot inheritance as warm-ups (see above): keeps the group together.
+    const slot = await tx.getFirstAsync<{ sort_order: number | null }>(
+      'SELECT MIN(sort_order) as sort_order FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
+      logId, exerciseId,
+    );
+    const res = await tx.runAsync(
+      `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, sort_order, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
+      logId, exerciseId, nextIndex, last?.weight ?? 0, last?.reps ?? 0, slot?.sort_order ?? null, newUuid(), now, now,
+    );
+    await enqueueSetUpserts(tx, [res.lastInsertRowId]);
+    return res.lastInsertRowId;
+  });
 }
 
 export interface SetPatch {
@@ -318,8 +361,11 @@ export interface SetPatch {
   setType?: SetType;
 }
 
+/**
+ * Commit one set edit: UPDATE + one SELECT + one outbox row in a single
+ * transaction (the log is only touched when the session is already finished).
+ */
 export async function updateSet(setId: number, patch: SetPatch): Promise<void> {
-  const db = await openDatabase();
   const sets: string[] = [];
   const args: (number | string | null)[] = [];
   if (patch.weight !== undefined) { sets.push('weight = ?'); args.push(patch.weight); }
@@ -335,35 +381,26 @@ export async function updateSet(setId: number, patch: SetPatch): Promise<void> {
     );
   }
   if (sets.length === 0) return;
-  const now = Date.now();
   sets.push('updated_at = ?');
-  args.push(now);
+  args.push(Date.now());
   args.push(setId);
-  await db.runAsync(`UPDATE set_entries SET ${sets.join(', ')} WHERE id = ?`, ...args);
-  const row = await db.getFirstAsync<{ workout_log_id: number }>('SELECT workout_log_id FROM set_entries WHERE id = ?', setId);
-  if (row) {
-    await recomputeVolume(row.workout_log_id);
-    await enqueueLogUpsert(row.workout_log_id);
-  }
-  await enqueueSetUpsert(setId);
+  await mutate(['set_entries', 'workout_logs'], async (tx) => {
+    await tx.runAsync(`UPDATE set_entries SET ${sets.join(', ')} WHERE id = ?`, ...args);
+    const [row] = await enqueueSetUpserts(tx, [setId]);
+    await settleVolume(tx, row);
+  });
 }
 
 export async function removeSet(setId: number): Promise<void> {
-  const db = await openDatabase();
   const now = Date.now();
-  const row = await db.getFirstAsync<{ workout_log_id: number; uuid: string | null }>(
-    'SELECT workout_log_id, uuid FROM set_entries WHERE id = ?',
-    setId,
-  );
-  await db.runAsync(
-    'UPDATE set_entries SET deleted_at = ?, updated_at = ? WHERE id = ?',
-    now, now, setId,
-  );
-  if (row) {
-    await recomputeVolume(row.workout_log_id);
-    await enqueueSetUpsert(setId);
-    await enqueueLogUpsert(row.workout_log_id);
-  }
+  await mutate(['set_entries', 'workout_logs'], async (tx) => {
+    await tx.runAsync(
+      'UPDATE set_entries SET deleted_at = ?, updated_at = ? WHERE id = ?',
+      now, now, setId,
+    );
+    const [row] = await enqueueSetUpserts(tx, [setId]);
+    await settleVolume(tx, row);
+  });
 }
 
 /**
@@ -376,30 +413,25 @@ export async function removeExerciseFromWorkout(
   logId: number,
   exerciseId: number,
 ): Promise<{ removed: number; completed: number; setIds: number[] }> {
-  const db = await openDatabase();
   const now = Date.now();
-  const rows = await db.getAllAsync<{ id: number; completed: number }>(
-    'SELECT id, completed FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
-    logId, exerciseId,
-  );
-  if (rows.length === 0) return { removed: 0, completed: 0, setIds: [] };
-  // Atomic with the volume recompute and outbox rows: a kill mid-remove must
-  // not leave tombstoned sets on a stale-volume log (helpers join the tx via
-  // the shared connection — none of them open a nested transaction).
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
+  return mutate(['set_entries', 'workout_logs'], async (tx) => {
+    const rows = await tx.getAllAsync<{ id: number; completed: number }>(
+      'SELECT id, completed FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
+      logId, exerciseId,
+    );
+    if (rows.length === 0) return { removed: 0, completed: 0, setIds: [] };
+    await tx.runAsync(
       'UPDATE set_entries SET deleted_at = ?, updated_at = ? WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
       now, now, logId, exerciseId,
     );
-    await recomputeVolume(logId);
-    await enqueueSetUpserts(rows.map((r) => r.id));
-    await enqueueLogUpsert(logId);
+    const synced = await enqueueSetUpserts(tx, rows.map((r) => r.id));
+    await settleVolume(tx, synced[0]);
+    return {
+      removed: rows.length,
+      completed: rows.filter((r) => r.completed === 1).length,
+      setIds: rows.map((r) => r.id),
+    };
   });
-  return {
-    removed: rows.length,
-    completed: rows.filter((r) => r.completed === 1).length,
-    setIds: rows.map((r) => r.id),
-  };
 }
 
 /**
@@ -412,31 +444,29 @@ export async function replaceExerciseInWorkout(
   oldExerciseId: number,
   newExerciseId: number,
 ): Promise<void> {
-  const db = await openDatabase();
+  const last = await getLastSetsForExercise(newExerciseId);
   const now = Date.now();
-  const oldPos = await db.getFirstAsync<{ sort_order: number | null }>(
-    'SELECT MIN(sort_order) as sort_order FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
-    logId, oldExerciseId,
-  );
-  const dropped = await db.getAllAsync<{ id: number }>(
-    'SELECT id FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND completed = 0 AND deleted_at IS NULL',
-    logId, oldExerciseId,
-  );
   // One transaction: drop + insert + outbox rows commit together so a kill
   // cannot strand the old incompletes without the replacement (or vice versa).
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
+  await mutate(['set_entries'], async (tx) => {
+    const oldPos = await tx.getFirstAsync<{ sort_order: number | null }>(
+      'SELECT MIN(sort_order) as sort_order FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
+      logId, oldExerciseId,
+    );
+    const dropped = await tx.getAllAsync<{ id: number }>(
+      'SELECT id FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND completed = 0 AND deleted_at IS NULL',
+      logId, oldExerciseId,
+    );
+    await tx.runAsync(
       'UPDATE set_entries SET deleted_at = ?, updated_at = ? WHERE workout_log_id = ? AND exercise_id = ? AND completed = 0 AND deleted_at IS NULL',
       now, now, logId, oldExerciseId,
     );
-    await enqueueSetUpserts(dropped.map((r) => r.id));
-    await addExerciseToWorkout(logId, newExerciseId, {
-      sortOrder: oldPos?.sort_order ?? undefined,
-    });
+    await enqueueSetUpserts(tx, dropped.map((r) => r.id));
+    await insertExerciseSet(tx, logId, newExerciseId, last[0], oldPos?.sort_order ?? undefined);
     // Renormalize dense 0..n with the replacement at the old slot. Without
     // this the kept completed old sets and the new row share one sort value
     // and the groups interleave; a NULL old position appends at the end.
-    const order = await db.getAllAsync<{ exercise_id: number }>(
+    const order = await tx.getAllAsync<{ exercise_id: number }>(
       `SELECT exercise_id FROM set_entries
        WHERE workout_log_id = ? AND deleted_at IS NULL
        GROUP BY exercise_id
@@ -448,12 +478,11 @@ export async function replaceExerciseInWorkout(
     if (oldIndex === -1) ids.push(newExerciseId);
     else ids.splice(oldIndex, 0, newExerciseId);
     for (let i = 0; i < ids.length; i++) {
-      await db.runAsync(
+      await tx.runAsync(
         'UPDATE set_entries SET sort_order = ? WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
         i, logId, ids[i],
       );
     }
-    await enqueueLogUpsert(logId);
   });
 }
 
@@ -466,10 +495,9 @@ export async function reorderWorkoutExercises(
   logId: number,
   exerciseIdsInOrder: number[],
 ): Promise<void> {
-  const db = await openDatabase();
-  await db.withTransactionAsync(async () => {
+  await mutate(['set_entries'], async (tx) => {
     for (let i = 0; i < exerciseIdsInOrder.length; i++) {
-      await db.runAsync(
+      await tx.runAsync(
         'UPDATE set_entries SET sort_order = ? WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL',
         i, logId, exerciseIdsInOrder[i],
       );
@@ -478,108 +506,101 @@ export async function reorderWorkoutExercises(
 }
 
 export async function updateWorkoutNotes(logId: number, notes: string): Promise<void> {
-  const db = await openDatabase();
-  await db.runAsync('UPDATE workout_logs SET notes = ?, updated_at = ? WHERE id = ?', notes, Date.now(), logId);
-  await enqueueLogUpsert(logId);
+  await mutate(['workout_logs'], async (tx) => {
+    await tx.runAsync('UPDATE workout_logs SET notes = ?, updated_at = ? WHERE id = ?', notes, Date.now(), logId);
+    await enqueueLogUpsert(tx, logId);
+  });
 }
 
 export async function updateWorkoutLogStartedAt(logId: number, startedAt: number): Promise<void> {
-  const db = await openDatabase();
-  await db.runAsync('UPDATE workout_logs SET started_at = ?, updated_at = ? WHERE id = ?', startedAt, Date.now(), logId);
-  await enqueueLogUpsert(logId);
+  await mutate(['workout_logs'], async (tx) => {
+    await tx.runAsync('UPDATE workout_logs SET started_at = ?, updated_at = ? WHERE id = ?', startedAt, Date.now(), logId);
+    await enqueueLogUpsert(tx, logId);
+  });
 }
 
 export async function updateWorkoutDuration(logId: number, seconds: number): Promise<boolean> {
-  const db = await openDatabase();
-  const log = await db.getFirstAsync<LogRow>(
-    'SELECT * FROM workout_logs WHERE id = ?',
-    logId,
-  );
-  // Never implicitly finish: an open session disappears from the active query
-  // and syncs as completed with full credit. Open sessions close via finish.
-  if (!log || log.ended_at == null) return false;
-  await db.runAsync(
-    'UPDATE workout_logs SET duration_seconds = ?, ended_at = ?, updated_at = ? WHERE id = ?',
-    seconds, log.started_at + seconds * 1000, Date.now(), logId,
-  );
-  await enqueueLogUpsert(logId);
-  return true;
+  return mutate(['workout_logs'], async (tx) => {
+    const log = await tx.getFirstAsync<LogRow>('SELECT * FROM workout_logs WHERE id = ?', logId);
+    // Never implicitly finish: an open session disappears from the active query
+    // and syncs as completed with full credit. Open sessions close via finish.
+    if (!log || log.ended_at == null) return false;
+    await tx.runAsync(
+      'UPDATE workout_logs SET duration_seconds = ?, ended_at = ?, updated_at = ? WHERE id = ?',
+      seconds, log.started_at + seconds * 1000, Date.now(), logId,
+    );
+    await enqueueLogUpsert(tx, logId);
+    return true;
+  });
 }
 
 export async function finishWorkout(logId: number, options?: { pausedMs?: number }): Promise<void> {
-  const db = await openDatabase();
-  const log = await db.getFirstAsync<LogRow>('SELECT * FROM workout_logs WHERE id = ?', logId);
-  if (!log) return;
-  const now = Date.now();
-  const pausedMs = Math.max(0, options?.pausedMs ?? 0);
-  const duration = Math.max(0, Math.floor((now - log.started_at - pausedMs) / 1000));
-
-  const incomplete = await db.getAllAsync<{ id: number }>(
-    `SELECT id FROM set_entries
-     WHERE workout_log_id = ? AND completed = 0 AND deleted_at IS NULL`,
-    logId,
-  );
   // Tombstone + volume + close + outbox rows commit atomically: a kill
-  // mid-finish must not push a half-closed log.
-  await db.withTransactionAsync(async () => {
+  // mid-finish must not push a half-closed log. This is also where an open
+  // session's stored total_volume is settled (edits skip it, see settleVolume).
+  await mutate(['workout_logs', 'set_entries'], async (tx) => {
+    const log = await tx.getFirstAsync<LogRow>('SELECT * FROM workout_logs WHERE id = ?', logId);
+    if (!log) return;
+    const now = Date.now();
+    const pausedMs = Math.max(0, options?.pausedMs ?? 0);
+    const duration = Math.max(0, Math.floor((now - log.started_at - pausedMs) / 1000));
+
+    const incomplete = await tx.getAllAsync<{ id: number }>(
+      `SELECT id FROM set_entries
+       WHERE workout_log_id = ? AND completed = 0 AND deleted_at IS NULL`,
+      logId,
+    );
     if (incomplete.length > 0) {
-      await db.runAsync(
+      await tx.runAsync(
         `UPDATE set_entries SET deleted_at = ?, updated_at = ?
          WHERE workout_log_id = ? AND completed = 0 AND deleted_at IS NULL`,
         now, now, logId,
       );
     }
 
-    await recomputeVolume(logId);
-    await db.runAsync(
+    await recomputeVolume(logId, tx);
+    await tx.runAsync(
       'UPDATE workout_logs SET ended_at = ?, duration_seconds = ?, updated_at = ? WHERE id = ?',
       now, duration, now, logId,
     );
-    await enqueueSetUpserts(incomplete.map((r) => r.id));
-    await enqueueLogUpsert(logId);
+    await enqueueSetUpserts(tx, incomplete.map((r) => r.id));
+    await enqueueLogUpsert(tx, logId);
   });
 }
 
 /** Undo a soft-deleted set within the same session (preserves uuid for sync). */
 export async function restoreSet(setId: number): Promise<void> {
-  const db = await openDatabase();
   const now = Date.now();
-  const row = await db.getFirstAsync<{ workout_log_id: number }>(
-    'SELECT workout_log_id FROM set_entries WHERE id = ?',
-    setId,
-  );
-  if (!row) return;
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
+  await mutate(['set_entries', 'workout_logs'], async (tx) => {
+    const res = await tx.runAsync(
       'UPDATE set_entries SET deleted_at = NULL, updated_at = ? WHERE id = ?',
       now, setId,
     );
-    await recomputeVolume(row.workout_log_id);
-    await enqueueSetUpserts([setId]);
-    await enqueueLogUpsert(row.workout_log_id);
+    if (res.changes === 0) return;
+    const [row] = await enqueueSetUpserts(tx, [setId]);
+    await settleVolume(tx, row);
   });
 }
 
 export async function discardWorkout(logId: number): Promise<void> {
-  const db = await openDatabase();
   const now = Date.now();
-  const sets = await db.getAllAsync<{ id: number }>(
-    'SELECT id FROM set_entries WHERE workout_log_id = ? AND deleted_at IS NULL',
-    logId,
-  );
   // DB rows commit atomically; file deletion stays outside (files cannot roll
   // back, and re-running discard on leftover files is idempotent).
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
+  await mutate(['workout_logs', 'set_entries'], async (tx) => {
+    const sets = await tx.getAllAsync<{ id: number }>(
+      'SELECT id FROM set_entries WHERE workout_log_id = ? AND deleted_at IS NULL',
+      logId,
+    );
+    await tx.runAsync(
       'UPDATE set_entries SET deleted_at = ?, updated_at = ? WHERE workout_log_id = ? AND deleted_at IS NULL',
       now, now, logId,
     );
-    await db.runAsync(
+    await tx.runAsync(
       'UPDATE workout_logs SET deleted_at = ?, updated_at = ? WHERE id = ?',
       now, now, logId,
     );
-    await enqueueSetUpserts(sets.map((s) => s.id));
-    await enqueueLogUpsert(logId);
+    await enqueueSetUpserts(tx, sets.map((s) => s.id));
+    await enqueueLogUpsert(tx, logId);
   });
   await deletePhotosForWorkout(logId);
 }

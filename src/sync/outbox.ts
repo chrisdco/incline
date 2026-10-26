@@ -1,4 +1,5 @@
 import { openDatabase } from '@/db/client';
+import type { Tx } from '@/db/write';
 import type { SyncOp, SyncTable } from './types';
 
 export interface OutboxRow {
@@ -11,22 +12,27 @@ export interface OutboxRow {
   attempts: number;
 }
 
-/** Enqueue a mutation for later push. Coalesces duplicate pending rows for the same uuid. */
+/**
+ * Enqueue a mutation for later push. Coalesces duplicate pending rows for the
+ * same uuid. Pass the `mutate()` tx so the enqueue commits (or rolls back)
+ * with the row change it describes; failures always throw.
+ */
 export async function enqueueSync(
   tableName: SyncTable,
   rowUuid: string,
   op: SyncOp,
   payload?: Record<string, unknown> | null,
+  tx?: Tx,
 ): Promise<void> {
-  const db = await openDatabase();
+  const db = tx ?? (await openDatabase());
   const now = Date.now();
   const json = payload ? JSON.stringify(payload) : null;
 
   // Single-statement coalesce. The old DELETE + bare INSERT pair could lose
   // the mutation on a kill between statements (local row already bumped, so
   // pull LWW would never repair it). Requires the UNIQUE index created in
-  // schema.ts / ensure-sync-schema.ts. Atomic alone and safe to call inside a
-  // larger withTransactionAsync (no nesting involved).
+  // schema.ts / ensure-sync-schema.ts. Atomic alone and safe inside a
+  // mutate() transaction (no nesting involved).
   await db.runAsync(
     `INSERT INTO sync_outbox (table_name, row_uuid, op, payload, created_at, attempts)
      VALUES (?, ?, ?, ?, ?, 0)
