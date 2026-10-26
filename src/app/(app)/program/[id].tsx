@@ -25,7 +25,7 @@ import {
   discardWorkout,
   weekdayMon1,
 } from '@/db/queries';
-import { setCachedSession } from '@/db/session-cache';
+import { setCachedSession } from '@/lib/query-keys';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import type { Program, ProgramWorkout } from '@/db/types';
 

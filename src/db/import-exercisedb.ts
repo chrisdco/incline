@@ -1,6 +1,6 @@
 // Offline import scripts / tooling only — not wired into the app UI.
 import { openDatabase } from './client';
-import { invalidateCatalog } from './exercise-cache';
+import { emitTablesChanged } from './changes';
 import { buildSearchText } from '@/lib/exercise-search';
 import { fetchExercises, type ExerciseDbExercise } from '@/lib/api';
 import type { Equipment, MuscleGroup, MovementPattern } from './types';
@@ -229,7 +229,7 @@ export async function importExercisesFromDb(
   }
 
   onProgress?.({ total: offset, imported, errors, phase: 'done' });
-  if (imported > 0) invalidateCatalog();
+  if (imported > 0) emitTablesChanged(['exercises']);
   return { imported, errors };
 }
 

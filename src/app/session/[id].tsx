@@ -52,7 +52,7 @@ import {
 } from '@/db/queries';
 import { formatClock, formatVolume, formatWeight } from '@/db/calc';
 import { workingSetVolume } from '@/lib/session-ghost';
-import { dropCachedSession, getCachedSession, setCachedSession } from '@/db/session-cache';
+import { dropCachedSession, getCachedSession, setCachedSession } from '@/lib/query-keys';
 import {
   applySetToBests,
   bestsFromPrSummary,
@@ -143,7 +143,7 @@ export default function SessionScreen() {
   // Stale-while-revalidate: reopening (tray tap, resume dialog) renders cached
   // rows synchronously instead of flashing a spinner mid-transition, then
   // refreshes from SQLite in the background. Single-writer + wipe-cleared
-  // cache (see session-cache.ts) keeps this safe.
+  // cache (see getCachedSession in lib/query-keys.ts) keeps this safe.
   const [session, setSession] = useState<SessionWorkout | null>(() => getCachedSession(logId));
   const [lastSetsMap, setLastSetsMap] = useState<Record<number, SetEntry[]>>({});
   const [prMap, setPrMap] = useState<Record<number, ExercisePRSummary>>({});

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { ChevronLeft, Info, Plus } from 'lucide-react-native';
@@ -21,12 +22,11 @@ import { EmptyState } from '@/components/common/states';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useToast } from '@/components/ui/toast';
-import { getCachedCatalog, setCachedCatalog } from '@/db/exercise-cache';
+import { catalogQuery } from '@/lib/query-keys';
 import {
   addExerciseToWorkout,
   getExerciseSubstitutes,
   getRecentExercises,
-  listExercises,
   replaceExerciseInWorkout,
   searchExercises,
 } from '@/db/queries';
@@ -60,9 +60,9 @@ export default function PickExerciseScreen() {
   const [debounced, setDebounced] = useState('');
   const [filters, setFilters] = useState<ExerciseFilterValues>({ muscle: null, equipment: null, pattern: null });
   const filtersActive = hasExerciseFilters(filters);
-  // Stale-while-revalidate: render the cached catalog synchronously (no
-  // spinner on every open) and refresh from SQLite in the background.
-  const [catalog, setCatalog] = useState<Exercise[] | null>(() => getCachedCatalog());
+  // Cached-first: the catalog query lives for the app's lifetime (prefetched
+  // at launch), so opens render synchronously; catalog writes invalidate it.
+  const catalog = useQuery(catalogQuery).data ?? null;
   const [results, setResults] = useState<Exercise[] | null>(null);
   const [suggested, setSuggested] = useState<Exercise[] | null>(null);
   const [recent, setRecent] = useState<Exercise[] | null>(null);
@@ -74,24 +74,8 @@ export default function PickExerciseScreen() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const loadingRef = useRef(false);
-  const refreshCatalog = useCallback(async (opts?: { forceVisible?: boolean }) => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-    try {
-      const all = await listExercises();
-      setCachedCatalog(all);
-      // Visible rows only update on first paint or explicit refresh — never
-      // shift a list mid-browse when returning from another surface.
-      setCatalog((prev) => (opts?.forceVisible || prev == null ? all : prev));
-    } finally {
-      loadingRef.current = false;
-    }
-  }, []);
-
   useEffect(() => {
     let active = true;
-    void refreshCatalog({ forceVisible: true });
     void (async () => {
       try {
         const recents = await getRecentExercises(8);
@@ -103,15 +87,7 @@ export default function PickExerciseScreen() {
     return () => {
       active = false;
     };
-  }, [refreshCatalog]);
-
-  // Revalidate the cache when returning (covers creates from other
-  // surfaces). In-flight guard above dedupes the mount double-fire.
-  useFocusEffect(
-    useCallback(() => {
-      void refreshCatalog();
-    }, [refreshCatalog]),
-  );
+  }, []);
 
   useEffect(() => {
     if (!isReplace || replaceId == null || Number.isNaN(replaceId)) return;
@@ -249,7 +225,6 @@ export default function PickExerciseScreen() {
             onCreated={() => {
               setCreating(false);
               toast({ title: 'Exercise created', description: 'Tap it in the list to add.', variant: 'success' });
-              void refreshCatalog({ forceVisible: true });
             }}
             onCancel={() => setCreating(false)}
           />

@@ -8,7 +8,7 @@ import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/ui/text';
 import { formatDuration } from '@/db/calc';
 import { getWorkoutLog } from '@/db/queries';
-import { setCachedSession } from '@/db/session-cache';
+import { setCachedSession } from '@/lib/query-keys';
 
 /**
  * Floating session bar shown above the tab bar when a workout is in progress.

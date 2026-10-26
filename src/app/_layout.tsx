@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@expo/ui/community/bottom-sheet';
 import { ClerkProvider } from '@clerk/expo';
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   Geist_400Regular,
   Geist_500Medium,
@@ -18,6 +19,7 @@ import {
 } from '@expo-google-fonts/geist';
 
 import { cn } from '@/lib/cn';
+import { queryClient } from '@/lib/query-client';
 import { themeHex } from '@/lib/theme';
 import { CLERK_PUBLISHABLE_KEY, isDevAuthBypassEnabled } from '@/lib/env';
 import { secureTokenCache } from '@/auth/secure-store';
@@ -160,12 +162,18 @@ function AppShell() {
  * Production bundles always take the Clerk path (see `isDevAuthBypassEnabled`).
  */
 export default function RootLayout() {
-  if (isDevAuthBypassEnabled()) return <AppShell />;
+  // Local SQLite reads (src/lib/query-client.ts) — invalidated by table.
+  const shell = (
+    <QueryClientProvider client={queryClient}>
+      <AppShell />
+    </QueryClientProvider>
+  );
+  if (isDevAuthBypassEnabled()) return shell;
   return (
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY}
       tokenCache={secureTokenCache}>
-      <AppShell />
+      {shell}
     </ClerkProvider>
   );
 }

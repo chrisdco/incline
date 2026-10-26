@@ -1,31 +1,19 @@
 import { useEffect } from 'react';
 
-import { getCachedCatalog, setCachedCatalog } from '@/db/exercise-cache';
-import { listExercises } from '@/db/queries';
+import { queryClient } from '@/lib/query-client';
+import { catalogQuery } from '@/lib/query-keys';
 
 /**
- * Warm the exercise catalog cache shortly after launch so the first
- * pick-screen open renders instantly. Delayed past first paint and skipped
- * when something already populated the cache. Failures are silent — the
- * picker loads on demand as before.
+ * Warm the exercise catalog query shortly after launch so the first
+ * pick-screen open renders instantly. Delayed past first paint; a no-op when
+ * the catalog is already cached. Failures are silent — the picker loads on
+ * demand as before.
  */
 export function useCatalogPrefetch() {
   useEffect(() => {
-    let cancelled = false;
     const t = setTimeout(() => {
-      void (async () => {
-        if (cancelled || getCachedCatalog()) return;
-        try {
-          const all = await listExercises();
-          if (!cancelled) setCachedCatalog(all);
-        } catch {
-          // picker falls back to on-demand load
-        }
-      })();
+      void queryClient.prefetchQuery(catalogQuery);
     }, 2000);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
+    return () => clearTimeout(t);
   }, []);
 }

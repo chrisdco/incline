@@ -12,7 +12,7 @@ import { ListSkeleton } from '@/components/common/skeleton';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useToast } from '@/components/ui/toast';
 import { getWorkoutLog, reorderWorkoutExercises } from '@/db/queries';
-import { getCachedSession } from '@/db/session-cache';
+import { getCachedSession } from '@/lib/query-keys';
 
 interface ReorderItem {
   exerciseId: number;
