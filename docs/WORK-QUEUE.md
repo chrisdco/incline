@@ -11,6 +11,8 @@
 > slices from `archive/SPRINT-2026-08.md`. Nothing was dropped: resolved
 > audit decisions are kept at the bottom under “Resolved — no action”.
 
+Feature ranking follows [decisions/PRODUCT-STRATEGY.md](./decisions/PRODUCT-STRATEGY.md) (how Incline beats incumbents and AI-first entrants).
+
 Solo-dev rule: no parent issues. The project board (#2) is an optional view,
 not a second tracker — milestones stay canonical. Batches are PR-sized: same
 files, one verification story each. **Pick top-down (A → J).**
