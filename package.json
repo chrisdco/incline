@@ -21,7 +21,7 @@
     "tokens:css": "vitest run --config vitest.config.mts src/styles/__tests__/theme-tokens.test.ts -u"
   },
   "dependencies": {
-    "@clerk/expo": "^4.6.6",
+    "@clerk/expo": "^4.14.2",
     "@expo-google-fonts/geist": "^0.4.2",
     "@expo/ui": "~58.0.22",
     "@shopify/flash-list": "2.3.2",
