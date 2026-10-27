@@ -19,6 +19,7 @@ import { ExercisePickerSheet } from '@/components/workout/exercise-picker-sheet'
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
+import { useShallow } from 'zustand/react/shallow';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
 import {
   addExerciseToWorkout,
@@ -55,7 +56,7 @@ export default function EditWorkoutScreen() {
   const router = useRouter();
   const { toast } = useToast();
   const { impact } = useHaptics();
-  const { unit, showRpe, exerciseWeightUnits } = useSettings();
+  const { unit, showRpe, exerciseWeightUnits } = useSettings(useShallow((s) => ({ unit: s.unit, showRpe: s.showRpe, exerciseWeightUnits: s.exerciseWeightUnits })));
   const accentColor = usePrimaryHex();
   const [log, setLog] = useState<SessionWorkout | null>(null);
   const [loading, setLoading] = useState(true);

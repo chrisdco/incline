@@ -50,7 +50,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const primary = usePrimaryHex();
   const { toast } = useToast();
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   const { data: profile, refetch } = useProfile();
   const { data: stats, refetch: refetchStats } = useProgressStats();
   const { signOut, userId, getToken } = useAppAuth();

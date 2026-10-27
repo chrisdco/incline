@@ -120,13 +120,13 @@ export function usePeriodStats(range: ProgressRange) {
   return useDbQuery<PeriodStats>(TABLES.progress, ['periodStats', range], () => getPeriodStats(range));
 }
 export function useWeeklyRecap(weekStartMs?: number) {
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   return useDbQuery<WeeklyRecap>(TABLES.progress, ['weeklyRecap', weekStartMs ?? null, unit], () =>
     getWeeklyRecap(weekStartMs ?? Date.now(), unit),
   );
 }
 export function useMonthlyRecap(monthStartMs?: number) {
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   return useDbQuery<MonthlyRecap>(TABLES.progress, ['monthlyRecap', monthStartMs ?? null, unit], () =>
     getMonthlyRecap(monthStartMs ?? Date.now(), unit),
   );

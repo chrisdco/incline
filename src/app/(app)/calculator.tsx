@@ -16,7 +16,7 @@ const TARGET_REPS = [1, 2, 3, 5, 8, 10, 12];
 
 export default function OneRMCalculatorScreen() {
   const router = useRouter();
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   const [weight, setWeight] = useState(60);
   const [reps, setReps] = useState(5);
 

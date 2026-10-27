@@ -24,6 +24,7 @@ import { useProfile, useSuggestedTemplate, useProgressStats, useWorkoutFeedLogs,
 import { useActiveSession } from '@/hooks/use-active-session';
 import { useHomeCoachingContext } from '@/hooks/use-home-coaching-context';
 import { useSettings } from '@/store/settings-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
@@ -50,7 +51,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { toast } = useToast();
   const { impact } = useHaptics();
-  const { unit, weeklyWorkoutGoal, dismissedAnnouncementIds, dismissAnnouncement } = useSettings();
+  const { unit, weeklyWorkoutGoal, dismissedAnnouncementIds, dismissAnnouncement } = useSettings(useShallow((s) => ({ unit: s.unit, weeklyWorkoutGoal: s.weeklyWorkoutGoal, dismissedAnnouncementIds: s.dismissedAnnouncementIds, dismissAnnouncement: s.dismissAnnouncement })));
   const { data: profile, refetch: refetchProfile } = useProfile();
   const { data: suggested, loading: sugLoading } = useSuggestedTemplate();
   const { data: todaySlot, loading: todayLoading, refetch: refetchToday } = useTodayProgramSlot();

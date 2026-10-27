@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -30,6 +30,7 @@ import { useRestTimerSound } from '@/hooks/use-rest-timer-sound';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useActiveWorkout } from '@/store/active-workout-store';
 import { useSettings } from '@/store/settings-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useToast } from '@/components/ui/toast';
 import { formatClock, formatVolume } from '@/db/calc';
 import { workingSetVolume } from '@/lib/session-ghost';
@@ -75,6 +76,19 @@ function SessionClock({ startedAt, className }: { startedAt: number; className?:
   return <Body className={className}>{formatClock(elapsed)}</Body>;
 }
 
+/** Body map of completed sets; memoized on the `muscle:count|…` key. */
+const SessionMuscleMap = memo(function SessionMuscleMap({ muscleKey }: { muscleKey: string }) {
+  const distribution = muscleKey.split('|').map((part) => {
+    const [muscle, sets] = part.split(':');
+    return { muscle: muscle as MuscleGroup, sets: Number(sets), volume: 0 };
+  });
+  return (
+    <View className="mb-3 items-center rounded-3xl bg-card py-2">
+      <MuscleBodyMap distribution={distribution} compact scale={0.72} />
+    </View>
+  );
+});
+
 const engine = sessionEngine;
 const EMPTY: Record<number, never> = {};
 
@@ -85,7 +99,7 @@ export default function SessionScreen() {
   const { toast } = useToast();
   const { impact, notify } = useHaptics();
   const clear = useActiveWorkout((s) => s.clear);
-  const { unit, setUnit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost, exerciseWeightUnits, setExerciseWeightUnit } = useSettings();
+  const { unit, setUnit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost, exerciseWeightUnits, setExerciseWeightUnit } = useSettings(useShallow((s) => ({ unit: s.unit, setUnit: s.setUnit, restSoundEnabled: s.restSoundEnabled, keepScreenAwake: s.keepScreenAwake, showWarmUpSets: s.showWarmUpSets, showRpe: s.showRpe, showSessionGhost: s.showSessionGhost, exerciseWeightUnits: s.exerciseWeightUnits, setExerciseWeightUnit: s.setExerciseWeightUnit })));
   const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId });
   const restSound = useRestTimerSound();
 
@@ -322,19 +336,15 @@ export default function SessionScreen() {
   const totalVolume = workingSetVolume(session.sets);
 
   // Completed sets only: an unstarted exercise must not paint its muscle as
-  // trained on the body map.
-  const sessionMuscleDistribution = (() => {
-    const counts: Partial<Record<MuscleGroup, number>> = {};
-    for (const s of session.sets) {
-      if (!s.completed) continue;
-      counts[s.primaryMuscle] = (counts[s.primaryMuscle] ?? 0) + 1;
-    }
-    return (Object.entries(counts) as [MuscleGroup, number][]).map(([muscle, sets]) => ({
-      muscle,
-      sets,
-      volume: 0,
-    }));
-  })();
+  // trained. A string key keeps the SVG map from redrawing on edits that
+  // don't change any muscle's completed-set count (weight/reps typing).
+  const muscleCounts: Partial<Record<MuscleGroup, number>> = {};
+  for (const s of session.sets) {
+    if (s.completed) muscleCounts[s.primaryMuscle] = (muscleCounts[s.primaryMuscle] ?? 0) + 1;
+  }
+  const muscleKey = (Object.entries(muscleCounts) as [MuscleGroup, number][])
+    .map(([m, n]) => `${m}:${n}`)
+    .join('|');
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -397,11 +407,7 @@ export default function SessionScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
-        {sessionMuscleDistribution.length > 0 ? (
-          <View className="mb-3 items-center rounded-3xl bg-card py-2">
-            <MuscleBodyMap distribution={sessionMuscleDistribution} compact scale={0.72} />
-          </View>
-        ) : null}
+        {muscleKey ? <SessionMuscleMap muscleKey={muscleKey} /> : null}
 
         <Button variant="outline" className="mb-3" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
           Add exercise

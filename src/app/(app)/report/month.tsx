@@ -25,6 +25,7 @@ import {
 } from '@/db/calc';
 import { useMonthlyRecap, useProfile } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
+import { useShallow } from 'zustand/react/shallow';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { cn } from '@/lib/cn';
@@ -98,7 +99,7 @@ export default function MonthReportScreen() {
   const defaultStart = previousMonthStart();
   const monthStartMs = monthStartParam ? Number(monthStartParam) : defaultStart;
   const router = useRouter();
-  const { unit, weekStartsOn } = useSettings();
+  const { unit, weekStartsOn } = useSettings(useShallow((s) => ({ unit: s.unit, weekStartsOn: s.weekStartsOn })));
   const { data: profile } = useProfile();
   const { data: recap, loading, error, refetch } = useMonthlyRecap(
     Number.isFinite(monthStartMs) ? monthStartMs : defaultStart,

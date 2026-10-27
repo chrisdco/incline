@@ -33,7 +33,7 @@ const RANGES: { value: ProgressRange; label: string }[] = [
 
 export default function MuscleDistributionScreen() {
   const router = useRouter();
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   const [range, setRange] = useState<ProgressRange>('30d');
   const { data: stats, loading, error, refetch } = usePeriodStats(range);
   const [exposure, setExposure] = useState<Record<string, number> | null>(null);

@@ -43,7 +43,7 @@ export default function WorkoutsScreen() {
   const refetchTemplates = templates.refetch;
   const refetchPrograms = programs.refetch;
   const { session } = useActiveSession();
-  const { accentTheme } = useSettings();
+  const accentTheme = useSettings((s) => s.accentTheme);
   const primaryHex = usePrimaryHex();
   const aurora = isAuroraAccent(accentTheme);
   const clear = useActiveWorkout((s) => s.clear);

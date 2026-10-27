@@ -11,7 +11,7 @@ export { useRNColorScheme as useSystemColorScheme };
  */
 export function useAppColorScheme(): 'light' | 'dark' {
   const system = useRNColorScheme() ?? 'light';
-  const { themeMode } = useSettings();
+  const themeMode = useSettings((s) => s.themeMode);
   if (themeMode === 'system') return system === 'dark' ? 'dark' : 'light';
   return themeMode;
 }
@@ -23,6 +23,6 @@ export function useIsDark(): boolean {
 
 /** True when an aurora skin (rose/electron) drives the full theme treatment. */
 export function useAuroraSkin(): boolean {
-  const { accentTheme } = useSettings();
+  const accentTheme = useSettings((s) => s.accentTheme);
   return isAuroraAccent(accentTheme);
 }

@@ -54,7 +54,7 @@ export default function ShareWorkoutScreen() {
   const logId = Number(id);
   const router = useRouter();
   const { toast } = useToast();
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   const { data: profile } = useProfile();
   const [log, setLog] = useState<SessionWorkout | null>(null);
   const [prCount, setPrCount] = useState(0);
