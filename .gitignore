@@ -55,3 +55,6 @@ tsc_out.txt
 # Local agent-skill links (reinstall via: npx skills add vercel-labs/agent-skills)
 .claude/skills/
 
+
+# Supabase CLI link/cache state (per machine)
+supabase/.temp/
