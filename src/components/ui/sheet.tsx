@@ -1,4 +1,4 @@
-import { ReactNode, useCallback } from 'react';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { BottomSheet, BottomSheetView, BottomSheetScrollView } from '@expo/ui/community/bottom-sheet';
 
@@ -46,6 +46,12 @@ function sheetSizing(mode: SheetMode): {
  *
  * Closed sheets use `index={-1}` (native dismissed). Prefer `mode` over fake
  * percent snap lists — see {@link SheetMode}.
+ *
+ * Lazy: nothing mounts until the first open (a session screen carries ~4
+ * sheets per exercise; mounting them all made opening a workout slow). On
+ * first open the sheet mounts dismissed, then opens next frame so the
+ * native present animation still runs. It stays mounted after that so
+ * closing animates out.
  */
 export function Sheet({
   open,
@@ -68,13 +74,24 @@ export function Sheet({
   const handleClose = useCallback(() => {
     onOpenChange(false);
   }, [onOpenChange]);
+  const [mounted, setMounted] = useState(open);
+  if (open && !mounted) setMounted(true);
+  // First open mounts dismissed; flip to the open index a frame later.
+  const [ready, setReady] = useState(open);
+  useEffect(() => {
+    if (!mounted || ready) return;
+    const frame = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, [mounted, ready]);
 
   const sizing = sheetSizing(mode);
   const Content = scroll ? BottomSheetScrollView : BottomSheetView;
 
+  if (!mounted) return null;
+
   return (
     <BottomSheet
-      index={open ? initialIndex : -1}
+      index={open && ready ? initialIndex : -1}
       snapPoints={sizing.snapPoints}
       enableDynamicSizing={sizing.enableDynamicSizing}
       enablePanDownToClose

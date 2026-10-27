@@ -1,4 +1,4 @@
-import { useLayoutEffect, useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation, type Href } from 'expo-router';
 import { Clock, Play, TrendingUp } from 'lucide-react-native';
@@ -13,7 +13,8 @@ import { ListSkeleton } from '@/components/common/skeleton';
 import { MuscleBadge } from '@/components/exercise/muscle-badge';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
-import { useTemplate } from '@/hooks/use-data';
+import { useDbQuery, useTemplate } from '@/hooks/use-data';
+import { TABLES } from '@/lib/query-keys';
 import { useActiveSession } from '@/hooks/use-active-session';
 import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
@@ -21,11 +22,9 @@ import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
 import { startWorkout, discardWorkout, getTemplateSuggestions, getSessionGhost } from '@/db/queries';
 import { formatWeight, formatVolume } from '@/db/calc';
-import type { SessionGhost } from '@/db/queries';
 import { DIFFICULTY_LABELS, EQUIPMENT_LABELS } from '@/lib/labels';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import type { MuscleGroup } from '@/db/types';
-import type { TrainingSuggestion } from '@/coaching/types';
 
 export default function WorkoutPreviewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,9 +34,24 @@ export default function WorkoutPreviewScreen() {
   const { toast } = useToast();
   const { impact } = useHaptics();
   const { data: template, loading, error, refetch } = useTemplate(templateId);
-  const { unit, showSessionGhost } = useSettings();
-  const [suggestions, setSuggestions] = useState<TrainingSuggestion[]>([]);
-  const [ghost, setGhost] = useState<SessionGhost | null>(null);
+  const unit = useSettings((s) => s.unit);
+  const showSessionGhost = useSettings((s) => s.showSessionGhost);
+  const exerciseWeightUnits = useSettings((s) => s.exerciseWeightUnits);
+  // Runs alongside the template read (not after it) and stays cached per
+  // template, so reopening a routine paints its suggestions immediately.
+  const { data: assist } = useDbQuery(
+    TABLES.coaching,
+    ['templateAssist', templateId, unit, exerciseWeightUnits, showSessionGhost],
+    async () => {
+      const [suggestions, ghost] = await Promise.all([
+        getTemplateSuggestions(templateId, unit, exerciseWeightUnits),
+        showSessionGhost ? getSessionGhost({ templateId }) : Promise.resolve(null),
+      ]);
+      return { suggestions, ghost };
+    },
+  );
+  const suggestions = assist?.suggestions ?? [];
+  const ghost = assist?.ghost ?? null;
   const { session } = useActiveSession();
   const clear = useActiveWorkout((s) => s.clear);
   const [starting, setStarting] = useState(false);
@@ -46,16 +60,6 @@ export default function WorkoutPreviewScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: true, title: 'Workout' });
   }, [navigation]);
-
-  useEffect(() => {
-    if (!template) return;
-    void getTemplateSuggestions(template.id, unit).then(setSuggestions);
-    if (showSessionGhost) {
-      void getSessionGhost({ templateId: template.id }).then(setGhost);
-    } else {
-      setGhost(null);
-    }
-  }, [template, unit, showSessionGhost]);
 
   const doStart = async () => {
     if (!template) return;

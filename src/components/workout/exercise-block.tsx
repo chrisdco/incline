@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
@@ -49,7 +49,7 @@ const UNIT_OPTIONS: { value: Unit; label: string }[] = [
   { value: 'imperial', label: 'lb' },
 ];
 
-export function ExerciseBlock({
+function ExerciseBlockImpl({
   logId,
   name,
   exerciseId,
@@ -570,3 +570,26 @@ function AssistRow({
     </View>
   );
 }
+
+type ExerciseBlockProps = Parameters<typeof ExerciseBlockImpl>[0];
+
+function sameRows(a: readonly SetEntry[], b: readonly SetEntry[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/**
+ * The session screen regroups sets on every edit, so each block gets fresh
+ * `sets` / `lastSets` arrays even when its rows are the same objects (the
+ * engine only replaces the edited set). Comparing rows by identity lets one
+ * set edit re-render one exercise, not the whole workout.
+ */
+export const ExerciseBlock = memo(ExerciseBlockImpl, (prev: ExerciseBlockProps, next: ExerciseBlockProps) => {
+  for (const key of Object.keys(next) as (keyof ExerciseBlockProps)[]) {
+    if (key === 'sets' || key === 'lastSets') continue;
+    if (prev[key] !== next[key]) return false;
+  }
+  return sameRows(prev.sets, next.sets) && sameRows(prev.lastSets, next.lastSets);
+});

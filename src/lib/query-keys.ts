@@ -23,6 +23,8 @@ export const TABLES = {
   programs: ['programs', 'program_workouts', 'workout_templates', 'template_exercises', 'workout_logs', 'kv'],
   progress: ['workout_logs', 'set_entries', 'exercises', 'bodyweight_entries', 'body_measurements'],
   profile: ['user_profile'],
+  /** Load suggestions + ghosts: template shape, last sets, readiness (kv). */
+  coaching: ['workout_templates', 'template_exercises', 'exercises', 'workout_logs', 'set_entries', 'kv'],
 } as const satisfies Record<string, readonly DbTable[]>;
 
 /* ---- exercise catalog (was exercise-cache.ts) ---- */

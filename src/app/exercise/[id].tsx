@@ -14,13 +14,10 @@ import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { SeriesAreaChart } from '@/components/progress/series-area-chart';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
-import { useExercise, useExerciseHistory } from '@/hooks/use-data';
+import { useExercise, useExerciseHistory, useExerciseStats } from '@/hooks/use-data';
 import {
   addExerciseToWorkout,
   getExerciseByExternalId,
-  getExercisePRSummary,
-  getExerciseRepRecords,
-  getExerciseSeries,
   startWorkout,
   type ExercisePRSummary,
   type RepRecord,
@@ -39,6 +36,8 @@ import { resolveWeightUnit } from '@/lib/units';
 
 const TABS = ['Summary', 'Progress', 'History', 'How to'] as const;
 type Tab = typeof TABS[number];
+const NO_RECORDS: RepRecord[] = [];
+const NO_SERIES: ExerciseSeriesPoint[] = [];
 const TAB_VALUES = TABS.map((t) => ({ value: t, label: t }));
 
 interface SessionGroup {
@@ -102,16 +101,10 @@ export default function ExerciseDetailScreen() {
   const unit = resolveWeightUnit(exerciseWeightUnits, refKey, globalUnit);
 
   const { data: history } = useExerciseHistory(exerciseId);
-  const [prSummary, setPrSummary] = useState<ExercisePRSummary | null>(null);
-  const [repRecords, setRepRecords] = useState<RepRecord[]>([]);
-  const [series, setSeries] = useState<ExerciseSeriesPoint[]>([]);
-
-  useEffect(() => {
-    if (!exerciseId) return;
-    getExercisePRSummary(exerciseId).then(setPrSummary);
-    getExerciseRepRecords(exerciseId).then(setRepRecords);
-    getExerciseSeries(exerciseId).then(setSeries);
-  }, [exerciseId]);
+  const { data: stats } = useExerciseStats(exerciseId);
+  const prSummary = stats?.prSummary ?? null;
+  const repRecords = stats?.repRecords ?? NO_RECORDS;
+  const series = stats?.series ?? NO_SERIES;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: true, title: '' });
