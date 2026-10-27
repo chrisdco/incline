@@ -10,7 +10,8 @@
       "channel": "development",
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "development"
-      }
+      },
+      "environment": "development"
     },
     "alpha": {
       "distribution": "internal",
@@ -20,7 +21,8 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "alpha"
-      }
+      },
+      "environment": "preview"
     },
     "beta": {
       "distribution": "internal",
@@ -30,10 +32,12 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "beta"
-      }
+      },
+      "environment": "preview"
     },
     "preview": {
-      "extends": "alpha"
+      "extends": "alpha",
+      "channel": "preview"
     },
     "production": {
       "channel": "production",
@@ -43,7 +47,8 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "production"
-      }
+      },
+      "environment": "production"
     }
   },
   "submit": {

@@ -8,7 +8,8 @@
     },
     "updates": {
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/16580a47-8678-42e0-8dc1-0ef7d38bb3a3"
     },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -26,7 +27,9 @@
       "package": "com.chrisdc777.incline",
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"]
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ]
     },
     "web": {
       "output": "static",
@@ -101,6 +104,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "16580a47-8678-42e0-8dc1-0ef7d38bb3a3"
+      }
+    },
+    "owner": "chrisdcosta"
   }
 }
