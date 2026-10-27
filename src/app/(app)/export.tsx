@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption } from '@/components/common/text';
+import { SectionLabel } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/common/chip';
@@ -92,7 +93,7 @@ export default function ExportScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ ...SCREEN_CONTENT, paddingBottom: 40 }}>
-        <Caption className="mb-1 mt-1 font-semibold uppercase tracking-wide">What to include</Caption>
+        <SectionLabel className="mb-1 mt-1">What to include</SectionLabel>
         <Card>
           {EXPORT_SECTION_OPTIONS.map((opt, i) => (
             <View
@@ -111,7 +112,7 @@ export default function ExportScreen() {
           ))}
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Date range</Caption>
+        <SectionLabel className="mb-1 mt-5">Date range</SectionLabel>
         <Card>
           <View className="flex-row flex-wrap gap-1.5 py-3">
             {EXPORT_RANGES.map((r) => (
@@ -126,7 +127,7 @@ export default function ExportScreen() {
           </View>
         </Card>
 
-        <Caption className="mb-1 mt-5 font-semibold uppercase tracking-wide">Format</Caption>
+        <SectionLabel className="mb-1 mt-5">Format</SectionLabel>
         <Card>
           <View className="gap-3 py-3">
             <View className="flex-row gap-1.5">

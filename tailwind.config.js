@@ -69,6 +69,13 @@ module.exports = {
       fontFamily: {
         sans: ['Geist', 'system-ui', 'sans-serif'],
       },
+      // Type scale (docs/design/SYSTEM.md): Tailwind xs–3xl plus the two
+      // sizes screens kept hand-rolling — 2xs for table headers / badges,
+      // display for hero numbers.
+      fontSize: {
+        '2xs': ['11px', { lineHeight: '14px' }],
+        display: ['34px', { lineHeight: '40px', letterSpacing: '-0.5px' }],
+      },
     },
   },
   plugins: [

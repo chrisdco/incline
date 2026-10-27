@@ -109,7 +109,7 @@ export function NumberStepper({
           fontWeight: '600',
           fontVariant: ['tabular-nums'],
         }}
-        className="rounded-lg bg-muted/60 px-1 text-foreground"
+        className="rounded-xl bg-muted/60 px-1 text-foreground"
       />
       {suffix && !focused ? (
         <Text className="absolute right-2 text-xs text-muted-foreground">{suffix}</Text>

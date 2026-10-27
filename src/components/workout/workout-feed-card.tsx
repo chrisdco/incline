@@ -57,7 +57,7 @@ export function WorkoutFeedCard({
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Share workout"
-          className="h-10 w-10 items-center justify-center rounded-lg">
+          className="h-10 w-10 items-center justify-center rounded-xl">
           <Icon icon={Share2} size={18} color="muted-foreground" />
         </Pressable>
         {onMenuPress ? (
@@ -69,7 +69,7 @@ export function WorkoutFeedCard({
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel={`More options for ${log.name}`}
-            className="h-10 w-10 items-center justify-center rounded-lg">
+            className="h-10 w-10 items-center justify-center rounded-xl">
             <Icon icon={MoreHorizontal} size={20} color="muted-foreground" />
           </Pressable>
         ) : null}

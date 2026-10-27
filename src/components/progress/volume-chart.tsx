@@ -57,7 +57,7 @@ export const VolumeChart = memo(function VolumeChart({
         pointerConfig={{
           pointerStripHeight: height - 20,
           pointerLabelComponent: (items: { value: number }[]) => (
-            <View className="-mt-10 items-center rounded-lg bg-foreground px-2 py-1">
+            <View className="-mt-10 items-center rounded-xl bg-foreground px-2 py-1">
               <Text className="text-xs font-semibold text-background">
                 {formatDisplayVolume(items[0]?.value ?? 0, unit)}
               </Text>

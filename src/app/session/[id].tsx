@@ -311,7 +311,7 @@ export default function SessionScreen() {
     return (
       <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <View className="px-4 pb-2 pt-3">
-          <View className="h-6 w-40 rounded-lg bg-muted" />
+          <View className="h-6 w-40 rounded-xl bg-muted" />
         </View>
         <View className="px-4">
           <ListSkeleton count={4} />

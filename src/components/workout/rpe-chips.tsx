@@ -30,7 +30,7 @@ export function RpeChips({
 
   return (
     <View className="flex-row flex-wrap items-center gap-1 px-1 pb-1">
-      <Text className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <Text className="mr-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
         RPE
       </Text>
       {chips.map((n) => {
@@ -60,7 +60,7 @@ export function RpeChips({
           accessibilityLabel="Show RPE 1 to 5"
           hitSlop={4}
           className="h-7 items-center justify-center rounded-full border border-border/70 px-2">
-          <Text className="text-[10px] font-medium text-muted-foreground">1–5</Text>
+          <Text className="text-2xs font-medium text-muted-foreground">1–5</Text>
         </Pressable>
       ) : null}
     </View>

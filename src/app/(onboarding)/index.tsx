@@ -155,12 +155,12 @@ export default function OnboardingScreen() {
                   <View className="flex-row gap-1 rounded-xl bg-muted p-1">
                     <Pressable
                       onPress={() => setUnit('metric')}
-                      className={`rounded-lg px-3 py-2 ${unit === 'metric' ? 'bg-primary' : ''}`}>
+                      className={`rounded-xl px-3 py-2 ${unit === 'metric' ? 'bg-primary' : ''}`}>
                       <Text className={unit === 'metric' ? 'text-primary-foreground' : 'text-muted-foreground'}>kg</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setUnit('imperial')}
-                      className={`rounded-lg px-3 py-2 ${unit === 'imperial' ? 'bg-primary' : ''}`}>
+                      className={`rounded-xl px-3 py-2 ${unit === 'imperial' ? 'bg-primary' : ''}`}>
                       <Text className={unit === 'imperial' ? 'text-primary-foreground' : 'text-muted-foreground'}>lb</Text>
                     </Pressable>
                   </View>

@@ -46,7 +46,7 @@ export function MonthDayGrid({
       <View className="mb-1 flex-row">
         {labels.map((l, i) => (
           <View key={`${l}-${i}`} className="flex-1 items-center">
-            <Caption className="text-[10px]">{l}</Caption>
+            <Caption className="text-2xs">{l}</Caption>
           </View>
         ))}
       </View>

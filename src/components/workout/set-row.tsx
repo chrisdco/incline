@@ -124,6 +124,7 @@ export function SetRow({
         hitSlop={6}>
         <Text className="text-sm font-bold text-foreground">{index + 1}</Text>
         {setType !== 'working' ? (
+          // eslint-disable-next-line no-restricted-syntax -- set-type letter sits under the 14pt set number inside a fixed-width cell
           <Text className={cn('text-[9px] font-bold leading-none', SET_TYPE_LETTER_COLOR[setType])}>
             {SET_TYPE_LETTER[setType]}
           </Text>

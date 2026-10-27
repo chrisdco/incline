@@ -83,15 +83,15 @@ function Kpi({
 }) {
   return (
     <View className="min-h-[108px] flex-1 rounded-2xl border border-border px-4 py-4">
-      <Caption className="text-[13px]">{label}</Caption>
-      <Hero className="mt-2 text-[28px] leading-8">{value}</Hero>
+      <Caption className="text-sm">{label}</Caption>
+      <Hero className="mt-2 text-3xl">{value}</Hero>
       <View className="mt-1">{delta}</View>
     </View>
   );
 }
 
 function SectionLabel({ children }: { children: string }) {
-  return <Caption className="mb-3 mt-10 text-[15px]">{children}</Caption>;
+  return <Caption className="mb-3 mt-10 text-base">{children}</Caption>;
 }
 
 export default function MonthReportScreen() {
@@ -150,10 +150,10 @@ export default function MonthReportScreen() {
       </View>
 
       <ScrollView contentContainerStyle={SCREEN_CONTENT_CTA} showsVerticalScrollIndicator={false}>
-        <Hero className="text-[32px] leading-10">{label}</Hero>
+        <Hero className="text-display">{label}</Hero>
         {currentPoint ? (
           <View className="mt-2 flex-row items-end gap-2">
-            <Hero className="text-[34px] leading-10">{formatSparkValue(sparkMetric, sparkValue(currentPoint, sparkMetric), unit)}</Hero>
+            <Hero className="text-display">{formatSparkValue(sparkMetric, sparkValue(currentPoint, sparkMetric), unit)}</Hero>
             <View className="mb-1">
               <DeltaLine
                 current={sparkValue(currentPoint, sparkMetric)}
@@ -222,7 +222,7 @@ export default function MonthReportScreen() {
         <SectionLabel>Personal Records</SectionLabel>
         <View className="flex-row items-center gap-3">
           <Icon icon={Award} size={28} color="warning" />
-          <Hero className="text-[22px] leading-7">
+          <Hero className="text-2xl">
             {recap.prs.length} new PR{recap.prs.length === 1 ? '' : 's'}
           </Hero>
         </View>
@@ -259,7 +259,7 @@ export default function MonthReportScreen() {
         <SectionLabel>Workout Days Log</SectionLabel>
         <View className="mb-4 flex-row items-center gap-3">
           <Icon icon={METRIC_ICONS.streak} size={22} color="destructive" />
-          <Hero className="text-[22px] leading-7">{recap.streak} week streak</Hero>
+          <Hero className="text-2xl">{recap.streak} week streak</Hero>
         </View>
         <MonthDayGrid
           monthStartMs={recap.monthStartMs}
@@ -307,10 +307,10 @@ export default function MonthReportScreen() {
           </>
         ) : null}
 
-        <Hero className="mt-12 text-center text-[22px] leading-8">
+        <Hero className="mt-12 text-center text-2xl">
           Congrats on a great month {displayName}! 👏
         </Hero>
-        <Caption className="mt-2 text-center text-[15px] leading-5">
+        <Caption className="mt-2 text-center text-base">
           Celebrate your achievements and motivate others by sharing your journey!
         </Caption>
       </ScrollView>

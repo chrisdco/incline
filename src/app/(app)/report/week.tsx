@@ -6,6 +6,7 @@ import { ArrowLeft, Share2 } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Hero } from '@/components/common/text';
+import { SectionLabel } from '@/components/layout';
 import { PrimaryActivityIndicator } from
 '@/components/common/primary-activity-indicator';
 import { ErrorState } from '@/components/common/states';
@@ -100,7 +101,7 @@ export default function WeekReportScreen() {
           />
         </View>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Sets</Caption>
+        <SectionLabel className="mt-6">Sets</SectionLabel>
         <Card>
           <Body className="font-semibold text-foreground">{recap.totalSets} completed sets</Body>
           <Caption className="mt-1">Across all finished sessions this week</Caption>
@@ -108,9 +109,9 @@ export default function WeekReportScreen() {
 
         {recap.prs.length > 0 ? (
           <>
-            <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">
+            <SectionLabel className="mt-6">
               Records
-            </Caption>
+            </SectionLabel>
             <View className="gap-2">
               {recap.prs.slice(0, 6).map((pr) => (
                 <PRCard key={pr.exerciseId} pr={pr} unit={unit} />
@@ -121,7 +122,7 @@ export default function WeekReportScreen() {
 
         {muscles.length > 0 ? (
           <>
-            <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Muscles</Caption>
+            <SectionLabel className="mt-6">Muscles</SectionLabel>
             <Card>
               <View className="items-center py-2">
                 <MuscleBodyMap muscles={muscles} compact />

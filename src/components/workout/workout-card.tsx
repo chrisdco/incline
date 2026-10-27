@@ -62,7 +62,7 @@ export function WorkoutCard({
               hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel={`More options for ${name}`}
-              className="h-11 w-11 items-center justify-center rounded-lg">
+              className="h-11 w-11 items-center justify-center rounded-xl">
               <Icon icon={MoreHorizontal} size={20} color="muted-foreground" />
             </Pressable>
           ) : (

@@ -287,6 +287,7 @@ const MiniMonth = memo(function MiniMonth({
       <View className="mb-0.5 flex-row">
         {miniLabels.map((label, i) => (
           <View key={`${label}-${i}`} className="flex-1 items-center">
+            {/* eslint-disable-next-line no-restricted-syntax -- weekday initials under the mini heat grid's 10pt cells */}
             <Text className="text-[8px] text-muted-foreground">{label}</Text>
           </View>
         ))}
@@ -693,7 +694,7 @@ export default function CalendarScreen() {
                 )}>
                 <Body className="text-sm font-medium text-foreground">{label}</Body>
                 {count > 0 ? (
-                  <Caption className="mt-1 text-[10px] font-medium text-primary">{count}d</Caption>
+                  <Caption className="mt-1 text-2xs font-medium text-primary">{count}d</Caption>
                 ) : (
                   <View className="mt-1.5 h-3.5" />
                 )}

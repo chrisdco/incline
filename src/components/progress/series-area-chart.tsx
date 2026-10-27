@@ -150,7 +150,7 @@ export const SeriesAreaChart = memo(function SeriesAreaChart({
                   {formatValue(items[0]?.value ?? 0)}
                 </Text>
                 {valueHint ? (
-                  <Text className="mt-0.5 text-[10px] text-muted-foreground">{valueHint}</Text>
+                  <Text className="mt-0.5 text-2xs text-muted-foreground">{valueHint}</Text>
                 ) : null}
               </View>
             ),

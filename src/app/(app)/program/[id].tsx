@@ -6,6 +6,7 @@ import { Pencil, Play, Check } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
+import { SectionLabel } from '@/components/layout';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -200,7 +201,7 @@ export default function ProgramDetailScreen() {
         <View className="mt-6 gap-4">
           {Array.from({ length: weeks }, (_, i) => i + 1).map((week) => (
             <View key={week}>
-              <Caption className="mb-2 font-semibold uppercase tracking-wide">Week {week}</Caption>
+              <SectionLabel>Week {week}</SectionLabel>
               <View className="gap-2">
                 {(grouped[week] ?? []).length === 0 ? (
                   <Card>
@@ -222,7 +223,7 @@ export default function ProgramDetailScreen() {
                           <View className="flex-row gap-2">
                             <Pressable
                               onPress={() => router.push(`/workout/${pw.templateId}`)}
-                              className="rounded-lg bg-muted px-3 py-2"
+                              className="rounded-xl bg-muted px-3 py-2"
                               accessibilityRole="button"
                               accessibilityLabel="View routine">
                               <Body className="text-xs font-medium text-foreground">View</Body>
@@ -230,7 +231,7 @@ export default function ProgramDetailScreen() {
                             <Pressable
                               onPress={() => handleStart(pw.templateId, pw.templateName ?? program.name)}
                               disabled={starting}
-                              className="h-9 w-9 items-center justify-center rounded-lg bg-primary/10"
+                              className="h-9 w-9 items-center justify-center rounded-xl bg-primary/10"
                               accessibilityRole="button"
                               accessibilityLabel="Start workout">
                               <Icon icon={Play} size={14} color="primary" />
