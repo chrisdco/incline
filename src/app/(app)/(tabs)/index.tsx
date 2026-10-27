@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Play, Plus, ArrowRight, ChevronRight, Dumbbell } from 'lucide-react-native';
+import { Play, Plus, ArrowRight, Dumbbell } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Hero, Body, Caption } from '@/components/common/text';
@@ -14,10 +14,10 @@ import { WorkoutFeedCard } from '@/components/workout/workout-feed-card';
 import { WorkoutLogActionsSheet } from '@/components/workout/workout-log-actions-sheet';
 import { TemplatePickerSheet } from '@/components/workout/template-picker-sheet';
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
-import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { CardSkeleton } from '@/components/common/skeleton';
 import { ErrorState } from '@/components/common/states';
-import { SectionHeader } from '@/components/common/section-header';
+import { Section, SectionLabel } from '@/components/layout';
+import { TodayCard } from '@/components/home/today-card';
 import { HomeContextCard } from '@/components/home/home-context-card';
 import { MonthlyReportPromo } from '@/components/home/monthly-report-promo';
 import { useProfile, useSuggestedTemplate, useProgressStats, useWorkoutFeedLogs, useTodayProgramSlot } from '@/hooks/use-data';
@@ -183,18 +183,10 @@ export default function HomeScreen() {
 
   const renderHeader = () => (
     <View className="px-4">
-      <View className="flex-row items-center gap-2">
-        <Caption>{greeting()}</Caption>
-        {hasData && streak > 0 ? (
-          <Caption className="flex-row items-center text-warning">
-            <Icon icon={METRIC_ICONS.streak} size={12} color="warning" /> {streak}w streak
-          </Caption>
-        ) : null}
-      </View>
-      <Hero className="mt-0.5">Let&apos;s train, {name.split(' ')[0]}</Hero>
-      <Body className="mt-1 text-muted-foreground">{today}</Body>
+      <Caption>{greeting()} · {today}</Caption>
+      <Hero className="mt-1">Let&apos;s train, {name.split(' ')[0]}</Hero>
       {hasData && weekInsightLine ? (
-        <Caption className="mt-2 text-foreground/80">{weekInsightLine}</Caption>
+        <Caption className="mt-2">{weekInsightLine}</Caption>
       ) : null}
 
       {contextCards.length > 0 ? (
@@ -226,88 +218,41 @@ export default function HomeScreen() {
         {heroLoading ? (
           <CardSkeleton />
         ) : programWorkout ? (
-          <View>
-            <Card elevation="raised">
-              <View className="flex-row items-center justify-between">
-                <Caption>Today · {todaySlot!.program.name}</Caption>
-                {programWorkout.estimatedMinutes ? (
-                  <Caption>{programWorkout.estimatedMinutes} min</Caption>
-                ) : null}
-              </View>
-              {/* Explicit preview affordance: the old outer Pressable wrapped
-                  the Start button, so one tap could push preview AND start. */}
-              <Pressable
-                onPress={() => router.push(`/workout/${programWorkout.templateId}`)}
-                accessibilityRole="button"
-                accessibilityLabel={`Preview ${programWorkout.templateName ?? 'workout'}`}
-                className="flex-row items-center justify-between">
-                <Body className="mt-2 flex-1 font-semibold text-foreground">
-                  {programWorkout.templateName ?? 'Workout'}
-                </Body>
-                <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-              </Pressable>
-              <Caption className="mt-1">Week {todaySlot!.week}</Caption>
-              {todayMuscles.length > 0 ? (
-                <MuscleBodyMap muscles={todayMuscles} compact className="mt-3" />
-              ) : null}
-              <Button
-                className="mt-4"
-                leftIcon={<Icon icon={Play} size={16} color="primary-foreground" />}
-                onPress={() =>
-                  beginTemplate(programWorkout.templateId, programWorkout.templateName ?? todaySlot!.program.name)
-                }
-                disabled={starting}>
-                Start workout
-              </Button>
-            </Card>
-          </View>
+          <TodayCard
+            eyebrow={`Today · ${todaySlot!.program.name}`}
+            trailing={programWorkout.estimatedMinutes ? `${programWorkout.estimatedMinutes} min` : null}
+            title={programWorkout.templateName ?? 'Workout'}
+            meta={`Week ${todaySlot!.week}`}
+            muscles={todayMuscles}
+            onPreview={() => router.push(`/workout/${programWorkout.templateId}`)}
+            onAction={() =>
+              beginTemplate(programWorkout.templateId, programWorkout.templateName ?? todaySlot!.program.name)
+            }
+            disabled={starting}
+          />
         ) : todaySlot?.isRestDay ? (
-          <Card elevation="raised">
-            <Caption>Today · {todaySlot.program.name}</Caption>
-            <Body className="mt-2 font-semibold text-foreground">Rest day</Body>
-            <Body className="mt-1 text-sm text-muted-foreground">
-              No session scheduled. Start something else when you&apos;re ready.
-            </Body>
-            <Button
-              className="mt-4"
-              variant="outline"
-              leftIcon={<Icon icon={Plus} size={16} color="primary" />}
-              onPress={quickStart}
-              disabled={starting}>
-              Quick start
-            </Button>
-          </Card>
+          <TodayCard
+            eyebrow={`Today · ${todaySlot.program.name}`}
+            title="Rest day"
+            meta="No session scheduled. Start something else when you're ready."
+            actionLabel="Quick start"
+            actionVariant="outline"
+            actionIcon={<Icon icon={Plus} size={16} color="primary" />}
+            onAction={quickStart}
+            disabled={starting}
+          />
         ) : suggested ? (
-          <View>
-            <Card elevation="raised">
-              <View className="flex-row items-center justify-between">
-                <Caption>Today&apos;s workout</Caption>
-                <Caption>{suggested.estimatedMinutes} min</Caption>
-              </View>
-              <Pressable
-                onPress={() => router.push(`/workout/${suggested.id}`)}
-                accessibilityRole="button"
-                accessibilityLabel={`Preview ${suggested.name}`}
-                className="flex-row items-center justify-between">
-                <Body className="mt-2 flex-1 font-semibold text-foreground">{suggested.name}</Body>
-                <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-              </Pressable>
-              <Body className="mt-1 text-sm text-muted-foreground" numberOfLines={2}>
-                {suggested.description}
-              </Body>
-              {suggestedMuscles.length > 0 ? (
-                <MuscleBodyMap muscles={suggestedMuscles} compact className="mt-3" />
-              ) : null}
-              <Button
-                className="mt-4"
-                leftIcon={<Icon icon={Play} size={16} color="primary-foreground" />}
-                onPress={() => beginTemplate(suggested.id, suggested.name)}
-                disabled={starting}>
-                Start workout
-              </Button>
-              <Caption className="mt-3 text-center">Suggested from your recent training</Caption>
-            </Card>
-          </View>
+          <TodayCard
+            eyebrow="Today's workout"
+            trailing={`${suggested.estimatedMinutes} min`}
+            title={suggested.name}
+            meta={suggested.description}
+            muscles={suggestedMuscles}
+            onPreview={() => router.push(`/workout/${suggested.id}`)}
+            onAction={() => beginTemplate(suggested.id, suggested.name)}
+            disabled={starting}
+            footnote="Suggested from your recent training"
+          />
         ) : null}
 
         {hasData && !todaySlot?.isRestDay ? (
@@ -327,8 +272,9 @@ export default function HomeScreen() {
       </View>
 
       {hasData ? (
-        <View className="mt-6 flex-row gap-3">
-          <StatCard label="This week" value={goalLabel ?? weekSessions} icon={<Icon icon={METRIC_ICONS.sessions} size={16} color="muted-foreground" />} />
+        <Section title="This week">
+        <View className="flex-row gap-3">
+          <StatCard label="Sessions" value={goalLabel ?? weekSessions} icon={<Icon icon={METRIC_ICONS.sessions} size={16} color="muted-foreground" />} />
           <StatCard
             label="Volume"
             value={formatVolume(weekVolume, unit)}
@@ -336,6 +282,7 @@ export default function HomeScreen() {
           />
           <StatCard label="Streak" value={`${streak}w`} icon={<Icon icon={METRIC_ICONS.streak} size={16} color="warning" />} />
         </View>
+        </Section>
       ) : statsLoading ? (
         <View className="mt-6"><CardSkeleton /></View>
       ) : (
@@ -387,7 +334,7 @@ export default function HomeScreen() {
       )}
 
       {hasData && feed.items.length > 0 ? (
-        <SectionHeader title="Recent workouts" className="mb-3 mt-6" />
+        <SectionLabel className="mt-6">Recent workouts</SectionLabel>
       ) : null}
     </View>
   );

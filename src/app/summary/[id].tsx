@@ -7,7 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Medal, MoreHorizontal, PencilLine, Share2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
-import { Body, Caption } from '@/components/common/text';
+import { Body, Caption, Text } from '@/components/common/text';
+import { Section, StatBlock } from '@/components/layout';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
@@ -323,37 +325,23 @@ export default function SummaryScreen() {
         ) : null}
       </View>
 
-      {/* Session-style stats strip */}
-      <View className="flex-row items-center justify-between px-4 py-3">
-        <View className="flex-1 items-center">
-          <Caption>Duration</Caption>
-          <Body className="mt-0.5 font-semibold text-primary">{formatDuration(log.durationSeconds)}</Body>
-        </View>
-        <View className="flex-1 items-center">
-          <Caption>Volume · {unit === 'metric' ? 'kg' : 'lb'}</Caption>
-          <Body className="mt-0.5 font-semibold text-foreground">{volumeLabel}</Body>
-        </View>
-        <View className="flex-1 items-center">
-          <Caption>Sets</Caption>
-          <Body className="mt-0.5 font-semibold text-foreground">
-            {completedSets}/{totalSets || completedSets}
-          </Body>
-        </View>
+      {/* Same strip as the live session, so the summary reads as its end state. */}
+      <View className="flex-row px-4 pb-3 pt-1">
+        <StatBlock label="Duration" value={formatDuration(log.durationSeconds)} tone="primary" />
+        <StatBlock
+          label={`Volume · ${unit === 'metric' ? 'kg' : 'lb'}`}
+          value={volumeLabel}
+          sub={volumeDelta?.deltaPct != null ? `${volumeDelta.deltaPct > 0 ? '+' : ''}${volumeDelta.deltaPct}% vs last` : undefined}
+        />
+        <StatBlock label="Sets" value={`${completedSets}/${totalSets || completedSets}`} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ ...SCREEN_CONTENT, paddingTop: 4 }}>
-        <View className="mb-3 flex-row items-center gap-3">
+        <View className="mb-4 flex-row items-center gap-3">
           <InitialsAvatar name={athleteName} uri={profile?.avatarUrl} size={40} />
           <View className="flex-1">
             <Body className="font-semibold text-foreground">{athleteName}</Body>
-            {volumeDelta?.deltaPct != null ? (
-              <Caption>
-                vs last {log.name}: {volumeDelta.deltaPct > 0 ? '+' : ''}
-                {volumeDelta.deltaPct}% volume
-              </Caption>
-            ) : (
-              <Caption>Completed session</Caption>
-            )}
+            <Caption>Completed session</Caption>
           </View>
           {prs.length > 0 ? (
             <View className="flex-row items-center gap-1 rounded-full bg-warning/15 px-2.5 py-1">
@@ -365,93 +353,96 @@ export default function SummaryScreen() {
 
         <FinishCelebration active={showCelebration} prCount={prs.length} />
 
+        {prs.length > 0 ? (
+          <Section title="Records this session" first>
+            <Card className="gap-3">
+              {prs.map((pr) => (
+                <View key={pr.exerciseId} className="flex-row items-center justify-between gap-3">
+                  <View className="flex-1">
+                    <Body className="font-medium text-foreground" numberOfLines={1}>
+                      {pr.exerciseName}
+                    </Body>
+                    {pr.kinds?.length ? (
+                      <Caption className="mt-0.5">{formatCelebrationKinds(pr.kinds, pr.reps)}</Caption>
+                    ) : null}
+                  </View>
+                  <Body className="font-semibold tabular-nums text-primary">
+                    {formatWeight(pr.weight, unit)} × {pr.reps}
+                  </Body>
+                </View>
+              ))}
+            </Card>
+          </Section>
+        ) : null}
+
         {coachingLines.length > 0 ? (
-          <View className="mb-4 rounded-2xl bg-card p-3">
-            <Caption className="mb-2 font-semibold text-foreground">Next time</Caption>
-            {coachingLines.map((line) => (
-              <Body key={line} className="mt-1 text-sm text-foreground">
-                {line}
-              </Body>
-            ))}
-            {narration ? (
-              <View className="mt-3 border-t border-border/60 pt-3">
-                <Caption className="font-medium text-muted-foreground">{narration.headline}</Caption>
-                {narration.paragraphs.map((paragraph) => (
-                  <Caption key={paragraph} className="mt-1 text-muted-foreground">
-                    {paragraph}
-                  </Caption>
-                ))}
-              </View>
-            ) : null}
-          </View>
+          <Section title="Next time" first={prs.length === 0}>
+            <Card>
+              {coachingLines.map((line, i) => (
+                <Body key={line} className={i > 0 ? 'mt-2 text-sm text-foreground' : 'text-sm text-foreground'}>
+                  {line}
+                </Body>
+              ))}
+              {narration ? (
+                <View className="mt-3 border-t border-border/60 pt-3">
+                  <Caption className="font-medium text-foreground">{narration.headline}</Caption>
+                  {narration.paragraphs.map((paragraph) => (
+                    <Caption key={paragraph} className="mt-1">
+                      {paragraph}
+                    </Caption>
+                  ))}
+                </View>
+              ) : null}
+            </Card>
+          </Section>
         ) : null}
 
         <Button
           variant="outline"
-          className="mb-4"
+          className="mt-6"
           leftIcon={<Icon icon={Share2} size={16} color="primary" />}
           onPress={() => router.push(`/share/${logId}` as Href)}>
           Share workout
         </Button>
 
-        {prs.length > 0 ? (
-          <View className="mb-4 rounded-2xl bg-card p-3">
-            <Caption className="mb-2 font-semibold text-foreground">Records this session</Caption>
-            <View className="gap-2">
-              {prs.map((pr) => (
-                <View key={pr.exerciseId} className="flex-row items-center justify-between gap-3">
-                  <View className="flex-1">
-                    <Body className="text-sm text-foreground" numberOfLines={1}>
-                      {pr.exerciseName}
-                    </Body>
-                    {pr.kinds?.length ? (
-                      <Caption>{formatCelebrationKinds(pr.kinds, pr.reps)}</Caption>
-                    ) : null}
-                  </View>
-                  <Caption className="font-medium text-primary">
-                    {formatWeight(pr.weight, unit)} × {pr.reps}
-                  </Caption>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
         {distribution.length > 0 ? (
-          <View className="mb-4 rounded-3xl bg-card px-3 py-3">
-            <Caption className="mb-2 font-semibold text-foreground">Muscles trained</Caption>
-            <MuscleBodyMap distribution={distribution} scale={0.95} />
-            <View className="mt-2 gap-1.5">
-              {muscleSplit.map((s) => (
-                <View key={s.muscle} className="flex-row items-center justify-between">
-                  <Body className="text-sm text-foreground">{MUSCLE_LABELS[s.muscle]}</Body>
-                  <Caption>
-                    {s.sets} sets · {s.percentage}%
-                  </Caption>
-                </View>
-              ))}
-            </View>
-          </View>
+          <Section title="Muscles trained">
+            <Card>
+              <MuscleBodyMap distribution={distribution} scale={0.95} />
+              <View className="mt-3 gap-2">
+                {muscleSplit.map((s) => (
+                  <View key={s.muscle} className="flex-row items-center justify-between">
+                    <Body className="text-sm text-foreground">{MUSCLE_LABELS[s.muscle]}</Body>
+                    <Caption className="tabular-nums">
+                      {s.sets} sets · {s.percentage}%
+                    </Caption>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          </Section>
         ) : null}
 
-        <View className="mb-3 flex-row items-center justify-between">
-          <Caption className="text-base font-semibold text-foreground">Workout</Caption>
-          <Pressable
-            onPress={() => router.push({ pathname: '/edit-workout/[id]', params: { id: String(logId) } } as Href)}
-            style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-            className="flex-row items-center gap-1">
-            <Icon icon={PencilLine} size={14} color="primary" />
-            <Caption className="font-medium text-primary">Edit</Caption>
-          </Pressable>
-        </View>
-
-        <View className="gap-5">
+        <Section
+          title="Exercises"
+          action={
+            <Pressable
+              onPress={() => router.push({ pathname: '/edit-workout/[id]', params: { id: String(logId) } } as Href)}
+              style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit workout"
+              className="flex-row items-center gap-1">
+              <Icon icon={PencilLine} size={14} color="primary" />
+              <Caption className="font-medium text-primary">Edit</Caption>
+            </Pressable>
+          }>
+        <View className="gap-6">
           {breakdown.length === 0 ? (
             <Caption>No completed sets in this session.</Caption>
           ) : (
             breakdown.map((b, i) => (
               <View key={b.exerciseId}>
-                {i > 0 ? <View className="mb-5 h-px bg-border/40" /> : null}
+                {i > 0 ? <View className="mb-6 h-px bg-border/40" /> : null}
                 <Pressable
                   onPress={() => router.push(`/exercise/${b.exerciseId}`)}
                   style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
@@ -463,13 +454,13 @@ export default function SummaryScreen() {
                   <Caption>{b.sets.length} sets</Caption>
                 </Pressable>
                 <View className="mb-1 flex-row items-center gap-3 px-1">
-                  <Caption className="w-10">SET</Caption>
-                  <Caption className="flex-1">WEIGHT & REPS</Caption>
+                  <Text className="w-10 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
+                  <Text className="flex-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Weight × reps</Text>
                 </View>
                 {b.sets.map((s) => (
                   <View key={s.id} className="flex-row items-center gap-3 px-1 py-1.5">
                     <Caption className="w-10 font-medium">{s.setIndex + 1}</Caption>
-                    <Body className="flex-1 text-sm text-foreground">
+                    <Body className="flex-1 text-sm tabular-nums text-foreground">
                       {s.weight > 0 ? `${formatWeight(s.weight, resolveWeightUnit(exerciseWeightUnits, s.exerciseRefKey, unit))} × ${s.reps}` : `${s.reps} reps`}
                       {showRpe && s.rpe != null ? ` · RPE ${s.rpe}` : ''}
                     </Body>
@@ -479,6 +470,7 @@ export default function SummaryScreen() {
             ))
           )}
         </View>
+        </Section>
       </ScrollView>
 
       <WorkoutLogActionsSheet
