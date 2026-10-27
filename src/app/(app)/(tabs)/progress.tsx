@@ -1,16 +1,17 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
-import { Camera, CalendarRange, ChevronRight, Dumbbell, TrendingUp } from 'lucide-react-native';
+import { Camera, CalendarRange, Dumbbell, PersonStanding, TrendingUp } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
-import { Heading, Caption, Body } from '@/components/common/text';
+import { Heading, Caption } from '@/components/common/text';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatCard } from '@/components/common/stat-card';
-import { SectionHeader } from '@/components/common/section-header';
+import { ListRow, Section } from '@/components/layout';
+import { Separator } from '@/components/ui/separator';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { SegmentedControl } from '@/components/common/segmented-control';
@@ -130,7 +131,7 @@ export default function ProgressScreen() {
         refreshing={refreshing}
         onRefresh={onRefresh}
         ListHeaderComponent={
-          <View className="mb-4 gap-5">
+          <View className="mb-4 gap-6">
             {aurora ? <HeroGlow hex={primaryHex} /> : null}
             <View className="mt-2">
               <Heading>Progress</Heading>
@@ -181,67 +182,9 @@ export default function ProgressScreen() {
                   <VolumeChart data={volumeData} unit={unit} />
                 </Card>
 
-                <Pressable
-                  onPress={() => router.push('/(app)/muscle-distribution' as Href)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open muscle distribution">
-                  <Card>
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-1 pr-3">
-                        <Body className="font-semibold text-foreground">Muscle distribution</Body>
-                        <Caption className="mt-1">
-                          {topMuscle
-                            ? `Top: ${MUSCLE_LABELS[topMuscle.muscle]} · ${topMuscle.sets} sets`
-                            : 'Body map and balance radar'}
-                        </Caption>
-                      </View>
-                      <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-                    </View>
-                  </Card>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => router.push('/(app)/progress-photos' as Href)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open progress photos">
-                  <Card>
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-1 pr-3">
-                        <View className="flex-row items-center gap-2">
-                          <Icon icon={Camera} size={16} color="muted-foreground" />
-                          <Body className="font-semibold text-foreground">Photos</Body>
-                        </View>
-                        <Caption className="mt-1">Week vs week, on this device</Caption>
-                      </View>
-                      <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-                    </View>
-                  </Card>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => router.push('/(app)/report/month' as Href)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open monthly reports">
-                  <Card>
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-1 pr-3">
-                        <View className="flex-row items-center gap-2">
-                          <Icon icon={CalendarRange} size={16} color="muted-foreground" />
-                          <Body className="font-semibold text-foreground">Monthly reports</Body>
-                        </View>
-                        <Caption className="mt-1">
-                          {formatMonthLabel(previousMonthStart())} recap · kept even when dismissed
-                        </Caption>
-                      </View>
-                      <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-                    </View>
-                  </Card>
-                </Pressable>
-
-                <View>
-                  <SectionHeader title="Records" className="mb-3" />
+                <Section title="Records" first>
                   {stats.prs.length > 0 ? (
-                    <View className="gap-2.5">
+                    <View className="gap-2">
                       {stats.prs.slice(0, 5).map((pr) => (
                         <PRCard key={pr.exerciseId} pr={pr} unit={unit} />
                       ))}
@@ -249,9 +192,36 @@ export default function ProgressScreen() {
                   ) : (
                     <EmptyState title="No records yet" description="Log a few workouts to see your PRs." />
                   )}
-                </View>
+                </Section>
 
-                <SectionHeader title="History" className="mt-1" />
+                {/* Deeper views as one grouped list instead of three cards. */}
+                <Section title="Explore" first>
+                  <Card className="py-1">
+                    <ListRow
+                      icon={<Icon icon={PersonStanding} size={18} color="muted-foreground" />}
+                      title="Muscle distribution"
+                      subtitle={topMuscle ? `Top: ${MUSCLE_LABELS[topMuscle.muscle]} · ${topMuscle.sets} sets` : 'Body map and balance radar'}
+                      onPress={() => router.push('/(app)/muscle-distribution' as Href)}
+                    />
+                    <Separator />
+                    <ListRow
+                      icon={<Icon icon={Camera} size={18} color="muted-foreground" />}
+                      title="Photos"
+                      subtitle="Week vs week, on this device"
+                      onPress={() => router.push('/(app)/progress-photos' as Href)}
+                    />
+                    <Separator />
+                    <ListRow
+                      icon={<Icon icon={CalendarRange} size={18} color="muted-foreground" />}
+                      title="Monthly reports"
+                      subtitle={`${formatMonthLabel(previousMonthStart())} recap`}
+                      onPress={() => router.push('/(app)/report/month' as Href)}
+                    />
+                  </Card>
+                </Section>
+
+                <Section title="History" first>
+
                 <HistoryFilters
                   range={historyRange}
                   onRangeChange={setHistoryRange}
@@ -262,6 +232,7 @@ export default function ProgressScreen() {
                   onOpenExerciseSheet={() => setExerciseSheetOpen(true)}
                   onOpenTemplateSheet={() => setTemplateSheetOpen(true)}
                 />
+                </Section>
               </>
             ) : null}
           </View>
