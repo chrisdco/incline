@@ -22,7 +22,6 @@ import {
   DEFAULT_REST_OPTIONS,
   WORKOUT_REMINDER_TIME_PRESETS,
 } from '@/store/settings-store';
-import { useShallow } from 'zustand/react/shallow';
 import { useProfile } from '@/hooks/use-data';
 import { useCloudSync } from '@/hooks/use-cloud-sync';
 import { saveProfile } from '@/db/queries';
@@ -156,7 +155,26 @@ function formatSyncTime(ms: number | null | undefined): string {
 }
 
 export default function SettingsScreen() {
-  const { unit, themeMode, accentTheme, hapticsEnabled, restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe, showSessionGhost, aiExplanationsEnabled, calendarHeatMetric, weekStartsOn, keepScreenAwake, weeklyWorkoutGoal, workoutRemindersEnabled, workoutReminderDays, workoutReminderHour, workoutReminderMinute, weeklyDigestEnabled, weeklyDigestHour, weeklyDigestMinute, monthlyRecapEnabled, abandonedNudgeEnabled, streakNudgeEnabled, milestoneNudgeEnabled, exerciseMediaStyle, exerciseMediaAnimation, devExerciseMediaOverride, setUnit, setThemeMode, setAccentTheme, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe, setShowSessionGhost, setAiExplanationsEnabled, setCalendarHeatMetric, setWeekStartsOn, setKeepScreenAwake, setWeeklyWorkoutGoal, setWorkoutRemindersEnabled, setWorkoutReminderDays, setWorkoutReminderTime, setWeeklyDigestEnabled, setWeeklyDigestTime, setMonthlyRecapEnabled, setAbandonedNudgeEnabled, setStreakNudgeEnabled, setMilestoneNudgeEnabled, setExerciseMediaStyle, setExerciseMediaAnimation, setDevExerciseMediaOverride, applyThemePreset } = useSettings(useShallow((s) => ({ unit: s.unit, themeMode: s.themeMode, accentTheme: s.accentTheme, hapticsEnabled: s.hapticsEnabled, restSoundEnabled: s.restSoundEnabled, autoStartRest: s.autoStartRest, defaultRestSeconds: s.defaultRestSeconds, showWarmUpSets: s.showWarmUpSets, showRpe: s.showRpe, showSessionGhost: s.showSessionGhost, aiExplanationsEnabled: s.aiExplanationsEnabled, calendarHeatMetric: s.calendarHeatMetric, weekStartsOn: s.weekStartsOn, keepScreenAwake: s.keepScreenAwake, weeklyWorkoutGoal: s.weeklyWorkoutGoal, workoutRemindersEnabled: s.workoutRemindersEnabled, workoutReminderDays: s.workoutReminderDays, workoutReminderHour: s.workoutReminderHour, workoutReminderMinute: s.workoutReminderMinute, weeklyDigestEnabled: s.weeklyDigestEnabled, weeklyDigestHour: s.weeklyDigestHour, weeklyDigestMinute: s.weeklyDigestMinute, monthlyRecapEnabled: s.monthlyRecapEnabled, abandonedNudgeEnabled: s.abandonedNudgeEnabled, streakNudgeEnabled: s.streakNudgeEnabled, milestoneNudgeEnabled: s.milestoneNudgeEnabled, exerciseMediaStyle: s.exerciseMediaStyle, exerciseMediaAnimation: s.exerciseMediaAnimation, devExerciseMediaOverride: s.devExerciseMediaOverride, setUnit: s.setUnit, setThemeMode: s.setThemeMode, setAccentTheme: s.setAccentTheme, setHaptics: s.setHaptics, setRestSound: s.setRestSound, setAutoStartRest: s.setAutoStartRest, setDefaultRestSeconds: s.setDefaultRestSeconds, setShowWarmUpSets: s.setShowWarmUpSets, setShowRpe: s.setShowRpe, setShowSessionGhost: s.setShowSessionGhost, setAiExplanationsEnabled: s.setAiExplanationsEnabled, setCalendarHeatMetric: s.setCalendarHeatMetric, setWeekStartsOn: s.setWeekStartsOn, setKeepScreenAwake: s.setKeepScreenAwake, setWeeklyWorkoutGoal: s.setWeeklyWorkoutGoal, setWorkoutRemindersEnabled: s.setWorkoutRemindersEnabled, setWorkoutReminderDays: s.setWorkoutReminderDays, setWorkoutReminderTime: s.setWorkoutReminderTime, setWeeklyDigestEnabled: s.setWeeklyDigestEnabled, setWeeklyDigestTime: s.setWeeklyDigestTime, setMonthlyRecapEnabled: s.setMonthlyRecapEnabled, setAbandonedNudgeEnabled: s.setAbandonedNudgeEnabled, setStreakNudgeEnabled: s.setStreakNudgeEnabled, setMilestoneNudgeEnabled: s.setMilestoneNudgeEnabled, setExerciseMediaStyle: s.setExerciseMediaStyle, setExerciseMediaAnimation: s.setExerciseMediaAnimation, setDevExerciseMediaOverride: s.setDevExerciseMediaOverride, applyThemePreset: s.applyThemePreset })));
+  const {
+    unit, themeMode, accentTheme, hapticsEnabled,
+    restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe,
+    showSessionGhost,
+    aiExplanationsEnabled,
+    calendarHeatMetric, weekStartsOn, keepScreenAwake, weeklyWorkoutGoal,
+    workoutRemindersEnabled, workoutReminderDays, workoutReminderHour, workoutReminderMinute,
+    weeklyDigestEnabled, weeklyDigestHour, weeklyDigestMinute,
+    monthlyRecapEnabled, abandonedNudgeEnabled, streakNudgeEnabled, milestoneNudgeEnabled,
+    exerciseMediaStyle, exerciseMediaAnimation, devExerciseMediaOverride,
+    setUnit, setThemeMode, setAccentTheme, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe,
+    setShowSessionGhost,
+    setAiExplanationsEnabled,
+    setCalendarHeatMetric, setWeekStartsOn, setKeepScreenAwake, setWeeklyWorkoutGoal,
+    setWorkoutRemindersEnabled, setWorkoutReminderDays, setWorkoutReminderTime,
+    setWeeklyDigestEnabled, setWeeklyDigestTime,
+    setMonthlyRecapEnabled, setAbandonedNudgeEnabled, setStreakNudgeEnabled, setMilestoneNudgeEnabled,
+    setExerciseMediaStyle, setExerciseMediaAnimation, setDevExerciseMediaOverride,
+    applyThemePreset,
+  } = useSettings();
   const router = useRouter();
   const { data: profile, refetch } = useProfile();
   const scheme = useAppColorScheme();
