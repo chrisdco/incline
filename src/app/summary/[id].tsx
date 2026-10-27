@@ -1,7 +1,7 @@
 import { useAppAuth } from '@/auth/use-app-auth';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Medal, MoreHorizontal, PencilLine, Share2 } from 'lucide-react-native';
@@ -28,7 +28,6 @@ import {
   getWorkoutLog,
   getWorkoutMuscleSplit,
   getWorkoutPrs,
-  type SessionWorkout,
   type SessionSet,
   type MuscleSplit,
   type WorkoutPr,
@@ -39,7 +38,8 @@ import { requestCoachNarration, type CoachNarration } from '@/coaching/narrate-c
 import { detectSetFatigue } from '@/coaching/fatigue';
 import type { TrainingSuggestion } from '@/coaching/types';
 import { useSettings } from '@/store/settings-store';
-import { useProfile } from '@/hooks/use-data';
+import { useDbQuery, useProfile } from '@/hooks/use-data';
+import { TABLES } from '@/lib/query-keys';
 import { formatDuration, formatVolume, formatWeight, formatFullDateTime } from '@/db/calc';
 import { formatCelebrationKinds } from '@/coaching/pr';
 import { MUSCLE_LABELS } from '@/lib/labels';
@@ -47,6 +47,12 @@ import { workingSetVolume } from '@/lib/session-ghost';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import type { MuscleDistribution, WorkoutPhoto } from '@/db/types';
 import { resolveWeightUnit } from '@/lib/units';
+
+const SUMMARY_TABLES = [...TABLES.coaching, 'exercise_images', 'workout_photos'] as const;
+const NO_SPLIT: MuscleSplit[] = [];
+const NO_PRS: WorkoutPr[] = [];
+const NO_PHOTOS: WorkoutPhoto[] = [];
+const NO_SUGGESTIONS: TrainingSuggestion[] = [];
 
 export default function SummaryScreen() {
   const { id, celebrate } = useLocalSearchParams<{ id: string; celebrate?: string }>();
@@ -58,13 +64,6 @@ export default function SummaryScreen() {
   const { userId, getToken } = useAppAuth();
   const getTokenRef = useRef(getToken);
   const { data: profile } = useProfile();
-  const [log, setLog] = useState<SessionWorkout | null>(null);
-  const [muscleSplit, setMuscleSplit] = useState<MuscleSplit[]>([]);
-  const [prs, setPrs] = useState<WorkoutPr[]>([]);
-  const [photos, setPhotos] = useState<WorkoutPhoto[]>([]);
-  const [volumeDelta, setVolumeDelta] = useState<{ previousVolume: number; deltaPct: number | null } | null>(null);
-  const [nextSuggestions, setNextSuggestions] = useState<TrainingSuggestion[]>([]);
-  const [loading, setLoading] = useState(true);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -75,32 +74,38 @@ export default function SummaryScreen() {
     getTokenRef.current = getToken;
   }, [getToken]);
 
-  const reload = useCallback(async () => {
-    const [s, split, prList, prevVol, photoList] = await Promise.all([
-      getWorkoutLog(logId),
-      getWorkoutMuscleSplit(logId),
-      getWorkoutPrs(logId),
-      getPreviousTemplateVolume(logId),
-      listWorkoutPhotos(logId),
-    ]);
-    setLog(s);
-    setMuscleSplit(split);
-    setPrs(prList);
-    setVolumeDelta(prevVol);
-    setPhotos(photoList);
-    if (s?.templateId) {
-      const sug = await getTemplateSuggestions(s.templateId, unit);
-      setNextSuggestions(sug.filter((x) => x.weight > 0).slice(0, 3));
-    } else {
-      setNextSuggestions([]);
-    }
-    setLoading(false);
-  }, [logId, unit]);
+  // One cached read keyed by the tables it touches: reopening paints
+  // immediately, and the same references survive a revalidate, so the
+  // narration effect below doesn't re-request on every focus.
+  const { data: summary, loading } = useDbQuery(
+    SUMMARY_TABLES,
+    ['workoutSummary', logId, unit, exerciseWeightUnits],
+    async () => {
+      const [log, muscleSplit, prs, volumeDelta, photos] = await Promise.all([
+        getWorkoutLog(logId),
+        getWorkoutMuscleSplit(logId),
+        getWorkoutPrs(logId),
+        getPreviousTemplateVolume(logId),
+        listWorkoutPhotos(logId),
+      ]);
+      const nextSuggestions = log?.templateId
+        ? (await getTemplateSuggestions(log.templateId, unit, exerciseWeightUnits))
+            .filter((x) => x.weight > 0)
+            .slice(0, 3)
+        : [];
+      return { log, muscleSplit, prs, volumeDelta, photos, nextSuggestions };
+    },
+  );
+  const log = summary?.log ?? null;
+  const muscleSplit = summary?.muscleSplit ?? NO_SPLIT;
+  const prs = summary?.prs ?? NO_PRS;
+  const photos = summary?.photos ?? NO_PHOTOS;
+  const volumeDelta = summary?.volumeDelta ?? null;
+  const nextSuggestions = summary?.nextSuggestions ?? NO_SUGGESTIONS;
 
   const onAddPhotos = async (uris: string[]) => {
     try {
-      const next = await addWorkoutPhotos(logId, uris);
-      setPhotos(next);
+      await addWorkoutPhotos(logId, uris);
     } catch {
       toast({ title: 'Could not save photo', variant: 'destructive' });
     }
@@ -109,17 +114,10 @@ export default function SummaryScreen() {
   const onRemovePhoto = async (photoId: number) => {
     try {
       await deleteWorkoutPhoto(photoId);
-      setPhotos((prev) => prev.filter((p) => p.id !== photoId));
     } catch {
       toast({ title: 'Could not remove photo', variant: 'destructive' });
     }
   };
-
-  useFocusEffect(
-    useCallback(() => {
-      reload();
-    }, [reload]),
-  );
 
   useEffect(() => {
     if (log && !log.isComplete) router.replace(`/session/${log.id}`);

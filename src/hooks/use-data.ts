@@ -5,6 +5,9 @@ import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-qu
 import {
   getExercise,
   getExerciseHistory,
+  getExercisePRSummary,
+  getExerciseRepRecords,
+  getExerciseSeries,
   getProgram,
   getProfile,
   getPeriodStats,
@@ -37,8 +40,12 @@ import { useSettings } from '@/store/settings-store';
  * Only a focused screen subscribes: tabs stay mounted under the session
  * stack, and an unfocused observer would refetch on every set edit. Stale
  * queries refetch when their screen regains focus.
+ *
+ * `loading` means "no data yet" — a background revalidate never flips it, so
+ * reopening a screen paints cached rows instead of flashing a skeleton.
+ * `fetching` is the revalidate flag for anything that wants it.
  */
-function useDbQuery<T>(tables: readonly DbTable[], key: unknown[], fn: () => Promise<T>) {
+export function useDbQuery<T>(tables: readonly DbTable[], key: unknown[], fn: () => Promise<T>) {
   const focused = useIsFocused();
   const q = useQuery({
     queryKey: dbKey(tables, ...key),
@@ -49,7 +56,8 @@ function useDbQuery<T>(tables: readonly DbTable[], key: unknown[], fn: () => Pro
   const { refetch } = q;
   return {
     data: q.data ?? null,
-    loading: q.isPending || q.isFetching,
+    loading: q.isPending,
+    fetching: q.isFetching,
     error: q.error,
     refetch: useCallback(() => {
       void refetch();
@@ -70,6 +78,18 @@ export function useSearchExercises(query: string, filters?: ExerciseFilters) {
 }
 export function useExerciseHistory(exerciseId: number) {
   return useDbQuery(TABLES.logs, ['exerciseHistory', exerciseId], () => getExerciseHistory(exerciseId));
+}
+/** PRs, rep records and chart series for exercise detail: one cached read, refreshed by set writes. */
+export function useExerciseStats(exerciseId: number) {
+  return useDbQuery(TABLES.logs, ['exerciseStats', exerciseId], async () => {
+    if (!exerciseId) return { prSummary: null, repRecords: [], series: [] };
+    const [prSummary, repRecords, series] = await Promise.all([
+      getExercisePRSummary(exerciseId),
+      getExerciseRepRecords(exerciseId),
+      getExerciseSeries(exerciseId),
+    ]);
+    return { prSummary, repRecords, series };
+  });
 }
 
 /* ---- templates & programs ---- */
