@@ -158,50 +158,50 @@ ALTER TABLE body_measurements ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "profiles_own" ON profiles;
 CREATE POLICY "profiles_own" ON profiles
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "user_exercises_own" ON user_exercises;
 CREATE POLICY "user_exercises_own" ON user_exercises
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "user_templates_own" ON user_templates;
 CREATE POLICY "user_templates_own" ON user_templates
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "user_template_exercises_own" ON user_template_exercises;
 CREATE POLICY "user_template_exercises_own" ON user_template_exercises
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "workout_logs_own" ON workout_logs;
 CREATE POLICY "workout_logs_own" ON workout_logs
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "set_entries_own" ON set_entries;
 CREATE POLICY "set_entries_own" ON set_entries
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "bodyweight_entries_own" ON bodyweight_entries;
 CREATE POLICY "bodyweight_entries_own" ON bodyweight_entries
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "body_measurements_own" ON body_measurements;
 CREATE POLICY "body_measurements_own" ON body_measurements
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 CREATE TABLE IF NOT EXISTS user_programs (
   id UUID PRIMARY KEY,
@@ -250,20 +250,20 @@ ALTER TABLE user_active_program ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "user_programs_own" ON user_programs;
 CREATE POLICY "user_programs_own" ON user_programs
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "user_program_workouts_own" ON user_program_workouts;
 CREATE POLICY "user_program_workouts_own" ON user_program_workouts
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "user_active_program_own" ON user_active_program;
 CREATE POLICY "user_active_program_own" ON user_active_program
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 CREATE TABLE IF NOT EXISTS user_preferences (
   user_id TEXT PRIMARY KEY,
@@ -277,8 +277,8 @@ ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "user_preferences_own" ON user_preferences;
 CREATE POLICY "user_preferences_own" ON user_preferences
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 CREATE TABLE IF NOT EXISTS workout_photos (
   id UUID PRIMARY KEY,
@@ -303,8 +303,8 @@ ALTER TABLE workout_photos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "workout_photos_own" ON workout_photos;
 CREATE POLICY "workout_photos_own" ON workout_photos
   FOR ALL TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub')
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('workout-photos', 'workout-photos', false)
@@ -315,11 +315,11 @@ CREATE POLICY "workout_photos_storage_own" ON storage.objects
   FOR ALL TO authenticated
   USING (
     bucket_id = 'workout-photos'
-    AND (storage.foldername(name))[1] = auth.jwt() ->> 'sub'
+    AND (storage.foldername(name))[1] = (select auth.jwt() ->> 'sub')
   )
   WITH CHECK (
     bucket_id = 'workout-photos'
-    AND (storage.foldername(name))[1] = auth.jwt() ->> 'sub'
+    AND (storage.foldername(name))[1] = (select auth.jwt() ->> 'sub')
   );
 
 -- Batched last-write-wins push (#139 / #143). The client sends one call per
