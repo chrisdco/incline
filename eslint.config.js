@@ -21,4 +21,28 @@ module.exports = defineConfig([
       "react-hooks/set-state-in-effect": "warn",
     },
   },
+  {
+    // Design system guard (docs/design/SYSTEM.md): type, radius and spacing
+    // come from tokens. Arbitrary values (`text-[13px]`, `p-[7px]`) and the
+    // retired `rounded-lg` fail lint; a genuine one-off (micro-marks in a
+    // chart) takes an eslint-disable-next-line with a reason.
+    files: ["src/app/**/*.tsx", "src/components/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/(^|\\s|:)(text|rounded(-[a-z]+)?|p[xytblr]?|m[xytblr]?|gap(-[xy])?|leading|tracking)-\\[/]",
+          message: "Arbitrary style value: use a design token (docs/design/SYSTEM.md).",
+        },
+        {
+          selector: "TemplateElement[value.raw=/(^|\\s|:)(text|rounded(-[a-z]+)?|p[xytblr]?|m[xytblr]?|gap(-[xy])?|leading|tracking)-\\[/]",
+          message: "Arbitrary style value: use a design token (docs/design/SYSTEM.md).",
+        },
+        {
+          selector: "Literal[value=/(^|\\s)rounded-lg(\\s|$)/]",
+          message: "rounded-lg is retired: use rounded-md (inset), rounded-xl (controls), rounded-2xl (tiles) or rounded-3xl (cards).",
+        },
+      ],
+    },
+  },
 ]);

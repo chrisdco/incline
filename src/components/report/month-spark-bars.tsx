@@ -29,14 +29,14 @@ export function MonthSparkBars({
         return (
           <View key={p.key} className="min-w-0 flex-1 items-center justify-end gap-1.5">
             <View
-              className="w-full max-w-[20px] rounded-[3px]"
+              className="w-full max-w-[20px] rounded-sm"
               style={{
                 height: h,
                 backgroundColor: p.active ? colors.primary : colors.muted,
                 opacity: p.value <= 0 && !p.active ? 0.4 : 1,
               }}
             />
-            <Caption className="text-[10px] leading-3">{p.label}</Caption>
+            <Caption className="text-2xs leading-3">{p.label}</Caption>
           </View>
         );
       })}

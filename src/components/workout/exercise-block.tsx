@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Text } from '@/components/common/text';
+import { SectionLabel } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { SetRow, type SetRowHandle } from './set-row';
@@ -268,19 +269,19 @@ function ExerciseBlockImpl({
 
       <View className="flex-row items-center gap-2 px-1 pb-0.5">
         <View style={{ width: SET_COL.index }} className="items-center">
-          <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
+          <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
         </View>
         <View style={{ flex: SET_FLEX.prev }} className="items-center">
-          <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Prev</Text>
+          <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Prev</Text>
         </View>
         <View style={{ flex: SET_FLEX.input }} className="items-center">
-          <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{weightLabel}</Text>
+          <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{weightLabel}</Text>
         </View>
         <View style={{ flex: SET_FLEX.input }} className="items-center">
-          <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Reps</Text>
+          <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Reps</Text>
         </View>
         <View style={{ width: SET_COL.done }} className="items-center">
-          <Text className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Done</Text>
+          <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Done</Text>
         </View>
       </View>
 
@@ -516,7 +517,7 @@ function ExerciseBlockImpl({
 
             {onApplyLoad && (lastTop || prWeight || (loadSuggestion && loadSuggestion.weight > 0)) ? (
             <View className="gap-2">
-              <Caption className="font-medium uppercase tracking-wide">Fill next incomplete set</Caption>
+              <SectionLabel>Fill next incomplete set</SectionLabel>
               {loadSuggestion && loadSuggestion.weight > 0 ? (
                 <Button onPress={() => applyAndClose(loadSuggestion.weight, loadSuggestion.reps)}>
                   {`Use suggestion — ${formatWeight(loadSuggestion.weight, unit)} × ${loadSuggestion.reps}`}

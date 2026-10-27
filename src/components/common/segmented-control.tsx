@@ -55,7 +55,7 @@ export function SegmentedControl<T extends string>({
   return (
     <View className={cn('relative flex-row rounded-xl border border-border bg-muted/60 p-1', className)}>
       <Animated.View
-        className="absolute top-1 bottom-1 rounded-lg border border-primary/35 bg-primary/15"
+        className="absolute top-1 bottom-1 rounded-md border border-primary/35 bg-primary/15"
         style={[indicatorStyle, { left: 0, width: Math.max(selectedWidth, 0) }]}
       />
       {values.map((v, i) => {

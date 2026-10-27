@@ -6,6 +6,7 @@ import { Plus, Trash2, Copy } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Body, Caption } from '@/components/common/text';
+import { SectionLabel } from '@/components/layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -204,7 +205,7 @@ export default function ProgramEditScreen() {
 
           <View className="mt-2">
             <View className="mb-2 flex-row items-center justify-between">
-              <Caption className="font-semibold uppercase tracking-wide">Schedule</Caption>
+              <SectionLabel>Schedule</SectionLabel>
               {programId && weeks > 1 ? (
                 <Pressable onPress={() => void copyWeek1()} className="flex-row items-center gap-1.5 py-1" hitSlop={8}>
                   <Icon icon={Copy} size={14} color="muted-foreground" />
@@ -275,7 +276,7 @@ export default function ProgramEditScreen() {
       </ScrollView>
 
       <Sheet open={!!slotPicker} onOpenChange={(open) => !open && setSlotPicker(null)} mode="expandable">
-        <Caption className="mb-3 font-semibold uppercase tracking-wide">Choose routine</Caption>
+        <SectionLabel className="mb-3">Choose routine</SectionLabel>
         <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
           <View className="gap-2 pb-4">
             {templates.length === 0 ? (

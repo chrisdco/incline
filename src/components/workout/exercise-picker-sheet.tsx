@@ -165,7 +165,7 @@ const PickerRow = memo(function PickerRow({
               <Text className="text-sm font-semibold text-foreground">{name}</Text>
               {isCustom ? (
                 <View className="rounded-full bg-primary/15 px-2 py-0.5">
-                  <Text className="text-[10px] font-semibold text-primary">Custom</Text>
+                  <Text className="text-2xs font-semibold text-primary">Custom</Text>
                 </View>
               ) : null}
             </View>

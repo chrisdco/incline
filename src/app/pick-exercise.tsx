@@ -7,6 +7,7 @@ import { FlashList } from '@shopify/flash-list';
 import { ChevronLeft, Info, Plus } from 'lucide-react-native';
 
 import { Body, Caption, Heading, Text } from '@/components/common/text';
+import { SectionLabel } from '@/components/layout';
 import { Icon } from '@/components/common/icon';
 import { Button } from '@/components/ui/button';
 import { SearchBar } from '@/components/common/search-bar';
@@ -245,7 +246,7 @@ export default function PickExerciseScreen() {
               <View className="gap-5 pb-3">
                 {suggested != null && suggested.length > 0 ? (
                   <View>
-                    <Caption className="mb-2 font-medium uppercase tracking-wide">Suggested replacements</Caption>
+                    <SectionLabel>Suggested replacements</SectionLabel>
                     <View className="gap-2">
                       {suggested.map((ex) => (
                         <ExercisePickRow
@@ -266,7 +267,7 @@ export default function PickExerciseScreen() {
                 ) : null}
                 {recent != null && recent.length > 0 ? (
                   <View>
-                    <Caption className="mb-2 font-medium uppercase tracking-wide">Recent</Caption>
+                    <SectionLabel>Recent</SectionLabel>
                     <View className="gap-2">
                       {recent.map((ex) => (
                         <ExercisePickRow
@@ -285,7 +286,7 @@ export default function PickExerciseScreen() {
                   </View>
                 ) : null}
                 <View>
-                  <Caption className="mb-2 font-medium uppercase tracking-wide">All exercises</Caption>
+                  <SectionLabel>All exercises</SectionLabel>
                   <Button
                     variant="outline"
                     leftIcon={<Icon icon={Plus} size={16} color="primary" />}
@@ -379,7 +380,7 @@ const ExercisePickRow = memo(function ExercisePickRow({
             </Text>
             {badge ? (
               <View className="rounded-full bg-primary/15 px-2 py-0.5">
-                <Text className="text-[10px] font-semibold text-primary">{badge}</Text>
+                <Text className="text-2xs font-semibold text-primary">{badge}</Text>
               </View>
             ) : null}
           </View>
@@ -398,7 +399,7 @@ const ExercisePickRow = memo(function ExercisePickRow({
         <Icon icon={Info} size={18} color="muted-foreground" />
       </Pressable>
       {isCustom ? (
-        <Body className="text-[10px] font-semibold text-primary">Custom</Body>
+        <Body className="text-2xs font-semibold text-primary">Custom</Body>
       ) : null}
     </View>
   );

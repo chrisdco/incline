@@ -110,12 +110,12 @@ export function RestTimer({
 
         <View className="items-center px-4">
           {caption ? (
-            <Text className="mb-0.5 text-[10px] font-medium text-primary">{caption}</Text>
+            <Text className="mb-0.5 text-2xs font-medium text-primary">{caption}</Text>
           ) : null}
           <Text className="text-2xl font-bold tracking-tight text-foreground">
             {formatClock(remaining)}
           </Text>
-          <Text className="text-[10px] text-muted-foreground">
+          <Text className="text-2xs text-muted-foreground">
             {done ? 'Done' : 'remaining'}
           </Text>
         </View>

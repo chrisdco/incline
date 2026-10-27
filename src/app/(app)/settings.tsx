@@ -13,6 +13,7 @@ import { Icon } from '@/components/common/icon';
 
 import { Body, Caption } from '@/components/common/text';
 import { Card } from '@/components/ui/card';
+import { ListRow, SectionLabel } from '@/components/layout';
 import { Switch } from '@/components/ui/switch';
 import { Chip } from '@/components/common/chip';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,6 @@ const WEEKDAY_CHIPS: { jsDay: number; label: string }[] = [
   { jsDay: 0, label: 'Sun' },
 ];
 
-/** Inline control on the right (switches, short chip rows). */
 /** Version + stage, and a manual update check (OTA via expo-updates). */
 function AboutSection() {
   const { toast } = useToast();
@@ -71,15 +71,15 @@ function AboutSection() {
 
   return (
     <>
-      <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">About</Caption>
+      <SectionLabel className="mt-6">About</SectionLabel>
       <Card>
-        <Row
+        <ListRow
           icon={<Icon icon={Info} size={18} color="muted-foreground" />}
           title="Version"
           subtitle={info.updateCreatedAt ? `Updated ${info.updateCreatedAt.toLocaleDateString()}` : undefined}>
           <Caption>{formatRelease(info)}</Caption>
-        </Row>
-        <Row
+        </ListRow>
+        <ListRow
           icon={<Icon icon={RefreshCw} size={18} color="muted-foreground" />}
           title="App updates"
           subtitle={canUpdate ? (ready ? 'Downloaded — restart to apply' : 'Checks automatically on launch') : 'Not available in this build'}>
@@ -90,58 +90,9 @@ function AboutSection() {
               Check
             </Button>
           )}
-        </Row>
+        </ListRow>
       </Card>
     </>
-  );
-}
-
-function Row({
-  icon,
-  title,
-  subtitle,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="flex-row items-center gap-3 py-3">
-      <View className="h-9 w-9 items-center justify-center rounded-xl bg-muted">{icon}</View>
-      <View className="min-w-0 flex-1">
-        <Body className="font-medium text-foreground">{title}</Body>
-        {subtitle ? <Caption className="mt-0.5">{subtitle}</Caption> : null}
-      </View>
-      {children}
-    </View>
-  );
-}
-
-/** Title on top, full-width controls below — for chip groups that wrap. */
-function StackedRow({
-  icon,
-  title,
-  subtitle,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="gap-3 py-3">
-      <View className="flex-row items-center gap-3">
-        <View className="h-9 w-9 items-center justify-center rounded-xl bg-muted">{icon}</View>
-        <View className="min-w-0 flex-1">
-          <Body className="font-medium text-foreground">{title}</Body>
-          {subtitle ? <Caption className="mt-0.5">{subtitle}</Caption> : null}
-        </View>
-      </View>
-      {children}
-    </View>
   );
 }
 
@@ -333,9 +284,9 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={SCREEN_CONTENT}>
-        <Caption className="mb-2 mt-1 font-semibold uppercase tracking-wide">Cloud sync</Caption>
+        <SectionLabel className="mt-1">Cloud sync</SectionLabel>
         <Card>
-          <Row
+          <ListRow
             icon={<Icon icon={Cloud} size={18} color={isSyncError ? 'destructive' : 'muted-foreground'} />}
             title={syncing ? 'Syncing…' : isSyncError ? 'Sync error' : 'Backup & restore'}
             subtitle={syncSubtitle}>
@@ -347,10 +298,10 @@ export default function SettingsScreen() {
               accessibilityLabel={isSyncError ? 'Retry sync' : 'Sync now'}>
               <Icon icon={RefreshCw} size={16} color={isSyncError ? 'destructive' : 'primary'} />
             </Button>
-          </Row>
+          </ListRow>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Export</Caption>
+        <SectionLabel className="mt-6">Export</SectionLabel>
         <Card>
           <Pressable
             onPress={() => router.push('/(app)/export' as Href)}
@@ -368,54 +319,54 @@ export default function SettingsScreen() {
           </Pressable>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Units</Caption>
+        <SectionLabel className="mt-6">Units</SectionLabel>
         <Card>
-          <Row icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Measurement" subtitle="Displayed across workouts and stats">
+          <ListRow icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Measurement" subtitle="Displayed across workouts and stats">
             <View className="flex-row gap-2">
               <Chip label="kg" selected={unit === 'metric'} onPress={() => changeUnit('metric')} />
               <Chip label="lb" selected={unit === 'imperial'} onPress={() => changeUnit('imperial')} />
             </View>
-          </Row>
+          </ListRow>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Workout</Caption>
+        <SectionLabel className="mt-6">Workout</SectionLabel>
         <Card>
-          <Row icon={<Icon icon={Zap} size={18} color="muted-foreground" />} title="Auto-start rest timer" subtitle="Begin countdown when you finish a set">
+          <ListRow icon={<Icon icon={Zap} size={18} color="muted-foreground" />} title="Auto-start rest timer" subtitle="Begin countdown when you finish a set">
             <Switch value={autoStartRest} onValueChange={setAutoStartRest} accessibilityLabel="Auto-start rest timer" />
-          </Row>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <StackedRow icon={<Icon icon={Timer} size={18} color="muted-foreground" />} title="Default rest" subtitle="Used for newly added exercises">
+          <ListRow stacked icon={<Icon icon={Timer} size={18} color="muted-foreground" />} title="Default rest" subtitle="Used for newly added exercises">
             <View className="flex-row flex-wrap gap-1.5">
               {DEFAULT_REST_OPTIONS.map((s) => (
                 <Chip key={s} size="sm" label={`${s}s`} selected={defaultRestSeconds === s} onPress={() => setDefaultRestSeconds(s)} />
               ))}
             </View>
-          </StackedRow>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <Row icon={restSoundEnabled ? <Icon icon={Bell} size={18} color="muted-foreground" /> : <Icon icon={BellOff} size={18} color="muted-foreground" />} title="Rest timer alerts" subtitle="Chime in-app and notify if you leave the session">
+          <ListRow icon={restSoundEnabled ? <Icon icon={Bell} size={18} color="muted-foreground" /> : <Icon icon={BellOff} size={18} color="muted-foreground" />} title="Rest timer alerts" subtitle="Chime in-app and notify if you leave the session">
             <Switch value={restSoundEnabled} onValueChange={setRestSound} accessibilityLabel="Rest timer alerts" />
-          </Row>
+          </ListRow>
           {Platform.OS === 'android' && restSoundEnabled && exactAlarmDenied ? (
             <>
               <View className="h-px bg-border/60" />
-              <Row
+              <ListRow
                 icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
                 title="Precise rest alerts"
                 subtitle="Allow exact alarms so rest alerts arrive on time">
                 <Chip label="Allow" onPress={allowExactAlarms} />
-              </Row>
+              </ListRow>
             </>
           ) : null}
           <View className="h-px bg-border/60" />
-          <Row icon={<Icon icon={METRIC_ICONS.warmUp} size={18} color="muted-foreground" />} title="Warm-up set button" subtitle="Quick 50% set in the session">
+          <ListRow icon={<Icon icon={METRIC_ICONS.warmUp} size={18} color="muted-foreground" />} title="Warm-up set button" subtitle="Quick 50% set in the session">
             <Switch value={showWarmUpSets} onValueChange={setShowWarmUpSets} accessibilityLabel="Warm-up set button" />
-          </Row>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <Row icon={<Icon icon={METRIC_ICONS.rpe} size={18} color="muted-foreground" />} title="RPE after working sets" subtitle="Optional 1–10. Never required to complete a set">
+          <ListRow icon={<Icon icon={METRIC_ICONS.rpe} size={18} color="muted-foreground" />} title="RPE after working sets" subtitle="Optional 1–10. Never required to complete a set">
             <Switch value={showRpe} onValueChange={setShowRpe} accessibilityLabel="RPE after working sets" />
-          </Row>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <Row
+          <ListRow
             icon={<Icon icon={History} size={18} color="muted-foreground" />}
             title="Last-session comparison"
             subtitle="Show last time on the workout preview and live session">
@@ -424,19 +375,19 @@ export default function SettingsScreen() {
               onValueChange={setShowSessionGhost}
               accessibilityLabel="Last-session comparison"
             />
-          </Row>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <Row
+          <ListRow
             icon={<Icon icon={MonitorSmartphone} size={18} color="muted-foreground" />}
             title="Keep screen on"
             subtitle="While a workout session is open">
             <Switch value={keepScreenAwake} onValueChange={setKeepScreenAwake} accessibilityLabel="Keep screen on during workout" />
-          </Row>
+          </ListRow>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Coaching</Caption>
+        <SectionLabel className="mt-6">Coaching</SectionLabel>
         <Card>
-          <Row
+          <ListRow
             icon={<Icon icon={Sparkles} size={18} color="muted-foreground" />}
             title="AI explanations"
             subtitle="Numbers still come from local rules; optional AI wording">
@@ -445,12 +396,12 @@ export default function SettingsScreen() {
               onValueChange={setAiExplanationsEnabled}
               accessibilityLabel="AI explanations"
             />
-          </Row>
+          </ListRow>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Reminders</Caption>
+        <SectionLabel className="mt-6">Reminders</SectionLabel>
         <Card>
-          <Row
+          <ListRow
             icon={<Icon icon={Bell} size={18} color="muted-foreground" />}
             title="Workout reminders"
             subtitle="Local weekly alerts on the days you choose">
@@ -459,11 +410,11 @@ export default function SettingsScreen() {
               onValueChange={(v) => void onRemindersToggle(v)}
               accessibilityLabel="Workout reminders"
             />
-          </Row>
+          </ListRow>
           {workoutRemindersEnabled ? (
             <>
               <View className="h-px bg-border/60" />
-              <StackedRow
+              <ListRow stacked
                 icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
                 title="Days"
                 subtitle="Tap to include or remove">
@@ -478,9 +429,9 @@ export default function SettingsScreen() {
                     />
                   ))}
                 </View>
-              </StackedRow>
+              </ListRow>
               <View className="h-px bg-border/60" />
-              <StackedRow
+              <ListRow stacked
                 icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
                 title="Time"
                 subtitle="Same time each selected day">
@@ -495,14 +446,14 @@ export default function SettingsScreen() {
                     />
                   ))}
                 </View>
-              </StackedRow>
+              </ListRow>
             </>
           ) : null}
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Weekly digest</Caption>
+        <SectionLabel className="mt-6">Weekly digest</SectionLabel>
         <Card>
-          <Row
+          <ListRow
             icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
             title="Sunday digest"
             subtitle="Optional local alert with your week summary">
@@ -511,11 +462,11 @@ export default function SettingsScreen() {
               onValueChange={(v) => void onDigestToggle(v)}
               accessibilityLabel="Sunday weekly digest"
             />
-          </Row>
+          </ListRow>
           {weeklyDigestEnabled ? (
             <>
               <View className="h-px bg-border/60" />
-              <StackedRow
+              <ListRow stacked
                 icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
                 title="Time"
                 subtitle="Fires every Sunday">
@@ -530,11 +481,11 @@ export default function SettingsScreen() {
                     />
                   ))}
                 </View>
-              </StackedRow>
+              </ListRow>
             </>
           ) : null}
           <View className="h-px bg-border/60" />
-          <Row
+          <ListRow
             icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
             title="Monthly recap"
             subtitle="1st of the month, same time as the digest">
@@ -543,12 +494,12 @@ export default function SettingsScreen() {
               onValueChange={(v) => void onDigestsChannelToggle(v, setMonthlyRecapEnabled, 'Monthly recaps')}
               accessibilityLabel="Monthly recap"
             />
-          </Row>
+          </ListRow>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Nudges</Caption>
+        <SectionLabel className="mt-6">Nudges</SectionLabel>
         <Card>
-          <Row
+          <ListRow
             icon={<Icon icon={History} size={18} color="muted-foreground" />}
             title="Abandoned session"
             subtitle="One ping if a workout sits idle 25+ min">
@@ -557,9 +508,9 @@ export default function SettingsScreen() {
               onValueChange={(v) => void onDigestsChannelToggle(v, setAbandonedNudgeEnabled, 'Session nudges')}
               accessibilityLabel="Abandoned session nudge"
             />
-          </Row>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <Row
+          <ListRow
             icon={<Icon icon={METRIC_ICONS.streak} size={18} color="muted-foreground" />}
             title="Streak at risk"
             subtitle="One late-week ping when a streak has no session yet">
@@ -568,9 +519,9 @@ export default function SettingsScreen() {
               onValueChange={(v) => void onDigestsChannelToggle(v, setStreakNudgeEnabled, 'Streak nudges')}
               accessibilityLabel="Streak at risk nudge"
             />
-          </Row>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <Row
+          <ListRow
             icon={<Icon icon={Zap} size={18} color="muted-foreground" />}
             title="Milestones"
             subtitle="Congrats ping for newly unlocked achievements">
@@ -579,12 +530,12 @@ export default function SettingsScreen() {
               onValueChange={(v) => void onDigestsChannelToggle(v, setMilestoneNudgeEnabled, 'Milestone nudges')}
               accessibilityLabel="Milestone nudges"
             />
-          </Row>
+          </ListRow>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Calendar</Caption>
+        <SectionLabel className="mt-6">Calendar</SectionLabel>
         <Card>
-          <StackedRow
+          <ListRow stacked
             icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
             title="Month day color"
             subtitle="What each tinted day represents">
@@ -606,9 +557,9 @@ export default function SettingsScreen() {
                 />
               ))}
             </View>
-          </StackedRow>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <Row
+          <ListRow
             icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
             title="Week starts on"
             subtitle="Calendar grids and day headers">
@@ -616,9 +567,9 @@ export default function SettingsScreen() {
               <Chip label="Mon" selected={weekStartsOn === 'monday'} onPress={() => setWeekStartsOn('monday')} />
               <Chip label="Sun" selected={weekStartsOn === 'sunday'} onPress={() => setWeekStartsOn('sunday')} />
             </View>
-          </Row>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <StackedRow
+          <ListRow stacked
             icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
             title="Weekly workout goal"
             subtitle="Sessions per week for consistency tracking">
@@ -633,12 +584,12 @@ export default function SettingsScreen() {
                 />
               ))}
             </View>
-          </StackedRow>
+          </ListRow>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Appearance</Caption>
+        <SectionLabel className="mt-6">Appearance</SectionLabel>
         <Card>
-          <StackedRow
+          <ListRow stacked
             icon={themeMode === 'dark' ? <Icon icon={Moon} size={18} color="muted-foreground" /> : themeMode === 'light' ? <Icon icon={Sun} size={18} color="muted-foreground" /> : <Icon icon={Smartphone} size={18} color="muted-foreground" />}
             title="Theme">
             <View className="flex-row flex-wrap gap-2">
@@ -646,7 +597,7 @@ export default function SettingsScreen() {
               <Chip label="Light" selected={themeMode === 'light'} onPress={() => setThemeMode('light')} />
               <Chip label="Dark" selected={themeMode === 'dark'} onPress={() => setThemeMode('dark')} />
             </View>
-          </StackedRow>
+          </ListRow>
           <View className="h-px bg-border/60" />
           <View className="py-3">
             <View className="mb-3 flex-row items-center gap-3">
@@ -693,7 +644,7 @@ export default function SettingsScreen() {
                 );
               })}
             </View>
-            <Caption className="px-1 pb-1 pt-2 text-[11px]">
+            <Caption className="px-1 pb-1 pt-2 text-2xs">
               Aurora skins restyle the dark base + ambient glow. Light mode stays Classic.
             </Caption>
           </View>
@@ -730,7 +681,7 @@ export default function SettingsScreen() {
                       )}>
                       <View className="h-8 w-8 rounded-full" style={{ backgroundColor: swatch }} />
                     </View>
-                    <Caption className={cn('text-center text-[11px]', selected ? 'font-semibold text-foreground' : '')}>
+                    <Caption className={cn('text-center text-2xs', selected ? 'font-semibold text-foreground' : '')}>
                       {theme.label}
                     </Caption>
                   </Pressable>
@@ -740,9 +691,9 @@ export default function SettingsScreen() {
           </View>
         </Card>
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Exercise media</Caption>
+        <SectionLabel className="mt-6">Exercise media</SectionLabel>
         <Card>
-          <StackedRow
+          <ListRow stacked
             icon={<Icon icon={Film} size={18} color="muted-foreground" />}
             title="Demonstration images"
             subtitle="Auto uses GIFs first, illustrations fill the gaps">
@@ -751,9 +702,9 @@ export default function SettingsScreen() {
               <Chip label="GIFs" selected={exerciseMediaStyle === 'gif'} onPress={() => setExerciseMediaStyle('gif')} />
               <Chip label="Illustrations" selected={exerciseMediaStyle === 'illustration'} onPress={() => setExerciseMediaStyle('illustration')} />
             </View>
-          </StackedRow>
+          </ListRow>
           <View className="h-px bg-border/60" />
-          <Row
+          <ListRow
             icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
             title="Illustration motion"
             subtitle="Cycle frames like an animation, or hold one pose">
@@ -761,17 +712,17 @@ export default function SettingsScreen() {
               <Chip label="Cycle" selected={exerciseMediaAnimation === 'cycle'} onPress={() => setExerciseMediaAnimation('cycle')} />
               <Chip label="Static" selected={exerciseMediaAnimation === 'static'} onPress={() => setExerciseMediaAnimation('static')} />
             </View>
-          </Row>
-          <Caption className="pb-3 pt-1 text-[11px]">
+          </ListRow>
+          <Caption className="pb-3 pt-1 text-2xs">
             Illustrations by Bryl Lim / Everkinetic · CC BY-SA 4.0
           </Caption>
         </Card>
 
         {__DEV__ ? (
           <>
-            <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Dev tools</Caption>
+            <SectionLabel className="mt-6">Dev tools</SectionLabel>
             <Card>
-              <StackedRow
+              <ListRow stacked
                 icon={<Icon icon={FlaskConical} size={18} color="muted-foreground" />}
                 title="Force media source"
                 subtitle="Overrides the preference above — testing only">
@@ -781,16 +732,16 @@ export default function SettingsScreen() {
                   <Chip label="GIFs" selected={devExerciseMediaOverride === 'gif'} onPress={() => setDevExerciseMediaOverride('gif')} />
                   <Chip label="Illustrations" selected={devExerciseMediaOverride === 'illustration'} onPress={() => setDevExerciseMediaOverride('illustration')} />
                 </View>
-              </StackedRow>
+              </ListRow>
             </Card>
           </>
         ) : null}
 
-        <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">Feedback</Caption>
+        <SectionLabel className="mt-6">Feedback</SectionLabel>
         <Card>
-          <Row icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
+          <ListRow icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
             <Switch value={hapticsEnabled} onValueChange={setHaptics} accessibilityLabel="Haptics" />
-          </Row>
+          </ListRow>
         </Card>
 
         <AboutSection />

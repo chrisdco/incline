@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 
 import { Caption } from '@/components/common/text';
+import { SectionLabel } from '@/components/layout';
 import { Chip } from '@/components/common/chip';
 import { READINESS_OPTIONS } from '@/coaching/readiness';
 import type { ReadinessLevel } from '@/coaching/types';
@@ -15,7 +16,7 @@ export function ReadinessCheckIn({
 }) {
   return (
     <View className="mb-4 rounded-2xl bg-card px-4 py-3">
-      <Caption className="mb-2 font-semibold uppercase tracking-wide">How do you feel?</Caption>
+      <SectionLabel>How do you feel?</SectionLabel>
       <Caption className="mb-3">Optional — tired softens load suggestions today.</Caption>
       <View className="flex-row flex-wrap gap-2">
         {READINESS_OPTIONS.map((o) => (
