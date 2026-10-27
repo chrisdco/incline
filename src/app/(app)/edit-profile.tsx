@@ -27,7 +27,7 @@ const LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced'];
 export default function EditProfileScreen() {
   const router = useRouter();
   const { toast } = useToast();
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   const { data: profile, refetch } = useProfile();
 
   const [name, setName] = useState('');

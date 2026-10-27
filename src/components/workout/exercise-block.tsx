@@ -1,9 +1,7 @@
 import { memo, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { cn } from '@/lib/cn';
-import { motionDuration } from '@/styles/motion';
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Text } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
@@ -231,9 +229,10 @@ function ExerciseBlockImpl({
       </View>
 
       <ExerciseNoteField logId={logId} exerciseId={exerciseId} />
-      {/* Layout-animated unit: when the note editor above expands/collapses,
-          rest + plates + sets glide instead of snapping. */}
-      <Animated.View layout={LinearTransition.duration(motionDuration.enter)} className="gap-2">
+      {/* Plain View: the session screen already layout-animates each block,
+          and a nested LinearTransition doubled the animation work on every
+          set add/remove. */}
+      <View className="gap-2">
       <Pressable
         onPress={() => setRestPickerOpen(true)}
         accessibilityRole="button"
@@ -340,7 +339,7 @@ function ExerciseBlockImpl({
           <Text className="text-sm font-medium text-warning">Warm-up (~50%)</Text>
         </Pressable>
       ) : null}
-      </Animated.View>
+      </View>
 
       <RestTimerPickerSheet
         open={restPickerOpen}

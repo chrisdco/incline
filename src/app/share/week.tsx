@@ -38,7 +38,7 @@ export default function ShareWeekScreen() {
   const weekStartMs = weekStartParam ? Number(weekStartParam) : defaultWeekStart;
   const router = useRouter();
   const { toast } = useToast();
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   const { data: profile } = useProfile();
   const { data: recap, loading } = useWeeklyRecap(weekStartMs);
   const [index, setIndex] = useState(0);

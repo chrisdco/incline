@@ -28,6 +28,7 @@ import {
 } from '@/components/progress/history-filters';
 import { usePeriodStats, useWorkoutLogs } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
+import { useShallow } from 'zustand/react/shallow';
 import { usePrimaryHex } from '@/lib/theme';
 import { isAuroraAccent } from '@/lib/accent-themes';
 import { formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
@@ -58,7 +59,7 @@ function monthLabel(key: string): string {
 
 export default function ProgressScreen() {
   const router = useRouter();
-  const { unit, accentTheme } = useSettings();
+  const { unit, accentTheme } = useSettings(useShallow((s) => ({ unit: s.unit, accentTheme: s.accentTheme })));
   const primaryHex = usePrimaryHex();
   const aurora = isAuroraAccent(accentTheme);
   const [range, setRange] = useState<ProgressRange>('30d');

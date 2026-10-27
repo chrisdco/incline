@@ -28,7 +28,7 @@ export default function DayScreen() {
   const dayMs = Number(ms);
   const router = useRouter();
   const { toast } = useToast();
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   const { data: profile } = useProfile();
   const [state, setState] = useState<{ ms: number; items: FeedWorkoutLog[] | null }>({ ms: dayMs, items: null });
   const [menuLog, setMenuLog] = useState<FeedWorkoutLog | null>(null);

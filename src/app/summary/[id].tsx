@@ -38,6 +38,7 @@ import { requestCoachNarration, type CoachNarration } from '@/coaching/narrate-c
 import { detectSetFatigue } from '@/coaching/fatigue';
 import type { TrainingSuggestion } from '@/coaching/types';
 import { useSettings } from '@/store/settings-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useDbQuery, useProfile } from '@/hooks/use-data';
 import { TABLES } from '@/lib/query-keys';
 import { formatDuration, formatVolume, formatWeight, formatFullDateTime } from '@/db/calc';
@@ -60,7 +61,7 @@ export default function SummaryScreen() {
   const showCelebration = celebrate === '1' || celebrate === 'true';
   const router = useRouter();
   const { toast } = useToast();
-  const { unit, showRpe, exerciseWeightUnits } = useSettings();
+  const { unit, showRpe, exerciseWeightUnits } = useSettings(useShallow((s) => ({ unit: s.unit, showRpe: s.showRpe, exerciseWeightUnits: s.exerciseWeightUnits })));
   const { userId, getToken } = useAppAuth();
   const getTokenRef = useRef(getToken);
   const { data: profile } = useProfile();

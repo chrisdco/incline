@@ -22,6 +22,7 @@ import {
 import { formatDuration, formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
 import { useProfile, useMonthlyRecap } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
+import { useShallow } from 'zustand/react/shallow';
 import {
   captureSharePng,
   downloadSharePng,
@@ -43,7 +44,7 @@ export default function ShareMonthScreen() {
   const resolvedStart = Number.isFinite(monthStartMs) ? monthStartMs : defaultStart;
   const router = useRouter();
   const { toast } = useToast();
-  const { unit, weekStartsOn } = useSettings();
+  const { unit, weekStartsOn } = useSettings(useShallow((s) => ({ unit: s.unit, weekStartsOn: s.weekStartsOn })));
   const { data: profile } = useProfile();
   const { data: recap, loading } = useMonthlyRecap(resolvedStart);
   const [index, setIndex] = useState(0);

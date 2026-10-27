@@ -23,6 +23,7 @@ import {
   deleteBodyMeasurement,
 } from '@/db/queries';
 import { useSettings } from '@/store/settings-store';
+import { useShallow } from 'zustand/react/shallow';
 import { BODY_METRIC_LABELS, bodyMetricToDisplay, bodyMetricUnit } from '@/lib/body-metrics';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { cn } from '@/lib/cn';
@@ -133,7 +134,7 @@ export default function BodyweightScreen() {
   const navigation = useNavigation();
   const { toast } = useToast();
   const { impact } = useHaptics();
-  const { unit, enabledBodyMetrics, toggleBodyMetric } = useSettings();
+  const { unit, enabledBodyMetrics, toggleBodyMetric } = useSettings(useShallow((s) => ({ unit: s.unit, enabledBodyMetrics: s.enabledBodyMetrics, toggleBodyMetric: s.toggleBodyMetric })));
 
   const visibleMetrics = useMemo(
     () => BODY_METRICS.filter((m) => enabledBodyMetrics.includes(m)),

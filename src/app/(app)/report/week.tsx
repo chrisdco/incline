@@ -26,7 +26,7 @@ export default function WeekReportScreen() {
   const [defaultWeekStart] = useState(() => startOfWeek(Date.now()));
   const weekStartMs = weekStartParam ? Number(weekStartParam) : defaultWeekStart;
   const router = useRouter();
-  const { unit } = useSettings();
+  const unit = useSettings((s) => s.unit);
   const { data: recap, loading, error, refetch } = useWeeklyRecap(
     Number.isFinite(weekStartMs) ? weekStartMs : defaultWeekStart,
   );
