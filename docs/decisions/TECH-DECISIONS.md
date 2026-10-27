@@ -141,3 +141,12 @@ Short-lived alternatives log. Revisit only when a trigger below fires; otherwise
 - **Known limit:** a device still on a pre-§15 build keeps writing pound numbers; every device must update. Pre-alpha, accepted.
 - **Per-exercise unit:** an exercise may override the global display unit — settings `exerciseWeightUnits`, keyed by `exerciseRefKey` ('custom:<uuid>' | 'catalog:<external id>'), resolved with `resolveWeightUnit`. Switch it from the session exercise menu or the exercise detail screen; picking the global unit clears the override. Display only, never stored values, so a switch rewrites nothing and syncs as one small account-prefs change (the `user_preferences` jsonb payload — no server schema change). Kept in the synced settings map rather than an `exercises` column so there is one source of truth and catalog re-seeding can't drop it. Applies to set rows, prev text, suggestions/plate increments, PR toasts, summary and exercise detail; cross-exercise volume totals use the global unit.
 - **Revisit when:** a bodyweight/assisted-load model lands (negative or added loads), or stones/other units are requested — both extend `units.ts`, not storage.
+
+## 16. Releases: EAS channels per stage, OTA via expo-updates (2026-10-27)
+
+- **Stages = EAS build profiles = update channels:** `development`, `alpha`, `beta`, `production` (`preview` extends `alpha`). A binary only receives updates published to its own channel, so `eas update --channel alpha` never reaches beta testers.
+- **`runtimeVersion: fingerprint`.** An OTA only lands on binaries with identical native code; adding a native module forces a new build instead of shipping JS that would crash.
+- **Stage shown in-app** from `Updates.channel` (fallback `EXPO_PUBLIC_RELEASE_STAGE`, `__DEV__` → development): `src/lib/release.ts`. `formatRelease()` is the string for Settings → About, bug reports and later Sentry tags.
+- **Checks:** native on cold launch (`ON_LOAD`, applies next launch) + `UpdateBootstrap` on foreground (hourly) with a "Restart" toast, suppressed during an active workout; manual check in Settings → About. All no-op in Expo Go / dev builds.
+- **Versioning:** `version` in app.json is the marketing version (bump per release); build numbers are remote (`appVersionSource: remote`, `autoIncrement` on production).
+- **Not yet:** `updates.url` needs `eas init` (EAS project id) — until then `Updates.isEnabled` is false and everything degrades to "Not available in this build". Store-binary update prompts (new native version) come with the first store release.

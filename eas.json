@@ -6,17 +6,43 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_RELEASE_STAGE": "development"
       }
     },
+    "alpha": {
+      "distribution": "internal",
+      "channel": "alpha",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_RELEASE_STAGE": "alpha"
+      }
+    },
+    "beta": {
+      "distribution": "internal",
+      "channel": "beta",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_RELEASE_STAGE": "beta"
+      }
+    },
+    "preview": {
+      "extends": "alpha"
+    },
     "production": {
+      "channel": "production",
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_RELEASE_STAGE": "production"
       }
     }
   },

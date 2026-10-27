@@ -24,6 +24,7 @@ import { themeHex } from '@/lib/theme';
 import { CLERK_PUBLISHABLE_KEY, isDevAuthBypassEnabled } from '@/lib/env';
 import { secureTokenCache } from '@/auth/secure-store';
 import { ToastProvider } from '@/components/ui/toast';
+import { UpdateBootstrap } from '@/features/updates';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { useDatabaseReady } from '@/hooks/use-database';
 import { useNotificationRouting } from '@/hooks/use-notification-routing';
@@ -105,6 +106,7 @@ function AppShell() {
                 <ToastProvider>
                   <NotificationBootstrap />
                   <WidgetBootstrap />
+                  <UpdateBootstrap />
                   <Stack
                     screenOptions={{
                       headerShown: false,
