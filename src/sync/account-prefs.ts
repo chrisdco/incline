@@ -13,6 +13,7 @@ export const ACCOUNT_PREF_KEYS = [
   'autoStartRest',
   'defaultRestSeconds',
   'showSessionGhost',
+  'exerciseWeightUnits',
 ] as const;
 
 export const ACCOUNT_PREFS_ROW = 'prefs';
@@ -32,6 +33,8 @@ export type AccountPrefsPayload = {
   autoStartRest: boolean;
   defaultRestSeconds: number;
   showSessionGhost: boolean;
+  /** exerciseRefKey → 'metric' | 'imperial' (display only). */
+  exerciseWeightUnits: Record<string, 'metric' | 'imperial'>;
 };
 
 export const ACCOUNT_PREF_DEFAULTS: AccountPrefsPayload = {
@@ -46,6 +49,7 @@ export const ACCOUNT_PREF_DEFAULTS: AccountPrefsPayload = {
   autoStartRest: true,
   defaultRestSeconds: 90,
   showSessionGhost: true,
+  exerciseWeightUnits: {},
 };
 
 export function pickAccountPrefs(state: Record<string, unknown>): AccountPrefsPayload {
@@ -83,7 +87,20 @@ export function pickAccountPrefs(state: Record<string, unknown>): AccountPrefsPa
       typeof state.showSessionGhost === 'boolean'
         ? state.showSessionGhost
         : ACCOUNT_PREF_DEFAULTS.showSessionGhost,
+    exerciseWeightUnits: sanitizeExerciseWeightUnits(state.exerciseWeightUnits),
   };
+}
+
+/** Keep only `refKey → 'metric' | 'imperial'` entries; anything else is dropped. */
+export function sanitizeExerciseWeightUnits(value: unknown): Record<string, 'metric' | 'imperial'> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: Record<string, 'metric' | 'imperial'> = {};
+  for (const [key, unit] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof key === 'string' && key.length > 0 && (unit === 'metric' || unit === 'imperial')) {
+      out[key] = unit;
+    }
+  }
+  return out;
 }
 
 export function accountPrefsChanged(

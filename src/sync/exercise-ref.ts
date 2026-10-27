@@ -31,6 +31,22 @@ export function exerciseRefFromRow(exerciseId: number, row: ExerciseRefRow | nul
   return { ref: 'catalog', externalId: `seed:${exerciseId}` };
 }
 
+/**
+ * Stable string key for an exercise across devices ('custom:<uuid>' or
+ * 'catalog:<external id>'), used where a ref must key a map — e.g. the
+ * synced per-exercise weight unit. Null when the exercise has no sync identity.
+ */
+export function exerciseRefKey(ref: ExerciseRef): string | null {
+  if (ref.ref === 'custom') return `custom:${ref.exerciseUuid}`;
+  if (ref.ref === 'catalog') return `catalog:${ref.externalId}`;
+  return null;
+}
+
+/** Ref key straight from row columns (no query). */
+export function exerciseRefKeyFromRow(exerciseId: number, row: ExerciseRefRow): string | null {
+  return exerciseRefKey(exerciseRefFromRow(exerciseId, row));
+}
+
 /** Resolve a sync exercise ref to a local integer id (creates nothing). */
 export async function resolveExerciseRef(ref: ExerciseRef): Promise<number | null> {
   const db = await openDatabase();

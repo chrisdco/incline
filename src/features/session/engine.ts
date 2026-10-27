@@ -13,6 +13,7 @@ import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
 import type { ExercisePRSummary, SessionGhost, SessionSet, SessionWorkout, SetPatch } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
 import type { SetEntry, SetType, Unit } from '@/db/types';
+import { resolveWeightUnit } from '@/lib/units';
 
 /**
  * Live-session engine: every piece of in-progress workout state, outside
@@ -74,7 +75,11 @@ export interface SessionEngineDeps {
   getRestDefaultsForSession: (logId: number) => Promise<Record<number, number>>;
   getLastSetsForExercises: (ids: number[]) => Promise<Record<number, SetEntry[]>>;
   getExercisePRSummaries: (ids: number[]) => Promise<Record<number, ExercisePRSummary>>;
-  getTemplateSuggestions: (templateId: number, unit: Unit) => Promise<TrainingSuggestion[]>;
+  getTemplateSuggestions: (
+    templateId: number,
+    unit: Unit,
+    unitOverrides?: Readonly<Record<string, Unit>>,
+  ) => Promise<TrainingSuggestion[]>;
   getSessionGhost: (opts: {
     templateId: number | null;
     name: string | null;
@@ -98,6 +103,8 @@ export interface SessionEngineDeps {
   kvRemove: (key: string) => Promise<void>;
   settings: () => {
     unit: Unit;
+    /** Per-exercise display units keyed by exerciseRefKey (§15). */
+    exerciseWeightUnits: Readonly<Record<string, Unit>>;
     showSessionGhost: boolean;
     autoStartRest: boolean;
     defaultRestSeconds: number;
@@ -246,15 +253,20 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     if (changed) set({ restSeconds: next });
   }
 
+  function unitFor(refKey: string | null | undefined): Unit {
+    const { unit, exerciseWeightUnits } = deps.settings();
+    return resolveWeightUnit(exerciseWeightUnits, refKey, unit);
+  }
+
   async function loadAssistFull(gen: number, s: SessionWorkout): Promise<void> {
     const run = (assistRun += 1);
-    const { unit, showSessionGhost } = deps.settings();
+    const { unit, exerciseWeightUnits, showSessionGhost } = deps.settings();
     const ids = [...new Set(s.sets.map((x) => x.exerciseId))];
     for (const id of ids) assistKnown.add(id);
     const [lastMap, prMap, sug, ghost] = await Promise.all([
       deps.getLastSetsForExercises(ids),
       deps.getExercisePRSummaries(ids),
-      s.templateId ? deps.getTemplateSuggestions(s.templateId, unit) : Promise.resolve([]),
+      s.templateId ? deps.getTemplateSuggestions(s.templateId, unit, exerciseWeightUnits) : Promise.resolve([]),
       showSessionGhost
         ? deps.getSessionGhost({
             templateId: s.templateId,
@@ -445,7 +457,7 @@ export function createSessionEngine(deps: SessionEngineDeps) {
           ui.celebrate();
           ui.toast({
             title: 'New PR!',
-            description: `${target.exerciseName} · ${formatWeight(target.weight, deps.settings().unit)} × ${target.reps} · ${formatCelebrationKinds(kinds, target.reps)}`,
+            description: `${target.exerciseName} · ${formatWeight(target.weight, unitFor(target.exerciseRefKey))} × ${target.reps} · ${formatCelebrationKinds(kinds, target.reps)}`,
             variant: 'success',
           });
         }

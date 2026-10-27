@@ -77,6 +77,14 @@ export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
 
       await ensureSyncUuids(database);
 
+      // Once per device: stored loads become canonical kg/cm (§15). Lazy
+      // import keeps the query modules out of this module's load cycle.
+      const { canonicalizeStoredUnits } = await import('./canonical-units');
+      const units = await canonicalizeStoredUnits(database);
+      if (units.ran && units.sets + units.bodyweight + units.measurements > 0) {
+        console.info('[db] canonical units backfill', units);
+      }
+
       // Ensure version meta matches after repair (e.g. stamped early without columns).
       await database.runAsync(
         "INSERT INTO schema_meta (key, value) VALUES ('version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",

@@ -23,7 +23,7 @@ import {
   deleteBodyMeasurement,
 } from '@/db/queries';
 import { useSettings } from '@/store/settings-store';
-import { BODY_METRIC_LABELS, bodyMetricUnit } from '@/lib/body-metrics';
+import { BODY_METRIC_LABELS, bodyMetricToDisplay, bodyMetricUnit } from '@/lib/body-metrics';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { cn } from '@/lib/cn';
 import { BODY_METRICS, type BodyMetric } from '@/db/types';
@@ -158,10 +158,11 @@ export default function BodyweightScreen() {
     if (metric === 'bodyweight') {
       const data = await getBodyweightEntries(365);
       setEntries(
+        // Canonical kg → display unit, so the chart never jumps 2.2x (#144).
         data.map((e) => ({
           id: e.id,
-          value: e.weight,
-          unit: e.unit,
+          value: bodyMetricToDisplay('bodyweight', e.weight, unit),
+          unit: bodyMetricUnit('bodyweight', unit),
           recordedAt: e.recordedAt,
           source: 'bodyweight' as const,
         })),
@@ -172,13 +173,13 @@ export default function BodyweightScreen() {
     setEntries(
       data.map((e) => ({
         id: e.id,
-        value: e.value,
-        unit: e.unit,
+        value: bodyMetricToDisplay(metric, e.value, unit),
+        unit: bodyMetricUnit(metric, unit),
         recordedAt: e.recordedAt,
         source: 'measurement' as const,
       })),
     );
-  }, [metric]);
+  }, [metric, unit]);
 
   useEffect(() => {
     void load();

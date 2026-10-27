@@ -41,11 +41,14 @@ import { PLACEHOLDER_COLOR } from '@/constants/config';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 
-import type { MuscleGroup, SetEntry } from '@/db/types';
+import type { MuscleGroup, SetEntry, Unit } from '@/db/types';
+import { resolveWeightUnit } from '@/lib/units';
 
 interface Group {
   exerciseId: number;
   exerciseName: string;
+  /** Cross-device key; resolves this exercise's display unit. */
+  refKey: string | null;
   sets: SetEntry[];
   supersetGroup: number | null;
 }
@@ -82,7 +85,7 @@ export default function SessionScreen() {
   const { toast } = useToast();
   const { impact, notify } = useHaptics();
   const clear = useActiveWorkout((s) => s.clear);
-  const { unit, setUnit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost } = useSettings();
+  const { unit, setUnit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost, exerciseWeightUnits, setExerciseWeightUnit } = useSettings();
   const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId });
   const restSound = useRestTimerSound();
 
@@ -179,6 +182,7 @@ export default function SessionScreen() {
       g = {
         exerciseId: s.exerciseId,
         exerciseName: s.exerciseName,
+        refKey: s.exerciseRefKey,
         sets: [],
         supersetGroup: s.supersetGroup ?? null,
       };
@@ -186,6 +190,18 @@ export default function SessionScreen() {
     }
     g.sets.push(s);
   }
+
+  // Per-exercise display unit. Picking the global unit clears the override,
+  // so the exercise follows future global changes again. Display only —
+  // stored weights are kg, so nothing is rewritten (§15).
+  const changeExerciseUnit = (exerciseId: number, next: Unit) => {
+    const refKey = groups.find((x) => x.exerciseId === exerciseId)?.refKey;
+    if (!refKey) {
+      toast({ title: 'This exercise can’t have its own unit yet', variant: 'warning' });
+      return;
+    }
+    setExerciseWeightUnit(refKey, next === unit ? null : next);
+  };
 
   // The exercise the user should be working on: first group that still has an
   // unfinished set, else the last group.
@@ -423,7 +439,8 @@ export default function SessionScreen() {
                   name={g.exerciseName}
                   exerciseId={g.exerciseId}
                   sets={g.sets}
-                  unit={unit}
+                  unit={resolveWeightUnit(exerciseWeightUnits, g.refKey, unit)}
+                  onChangeUnit={changeExerciseUnit}
                   lastSets={lastSetsMap[g.exerciseId] ?? []}
                   prSummary={prMap[g.exerciseId] ?? null}
                   restSeconds={restSecondsMap[g.exerciseId] ?? 0}

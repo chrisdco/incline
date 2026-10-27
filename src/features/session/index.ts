@@ -48,6 +48,7 @@ export const sessionEngine = createSessionEngine({
     const s = useSettings.getState();
     return {
       unit: s.unit,
+      exerciseWeightUnits: s.exerciseWeightUnits,
       showSessionGhost: s.showSessionGhost,
       autoStartRest: s.autoStartRest,
       defaultRestSeconds: s.defaultRestSeconds,

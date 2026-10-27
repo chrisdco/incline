@@ -40,6 +40,7 @@ import { workingSetVolume } from '@/lib/session-ghost';
 import type { Exercise, SetEntry } from '@/db/types';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { usePrimaryHex } from '@/lib/theme';
+import { resolveWeightUnit } from '@/lib/units';
 
 interface ExerciseGroup {
   exerciseId: number;
@@ -54,7 +55,7 @@ export default function EditWorkoutScreen() {
   const router = useRouter();
   const { toast } = useToast();
   const { impact } = useHaptics();
-  const { unit, showRpe } = useSettings();
+  const { unit, showRpe, exerciseWeightUnits } = useSettings();
   const accentColor = usePrimaryHex();
   const [log, setLog] = useState<SessionWorkout | null>(null);
   const [loading, setLoading] = useState(true);
@@ -437,7 +438,7 @@ export default function EditWorkoutScreen() {
                     previousWeight={i > 0 ? g.sets[i - 1].weight : undefined}
                     previousReps={i > 0 ? g.sets[i - 1].reps : undefined}
                     completed={s.completed}
-                    unit={unit}
+                    unit={resolveWeightUnit(exerciseWeightUnits, s.exerciseRefKey, unit)}
                     onChangeWeight={(v) => onChangeWeight(s.id, v)}
                     onChangeReps={(v) => onChangeReps(s.id, v)}
                     onApplyPrevious={

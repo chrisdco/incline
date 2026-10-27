@@ -14,6 +14,7 @@ import { Chip } from '@/components/common/chip';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { useProfile } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
+import { displayToKg, kgToInput } from '@/lib/units';
 import { useToast } from '@/components/ui/toast';
 import { saveProfile } from '@/db/queries';
 import { EXPERIENCE_LABELS, GOAL_LABELS } from '@/lib/labels';
@@ -41,9 +42,9 @@ export default function EditProfileScreen() {
     setName(profile.name ?? '');
     setGoal(profile.goal ?? 'build_muscle');
     setExperienceLevel(profile.experienceLevel ?? 'intermediate');
-    setBodyweight(profile.bodyweight != null ? String(profile.bodyweight) : '');
+    setBodyweight(profile.bodyweight != null ? String(kgToInput(profile.bodyweight, unit)) : '');
     setAvatarUrl(profile.avatarUrl);
-  }, [profile]);
+  }, [profile, unit]);
 
   const pickAvatar = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -72,7 +73,8 @@ export default function EditProfileScreen() {
     setSaving(true);
     // Computed outside the try: the compiler can't lower conditionals inside one.
     const bw = bodyweight.trim() ? parseFloat(bodyweight.replace(',', '.')) : null;
-    const savedBodyweight = Number.isFinite(bw as number) ? bw : null;
+    // Typed in the display unit; profile stores canonical kg.
+    const savedBodyweight = Number.isFinite(bw as number) ? displayToKg(bw as number, unit) : null;
     try {
       await saveProfile({
         name: name.trim(),

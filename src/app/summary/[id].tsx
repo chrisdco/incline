@@ -46,6 +46,7 @@ import { MUSCLE_LABELS } from '@/lib/labels';
 import { workingSetVolume } from '@/lib/session-ghost';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import type { MuscleDistribution, WorkoutPhoto } from '@/db/types';
+import { resolveWeightUnit } from '@/lib/units';
 
 export default function SummaryScreen() {
   const { id, celebrate } = useLocalSearchParams<{ id: string; celebrate?: string }>();
@@ -53,7 +54,7 @@ export default function SummaryScreen() {
   const showCelebration = celebrate === '1' || celebrate === 'true';
   const router = useRouter();
   const { toast } = useToast();
-  const { unit, showRpe } = useSettings();
+  const { unit, showRpe, exerciseWeightUnits } = useSettings();
   const { userId, getToken } = useAppAuth();
   const getTokenRef = useRef(getToken);
   const { data: profile } = useProfile();
@@ -470,7 +471,7 @@ export default function SummaryScreen() {
                   <View key={s.id} className="flex-row items-center gap-3 px-1 py-1.5">
                     <Caption className="w-10 font-medium">{s.setIndex + 1}</Caption>
                     <Body className="flex-1 text-sm text-foreground">
-                      {s.weight > 0 ? `${formatWeight(s.weight, unit)} × ${s.reps}` : `${s.reps} reps`}
+                      {s.weight > 0 ? `${formatWeight(s.weight, resolveWeightUnit(exerciseWeightUnits, s.exerciseRefKey, unit))} × ${s.reps}` : `${s.reps} reps`}
                       {showRpe && s.rpe != null ? ` · RPE ${s.rpe}` : ''}
                     </Body>
                   </View>

@@ -35,7 +35,7 @@ export interface MuscleSplit {
   sets: number;
 }
 
-async function enqueueLogUpsert(tx: Tx, logId: number): Promise<void> {
+export async function enqueueLogUpsert(tx: Tx, logId: number): Promise<void> {
   const log = await tx.getFirstAsync<LogRow & { template_uuid: string | null }>(
     `SELECT w.*, t.uuid as template_uuid
      FROM workout_logs w
@@ -78,7 +78,7 @@ type SetSyncRow = SetRow & {
  * exercise columns the sync ref needs) instead of two per set, then the
  * outbox rows on the same tx. Returns the rows so callers can settle volume.
  */
-async function enqueueSetUpserts(tx: Tx, setIds: number[]): Promise<SetSyncRow[]> {
+export async function enqueueSetUpserts(tx: Tx, setIds: number[]): Promise<SetSyncRow[]> {
   if (setIds.length === 0) return [];
   const placeholders = setIds.map(() => '?').join(',');
   const rows = await tx.getAllAsync<SetSyncRow>(

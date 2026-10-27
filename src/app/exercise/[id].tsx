@@ -32,8 +32,10 @@ import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
 import { MOVEMENT_LABELS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/lib/labels';
-import { estimated1RM, formatWeight, formatVolume, relativeTime } from '@/db/calc';
+import { estimated1RM, formatDisplayVolume, formatDisplayWeight, formatWeight, relativeTime } from '@/db/calc';
+import { kgToDisplay, weightLabel } from '@/lib/units';
 import type { Exercise, ExerciseHistoryRow, Unit } from '@/db/types';
+import { resolveWeightUnit } from '@/lib/units';
 
 const TABS = ['Summary', 'Progress', 'History', 'How to'] as const;
 type Tab = typeof TABS[number];
@@ -46,9 +48,16 @@ interface SessionGroup {
   sets: ExerciseHistoryRow[];
 }
 
+const UNIT_VALUES: { value: Unit; label: string }[] = [
+  { value: 'metric', label: 'kg' },
+  { value: 'imperial', label: 'lb' },
+];
+
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { unit } = useSettings();
+  const globalUnit = useSettings((s) => s.unit);
+  const exerciseWeightUnits = useSettings((s) => s.exerciseWeightUnits);
+  const setExerciseWeightUnit = useSettings((s) => s.setExerciseWeightUnit);
   const navigation = useNavigation();
   const router = useRouter();
   const { toast } = useToast();
@@ -88,6 +97,9 @@ export default function ExerciseDetailScreen() {
   const error = isSupabaseId ? !supabaseExercise && !supabaseLoading : localError;
   const refetch = isSupabaseId ? fetchSupabaseExercise : localRefetch;
   const exerciseId = exercise?.id ?? 0;
+  // This exercise's own display unit (override or global, §15).
+  const refKey = exercise && 'refKey' in exercise ? exercise.refKey : null;
+  const unit = resolveWeightUnit(exerciseWeightUnits, refKey, globalUnit);
 
   const { data: history } = useExerciseHistory(exerciseId);
   const [prSummary, setPrSummary] = useState<ExercisePRSummary | null>(null);
@@ -215,6 +227,20 @@ export default function ExerciseDetailScreen() {
           Routines
         </Button>
       </View>
+
+      {/* Per-exercise unit: picking the global unit clears the override. */}
+      {refKey ? (
+        <View className="mt-3 flex-row items-center justify-between px-4">
+          <Caption>Weight unit for this exercise</Caption>
+          <View style={{ width: 112 }}>
+            <SegmentedControl<Unit>
+              values={UNIT_VALUES}
+              value={unit}
+              onChange={(next) => setExerciseWeightUnit(refKey, next === globalUnit ? null : next)}
+            />
+          </View>
+        </View>
+      ) : null}
 
       {/* Tab selector */}
       <View className="mt-3 px-4">
@@ -368,21 +394,21 @@ function ProgressTab({
     <View className="gap-4">
       <SeriesAreaChart
         title="Estimated 1RM"
-        points={chartPoints.map((p) => ({ label: p.label, value: p.e1rm }))}
-        formatValue={(v) => formatWeight(v, unit)}
-        valueHint={unit === 'metric' ? 'kg' : 'lb'}
+        points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.e1rm, unit) }))}
+        formatValue={(v) => formatDisplayWeight(v, unit)}
+        valueHint={weightLabel(unit)}
       />
       <SeriesAreaChart
         title="Set Volume"
-        points={chartPoints.map((p) => ({ label: p.label, value: p.setVolume }))}
-        formatValue={(v) => formatVolume(v, unit)}
+        points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.setVolume, unit) }))}
+        formatValue={(v) => formatDisplayVolume(v, unit)}
         valueHint="volume"
       />
       <SeriesAreaChart
         title="Heaviest weight"
-        points={chartPoints.map((p) => ({ label: p.label, value: p.weight }))}
-        formatValue={(v) => formatWeight(v, unit)}
-        valueHint={unit === 'metric' ? 'kg' : 'lb'}
+        points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.weight, unit) }))}
+        formatValue={(v) => formatDisplayWeight(v, unit)}
+        valueHint={weightLabel(unit)}
       />
     </View>
   );

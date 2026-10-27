@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 
 import { openDatabase } from '../client';
 import { isSetType } from '../types';
+import { labelledToCanonical } from '@/lib/units';
 import {
   buildExportJson,
   csvForSingleSection,
@@ -195,15 +196,16 @@ async function buildJsonPayload(range: ExportRange, rows: ExportSetRow[]): Promi
     })),
     bodyweight: bodyweight.map((b) => ({
       id: b.id,
-      weight: b.weight,
-      unit: b.unit,
+      // Canonical kg; older synced rows may still carry 'lb'.
+      weight: labelledToCanonical(b.weight, b.unit),
+      unit: 'kg',
       recordedAt: b.recorded_at,
     })),
     bodyMeasurements: bodyMeasurements.map((m) => ({
       id: m.id,
       metric: m.metric,
-      value: m.value,
-      unit: m.unit,
+      value: labelledToCanonical(m.value, m.unit),
+      unit: 'cm',
       recordedAt: m.recorded_at,
     })),
   };

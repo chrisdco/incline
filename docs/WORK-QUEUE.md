@@ -97,8 +97,12 @@ queue, account-switch wipe) outranks new features — file it as
 
 Verify in session plus charts. Related: #126.
 
-- [#136](https://github.com/chrisdco/incline/issues/136) unit toggle relabels instead of converting — needs convert-vs-freeze decision first
-- [#144](https://github.com/chrisdco/incline/issues/144) bodyweight chart ignores unit changes
+Decided: canonical kg/cm storage, convert at the edges, optional per-exercise
+display unit ([TECH-DECISIONS §15](./decisions/TECH-DECISIONS.md)). Deploy
+`supabase/units-canonical.sql` once with the app update.
+
+- [#136](https://github.com/chrisdco/incline/issues/136) unit toggle relabels instead of converting — **addressed** (§15); close after an imperial gym-smoke
+- [#144](https://github.com/chrisdco/incline/issues/144) bodyweight chart ignores unit changes — **addressed** (§15); close after a toggle check
 - [#165](https://github.com/chrisdco/incline/issues/165) warm-ups inflate displayed volume and counts
 - [#190](https://github.com/chrisdco/incline/issues/190) exercise history counts warm-ups as work
 

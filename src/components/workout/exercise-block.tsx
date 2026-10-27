@@ -18,7 +18,8 @@ import type { SetEntry, SetType, Unit } from '@/db/types';
 import type { ExercisePRSummary } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
 import { detectSetFatigue } from '@/coaching/fatigue';
-import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical } from 'lucide-react-native';
+import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical, Scale } from 'lucide-react-native';
+import { SegmentedControl } from '@/components/common/segmented-control';
 import { SET_COL, SET_FLEX } from './set-layout';
 
 const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
@@ -43,6 +44,11 @@ const SET_TYPE_BADGE: Record<SetType, { letter: string; className: string }> = {
  * PR / load assist details live behind a compact info affordance so the set
  * list stays the primary focus during logging.
  */
+const UNIT_OPTIONS: { value: Unit; label: string }[] = [
+  { value: 'metric', label: 'kg' },
+  { value: 'imperial', label: 'lb' },
+];
+
 export function ExerciseBlock({
   logId,
   name,
@@ -66,6 +72,7 @@ export function ExerciseBlock({
   onReplaceExercise,
   onRemoveExercise,
   onReorderExercises,
+  onChangeUnit,
   showWarmUpSets = true,
   showRpe = true,
   loadSuggestion,
@@ -97,6 +104,8 @@ export function ExerciseBlock({
   onRemoveExercise?: (exerciseId: number, name: string) => void;
   /** Open the session reorder screen. */
   onReorderExercises?: () => void;
+  /** Switch this exercise's display unit (stored values stay kg). */
+  onChangeUnit?: (exerciseId: number, unit: Unit) => void;
   showWarmUpSets?: boolean;
   showRpe?: boolean;
   loadSuggestion?: TrainingSuggestion | null;
@@ -347,6 +356,24 @@ export function ExerciseBlock({
         title={name}
         mode="fit">
         <View className="gap-1 pb-2">
+          {onChangeUnit ? (
+            <View className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <Icon icon={Scale} size={18} color="foreground" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">Weight unit</Text>
+                <Caption>For this exercise · logged weights convert</Caption>
+              </View>
+              <View style={{ width: 112 }}>
+                <SegmentedControl<Unit>
+                  values={UNIT_OPTIONS}
+                  value={unit}
+                  onChange={(next) => {
+                    if (next !== unit) onChangeUnit(exerciseId, next);
+                  }}
+                />
+              </View>
+            </View>
+          ) : null}
           {onReplaceExercise ? (
             <Pressable
               onPress={() => {

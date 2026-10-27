@@ -66,6 +66,8 @@ export interface Exercise {
   instructions: string[];
   tips: string | null;
   imageUrl: string | null;
+  /** Cross-device key ('custom:<uuid>' | 'catalog:<ext>'); keys per-exercise prefs. */
+  refKey: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -252,6 +254,11 @@ export interface Settings {
   dismissedAnnouncementIds: string[];
   /** Show last-session comparison on workout preview and live session. */
   showSessionGhost: boolean;
+  /**
+   * Per-exercise display unit, keyed by `exerciseRefKey`. Absent = follow
+   * `unit`. Display only: stored loads are always kg (TECH-DECISIONS §15).
+   */
+  exerciseWeightUnits: Record<string, Unit>;
   /** Exercise demonstration artwork source preference. */
   exerciseMediaStyle: ExerciseMediaStyle;
   /** Cycle illustration frames on the detail screen vs a single static pose. */

@@ -2,15 +2,19 @@ import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
 import { enqueueSync } from '@/sync/outbox';
 import { mutate } from '../write';
+import { labelledToCanonical } from '@/lib/units';
 import type { BodyMeasurementEntry, BodyMetric } from '../types';
 
 type CircumferenceMetric = Exclude<BodyMetric, 'bodyweight'>;
 
+/** Log a circumference typed in `inputLabel` ('cm' | 'in'); stored canonical cm. */
 export async function addBodyMeasurement(
   metric: CircumferenceMetric,
-  value: number,
-  unit: string,
+  typed: number,
+  inputLabel: string,
 ): Promise<void> {
+  const value = labelledToCanonical(typed, inputLabel);
+  const unit = 'cm';
   const now = Date.now();
   const uuid = newUuid();
   await mutate(['body_measurements'], async (tx) => {
@@ -58,8 +62,8 @@ export async function getBodyMeasurements(
   return rows.map((r) => ({
     id: r.id,
     metric: r.metric as CircumferenceMetric,
-    value: r.value,
-    unit: r.unit,
+    value: labelledToCanonical(r.value, r.unit),
+    unit: 'cm',
     recordedAt: r.recorded_at,
   }));
 }
