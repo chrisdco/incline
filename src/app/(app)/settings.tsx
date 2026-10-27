@@ -5,8 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Moon, Sun, Smartphone, Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette,
   Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, ChevronRight, Sparkles, History,
-  Film, FlaskConical,
+  Film, FlaskConical, Info,
 } from 'lucide-react-native';
+import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
+import { formatRelease, releaseInfo } from '@/lib/release';
 import { Icon } from '@/components/common/icon';
 
 import { Body, Caption } from '@/components/common/text';
@@ -50,6 +52,50 @@ const WEEKDAY_CHIPS: { jsDay: number; label: string }[] = [
 ];
 
 /** Inline control on the right (switches, short chip rows). */
+/** Version + stage, and a manual update check (OTA via expo-updates). */
+function AboutSection() {
+  const { toast } = useToast();
+  const [checking, setChecking] = useState(false);
+  const [ready, setReady] = useState(false);
+  const info = releaseInfo();
+  const canUpdate = updatesEnabled();
+
+  const check = async () => {
+    setChecking(true);
+    const outcome = await checkForAppUpdate();
+    setChecking(false);
+    if (outcome === 'ready') setReady(true);
+    else if (outcome === 'none') toast({ title: 'You’re up to date', variant: 'success' });
+    else if (outcome === 'error') toast({ title: 'Couldn’t check for updates', description: 'Try again on a better connection.', variant: 'warning' });
+  };
+
+  return (
+    <>
+      <Caption className="mb-2 mt-6 font-semibold uppercase tracking-wide">About</Caption>
+      <Card>
+        <Row
+          icon={<Icon icon={Info} size={18} color="muted-foreground" />}
+          title="Version"
+          subtitle={info.updateCreatedAt ? `Updated ${info.updateCreatedAt.toLocaleDateString()}` : undefined}>
+          <Caption>{formatRelease(info)}</Caption>
+        </Row>
+        <Row
+          icon={<Icon icon={RefreshCw} size={18} color="muted-foreground" />}
+          title="App updates"
+          subtitle={canUpdate ? (ready ? 'Downloaded — restart to apply' : 'Checks automatically on launch') : 'Not available in this build'}>
+          {ready ? (
+            <Button size="sm" onPress={() => void applyAppUpdate()}>Restart</Button>
+          ) : (
+            <Button size="sm" variant="outline" disabled={!canUpdate || checking} loading={checking} onPress={() => void check()}>
+              Check
+            </Button>
+          )}
+        </Row>
+      </Card>
+    </>
+  );
+}
+
 function Row({
   icon,
   title,
@@ -746,6 +792,8 @@ export default function SettingsScreen() {
             <Switch value={hapticsEnabled} onValueChange={setHaptics} accessibilityLabel="Haptics" />
           </Row>
         </Card>
+
+        <AboutSection />
 
         <Caption className="mt-6 text-center">Incline · Built with Expo</Caption>
       </ScrollView>
