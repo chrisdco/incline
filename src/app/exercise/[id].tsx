@@ -4,7 +4,8 @@ import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-
 import { Lightbulb, Trophy, Plus, Play } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
-import { Heading, Body, Caption } from '@/components/common/text';
+import { Body, Caption, Text, Title } from '@/components/common/text';
+import { Section, StatBlock } from '@/components/layout';
 import { ExerciseMedia, ExerciseThumb } from '@/components/exercise/exercise-media';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -174,7 +175,7 @@ export default function ExerciseDetailScreen() {
       <View className="flex-row items-center gap-3 px-4 pt-2">
         <ExerciseThumb name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} size={40} />
         <View className="flex-1">
-          <Heading style={{ fontSize: 18 }}>{exercise.name}</Heading>
+          <Title numberOfLines={2}>{exercise.name}</Title>
           <Caption>
             {MUSCLE_LABELS[exercise.primaryMuscle]}
             {exercise.equipment ? ` · ${EQUIPMENT_LABELS[exercise.equipment] ?? exercise.equipment}` : ''}
@@ -182,22 +183,28 @@ export default function ExerciseDetailScreen() {
             {exercise.secondaryMuscles.length > 0 ? ` · +${exercise.secondaryMuscles.length} secondary` : ''}
           </Caption>
         </View>
+        {/* Per-exercise unit: applies to every tab; picking the global unit clears the override. */}
+        {refKey ? (
+          <View className="w-28">
+            <SegmentedControl<Unit>
+              values={UNIT_VALUES}
+              value={unit}
+              onChange={(next) => setExerciseWeightUnit(refKey, next === globalUnit ? null : next)}
+            />
+          </View>
+        ) : null}
       </View>
 
       {/* Discovery → training */}
-      <View className="flex-row gap-2 px-4 pt-3">
+      <View className="px-4 pt-4">
         {inActiveSession && activeLogId ? (
           <Button
-            className="flex-1"
-            size="sm"
             leftIcon={<Icon icon={Play} size={16} color="primary-foreground" />}
             onPress={() => router.push(`/session/${activeLogId}` as Href)}>
             Open workout
           </Button>
         ) : activeLogId ? (
           <Button
-            className="flex-1"
-            size="sm"
             leftIcon={<Icon icon={Plus} size={16} color="primary-foreground" />}
             onPress={() => { void addToActiveWorkout(); }}
             disabled={adding}>
@@ -205,38 +212,16 @@ export default function ExerciseDetailScreen() {
           </Button>
         ) : (
           <Button
-            className="flex-1"
-            size="sm"
             leftIcon={<Icon icon={Play} size={16} color="primary-foreground" />}
             onPress={() => { void startWithExercise(); }}
             disabled={adding}>
             {adding ? 'Starting…' : 'Start workout with this'}
           </Button>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          onPress={() => router.push('/(app)/(tabs)/workouts' as Href)}>
-          Routines
-        </Button>
       </View>
 
-      {/* Per-exercise unit: picking the global unit clears the override. */}
-      {refKey ? (
-        <View className="mt-3 flex-row items-center justify-between px-4">
-          <Caption>Weight unit for this exercise</Caption>
-          <View style={{ width: 112 }}>
-            <SegmentedControl<Unit>
-              values={UNIT_VALUES}
-              value={unit}
-              onChange={(next) => setExerciseWeightUnit(refKey, next === globalUnit ? null : next)}
-            />
-          </View>
-        </View>
-      ) : null}
-
       {/* Tab selector */}
-      <View className="mt-3 px-4">
+      <View className="mt-4 px-4">
         <SegmentedControl values={TAB_VALUES} value={tab} onChange={(v) => setTab(v)} />
       </View>
 
@@ -287,6 +272,22 @@ function SummaryTab({
       {/* Exercise GIF / illustration */}
       <ExerciseMedia name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} height={200} />
 
+      {/* Records lead: opening an exercise mid-workout is usually "what's my best?". */}
+      {prSummary && prSummary.heaviestWeight > 0 ? (
+        <Section title="Personal records" first className="mb-6">
+          <Card>
+            <View className="flex-row">
+              <StatBlock align="start" label="Heaviest" value={formatWeight(prSummary.heaviestWeight, unit)} tone="primary" />
+              <StatBlock align="start" label="Best e1RM" value={formatWeight(prSummary.best1RM, unit)} />
+            </View>
+            <View className="mt-4 flex-row">
+              <StatBlock align="start" label="Best set" value={formatWeight(prSummary.bestSetVolume, unit)} />
+              <StatBlock align="start" label="Best session" value={formatWeight(prSummary.bestSessionVolume, unit)} />
+            </View>
+          </Card>
+        </Section>
+      ) : null}
+
       {/* Muscle info */}
       <View className="mb-4 flex-row flex-wrap gap-2">
         {exercise.movementPattern ? <Badge variant="outline">{MOVEMENT_LABELS[exercise.movementPattern]}</Badge> : null}
@@ -312,36 +313,20 @@ function SummaryTab({
         </View>
       </Card>
 
-      {/* Personal Records */}
-      {prSummary && prSummary.heaviestWeight > 0 ? (
-        <Card className="mb-4">
-          <CardHeader className="justify-start">
-            <Icon icon={Trophy} size={18} color="warning" />
-            <CardTitle>Personal Records</CardTitle>
-          </CardHeader>
-          <View className="gap-3">
-            <PRRow label="Heaviest Weight" value={formatWeight(prSummary.heaviestWeight, unit)} />
-            <PRRow label="Best 1RM" value={formatWeight(prSummary.best1RM, unit)} />
-            <PRRow label="Best Set Volume" value={`${formatWeight(prSummary.bestSetVolume, unit)}`} />
-            <PRRow label="Best Session Volume" value={`${formatWeight(prSummary.bestSessionVolume, unit)}`} />
-          </View>
-        </Card>
-      ) : null}
-
       {/* Set Records by rep range */}
       {repRecords.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Set Records</CardTitle>
+            <CardTitle>Rep records</CardTitle>
           </CardHeader>
-          <View className="flex-row border-b border-border pb-2 mb-2">
-            <Caption style={{ width: 60 }}>Reps</Caption>
-            <Caption>Personal Best</Caption>
+          <View className="mb-2 flex-row border-b border-border pb-2">
+            <Text className="w-16 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Reps</Text>
+            <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Best weight</Text>
           </View>
           {repRecords.map((r) => (
             <View key={r.reps} className="flex-row py-1.5">
-              <Body style={{ width: 60 }} className="text-sm text-foreground">{r.reps}</Body>
-              <Body className="text-sm font-medium text-primary">{formatWeight(r.weight, unit)}</Body>
+              <Body className="w-16 text-sm tabular-nums text-foreground">{r.reps}</Body>
+              <Body className="text-sm font-medium tabular-nums text-primary">{formatWeight(r.weight, unit)}</Body>
             </View>
           ))}
         </Card>
@@ -403,15 +388,6 @@ function ProgressTab({
         formatValue={(v) => formatDisplayWeight(v, unit)}
         valueHint={weightLabel(unit)}
       />
-    </View>
-  );
-}
-
-function PRRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Body className="text-sm text-foreground">{label}</Body>
-      <Body className="text-sm font-semibold text-primary">{value}</Body>
     </View>
   );
 }
@@ -482,7 +458,7 @@ function HowToTab({ exercise }: { exercise: Exercise }) {
       {/* Exercise GIF / illustration */}
       <ExerciseMedia name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} height={220} />
 
-      <Heading style={{ fontSize: 18, marginBottom: 12 }}>{exercise.name}</Heading>
+      <Title className="mb-3">{exercise.name}</Title>
 
       {exercise.instructions.length > 0 ? (
         <View className="gap-4">

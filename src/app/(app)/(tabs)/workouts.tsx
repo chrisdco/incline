@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy } from 'lucide-react-native';
+import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy, ArrowUpDown } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
 import { SearchBar } from '@/components/common/search-bar';
-import { Chip } from '@/components/common/chip';
+import { Section } from '@/components/layout';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
@@ -34,6 +34,8 @@ import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
 import { filterRoutineSummaries, sortRoutineSummaries, type RoutineSort } from '@/lib/exercise-filters';
 
 type Tab = 'routines' | 'programs';
+
+const ROUTINE_SEARCH_MIN = 5;
 
 export default function WorkoutsScreen() {
   const [tab, setTab] = useState<Tab>('routines');
@@ -207,47 +209,58 @@ export default function WorkoutsScreen() {
           refreshing={refreshing}
           onRefresh={onRefresh}
           ListHeaderComponent={
-            <View className="mb-4 gap-3">
+            <View className="mb-3">
+              {/* Start first: the tab's job is "pick something and go".
+                  Building and browsing are the secondary pair under it. */}
               <Button
+                size="lg"
                 leftIcon={<Icon icon={Play} size={18} color="primary-foreground" />}
                 onPress={() => handleStart(null, 'Empty Workout')}
                 disabled={starting}>
-                Start Empty Workout
+                Start empty workout
               </Button>
-
-              <View className="mt-2 flex-row items-center justify-between">
-                <Body className="font-semibold text-foreground">Routines</Body>
-                <Pressable onPress={openNewRoutine} hitSlop={8}>
-                  <Icon icon={Plus} size={22} color="primary" />
-                </Pressable>
-              </View>
-
-              <SearchBar value={routineQuery} onChangeText={setRoutineQuery} placeholder="Search routines..." />
-              <View className="flex-row items-center gap-2">
-                <Caption>Sort</Caption>
-                <Chip size="sm" label="Recent" selected={routineSort === 'recent'} onPress={() => setRoutineSort('recent')} />
-                <Chip size="sm" label="A–Z" selected={routineSort === 'name'} onPress={() => setRoutineSort('name')} />
-                {routineFiltering ? (
-                  <Caption>{visibleRoutines.length} match{visibleRoutines.length === 1 ? '' : 'es'}</Caption>
-                ) : null}
-              </View>
-
-              <View className="flex-row gap-2">
+              <View className="mt-3 flex-row gap-3">
                 <Button
                   variant="outline"
                   className="flex-1"
                   leftIcon={<Icon icon={ClipboardList} size={16} color="primary" />}
                   onPress={openNewRoutine}>
-                  New Routine
+                  New routine
                 </Button>
                 <Button
                   variant="outline"
                   className="flex-1"
                   leftIcon={<Icon icon={Search} size={16} color="primary" />}
                   onPress={() => router.push('/(app)/exercises')}>
-                  Explore
+                  Exercises
                 </Button>
               </View>
+
+              <Section
+                title={templates.data?.length ? `My routines · ${templates.data.length}` : 'My routines'}
+                action={
+                  (templates.data?.length ?? 0) > 1 ? (
+                    <Pressable
+                      onPress={() => setRoutineSort(routineSort === 'recent' ? 'name' : 'recent')}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Sort routines, currently ${routineSort === 'recent' ? 'most recent' : 'A to Z'}`}
+                      hitSlop={8}
+                      className="flex-row items-center gap-1">
+                      <Icon icon={ArrowUpDown} size={14} color="primary" />
+                      <Caption className="font-medium text-primary">{routineSort === 'recent' ? 'Recent' : 'A–Z'}</Caption>
+                    </Pressable>
+                  ) : null
+                }>
+                {/* Search earns its space once the list is long enough to need it. */}
+                {(templates.data?.length ?? 0) > ROUTINE_SEARCH_MIN || routineFiltering ? (
+                  <View className="mb-3">
+                    <SearchBar value={routineQuery} onChangeText={setRoutineQuery} placeholder="Search routines" />
+                    {routineFiltering ? (
+                      <Caption className="mt-2 px-1">{visibleRoutines.length} match{visibleRoutines.length === 1 ? '' : 'es'}</Caption>
+                    ) : null}
+                  </View>
+                ) : null}
+              </Section>
             </View>
           }
           ListEmptyComponent={
@@ -278,16 +291,23 @@ export default function WorkoutsScreen() {
           refreshing={refreshing}
           onRefresh={onRefresh}
           ListHeaderComponent={
-            <View className="mb-4 flex-row items-center justify-between">
-              <Body className="font-semibold text-foreground">Programs</Body>
-              <Pressable
-                onPress={() => router.push('/program/edit/new' as Href)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="New program">
-                <Icon icon={Plus} size={22} color="primary" />
-              </Pressable>
-            </View>
+            <Section
+              first
+              className="mb-1"
+              title="My programs"
+              action={
+                <Pressable
+                  onPress={() => router.push('/program/edit/new' as Href)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="New program"
+                  className="flex-row items-center gap-1">
+                  <Icon icon={Plus} size={14} color="primary" />
+                  <Caption className="font-medium text-primary">New</Caption>
+                </Pressable>
+              }>
+              <Caption className="mb-2 px-1">Multi-week plans built from your routines. The active one drives Home.</Caption>
+            </Section>
           }
           ListEmptyComponent={
             programs.loading ? (
@@ -320,7 +340,7 @@ export default function WorkoutsScreen() {
             className="flex-row items-center gap-3 rounded-xl p-3"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Play} size={18} color="primary" />
-            <Body className="text-foreground">Start Routine</Body>
+            <Body className="text-foreground">Start routine</Body>
           </Pressable>
           <Pressable
             onPress={() => {
@@ -330,24 +350,24 @@ export default function WorkoutsScreen() {
             className="flex-row items-center gap-3 rounded-xl p-3"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Pencil} size={18} color="muted-foreground" />
-            <Body className="text-foreground">Edit Routine</Body>
+            <Body className="text-foreground">Edit routine</Body>
           </Pressable>
           <Pressable
             onPress={handleDuplicate}
             className="flex-row items-center gap-3 rounded-xl p-3"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Copy} size={18} color="muted-foreground" />
-            <Body className="text-foreground">Duplicate Routine</Body>
+            <Body className="text-foreground">Duplicate routine</Body>
           </Pressable>
           <Pressable
             onPress={() => {
               setDeleteTarget(menuTarget);
               setMenuTarget(null);
             }}
-            className="flex-row items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/10 p-3"
+            className="flex-row items-center gap-3 rounded-xl p-3"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Trash2} size={18} color="destructive" />
-            <Body className="text-destructive">Delete Routine</Body>
+            <Body className="text-destructive">Delete routine</Body>
           </Pressable>
         </View>
       </Sheet>

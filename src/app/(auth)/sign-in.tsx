@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, View, TextInput, Pressable, Image, Modal } from 'react-native';
+import { Platform, View, TextInput, Pressable, Image, ScrollView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSSO } from '@clerk/expo';
@@ -128,14 +128,18 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-1 items-center justify-center px-6">
+      {/* Scrolls with the keyboard so the primary button is never hidden. */}
+      <ScrollView
+        contentContainerClassName="flex-grow justify-center px-6 py-8"
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets>
         <View className="mb-8 items-center">
           <Image
             source={require('../../../assets/images/icon.png')}
             style={{ width: 80, height: 80, borderRadius: 16 }}
             resizeMode="contain"
           />
-          <Heading className="text-center">Incline</Heading>
+          <Heading className="mt-4 text-center">Incline</Heading>
           <Caption className="mt-2 text-center">
             Sign in to continue your training.
           </Caption>
@@ -166,6 +170,7 @@ export default function SignInScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
+              returnKeyType="next"
               className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
             />
           </View>
@@ -179,6 +184,8 @@ export default function SignInScreen() {
               placeholderTextColor={AUTH_PLACEHOLDER}
               secureTextEntry
               autoComplete="password"
+              returnKeyType="go"
+              onSubmitEditing={() => { void onSignInPress(); }}
               className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
             />
           </View>
@@ -203,7 +210,7 @@ export default function SignInScreen() {
             </Pressable>
           </View>
         </View>
-      </View>
+      </ScrollView>
 
       {/* Password Reset Modal */}
       <Modal visible={resetVisible} transparent animationType="fade" onRequestClose={() => setResetVisible(false)}>

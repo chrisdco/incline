@@ -284,52 +284,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={SCREEN_CONTENT}>
-        <SectionLabel className="mt-1">Cloud sync</SectionLabel>
-        <Card>
-          <ListRow
-            icon={<Icon icon={Cloud} size={18} color={isSyncError ? 'destructive' : 'muted-foreground'} />}
-            title={syncing ? 'Syncing…' : isSyncError ? 'Sync error' : 'Backup & restore'}
-            subtitle={syncSubtitle}>
-            <Button
-              size="icon"
-              variant="tonal"
-              disabled={!enabled || syncing}
-              onPress={() => void handleSyncPress()}
-              accessibilityLabel={isSyncError ? 'Retry sync' : 'Sync now'}>
-              <Icon icon={RefreshCw} size={16} color={isSyncError ? 'destructive' : 'primary'} />
-            </Button>
-          </ListRow>
-        </Card>
-
-        <SectionLabel className="mt-6">Export</SectionLabel>
-        <Card>
-          <Pressable
-            onPress={() => router.push('/(app)/export' as Href)}
-            accessibilityRole="button"
-            accessibilityLabel="Export your data"
-            className="flex-row items-center gap-3 py-3">
-            <View className="h-9 w-9 items-center justify-center rounded-xl bg-muted">
-              <Icon icon={Download} size={18} color="muted-foreground" />
-            </View>
-            <View className="min-w-0 flex-1">
-              <Body className="font-medium text-foreground">Download your data</Body>
-              <Caption className="mt-0.5">Choose workouts, measurements, and format</Caption>
-            </View>
-            <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-          </Pressable>
-        </Card>
-
-        <SectionLabel className="mt-6">Units</SectionLabel>
-        <Card>
-          <ListRow icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Measurement" subtitle="Displayed across workouts and stats">
-            <View className="flex-row gap-2">
-              <Chip label="kg" selected={unit === 'metric'} onPress={() => changeUnit('metric')} />
-              <Chip label="lb" selected={unit === 'imperial'} onPress={() => changeUnit('imperial')} />
-            </View>
-          </ListRow>
-        </Card>
-
-        <SectionLabel className="mt-6">Workout</SectionLabel>
+        <SectionLabel className="mt-1">Workout</SectionLabel>
         <Card>
           <ListRow icon={<Icon icon={Zap} size={18} color="muted-foreground" />} title="Auto-start rest timer" subtitle="Begin countdown when you finish a set">
             <Switch value={autoStartRest} onValueChange={setAutoStartRest} accessibilityLabel="Auto-start rest timer" />
@@ -385,6 +340,16 @@ export default function SettingsScreen() {
           </ListRow>
         </Card>
 
+        <SectionLabel className="mt-6">Units</SectionLabel>
+        <Card>
+          <ListRow icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Measurement" subtitle="Displayed across workouts and stats">
+            <View className="flex-row gap-2">
+              <Chip label="kg" selected={unit === 'metric'} onPress={() => changeUnit('metric')} />
+              <Chip label="lb" selected={unit === 'imperial'} onPress={() => changeUnit('imperial')} />
+            </View>
+          </ListRow>
+        </Card>
+
         <SectionLabel className="mt-6">Coaching</SectionLabel>
         <Card>
           <ListRow
@@ -399,7 +364,7 @@ export default function SettingsScreen() {
           </ListRow>
         </Card>
 
-        <SectionLabel className="mt-6">Reminders</SectionLabel>
+        <SectionLabel className="mt-6">Notifications · reminders</SectionLabel>
         <Card>
           <ListRow
             icon={<Icon icon={Bell} size={18} color="muted-foreground" />}
@@ -451,7 +416,7 @@ export default function SettingsScreen() {
           ) : null}
         </Card>
 
-        <SectionLabel className="mt-6">Weekly digest</SectionLabel>
+        <SectionLabel className="mt-6">Notifications · recaps</SectionLabel>
         <Card>
           <ListRow
             icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
@@ -497,7 +462,7 @@ export default function SettingsScreen() {
           </ListRow>
         </Card>
 
-        <SectionLabel className="mt-6">Nudges</SectionLabel>
+        <SectionLabel className="mt-6">Notifications · nudges</SectionLabel>
         <Card>
           <ListRow
             icon={<Icon icon={History} size={18} color="muted-foreground" />}
@@ -530,60 +495,6 @@ export default function SettingsScreen() {
               onValueChange={(v) => void onDigestsChannelToggle(v, setMilestoneNudgeEnabled, 'Milestone nudges')}
               accessibilityLabel="Milestone nudges"
             />
-          </ListRow>
-        </Card>
-
-        <SectionLabel className="mt-6">Calendar</SectionLabel>
-        <Card>
-          <ListRow stacked
-            icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
-            title="Month day color"
-            subtitle="What each tinted day represents">
-            <View className="flex-row flex-wrap gap-2">
-              {(
-                [
-                  { id: 'presence' as const, label: 'Trained' },
-                  { id: 'volume' as const, label: 'Volume' },
-                  { id: 'intensity' as const, label: 'Intensity' },
-                  { id: 'reps' as const, label: 'Reps' },
-                ]
-              ).map((opt) => (
-                <Chip
-                  key={opt.id}
-                  size="sm"
-                  label={opt.label}
-                  selected={calendarHeatMetric === opt.id}
-                  onPress={() => setCalendarHeatMetric(opt.id)}
-                />
-              ))}
-            </View>
-          </ListRow>
-          <View className="h-px bg-border/60" />
-          <ListRow
-            icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
-            title="Week starts on"
-            subtitle="Calendar grids and day headers">
-            <View className="flex-row gap-2">
-              <Chip label="Mon" selected={weekStartsOn === 'monday'} onPress={() => setWeekStartsOn('monday')} />
-              <Chip label="Sun" selected={weekStartsOn === 'sunday'} onPress={() => setWeekStartsOn('sunday')} />
-            </View>
-          </ListRow>
-          <View className="h-px bg-border/60" />
-          <ListRow stacked
-            icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
-            title="Weekly workout goal"
-            subtitle="Sessions per week for consistency tracking">
-            <View className="flex-row flex-wrap gap-1.5">
-              {[0, 3, 4, 5, 6].map((g) => (
-                <Chip
-                  key={g}
-                  size="sm"
-                  label={g === 0 ? 'Off' : `${g}×`}
-                  selected={weeklyWorkoutGoal === g}
-                  onPress={() => setWeeklyWorkoutGoal(g)}
-                />
-              ))}
-            </View>
           </ListRow>
         </Card>
 
@@ -718,6 +629,104 @@ export default function SettingsScreen() {
           </Caption>
         </Card>
 
+        <SectionLabel className="mt-6">Haptics</SectionLabel>
+        <Card>
+          <ListRow icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
+            <Switch value={hapticsEnabled} onValueChange={setHaptics} accessibilityLabel="Haptics" />
+          </ListRow>
+        </Card>
+
+        <SectionLabel className="mt-6">Calendar</SectionLabel>
+        <Card>
+          <ListRow stacked
+            icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
+            title="Month day color"
+            subtitle="What each tinted day represents">
+            <View className="flex-row flex-wrap gap-2">
+              {(
+                [
+                  { id: 'presence' as const, label: 'Trained' },
+                  { id: 'volume' as const, label: 'Volume' },
+                  { id: 'intensity' as const, label: 'Intensity' },
+                  { id: 'reps' as const, label: 'Reps' },
+                ]
+              ).map((opt) => (
+                <Chip
+                  key={opt.id}
+                  size="sm"
+                  label={opt.label}
+                  selected={calendarHeatMetric === opt.id}
+                  onPress={() => setCalendarHeatMetric(opt.id)}
+                />
+              ))}
+            </View>
+          </ListRow>
+          <View className="h-px bg-border/60" />
+          <ListRow
+            icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
+            title="Week starts on"
+            subtitle="Calendar grids and day headers">
+            <View className="flex-row gap-2">
+              <Chip label="Mon" selected={weekStartsOn === 'monday'} onPress={() => setWeekStartsOn('monday')} />
+              <Chip label="Sun" selected={weekStartsOn === 'sunday'} onPress={() => setWeekStartsOn('sunday')} />
+            </View>
+          </ListRow>
+          <View className="h-px bg-border/60" />
+          <ListRow stacked
+            icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
+            title="Weekly workout goal"
+            subtitle="Sessions per week for consistency tracking">
+            <View className="flex-row flex-wrap gap-1.5">
+              {[0, 3, 4, 5, 6].map((g) => (
+                <Chip
+                  key={g}
+                  size="sm"
+                  label={g === 0 ? 'Off' : `${g}×`}
+                  selected={weeklyWorkoutGoal === g}
+                  onPress={() => setWeeklyWorkoutGoal(g)}
+                />
+              ))}
+            </View>
+          </ListRow>
+        </Card>
+
+        <SectionLabel className="mt-6">Cloud sync</SectionLabel>
+        <Card>
+          <ListRow
+            icon={<Icon icon={Cloud} size={18} color={isSyncError ? 'destructive' : 'muted-foreground'} />}
+            title={syncing ? 'Syncing…' : isSyncError ? 'Sync error' : 'Backup & restore'}
+            subtitle={syncSubtitle}>
+            <Button
+              size="icon"
+              variant="tonal"
+              disabled={!enabled || syncing}
+              onPress={() => void handleSyncPress()}
+              accessibilityLabel={isSyncError ? 'Retry sync' : 'Sync now'}>
+              <Icon icon={RefreshCw} size={16} color={isSyncError ? 'destructive' : 'primary'} />
+            </Button>
+          </ListRow>
+        </Card>
+
+        <SectionLabel className="mt-6">Your data</SectionLabel>
+        <Card>
+          <Pressable
+            onPress={() => router.push('/(app)/export' as Href)}
+            accessibilityRole="button"
+            accessibilityLabel="Export your data"
+            className="flex-row items-center gap-3 py-3">
+            <View className="h-9 w-9 items-center justify-center rounded-xl bg-muted">
+              <Icon icon={Download} size={18} color="muted-foreground" />
+            </View>
+            <View className="min-w-0 flex-1">
+              <Body className="font-medium text-foreground">Download your data</Body>
+              <Caption className="mt-0.5">Choose workouts, measurements, and format</Caption>
+            </View>
+            <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+          </Pressable>
+        </Card>
+
+        <AboutSection />
+
         {__DEV__ ? (
           <>
             <SectionLabel className="mt-6">Dev tools</SectionLabel>
@@ -736,15 +745,6 @@ export default function SettingsScreen() {
             </Card>
           </>
         ) : null}
-
-        <SectionLabel className="mt-6">Feedback</SectionLabel>
-        <Card>
-          <ListRow icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
-            <Switch value={hapticsEnabled} onValueChange={setHaptics} accessibilityLabel="Haptics" />
-          </ListRow>
-        </Card>
-
-        <AboutSection />
 
         <Caption className="mt-6 text-center">Incline · Built with Expo</Caption>
       </ScrollView>

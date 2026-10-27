@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, View, TextInput, Pressable, Image } from 'react-native';
+import { Platform, View, TextInput, Pressable, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSSO } from '@clerk/expo';
@@ -85,14 +85,18 @@ export default function SignUpScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-1 items-center justify-center px-6">
+      {/* Scrolls with the keyboard so the primary button is never hidden. */}
+      <ScrollView
+        contentContainerClassName="flex-grow justify-center px-6 py-8"
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets>
         <View className="mb-8 items-center">
           <Image
             source={require('../../../assets/images/icon.png')}
             style={{ width: 80, height: 80, borderRadius: 16 }}
             resizeMode="contain"
           />
-          <Heading className="text-center">
+          <Heading className="mt-4 text-center">
             {pendingVerification ? 'Verify email' : 'Create account'}
           </Heading>
           <Caption className="mt-2 text-center">
@@ -128,6 +132,7 @@ export default function SignUpScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
+                returnKeyType="next"
                 className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
               />
             </View>
@@ -141,6 +146,8 @@ export default function SignUpScreen() {
                 placeholderTextColor={AUTH_PLACEHOLDER}
                 secureTextEntry
                 autoComplete="new-password"
+                returnKeyType="go"
+                onSubmitEditing={() => { void onSignUpPress(); }}
                 className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
               />
             </View>
@@ -185,7 +192,7 @@ export default function SignUpScreen() {
             </Button>
           </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
