@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "check:build-env": "node scripts/check-build-env.mjs",
+    "eas-build-pre-install": "node scripts/check-build-env.mjs",
+    "smoke:android": "node scripts/smoke-android.mjs",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
@@ -21,7 +24,7 @@
     "tokens:css": "vitest run --config vitest.config.mts src/styles/__tests__/theme-tokens.test.ts -u"
   },
   "dependencies": {
-    "@clerk/expo": "^4.6.6",
+    "@clerk/expo": "^4.14.2",
     "@expo-google-fonts/geist": "^0.4.2",
     "@expo/ui": "~58.0.22",
     "@shopify/flash-list": "2.3.2",

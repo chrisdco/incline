@@ -150,3 +150,11 @@ Short-lived alternatives log. Revisit only when a trigger below fires; otherwise
 - **Checks:** native on cold launch (`ON_LOAD`, applies next launch) + `UpdateBootstrap` on foreground (hourly) with a "Restart" toast, suppressed during an active workout; manual check in Settings → About. All no-op in Expo Go / dev builds.
 - **Versioning:** `version` in app.json is the marketing version (bump per release); build numbers are remote (`appVersionSource: remote`, `autoIncrement` on production).
 - **Not yet:** `updates.url` needs `eas init` (EAS project id) — until then `Updates.isEnabled` is false and everything degrades to "Not available in this build". Store-binary update prompts (new native version) come with the first store release.
+
+### Before sharing a build (added 2026-10-28, after alpha 1 crashed on launch)
+
+1. `eas env:list --environment preview` has real `EXPO_PUBLIC_*` values (not `.env.example` placeholders). EAS enforces this: `eas-build-pre-install` runs `scripts/check-build-env.mjs` and fails the build in seconds.
+2. After the build: `pnpm run smoke:android -- <apk url> --serial emulator-5580` on the dedicated `incline_pixel` AVD (never the shared `buds_pixel`, never restart adb). It must report `ok`.
+3. Only then share the install link.
+
+Even if a bad key slips through, the root layout shows a "This build is misconfigured" screen instead of crashing (`CLERK_KEY_PROBLEM`, src/lib/env.ts).
