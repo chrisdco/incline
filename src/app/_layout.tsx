@@ -1,7 +1,7 @@
 import '@/global.css';
 
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Text as RNText, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -21,7 +21,7 @@ import {
 import { cn } from '@/lib/cn';
 import { queryClient } from '@/lib/query-client';
 import { themeHex } from '@/lib/theme';
-import { CLERK_PUBLISHABLE_KEY, isDevAuthBypassEnabled } from '@/lib/env';
+import { CLERK_KEY_PROBLEM, CLERK_PUBLISHABLE_KEY, isDevAuthBypassEnabled } from '@/lib/env';
 import { secureTokenCache } from '@/auth/secure-store';
 import { ToastProvider } from '@/components/ui/toast';
 import { UpdateBootstrap } from '@/features/updates';
@@ -159,6 +159,26 @@ function AppShell() {
 }
 
 /**
+ * Shown instead of crashing when the build's public config is unusable.
+ * Plain RN only: fonts, theme and providers may not be up yet.
+ */
+function ConfigErrorScreen({ problem }: { problem: string }) {
+  useEffect(() => {
+    void SplashScreen.hideAsync();
+  }, []);
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#1a1a1a' }}>
+      <RNText style={{ color: '#fafafa', fontSize: 20, fontWeight: '700', textAlign: 'center' }}>
+        This build is misconfigured
+      </RNText>
+      <RNText style={{ color: '#a1a1aa', fontSize: 14, marginTop: 8, textAlign: 'center' }}>
+        {problem}. Install a newer build.
+      </RNText>
+    </View>
+  );
+}
+
+/**
  * Dev auth bypass (`__DEV__` + `EXPO_PUBLIC_DEV_BYPASS_AUTH=1`) skips the
  * Clerk provider entirely so no Clerk key or sign-in is needed for UI work.
  * Production bundles always take the Clerk path (see `isDevAuthBypassEnabled`).
@@ -171,6 +191,8 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
   if (isDevAuthBypassEnabled()) return shell;
+  // A bad key would throw inside ClerkProvider and close the app on launch.
+  if (CLERK_KEY_PROBLEM) return <ConfigErrorScreen problem={`Sign-in key ${CLERK_KEY_PROBLEM}`} />;
   return (
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY}

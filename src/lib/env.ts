@@ -4,16 +4,6 @@
  * fail fast with a clear message instead of undefined-at-use-time bugs.
  */
 
-function requireEnv(name: string, value: string | undefined): string {
-  if (!value) {
-    throw new Error(
-      `Missing required environment variable "${name}". ` +
-        `Add it to .env.local (see .env.example for the list).`,
-    );
-  }
-  return value;
-}
-
 function optionalEnv(value: string | undefined, fallback = ''): string {
   return value ?? fallback;
 }
@@ -41,12 +31,34 @@ export function isDevAuthBypassEnabled(): boolean {
   return true;
 }
 
-export const CLERK_PUBLISHABLE_KEY = isDevAuthBypassEnabled()
-  ? (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '')
-  : requireEnv(
-      'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
-      process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
-    );
+export const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
+
+/**
+ * Why the Clerk key can't be used, or null when it looks real. A real key is
+ * `pk_(test|live)_` + base64 of the frontend API host followed by `$`.
+ * Mirrors scripts/check-build-env.mjs, which blocks such builds on EAS.
+ *
+ * Checked here rather than thrown at import: ClerkProvider throws on a bad
+ * key during render, which killed the first alpha at launch. The root
+ * layout shows a config screen instead.
+ */
+export function clerkKeyProblem(key: string): string | null {
+  if (!key) return 'missing';
+  const m = /^pk_(test|live)_([A-Za-z0-9+/=_-]+)$/.exec(key);
+  if (!m) return 'not a pk_test_/pk_live_ key';
+  let decoded = '';
+  try {
+    decoded = globalThis.atob(m[2].replace(/=+$/, ''));
+  } catch {
+    return 'not base64';
+  }
+  if (!decoded.endsWith('$') || !decoded.includes('.')) return 'placeholder or truncated';
+  return null;
+}
+
+export const CLERK_KEY_PROBLEM: string | null = isDevAuthBypassEnabled()
+  ? null
+  : clerkKeyProblem(CLERK_PUBLISHABLE_KEY);
 
 /* ---- ExerciseDB (RapidAPI, optional — free tier needs neither) ---- */
 export const EXERCISEDB_API_KEY = optionalEnv(process.env.EXPO_PUBLIC_EXERCISEDB_API_KEY);
