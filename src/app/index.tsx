@@ -145,7 +145,10 @@ export default function Gate() {
   };
 
   useEffect(() => {
-    if (!ready || !authLoaded || !bound || deletion === undefined || (isSignedIn && profileLoading)) return;
+    // The deletion check only runs for a signed-in user, so only they wait on
+    // it. Signed out it stays undefined, and gating on it left a fresh
+    // install spinning here forever instead of reaching sign-in (alpha 2).
+    if (!ready || !authLoaded || !bound || (isSignedIn && (deletion === undefined || profileLoading))) return;
     // Account-switch guard open: hold routing until the user picks.
     if (switchGuard) return;
 
