@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { Clock, Weight, Medal, MoreHorizontal, Share2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
+import { Tappable } from '@/components/ui/tappable';
 
 import { Caption, Body, Text } from '@/components/common/text';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
@@ -38,9 +39,9 @@ export function WorkoutFeedCard({
   const hiddenCount = log.exercises.length - MAX_VISIBLE_EXERCISES;
 
   return (
-    <Pressable
+    <Tappable
       onPress={() => router.push(`/summary/${log.id}`)}
-      style={({ pressed }) => (pressed ? { opacity: 0.75 } : undefined)}
+      pressedOpacity={0.75}
       className={`bg-card p-4 ${className ?? ''}`}>
       {/* Header: avatar + name + share / more */}
       <View className="flex-row items-center gap-3">
@@ -102,13 +103,13 @@ export function WorkoutFeedCard({
       {/* Exercise list */}
       <View className="gap-3">
         {visibleExercises.map((ex) => (
-          <Pressable
+          <Tappable
             key={ex.exerciseId}
             onPress={(e) => {
               e.stopPropagation?.();
               router.push(`/exercise/${ex.exerciseId}`);
             }}
-            style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
+            pressedOpacity={0.6}
             className="flex-row items-center gap-3"
             accessibilityRole="button"
             accessibilityLabel={`Open ${ex.exerciseName} details`}>
@@ -116,22 +117,22 @@ export function WorkoutFeedCard({
             <Body className="flex-1 text-sm text-foreground">
               {ex.setCount} set{ex.setCount !== 1 ? 's' : ''} {ex.exerciseName}
             </Body>
-          </Pressable>
+          </Tappable>
         ))}
       </View>
 
       {/* See more */}
       {!expanded && hiddenCount > 0 ? (
-        <Pressable
+        <Tappable
           onPress={(e) => {
             e.stopPropagation?.();
             setExpanded(true);
           }}
-          style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
+          pressedOpacity={0.6}
           className="mt-3 items-center py-1">
           <Caption className="text-primary">See {hiddenCount} more exercise{hiddenCount !== 1 ? 's' : ''}</Caption>
-        </Pressable>
+        </Tappable>
       ) : null}
-    </Pressable>
+    </Tappable>
   );
 }

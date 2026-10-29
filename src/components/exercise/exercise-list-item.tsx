@@ -1,5 +1,6 @@
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Tappable } from '@/components/ui/tappable';
 
 import { cn } from '@/lib/cn';
 import { Text } from '@/components/common/text';
@@ -12,10 +13,10 @@ import { ExerciseThumb } from './exercise-media';
 export function ExerciseListItem({ exercise, className }: { exercise: Exercise; className?: string }) {
   const router = useRouter();
   return (
-    <Pressable
+    <Tappable
       className={cn('flex-row items-center gap-3 rounded-3xl bg-card p-4', className)}
       onPress={() => router.push(`/exercise/${exercise.id}`)}
-      style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+      pressedOpacity={0.55}
       android_ripple={{ color: 'rgba(0,0,0,0.06)' }}>
       <ExerciseThumb name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} size={44} />
       <View className="flex-1">
@@ -25,6 +26,6 @@ export function ExerciseListItem({ exercise, className }: { exercise: Exercise; 
         </Text>
       </View>
       <MuscleBadge muscle={exercise.primaryMuscle} />
-    </Pressable>
+    </Tappable>
   );
 }

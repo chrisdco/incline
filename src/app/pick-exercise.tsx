@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { ChevronLeft, Info, Plus } from 'lucide-react-native';
+import { Tappable } from '@/components/ui/tappable';
 
 import { Body, Caption, Heading, Text } from '@/components/common/text';
 import { SectionLabel } from '@/components/layout';
@@ -365,10 +366,10 @@ const ExercisePickRow = memo(function ExercisePickRow({
 }) {
   return (
     <View className="flex-row items-center gap-2 rounded-3xl bg-card p-4">
-      <Pressable
+      <Tappable
         onPress={() => onPick(exerciseId)}
         disabled={disabled}
-        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1, flex: 1 })}
+        pressedOpacity={0.55} style={{ flex: 1 }}
         android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
         accessibilityRole="button"
         accessibilityLabel={`Choose ${name}`}
@@ -389,7 +390,7 @@ const ExercisePickRow = memo(function ExercisePickRow({
             <Text className="text-xs text-muted-foreground">{equipment}</Text>
           </View>
         </View>
-      </Pressable>
+      </Tappable>
       <Pressable
         onPress={() => onInfo(exerciseId)}
         hitSlop={10}
