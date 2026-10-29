@@ -53,3 +53,42 @@ index 0fcc4a9ece4fa35c507984d0c3bf0bc2e4d4617b..a8a5202300e65f5cbd8d24444b961dfa
      };
  };
  // XML entities are not enough for `<string>` resources: they decode back to raw
+diff --git a/android/src/main/java/expo/modules/widgets/notifications/CustomNotificationBuilder.kt b/android/src/main/java/expo/modules/widgets/notifications/CustomNotificationBuilder.kt
+index 82cabea..ab57c40 100644
+--- a/android/src/main/java/expo/modules/widgets/notifications/CustomNotificationBuilder.kt
++++ b/android/src/main/java/expo/modules/widgets/notifications/CustomNotificationBuilder.kt
+@@ -31,15 +31,33 @@ internal object CustomNotificationBuilder {
+   ): Notification {
+     val options = state.options
+     val channelId = resolveChannelId(context, options.channelId)
++    // Incline patch: a numeric `countdownTo` prop (epoch ms) drives the system
++    // count-down chronometer in the decorated header, so the countdown ticks
++    // natively without JS, and the system removes the notification when it
++    // reaches zero. `finished: true` drops `ongoing` and removes it shortly.
++    // Both are props (not options) so a button's `onButtonPressed` can change
++    // them in the receiver while the app process is dead.
++    val countdownTo = (state.props?.get("countdownTo") as? Number)?.toLong()?.takeIf { it > 0 }
++    val finished = state.props?.get("finished") == true
+     val builder = NotificationCompat.Builder(context, channelId)
+       .setSmallIcon(resolveSmallIcon(context, options.smallIcon))
+-      .setPeekContent(views, decorated = true, ongoing = options.ongoing)
++      .setPeekContent(views, decorated = true, ongoing = options.ongoing && !finished)
+       .setAutoCancel(options.autoCancel)
+       .setOnlyAlertOnce(options.alertOnlyOnce)
+ 
+     options.title?.let(builder::setContentTitle)
+     options.text?.let(builder::setContentText)
+     options.timeoutAfter?.let(builder::setTimeoutAfter)
++    if (finished) {
++      builder.setOngoing(false).setTimeoutAfter(1_500L)
++    } else if (countdownTo != null) {
++      builder
++        .setWhen(countdownTo)
++        .setShowWhen(true)
++        .setUsesChronometer(true)
++        .setChronometerCountDown(true)
++        .setTimeoutAfter(maxOf(1_000L, countdownTo - System.currentTimeMillis()))
++    }
+     resolveColor(context, options.color)?.let { builder.color = it }
+     contentIntent(context, state.tag, options.url)?.let(builder::setContentIntent)
+     builder.addExtras(state.toExtras())

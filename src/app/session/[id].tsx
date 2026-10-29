@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -44,6 +44,7 @@ import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 
 import type { MuscleGroup, SetEntry, Unit } from '@/db/types';
 import { resolveWeightUnit } from '@/lib/units';
+import { pickRestTarget } from '@/lib/rest-ongoing/build';
 
 interface Group {
   exerciseId: number;
@@ -100,8 +101,6 @@ export default function SessionScreen() {
   const { impact, notify } = useHaptics();
   const clear = useActiveWorkout((s) => s.clear);
   const { unit, setUnit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost, exerciseWeightUnits, setExerciseWeightUnit } = useSettings(useShallow((s) => ({ unit: s.unit, setUnit: s.setUnit, restSoundEnabled: s.restSoundEnabled, keepScreenAwake: s.keepScreenAwake, showWarmUpSets: s.showWarmUpSets, showRpe: s.showRpe, showSessionGhost: s.showSessionGhost, exerciseWeightUnits: s.exerciseWeightUnits, setExerciseWeightUnit: s.setExerciseWeightUnit })));
-  const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId });
-  const restSound = useRestTimerSound();
 
   // Until open() claims this id (first effect), paint the reopen cache (§7)
   // and none of a previous session's assist state.
@@ -121,6 +120,18 @@ export default function SessionScreen() {
   const notes = useSessionEngine((s) => s.notesDraft);
   const finishing = useSessionEngine((s) => s.finishing);
   const discarding = useSessionEngine((s) => s.discarding);
+  // What the lock-screen rest notification shows as "Next" (Android).
+  const sessionSets = session?.sets;
+  const restTarget = useMemo(
+    () =>
+      pickRestTarget(sessionSets ?? [], (exerciseId) => {
+        const refKey = sessionSets?.find((x) => x.exerciseId === exerciseId)?.exerciseRefKey;
+        return resolveWeightUnit(exerciseWeightUnits, refKey, unit);
+      }),
+    [sessionSets, exerciseWeightUnits, unit],
+  );
+  const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId, ongoing: restTarget });
+  const restSound = useRestTimerSound();
 
   const scrollRef = useRef<ScrollViewInstance>(null);
   const groupRefs = useRef<(ViewInstance | null)[]>([]);
@@ -294,6 +305,7 @@ export default function SessionScreen() {
     setFinishOpen(false);
     const ok = await engine.finish();
     if (!ok) return;
+    stopRest();
     clear();
     dropCachedSession(logId);
     router.replace(`/summary/${logId}?celebrate=1`);
@@ -302,6 +314,7 @@ export default function SessionScreen() {
     setDiscardOpen(false);
     const ok = await engine.discard();
     if (!ok) return;
+    stopRest();
     clear();
     dropCachedSession(logId);
     router.replace('/(app)/(tabs)');
