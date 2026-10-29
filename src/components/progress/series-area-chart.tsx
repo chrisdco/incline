@@ -144,7 +144,7 @@ export const SeriesAreaChart = memo(function SeriesAreaChart({
             shiftPointerLabelY: -8,
             pointerLabelComponent: (items: { value: number }[]) => (
               <View
-                className="min-w-[88px] items-center rounded-xl border border-border bg-card px-3 py-2 shadow-sm"
+                className="min-w-[88px] items-center rounded-xl border border-border bg-card px-3 py-2 shadow-xs"
                 style={{ backgroundColor: colors.card }}>
                 <Text className="text-sm font-bold text-foreground">
                   {formatValue(items[0]?.value ?? 0)}
@@ -167,7 +167,7 @@ export const SeriesAreaChart = memo(function SeriesAreaChart({
   }
 
   return (
-    <View className={cn('rounded-3xl border border-border/60 bg-card p-4 shadow-sm', className)}>
+    <View className={cn('rounded-3xl border border-border/60 bg-card p-4 shadow-xs', className)}>
       <Text className="text-lg font-semibold text-foreground">{title}</Text>
       {prepared.rangeLabel ? (
         <Text className="mt-0.5 text-sm text-muted-foreground">{prepared.rangeLabel}</Text>

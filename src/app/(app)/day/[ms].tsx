@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { ChevronLeft } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 

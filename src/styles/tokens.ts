@@ -2,14 +2,15 @@
  * Theme tokens — the single source for every color the app paints.
  *
  * Two outputs read from here:
- *  - CSS variables: `src/global.css` is GENERATED from these tables by
- *    `buildGlobalCss()` (src/styles/global-css.ts). Edit here, then run
- *    `pnpm tokens:css`; a unit test fails CI when the file is stale.
+ *  - CSS variables: `src/global.css` (one Uniwind theme per scheme x accent)
+ *    and `src/styles/uniwind-themes.json` are GENERATED from these tables by
+ *    src/styles/global-css.ts. Edit here, then run `pnpm tokens:css`; a unit
+ *    test fails CI when either file is stale.
  *  - Native hex: props that cannot take a className (ActivityIndicator,
  *    charts, nav theme, SystemUI, widgets) go through `themeHex()` below.
  *
- * CSS values are HSL channels without the `hsl()` wrapper ("H S% L%") so
- * Tailwind can compose `<alpha-value>`. Native hex values are pinned
+ * CSS values are HSL channels without the `hsl()` wrapper ("H S% L%"); the
+ * generator wraps them (`hsl(...)`). Native hex values are pinned
  * separately — they predate this module and do NOT all equal the HSL
  * channels (see docs/decisions/TECH-DECISIONS.md, 2026-10-26). Converging
  * them is a visual change and belongs to the polish pass, not here.
@@ -29,9 +30,10 @@ type VarMap = Readonly<Record<string, Channels>>;
 export const RADIUS = '0.9rem';
 
 /**
- * Neutrals + semantic colors for :root (light) and .dark. Key order is the
- * emitted CSS order. `primary`/`ring`/`chart-1` here are only the fallback
- * before a `theme-*` class applies; the root View always sets one.
+ * Neutrals + semantic colors: the plain `light` / `dark` Uniwind themes and
+ * the base of every `<scheme>-<accent>` theme. Key order is the emitted CSS
+ * order. `primary`/`ring`/`chart-1` here are only the fallback before the
+ * root layout's first `Uniwind.setTheme`.
  */
 export const BASE_VARS = {
   light: {
@@ -119,7 +121,7 @@ export interface AccentToken {
   description: string;
   /** Aurora skins restyle the whole palette (tinted base + ambient glow). */
   aurora: boolean;
-  /** CSS overrides emitted under `.theme-<id>` / `.dark.theme-<id>`. */
+  /** Overrides merged onto BASE_VARS for the `light-<id>` / `dark-<id>` themes. */
   vars: Record<Scheme, VarMap>;
   /** Native primary hex (charts, ActivityIndicator, swatches). */
   hex: Record<Scheme, string>;
@@ -326,6 +328,13 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
 };
 
 export const DEFAULT_ACCENT: AccentTheme = 'teal';
+
+/** Uniwind theme for a scheme + accent (`dark-rose`): one `@variant` each in global.css. */
+export type UniwindThemeName = `${Scheme}-${AccentTheme}`;
+
+export function themeName(scheme: Scheme, accent: AccentTheme): UniwindThemeName {
+  return `${scheme}-${accent}`;
+}
 
 /**
  * Native neutrals. Pinned hex, not derived from BASE_VARS (several differ —

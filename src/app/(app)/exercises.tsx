@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { Search as SearchIcon } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 

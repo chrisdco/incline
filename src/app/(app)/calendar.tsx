@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, LayoutChangeEvent, Pressable, ScrollView, View, type ListViewToken } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';

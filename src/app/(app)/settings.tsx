@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import {
   Moon, Sun, Smartphone, Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette,
   Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, ChevronRight, Sparkles, History,

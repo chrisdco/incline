@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Pressable, View, type ViewInstance } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { ArrowLeft } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';

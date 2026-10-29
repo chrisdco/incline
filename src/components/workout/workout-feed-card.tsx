@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { Clock, Weight, Medal, MoreHorizontal, Share2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
+import { cn } from '@/lib/cn';
 
 import { Caption, Body, Text } from '@/components/common/text';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
@@ -40,8 +41,7 @@ export function WorkoutFeedCard({
   return (
     <Pressable
       onPress={() => router.push(`/summary/${log.id}`)}
-      style={({ pressed }) => (pressed ? { opacity: 0.75 } : undefined)}
-      className={`bg-card p-4 ${className ?? ''}`}>
+      className={cn('bg-card p-4 active:opacity-75', className)}>
       {/* Header: avatar + name + share / more */}
       <View className="flex-row items-center gap-3">
         <InitialsAvatar name={profileName} uri={avatarUrl} size={44} />
@@ -108,8 +108,7 @@ export function WorkoutFeedCard({
               e.stopPropagation?.();
               router.push(`/exercise/${ex.exerciseId}`);
             }}
-            style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-            className="flex-row items-center gap-3"
+            className="flex-row items-center gap-3 active:opacity-60"
             accessibilityRole="button"
             accessibilityLabel={`Open ${ex.exerciseName} details`}>
             <ExerciseThumb name={ex.exerciseName} imageUrl={ex.imageUrl} />
@@ -127,8 +126,7 @@ export function WorkoutFeedCard({
             e.stopPropagation?.();
             setExpanded(true);
           }}
-          style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-          className="mt-3 items-center py-1">
+          className="mt-3 items-center py-1 active:opacity-60">
           <Caption className="text-primary">See {hiddenCount} more exercise{hiddenCount !== 1 ? 's' : ''}</Caption>
         </Pressable>
       ) : null}

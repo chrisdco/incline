@@ -10,7 +10,7 @@ export function Text({ className, ...props }: TextProps) {
 
 /**
  * Semantic text components. Thin wrappers over <Text> with sensible default
- * utility classes; override anything via className. NativeWind utilities are
+ * utility classes; override anything via className. Tailwind (Uniwind) utilities are
  * the primary styling method — these exist only for consistency of voice.
  */
 export function Hero({ className, children, ...props }: { className?: string; children: ReactNode } & TextProps) {

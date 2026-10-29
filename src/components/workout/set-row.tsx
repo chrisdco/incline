@@ -120,13 +120,13 @@ export function SetRow({
     <View
       style={{ height: SET_ROW_HEIGHT }}
       className={cn('w-full flex-row items-center gap-2 px-1', completed && 'bg-success/8')}>
-      {/* Layout lives on plain Views: NativeWind drops a Pressable's style
-          *function* when className is also set, so widths given there never
-          applied and SET/PREV collapsed to their text (Oct 29 screenshots). */}
+      {/* Layout lives on plain Views (fixed widths from set-layout.ts); the
+          Pressable inside only fills the cell and dims on press via active:.
+          Kept from the NativeWind era, which dropped a Pressable's style
+          function next to className (Oct 29 screenshots). */}
       <View style={SET_CELL.index} className="self-stretch">
       <Pressable
-        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
-        className="flex-1 items-center justify-center"
+        className="flex-1 items-center justify-center active:opacity-55"
         disabled={!onOpenSetType}
         onPress={onOpenSetType}
         android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
@@ -148,8 +148,7 @@ export function SetRow({
 
       <View style={SET_CELL.prev} className="self-stretch">
       <Pressable
-        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
-        className="flex-1 items-center justify-center"
+        className="flex-1 items-center justify-center active:opacity-55"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
           selection();

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { ArrowLeft, Dumbbell, Repeat } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 

@@ -1,7 +1,7 @@
 import { View } from 'react-native';
-import { Image } from 'expo-image';
 
 import { cn } from '@/lib/cn';
+import { StyledImage } from '@/components/common/styled';
 import { Text } from '@/components/common/text';
 
 // Identity palette, not theme colors: a name must keep the same avatar hue
@@ -49,15 +49,13 @@ export function InitialsAvatar({
 
   if (uri) {
     return (
-      <Image
+      <StyledImage
         source={{ uri }}
         contentFit="cover"
         transition={150}
         cachePolicy="memory-disk"
-        className={className}
-        // expo-image ignores NativeWind's rounded-* class, so the radius is
-        // set inline; without it photos rendered square.
-        style={{ width: size, height: size, borderRadius: size / 2 }}
+        className={cn('rounded-full', className)}
+        style={{ width: size, height: size }}
       />
     );
   }

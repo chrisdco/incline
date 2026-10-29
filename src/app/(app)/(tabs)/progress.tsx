@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { FlashList } from '@shopify/flash-list';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { useRouter, type Href } from 'expo-router';
 import { Camera, CalendarRange, Dumbbell, PersonStanding, TrendingUp } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';

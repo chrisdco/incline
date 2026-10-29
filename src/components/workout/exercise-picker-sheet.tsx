@@ -156,7 +156,7 @@ const PickerRow = memo(function PickerRow({
   return (
     <Pressable
       onPress={() => onPick(externalId)}
-      style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+      className="active:opacity-55"
       android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}>
       <View className="mb-2">
         <View className="flex-row items-center gap-3 rounded-3xl bg-card p-4">

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { Play, Plus, ArrowRight, Dumbbell } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
