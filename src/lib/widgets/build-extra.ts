@@ -33,9 +33,14 @@ const MONTHS = [
 ];
 const LETTERS_SUN_FIRST = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-/** "▲ 4" / "▼ 2h 05m" / null when there is nothing to compare against. */
-export function formatDelta(cur: number, prev: number, fmt: (v: number) => string): string | null {
-  if (prev <= 0 || cur === prev) return null;
+/**
+ * "▲ 4" / "▼ 2h 05m" / '' when there is nothing to compare against.
+ * Never null: values nested inside arrays must be non-null or the native
+ * Widget constructor throws ("Value is null, expected an Object") and the
+ * app dies on launch (alpha 3 smoke test).
+ */
+export function formatDelta(cur: number, prev: number, fmt: (v: number) => string): string {
+  if (prev <= 0 || cur === prev) return '';
   return `${cur > prev ? '▲' : '▼'} ${fmt(Math.abs(cur - prev))}`;
 }
 
@@ -124,7 +129,8 @@ export interface MonthCell {
 export interface MonthStat {
   value: string;
   label: string;
-  delta: string | null;
+  /** '' = no comparison. */
+  delta: string;
   up: boolean;
 }
 
@@ -258,8 +264,8 @@ export function buildVolumeChartProps(
 
 export interface RoutineTile {
   name: string;
-  /** null = blank filler keeping the 2-column grid square. */
-  url: string | null;
+  /** '' = blank filler keeping the 2-column grid square (never null, see formatDelta). */
+  url: string;
 }
 
 export interface RoutinesProps extends WidgetPalettes {
@@ -275,7 +281,7 @@ export function buildRoutinesProps(
   const tiles: RoutineTile[] = input.routines
     .slice(0, 6)
     .map((r) => ({ name: r.name, url: WIDGET_LINKS.routine(r.id) }));
-  if (tiles.length % 2 === 1) tiles.push({ name: '', url: null });
+  if (tiles.length % 2 === 1) tiles.push({ name: '', url: '' });
   const rows: RoutineTile[][] = [];
   for (let i = 0; i < tiles.length; i += 2) rows.push(tiles.slice(i, i + 2));
   return {

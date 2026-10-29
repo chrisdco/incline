@@ -63,7 +63,7 @@ describe('widget extras', () => {
     expect(props.weeks.every((w) => w.length === 7)).toBe(true);
     const flat = props.weeks.flat();
     expect(flat.find((c) => c.label === '22')).toEqual({ label: '22', trained: true, isToday: true });
-    expect(props.stats.map((s) => s.delta)).toEqual(['▲ 1', '▼ 30m', null]);
+    expect(props.stats.map((s) => s.delta)).toEqual(['▲ 1', '▼ 30m', '']);
   });
 
   it('volume bars scale to the biggest day and label weekdays ending today', () => {
@@ -78,15 +78,48 @@ describe('widget extras', () => {
   it('routines pad to a square 2-column grid', () => {
     const props = buildRoutinesProps({ routines: [{ id: 1, name: 'A' }, { id: 2, name: 'B' }, { id: 3, name: 'C' }], ...palettes });
     expect(props.rows).toHaveLength(2);
-    expect(props.rows[1][1].url).toBe(null);
+    expect(props.rows[1][1].url).toBe('');
     expect(props.rows[0][0].url).toBe('incline:///workout/1');
     expect(buildRoutinesProps({ routines: [], ...palettes }).empty).toBe('Create a routine in Incline');
   });
 
   it('formats deltas and durations compactly', () => {
-    expect(formatDelta(5, 5, String)).toBe(null);
-    expect(formatDelta(3, 0, String)).toBe(null);
+    expect(formatDelta(5, 5, String)).toBe('');
+    expect(formatDelta(3, 0, String)).toBe('');
     expect(formatWidgetDuration(45 * 60)).toBe('45m');
     expect(formatWidgetDuration(16 * 3600 + 35 * 60)).toBe('16h 35m');
+  });
+});
+
+/** Nulls inside arrays crash the native Widget constructor on launch (alpha 3). */
+function nestedNullPaths(value: unknown, path = '', inArray = false): string[] {
+  if (value === null) return inArray ? [path] : [];
+  if (Array.isArray(value)) return value.flatMap((v, i) => nestedNullPaths(v, `${path}[${i}]`, true));
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>).flatMap(([k, v]) =>
+      nestedNullPaths(v, `${path}.${k}`, inArray),
+    );
+  }
+  return [];
+}
+
+describe('widget props are safe for the native bridge', () => {
+  it('never put null inside an array', () => {
+    const month = buildMonthProps({
+      monthStart: new Date(2026, 9, 1).getTime(),
+      trainedDates: [],
+      workouts: 0,
+      durationSec: 0,
+      volume: 0,
+      prevWorkouts: 0,
+      prevDurationSec: 0,
+      prevVolume: 0,
+      now: NOW,
+      formatVolume: kg,
+      ...palettes,
+    });
+    const routines = buildRoutinesProps({ routines: [{ id: 1, name: 'A' }], ...palettes });
+    const bars = buildVolumeChartProps({ dailyVolume: [0, 0, 0, 0, 0, 0, 0], now: NOW, formatVolume: kg, ...palettes });
+    expect([month, routines, bars].flatMap((p) => nestedNullPaths(p))).toEqual([]);
   });
 });
