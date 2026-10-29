@@ -11,12 +11,16 @@ import { discardWorkout } from '@/db/queries';
 import { setCachedSession } from '@/lib/query-keys';
 import { useActiveWorkout } from '@/store/active-workout-store';
 
+// Once per JS launch. Component state reset whenever the tabs remount (e.g.
+// router.replace home after discarding), and the still-cached session then
+// re-triggered this prompt: discard asked twice.
+let coldStartPrompted = false;
+
 export default function TabsLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { session, refetch, nextExercise } = useActiveSession();
+  const { session, loading, refetch, nextExercise } = useActiveSession();
   const clear = useActiveWorkout((s) => s.clear);
-  const [prompted, setPrompted] = useState(false);
   const [open, setOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -25,14 +29,10 @@ export default function TabsLayout() {
   // On cold start with an unfinished session, prompt to resume or discard.
   // Only show for sessions older than 5s (not a fresh start that's still animating).
   useEffect(() => {
-    if (session && !prompted) {
-      const ageMs = Date.now() - session.startedAt;
-      if (ageMs > 5000) {
-        setOpen(true);
-      }
-      setPrompted(true);
-    }
-  }, [session, prompted]);
+    if (loading || coldStartPrompted) return;
+    coldStartPrompted = true;
+    if (session && Date.now() - session.startedAt > 5000) setOpen(true);
+  }, [loading, session]);
 
   const resume = () => {
     setOpen(false);

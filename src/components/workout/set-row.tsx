@@ -11,7 +11,7 @@ import { Check, Trash2 } from 'lucide-react-native';
 import { useHaptics } from '@/hooks/use-haptics';
 import * as Haptics from 'expo-haptics';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
-import { SET_COL, SET_FLEX, SET_ROW_HEIGHT } from './set-layout';
+import { SET_CELL, SET_COL, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
 import { commitInputToKg, kgToInput } from '@/lib/units';
 import type { SetType, Unit } from '@/db/types';
@@ -46,7 +46,10 @@ const SET_TYPE_LABEL: Record<SetType, string> = {
  * centered, never a box); KG/REPS share the rest equally. Uniform gaps,
  * tick snug. Locked to set-layout.ts proportions — device screenshot
  * required before any geometry change. Row edges stay square: a rounded
- * row lets the red swipe-delete action show at its corners.
+ * row lets the red swipe-delete action show at its corners. The row has an
+ * opaque base under the translucent completed tint for the same reason.
+ * RPE: one inline prompt for the set just finished, then "@8" under the set
+ * number; edit from the set menu (tap the number).
  */
 export function SetRow({
   ref,
@@ -59,6 +62,7 @@ export function SetRow({
   isNext = false,
   unit,
   setType = 'working',
+  rpe = null,
   onChangeWeight,
   onChangeReps,
   onApplyPrevious,
@@ -78,6 +82,8 @@ export function SetRow({
   isNext?: boolean;
   unit: Unit;
   setType?: SetType;
+  /** Shown as "@8" under the set number; edited from the set menu. */
+  rpe?: number | null;
   onChangeWeight: (v: number) => void;
   onChangeReps: (v: number) => void;
   onApplyPrevious?: () => void;
@@ -107,13 +113,13 @@ export function SetRow({
   );
   const toggleIconColor = completed ? 'success-foreground' : isNext ? 'primary' : 'muted-foreground';
 
+  // Opaque outer layer: the completed tint is translucent, and the red
+  // swipe-delete action sits underneath the row.
   const row = (
+    <View className="bg-background">
     <View
       style={{ height: SET_ROW_HEIGHT }}
-      className={cn(
-        'flex-row items-center gap-2 bg-background px-1',
-        completed && 'bg-success/8',
-      )}>
+      className={cn('flex-row items-center gap-2 px-1', completed && 'bg-success/8')}>
       <Pressable
         style={({ pressed }) => [{ width: SET_COL.index, opacity: pressed ? 0.55 : 1 }]}
         className="items-center justify-center self-stretch"
@@ -121,10 +127,13 @@ export function SetRow({
         onPress={onOpenSetType}
         android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
         accessibilityRole={onOpenSetType ? 'button' : undefined}
-        accessibilityLabel={onOpenSetType ? `Set ${index + 1} type: ${SET_TYPE_LABEL[setType]}. Activate to change.` : undefined}
+        accessibilityLabel={onOpenSetType ? `Set ${index + 1}: ${SET_TYPE_LABEL[setType]}${rpe != null ? `, RPE ${rpe}` : ''}. Activate to change type or RPE.` : undefined}
         hitSlop={6}>
         <Text className="text-sm font-bold text-foreground">{index + 1}</Text>
-        {setType !== 'working' ? (
+        {rpe != null && setType !== 'warmup' ? (
+          // eslint-disable-next-line no-restricted-syntax -- RPE tag sits under the 14pt set number inside a fixed-width cell
+          <Text className="text-[9px] font-semibold leading-none text-muted-foreground">@{rpe}</Text>
+        ) : setType !== 'working' ? (
           // eslint-disable-next-line no-restricted-syntax -- set-type letter sits under the 14pt set number inside a fixed-width cell
           <Text className={cn('text-[9px] font-bold leading-none', SET_TYPE_LETTER_COLOR[setType])}>
             {SET_TYPE_LETTER[setType]}
@@ -133,7 +142,7 @@ export function SetRow({
       </Pressable>
 
       <Pressable
-        style={({ pressed }) => [{ flex: SET_FLEX.prev, opacity: pressed ? 0.55 : 1 }]}
+        style={({ pressed }) => [SET_CELL.prev, { opacity: pressed ? 0.55 : 1 }]}
         className="items-center justify-center"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
@@ -150,6 +159,9 @@ export function SetRow({
         hitSlop={6}>
         {hasPrevious ? (
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
             style={{ textAlign: 'center', fontSize: 12 }}
             className="text-muted-foreground">
             {formatWeight(previousWeight!, unit)}×{previousReps}
@@ -169,7 +181,7 @@ export function SetRow({
         }}
         decimals={2}
         label={`Weight, set ${index + 1}`}
-        style={{ flex: SET_FLEX.input }}
+        style={SET_CELL.input}
         onSubmitNext={() => repsRef.current?.focus()}
       />
       <NumberStepper
@@ -177,7 +189,7 @@ export function SetRow({
         value={reps}
         onChange={onChangeReps}
         label={`Reps, set ${index + 1}`}
-        style={{ flex: SET_FLEX.input }}
+        style={SET_CELL.input}
         onSubmitNext={onSubmitReps}
       />
 
@@ -206,6 +218,7 @@ export function SetRow({
           </View>
         )}
       </View>
+    </View>
     </View>
   );
 
