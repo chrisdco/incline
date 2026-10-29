@@ -72,34 +72,107 @@
           "enableAndroid": true,
           "widgets": [
             {
+              "name": "QuickStart",
+              "displayName": "Quick start",
+              "description": "Start a workout or jump back into the one running.",
+              "android": {
+                "targetCellWidth": 2,
+                "targetCellHeight": 1,
+                "minWidth": 110,
+                "minHeight": 40,
+                "resizeMode": "none",
+                "initialLayout": "./src/widgets/quick-start.tsx",
+                "previewLayout": "widget_preview_quick_start"
+              }
+            },
+            {
               "name": "NextUp",
               "displayName": "Next workout",
-              "description": "Your next session and this week's progress at a glance.",
+              "description": "What to train next, with this week's volume against last week.",
               "android": {
                 "targetCellWidth": 4,
                 "targetCellHeight": 2,
                 "minWidth": 250,
                 "minHeight": 110,
                 "resizeMode": "none",
-                "initialLayout": "./src/widgets/next-up.tsx"
+                "initialLayout": "./src/widgets/next-up.tsx",
+                "previewLayout": "widget_preview_next_up"
               }
             },
             {
               "name": "ThisWeek",
               "displayName": "This week",
-              "description": "Sessions logged this week against your goal.",
+              "description": "Workouts against your weekly goal, with the days you trained.",
               "android": {
                 "targetCellWidth": 2,
                 "targetCellHeight": 2,
                 "minWidth": 110,
                 "minHeight": 110,
                 "resizeMode": "none",
-                "initialLayout": "./src/widgets/this-week.tsx"
+                "initialLayout": "./src/widgets/this-week.tsx",
+                "previewLayout": "widget_preview_this_week"
+              }
+            },
+            {
+              "name": "Streak",
+              "displayName": "Streak",
+              "description": "Weeks in a row with a workout, and what keeps it going.",
+              "android": {
+                "targetCellWidth": 2,
+                "targetCellHeight": 1,
+                "minWidth": 110,
+                "minHeight": 40,
+                "resizeMode": "none",
+                "initialLayout": "./src/widgets/streak.tsx",
+                "previewLayout": "widget_preview_streak"
+              }
+            },
+            {
+              "name": "Month",
+              "displayName": "Month",
+              "description": "Calendar of trained days with workouts, time and volume against last month.",
+              "android": {
+                "targetCellWidth": 4,
+                "targetCellHeight": 2,
+                "minWidth": 250,
+                "minHeight": 110,
+                "resizeMode": "none",
+                "initialLayout": "./src/widgets/month.tsx",
+                "previewLayout": "widget_preview_month"
+              }
+            },
+            {
+              "name": "VolumeChart",
+              "displayName": "Volume",
+              "description": "Volume lifted each day over the last week.",
+              "android": {
+                "targetCellWidth": 2,
+                "targetCellHeight": 2,
+                "minWidth": 110,
+                "minHeight": 110,
+                "resizeMode": "none",
+                "initialLayout": "./src/widgets/volume-chart.tsx",
+                "previewLayout": "widget_preview_volume_chart"
+              }
+            },
+            {
+              "name": "Routines",
+              "displayName": "Routines",
+              "description": "Your recent routines, one tap from starting.",
+              "android": {
+                "targetCellWidth": 4,
+                "targetCellHeight": 3,
+                "minWidth": 250,
+                "minHeight": 180,
+                "resizeMode": "none",
+                "initialLayout": "./src/widgets/routines.tsx",
+                "previewLayout": "widget_preview_routines"
               }
             }
           ]
         }
-      ]
+      ],
+      "./plugins/with-widget-previews"
     ],
     "experiments": {
       "typedRoutes": true,

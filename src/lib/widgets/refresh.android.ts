@@ -9,11 +9,23 @@
 import { isRunningInExpoGo } from 'expo';
 
 import { getTodayProgramSlot } from '@/db/queries/programs';
-import { getWeeklyConsistency } from '@/db/queries/progress';
+import { formatVolume } from '@/db/calc';
+import {
+  getWeeklyConsistency,
+  getWidgetExtraStats,
+  getWidgetWeekStats,
+} from '@/db/queries/progress';
 import { getActiveWorkout } from '@/db/queries/sessions';
 import { getSuggestedTemplate } from '@/db/queries/templates';
 import { useSettings } from '@/store/settings-store';
 
+import {
+  buildMonthProps,
+  buildQuickStartProps,
+  buildRoutinesProps,
+  buildStreakProps,
+  buildVolumeChartProps,
+} from './build-extra';
 import { buildNextUpProps } from './build-next-up';
 import { buildThisWeekProps } from './build-this-week';
 import { widgetPalettes } from './palette';
@@ -32,11 +44,13 @@ export async function refreshWidgets(now = Date.now()): Promise<void> {
   inFlight = true;
   try {
     const settings = useSettings.getState();
-    const [active, todaySlot, consistency, suggested] = await Promise.all([
+    const [active, todaySlot, consistency, suggested, week, extra] = await Promise.all([
       getActiveWorkout(),
       getTodayProgramSlot(now),
       getWeeklyConsistency(settings.weeklyWorkoutGoal, now),
       getSuggestedTemplate(),
+      getWidgetWeekStats(now),
+      getWidgetExtraStats(now),
     ]);
 
     // Lazy require: the widget runtime (and @expo/ui/jetpack-compose) must not
@@ -63,13 +77,18 @@ export async function refreshWidgets(now = Date.now()): Promise<void> {
 
     NextUp.updateSnapshot(
       buildNextUpProps({
-        activeSession: active ? { name: active.name, startedAt: active.startedAt } : null,
+        activeSession: active
+          ? { id: active.id, name: active.name, startedAt: active.startedAt }
+          : null,
         today,
         suggested: suggested ? { name: suggested.name } : null,
         sessionsThisWeek: consistency.sessionsThisWeek,
         weeklyGoal: consistency.goal,
         streak: consistency.currentWeeklyStreak,
         now,
+        volumeThisWeek: week.volumeThisWeek,
+        volumeLastWeek: week.volumeLastWeek,
+        formatVolume: (kg) => formatVolume(kg, settings.unit),
         ...palettes,
       }),
     );
@@ -80,9 +99,46 @@ export async function refreshWidgets(now = Date.now()): Promise<void> {
         weeklyGoal: consistency.goal,
         sessionsToGoal: consistency.sessionsToGoal,
         goalMet: consistency.goalMet,
+        trainedDays: week.trainedDays,
+        todayIndex: week.todayIndex,
         ...palettes,
       }),
     );
+
+    const fmtVolume = (kg: number) => formatVolume(kg, settings.unit);
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const widgets = {
+      QuickStart: (require('@/widgets/quick-start') as typeof import('@/widgets/quick-start')).default,
+      Streak: (require('@/widgets/streak') as typeof import('@/widgets/streak')).default,
+      Month: (require('@/widgets/month') as typeof import('@/widgets/month')).default,
+      VolumeChart: (require('@/widgets/volume-chart') as typeof import('@/widgets/volume-chart'))
+        .default,
+      Routines: (require('@/widgets/routines') as typeof import('@/widgets/routines')).default,
+    };
+    /* eslint-enable @typescript-eslint/no-require-imports */
+
+    widgets.QuickStart.updateSnapshot(
+      buildQuickStartProps({
+        activeSessionId: active?.id ?? null,
+        todayName: today?.templateName ?? null,
+        ...palettes,
+      }),
+    );
+    widgets.Streak.updateSnapshot(
+      buildStreakProps({
+        streak: consistency.currentWeeklyStreak,
+        best: consistency.bestWeeklyStreak,
+        trainedThisWeek: consistency.sessionsThisWeek > 0,
+        ...palettes,
+      }),
+    );
+    widgets.Month.updateSnapshot(
+      buildMonthProps({ ...extra.month, now, formatVolume: fmtVolume, ...palettes }),
+    );
+    widgets.VolumeChart.updateSnapshot(
+      buildVolumeChartProps({ dailyVolume: extra.dailyVolume, now, formatVolume: fmtVolume, ...palettes }),
+    );
+    widgets.Routines.updateSnapshot(buildRoutinesProps({ routines: extra.routines, ...palettes }));
   } catch {
     // Widgets are a bonus surface — a failure here must never reach the app.
   } finally {

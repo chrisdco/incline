@@ -1,0 +1,55 @@
+diff --git a/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt b/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
+index 3df9e4a4d92155a00d3f5652d17d20be10bef1c1..a7f37d787cdbffe793d5e3294fae6290546eb507 100644
+--- a/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
++++ b/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
+@@ -295,8 +295,21 @@ private fun ImageContentScale.toGlanceContentScale(): ContentScale {
+ private fun ReadableMap.toPeekButton(converterContext: WidgetConverterContext, source: InteractionSource): Emittable {
+   val props = props<WidgetButtonProps>(converterContext)
+   val children = children()
+-  val action =
+-    props.target?.let { target -> WidgetInteraction(source, target).toGlanceAction(converterContext.applicationContext) }
++  // Incline patch: an "open:<url>" target launches the app on that deep link.
++  // Broadcast-then-startActivity is blocked on Android 12+ (trampoline rule),
++  // so the click must be an activity action itself.
++  val action = props.target?.let { target ->
++    if (target.startsWith("open:")) {
++      val context = converterContext.applicationContext
++      androidx.glance.appwidget.action.actionStartActivity(
++        android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(target.removePrefix("open:")))
++          .setPackage(context.packageName)
++          .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
++      )
++    } else {
++      WidgetInteraction(source, target).toGlanceAction(converterContext.applicationContext)
++    }
++  }
+   val modifier = props.buttonModifier(converterContext)
+   val contentColor = props.contentColorProvider()
+   val textContent = children.textContent(converterContext) ?: props.label
+diff --git a/plugin/build/android/withAndroidWidgetFiles.js b/plugin/build/android/withAndroidWidgetFiles.js
+index 0fcc4a9ece4fa35c507984d0c3bf0bc2e4d4617b..a8a5202300e65f5cbd8d24444b961dfaed478a59 100644
+--- a/plugin/build/android/withAndroidWidgetFiles.js
++++ b/plugin/build/android/withAndroidWidgetFiles.js
+@@ -153,7 +153,9 @@ const createWidgetInfoXml = (widget)=>{
+   android:targetCellWidth="${android.targetCellWidth}"
+   android:targetCellHeight="${android.targetCellHeight}"
+   android:updatePeriodMillis="0"
+-  android:initialLayout="@layout/expo_widgets_initial_layout"
++  android:initialLayout="@layout/expo_widgets_initial_layout"${android.previewLayout ? `
++  android:previewLayout="@layout/${android.previewLayout}"` : ''}${android.previewImage ? `
++  android:previewImage="@drawable/${android.previewImage}"` : ''}
+   android:description="@string/${(0, _resourceNames.getWidgetDescriptionResourceName)(widget)}"
+   android:resizeMode="${getWidgetResizeMode(widget)}"
+   android:widgetCategory="home_screen" />
+@@ -178,7 +180,10 @@ const getAndroidWidgetConfig = (widget)=>{
+         minWidth: widget.android?.minWidth ?? 180,
+         minHeight: widget.android?.minHeight ?? 110,
+         targetCellWidth: widget.android?.targetCellWidth ?? 4,
+-        targetCellHeight: widget.android?.targetCellHeight ?? 2
++        targetCellHeight: widget.android?.targetCellHeight ?? 2,
++        // Incline patch: widget-picker previews (resources added by plugins/with-widget-previews).
++        previewLayout: widget.android?.previewLayout,
++        previewImage: widget.android?.previewImage
+     };
+ };
+ // XML entities are not enough for `<string>` resources: they decode back to raw

@@ -1,6 +1,11 @@
 /**
  * Android home-screen widget (4x2) — "what should I train next?".
  *
+ * Reference (Hevy "Routine of the day" + "Weekly stats", Lyfta "Weekly
+ * progress"): plain card; left = what to train, right = this week's volume
+ * with the change vs last week. Small muted label above a bold value, no
+ * brand chrome.
+ *
  * Rendered by the isolated widget runtime: no hooks, no timers and no module
  * scope (only what arrives in props), and on Android `environment` carries
  * `colorScheme` alone. That is why every string and both palettes are
@@ -11,18 +16,18 @@
  * first snapshot — `refreshWidgets()` runs on app start/foreground, so a
  * freshly added widget fills in as soon as Incline is opened once.
  *
- * Android widgets cannot launch the app on tap with expo-widgets (buttons only
- * update props), so this surface is intentionally display-only.
+ * Tapping opens the running session, else Home (`open:` targets come from
+ * patches/expo-widgets@58.0.22.patch).
  */
-import { Box, Column, Row, Text } from '@expo/ui/jetpack-compose';
+import { Box, Button, Column, Row, Text } from '@expo/ui/jetpack-compose';
 import {
   background,
   cornerRadius,
+  fillMaxHeight,
   fillMaxSize,
-  fillMaxWidth,
-  height,
   padding,
   paddingAll,
+  weight,
   width,
 } from '@expo/ui/jetpack-compose/modifiers';
 import { createWidget } from 'expo-widgets';
@@ -33,51 +38,71 @@ const NextUpWidget = (props: NextUpProps, environment: { colorScheme?: 'light' |
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
   return (
-    <Column
-      verticalArrangement="spaceBetween"
-      modifiers={[fillMaxSize(), background(c.background), cornerRadius(24), paddingAll(16)]}>
-      <Column>
-        <Box modifiers={[width(20), height(3), background(c.primary), cornerRadius(2)]} />
-        <Row
-          horizontalArrangement="spaceBetween"
-          verticalAlignment="center"
-          modifiers={[fillMaxWidth(), padding(0, 10, 0, 0)]}>
-          <Text color={c.muted} style={{ fontSize: 10, fontWeight: '600', letterSpacing: 1.2 }}>
-            {props.eyebrow}
+    <Button
+      {...({ target: `open:${props.url}` } as object)}
+      colors={{ containerColor: c.card }}
+      modifiers={[fillMaxSize(), cornerRadius(24)]}>
+      <Row modifiers={[fillMaxSize(), paddingAll(16)]}>
+        <Column verticalArrangement="spaceBetween" modifiers={[weight(1), fillMaxHeight()]}>
+          <Column>
+            <Text color={c.muted} style={{ fontSize: 12, fontWeight: '500' }}>
+              {props.eyebrow}
+            </Text>
+            <Text
+              color={c.foreground}
+              maxLines={2}
+              overflow="ellipsis"
+              modifiers={[padding(0, 2, 0, 2)]}
+              style={{ fontSize: 20, fontWeight: '700', letterSpacing: -0.3 }}>
+              {props.title}
+            </Text>
+            <Text color={c.muted} maxLines={1} overflow="ellipsis" style={{ fontSize: 12 }}>
+              {props.detail}
+            </Text>
+          </Column>
+          <Text color={c.muted} maxLines={1} overflow="ellipsis" style={{ fontSize: 11 }}>
+            {props.streakLabel ? `${props.streakLabel} · ${props.footer}` : props.footer}
           </Text>
-          {props.streakLabel ? (
-            <Row modifiers={[background(c.card), cornerRadius(999), padding(8, 3, 8, 3)]}>
-              <Text color={c.primary} style={{ fontSize: 10, fontWeight: '600' }}>
-                {props.streakLabel}
-              </Text>
-            </Row>
+        </Column>
+        <Box modifiers={[width(1), fillMaxHeight(), background(c.border)]} />
+        <Column modifiers={[padding(14, 0, 0, 0)]}>
+          <Text color={c.muted} style={{ fontSize: 12, fontWeight: '500' }}>
+            Volume
+          </Text>
+          <Text
+            color={c.foreground}
+            maxLines={1}
+            style={{ fontSize: 20, fontWeight: '700', letterSpacing: -0.3 }}>
+            {props.volume}
+          </Text>
+          <Text color={c.muted} maxLines={1} style={{ fontSize: 11 }}>
+            This week
+          </Text>
+          {props.volumeDelta ? (
+            <Text
+              color={props.volumeUp ? c.primary : c.muted}
+              maxLines={1}
+              style={{ fontSize: 12, fontWeight: '600' }}
+              modifiers={[padding(0, 8, 0, 0)]}>
+              {`${props.volumeDelta} vs last`}
+            </Text>
           ) : null}
-        </Row>
-        <Text
-          color={c.foreground}
-          maxLines={1}
-          overflow="ellipsis"
-          modifiers={[padding(0, 12, 0, 2)]}
-          style={{ fontSize: 22, fontWeight: '700', letterSpacing: -0.4 }}>
-          {props.title}
-        </Text>
-        <Text color={c.muted} maxLines={1} overflow="ellipsis" style={{ fontSize: 13 }}>
-          {props.detail}
-        </Text>
-      </Column>
-      <Text color={c.muted} maxLines={1} overflow="ellipsis" style={{ fontSize: 11 }}>
-        {props.footer}
-      </Text>
-    </Column>
+        </Column>
+      </Row>
+    </Button>
   );
 };
 
 export default createWidget<NextUpProps>('NextUp', NextUpWidget, {
-  eyebrow: 'READY',
+  eyebrow: 'Ready',
   title: 'Incline',
-  detail: 'Open Incline once to sync this widget',
+  detail: 'Open Incline once to sync',
   streakLabel: null,
-  footer: 'Next workout and weekly progress',
+  footer: 'Next workout and weekly volume',
+  volume: '—',
+  volumeDelta: null,
+  volumeUp: true,
+  url: 'incline:///',
   light: {
     background: '#f9f9fb',
     card: '#ffffff',

@@ -104,6 +104,7 @@ export function NumberStepper({
           flex: 1,
           paddingVertical: 0,
           includeFontPadding: false,
+          textAlignVertical: 'center',
           textAlign: 'center',
           fontSize: 16,
           fontWeight: '600',

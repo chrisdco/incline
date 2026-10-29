@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="wp_card">#151519</color>
+  <color name="wp_bg">#0C0C0E</color>
+  <color name="wp_fg">#FAFAFA</color>
+  <color name="wp_muted">#AFAFB6</color>
+  <color name="wp_primary">#8B7CFF</color>
+  <color name="wp_border">#242428</color>
+  <color name="wp_on_primary">#151519</color>
+</resources>

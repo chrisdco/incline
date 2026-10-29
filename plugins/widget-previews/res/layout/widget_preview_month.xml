@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated preview (sample data). Keep in sync with src/widgets/. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent" android:layout_height="match_parent"
+  android:orientation="horizontal" android:padding="14dp"
+  android:background="@drawable/wp_card" >
+
+  <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.25" android:orientation="vertical">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="October" android:textSize="15sp" android:textColor="@color/wp_fg" android:maxLines="1" android:textStyle="bold" android:layout_marginBottom="4dp"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+        android:text="M" android:textSize="8sp" android:textStyle="bold" android:textColor="@color/wp_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+        android:text="T" android:textSize="8sp" android:textStyle="bold" android:textColor="@color/wp_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+        android:text="W" android:textSize="8sp" android:textStyle="bold" android:textColor="@color/wp_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+        android:text="T" android:textSize="8sp" android:textStyle="bold" android:textColor="@color/wp_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+        android:text="F" android:textSize="8sp" android:textStyle="bold" android:textColor="@color/wp_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+        android:text="S" android:textSize="8sp" android:textStyle="bold" android:textColor="@color/wp_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+        android:text="S" android:textSize="8sp" android:textStyle="bold" android:textColor="@color/wp_muted" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="1dp">
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="1" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="2" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="3" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="4" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="1dp">
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="5" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="6" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="7" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="8" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="9" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="10" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="11" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="1dp">
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="12" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="13" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="14" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="15" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="16" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="17" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="18" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="1dp">
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="19" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="20" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="21" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center" android:background="@drawable/wp_dot_on"
+            android:text="22" android:textSize="9sp" android:textColor="@color/wp_on_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="23" android:textSize="9sp" android:textColor="@color/wp_primary" android:textStyle="bold" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="24" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="25" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="1dp">
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="26" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="27" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="28" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="29" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="30" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="31" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="18dp" android:layout_weight="1">
+          <TextView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:gravity="center"
+            android:text="" android:textSize="9sp" android:textColor="@color/wp_fg" />
+        </FrameLayout>
+    </LinearLayout>
+  </LinearLayout>
+  <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:paddingStart="14dp">
+    
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center_vertical">
+      <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="bottom">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="13" android:textSize="15sp" android:textColor="@color/wp_fg" android:maxLines="1" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▲ 4" android:textSize="10sp" android:textColor="@color/wp_primary" android:maxLines="1" android:textStyle="bold" android:layout_marginStart="5dp" android:layout_marginBottom="1dp"/>
+      </LinearLayout>
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Workouts" android:textSize="10sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+    </LinearLayout>
+    
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center_vertical">
+      <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="bottom">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="11h 20m" android:textSize="15sp" android:textColor="@color/wp_fg" android:maxLines="1" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▲ 2h 05m" android:textSize="10sp" android:textColor="@color/wp_primary" android:maxLines="1" android:textStyle="bold" android:layout_marginStart="5dp" android:layout_marginBottom="1dp"/>
+      </LinearLayout>
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Duration" android:textSize="10sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+    </LinearLayout>
+    
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center_vertical">
+      <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="bottom">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="89.4k kg" android:textSize="15sp" android:textColor="@color/wp_fg" android:maxLines="1" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▲ 12.1k kg" android:textSize="10sp" android:textColor="@color/wp_primary" android:maxLines="1" android:textStyle="bold" android:layout_marginStart="5dp" android:layout_marginBottom="1dp"/>
+      </LinearLayout>
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume" android:textSize="10sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+    </LinearLayout>
+  </LinearLayout>
+</LinearLayout>
