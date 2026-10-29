@@ -1,21 +1,37 @@
 import { useEffect, useRef } from 'react';
-import { router, type Href } from 'expo-router';
+import { router, useSegments, type Href } from 'expo-router';
 
 import { actionForResponse, pathForNotificationAction } from '@/lib/notifications/actions';
 import { getNotifications } from '@/lib/notifications/core';
-import { navigateFromNotificationData } from '@/lib/notifications/deep-link';
+import { createPendingRoute, isAppRouteReady } from '@/lib/notifications/pending-route';
+import { pathForNotificationPayload } from '@/lib/notifications/routes';
 import { isNotificationPayload } from '@/lib/notifications/types';
 import { cancelRestCompleteNotification, scheduleRestCompleteNotification } from '@/lib/rest-notification';
 import { signalRestRequest } from '@/lib/rest-timer-signal';
+
+// App-lifetime: a cold-start tap outlives the first render's effects.
+const pendingRoute = createPendingRoute((path) => {
+  try {
+    router.push(path as Href);
+  } catch {
+    // Navigator gone mid-flush; the tap is dropped rather than retried forever.
+  }
+});
 
 /**
  * Handle taps on local (and later remote) notifications via typed payloads.
  * Action buttons (+1 min / Skip / View routines) are consumed here; body
  * taps fall through to payload deep-linking. Cold start: consume last
- * response once. Warm: listen for responses.
+ * response once. Warm: listen for responses. Either way the target waits in
+ * `pendingRoute` until the gate has routed into the app (#151).
  */
 export function useNotificationRouting() {
   const handledResponseId = useRef<string | null>(null);
+  const ready = isAppRouteReady(useSegments());
+
+  useEffect(() => {
+    pendingRoute.setReady(ready);
+  }, [ready]);
 
   useEffect(() => {
     const mod = getNotifications();
@@ -49,13 +65,7 @@ export function useNotificationRouting() {
           await scheduleRestCompleteNotification(action.seconds, { sessionId: action.sessionId });
         })();
         const path = pathForNotificationAction(action);
-        if (path) {
-          try {
-            router.push(path as Href);
-          } catch {
-            // Router may not be mounted yet; cold-start path retries via last response.
-          }
-        }
+        if (path) pendingRoute.navigate(path);
         return;
       }
       if (action?.kind === 'skip_rest') {
@@ -64,21 +74,22 @@ export function useNotificationRouting() {
       }
       if (action) {
         const path = pathForNotificationAction(action);
-        if (path) {
-          try {
-            router.push(path as Href);
-          } catch {
-            // Router may not be mounted yet; cold-start path retries via last response.
-          }
-        }
+        if (path) pendingRoute.navigate(path);
         return;
       }
       if (isNotificationPayload(data)) {
-        navigateFromNotificationData(data);
+        const path = pathForNotificationPayload(data);
+        if (path) pendingRoute.navigate(path);
       }
     };
 
-    handleResponse(mod.getLastNotificationResponse());
+    // Sync getter is the supported API in expo-notifications 58 (the async
+    // one is a deprecated wrapper); it throws where the native module lacks it.
+    try {
+      handleResponse(mod.getLastNotificationResponse());
+    } catch {
+      // Unsupported runtime: warm taps still arrive through the listener.
+    }
 
     const sub = mod.addNotificationResponseReceivedListener((response) => {
       handleResponse(response);
