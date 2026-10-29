@@ -12,6 +12,7 @@ import { ExerciseNoteField, PlatesHint } from './exercise-extras';
 import { RpeChips } from './rpe-chips';
 import { PreviousBestBadge } from './previous-best-badge';
 import { RestTimerPickerSheet } from './rest-timer-picker-sheet';
+import { ReasonSheet } from './reason-sheet';
 import { estimated1RM, formatWeight, repsToBeat1RM } from '@/db/calc';
 import type { SetEntry, SetType, Unit } from '@/db/types';
 import type { ExercisePRSummary } from '@/db/queries';
@@ -114,6 +115,7 @@ function ExerciseBlockImpl({
 }) {
   const [restPickerOpen, setRestPickerOpen] = useState(false);
   const [assistOpen, setAssistOpen] = useState(false);
+  const [reasonOpen, setReasonOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [typeMenuSetId, setTypeMenuSetId] = useState<number | null>(null);
   const typeMenuSet = typeMenuSetId != null ? sets.find((s) => s.id === typeMenuSetId) ?? null : null;
@@ -201,6 +203,15 @@ function ExerciseBlockImpl({
                 <Text className="text-xs font-medium text-primary">
                   Suggested {formatWeight(loadSuggestion.weight, unit)} × {loadSuggestion.reps}
                 </Text>
+              </Pressable>
+            ) : null}
+            {loadSuggestion?.reason && loadSuggestion.weight > 0 ? (
+              <Pressable
+                onPress={() => setReasonOpen(true)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Why this weight?">
+                <Text className="text-xs text-muted-foreground">Why?</Text>
               </Pressable>
             ) : null}
             {showAssistIcon ? (
@@ -342,6 +353,9 @@ function ExerciseBlockImpl({
       ) : null}
       </View>
 
+      {loadSuggestion?.reason ? (
+        <ReasonSheet reason={loadSuggestion.reason} open={reasonOpen} onOpenChange={setReasonOpen} />
+      ) : null}
       <RestTimerPickerSheet
         open={restPickerOpen}
         onOpenChange={setRestPickerOpen}

@@ -383,6 +383,48 @@ export async function getLastSetsForExercises(exerciseIds: number[]): Promise<Re
   return out;
 }
 
+/**
+ * Heaviest working set of each of the last `sessions` finished sessions per
+ * exercise, newest first. One query for all ids (coaching reasons / plateau).
+ */
+export async function getRecentTopSetsForExercises(
+  exerciseIds: number[],
+  sessions: number,
+): Promise<Record<number, { startedAt: number; weight: number; reps: number }[]>> {
+  const out: Record<number, { startedAt: number; weight: number; reps: number }[]> = {};
+  const ids = [...new Set(exerciseIds.filter((id) => id > 0))];
+  for (const id of ids) out[id] = [];
+  if (ids.length === 0 || sessions <= 0) return out;
+
+  const db = await openDatabase();
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = await db.getAllAsync<{ exercise_id: number; started_at: number; weight: number; reps: number }>(
+    `WITH per AS (
+       SELECT s.exercise_id, w.started_at, s.weight, s.reps,
+         ROW_NUMBER() OVER (PARTITION BY s.exercise_id, w.id ORDER BY s.weight DESC, s.reps DESC) AS rn_set
+       FROM set_entries s
+       JOIN workout_logs w ON w.id = s.workout_log_id
+       WHERE s.exercise_id IN (${placeholders})
+         AND s.completed = 1 AND s.deleted_at IS NULL AND s.weight > 0 AND s.reps > 0
+         AND (s.set_type IS NULL OR s.set_type = 'working')
+         AND w.ended_at IS NOT NULL AND w.deleted_at IS NULL
+     ), tops AS (
+       SELECT exercise_id, started_at, weight, reps,
+         ROW_NUMBER() OVER (PARTITION BY exercise_id ORDER BY started_at DESC) AS rn_sess
+       FROM per WHERE rn_set = 1
+     )
+     SELECT exercise_id, started_at, weight, reps FROM tops
+     WHERE rn_sess <= ?
+     ORDER BY exercise_id, started_at DESC`,
+    ...ids,
+    sessions,
+  );
+  for (const r of rows) {
+    (out[r.exercise_id] ??= []).push({ startedAt: r.started_at, weight: r.weight, reps: r.reps });
+  }
+  return out;
+}
+
 export async function getExerciseHistory(exerciseId: number, limit = 10): Promise<ExerciseHistoryRow[]> {
   const db = await openDatabase();
   return db.getAllAsync<ExerciseHistoryRow>(
