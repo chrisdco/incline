@@ -1,4 +1,4 @@
-import { useImperativeHandle, useRef, type Ref } from 'react';
+import { useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { Pressable, View } from 'react-native';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
@@ -13,7 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
 import { SET_CELL, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
-import { commitInputToKg, kgToInput } from '@/lib/units';
+import { createWeightEdit, kgToInput } from '@/lib/units';
 import type { SetType, Unit } from '@/db/types';
 
 export interface SetRowHandle {
@@ -96,6 +96,7 @@ export function SetRow({
   const weightRef = useRef<NumberStepperHandle>(null);
   const repsRef = useRef<NumberStepperHandle>(null);
   const swipeRef = useRef<SwipeableMethods>(null);
+  const [weightEdit] = useState(createWeightEdit);
 
   useImperativeHandle(ref, () => ({ focusWeight: () => weightRef.current?.focus() }), []);
 
@@ -181,9 +182,11 @@ export function SetRow({
       <NumberStepper
         ref={weightRef}
         value={kgToInput(weight, unit)}
+        onFocus={() => weightEdit.begin(unit)}
         onChange={(v) => {
-          // `weight` is canonical kg; the field edits in the display unit.
-          const kg = commitInputToKg(v, weight, unit);
+          // `weight` is canonical kg; the field edits in the unit it was
+          // focused in, even if the display unit flipped mid-edit.
+          const kg = weightEdit.commit(v, weight, unit);
           if (kg != null) onChangeWeight(kg);
         }}
         decimals={2}
