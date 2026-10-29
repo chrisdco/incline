@@ -111,9 +111,9 @@ export default createWidget<MonthProps>('Month', MonthWidget, {
   weekdayLetters: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
   weeks: [],
   stats: [
-    { value: '0', label: 'Workouts', delta: null, up: true },
-    { value: '0m', label: 'Duration', delta: null, up: true },
-    { value: '—', label: 'Volume', delta: null, up: true },
+    { value: '0', label: 'Workouts', delta: '', up: true },
+    { value: '0m', label: 'Duration', delta: '', up: true },
+    { value: '—', label: 'Volume', delta: '', up: true },
   ],
   light: {
     background: '#f9f9fb',
