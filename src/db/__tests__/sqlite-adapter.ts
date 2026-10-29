@@ -5,6 +5,9 @@
  * against the REAL current schema (SCHEMA_STATEMENTS) by mocking
  * `@/db/client`. Also supports fault injection (`failOn`) to prove
  * transaction atomicity: a throw mid-transaction must roll everything back.
+ * `filename` + `beforeStatement` simulate a process kill: the hook can call
+ * `crash()` (close without COMMIT or ROLLBACK, as SQLite sees a dead
+ * process), then a fresh handle on the same file shows what survived.
  */
 import Database from 'better-sqlite3';
 
@@ -33,21 +36,30 @@ export function createTestDatabase(opts?: {
    * from a genuinely old shape and run the REAL migration up() against it.
    */
   ddl?: string[];
+  /** On-disk database (reopenable after a simulated crash). Default in-memory. */
+  filename?: string;
+  /** Skip DDL — reopening a file that already has its schema. */
+  skipDdl?: boolean;
+  /** Called before every write statement; may throw (e.g. after `crash()`). */
+  beforeStatement?: (sql: string) => void;
 }): {
   db: TestDbHandle;
   close: () => void;
+  crash: () => void;
 } {
-  const raw = new Database(':memory:');
+  const raw = new Database(opts?.filename ?? ':memory:');
   raw.exec('PRAGMA journal_mode = WAL');
   raw.exec('PRAGMA foreign_keys = ON');
-  for (const stmt of opts?.ddl ?? SCHEMA_STATEMENTS) raw.exec(stmt);
+  if (!opts?.skipDdl) for (const stmt of opts?.ddl ?? SCHEMA_STATEMENTS) raw.exec(stmt);
 
   const db: TestDbHandle = {
     execAsync: async (sql: string) => {
+      opts?.beforeStatement?.(sql);
       if (opts?.failOn?.test(sql)) throw new Error(`injected fault: ${sql.slice(0, 80)}`);
       raw.exec(sql);
     },
     runAsync: async (sql: string, ...params: unknown[]) => {
+      opts?.beforeStatement?.(sql);
       if (opts?.failOn?.test(sql)) throw new Error(`injected fault: ${sql.slice(0, 80)}`);
       const info = raw.prepare(sql).run(...normalize(params));
       // better-sqlite3 spells it lastInsertRowid (lowercase d).
@@ -76,5 +88,8 @@ export function createTestDatabase(opts?: {
       }
     },
   };
-  return { db, close: () => raw.close() };
+  const close = () => {
+    if (raw.open) raw.close();
+  };
+  return { db, close, crash: close };
 }

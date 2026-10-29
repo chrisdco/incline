@@ -13,6 +13,7 @@ import type { ComponentType } from 'react';
 import * as Sentry from '@sentry/react-native';
 import * as Updates from 'expo-updates';
 
+import { setErrorSink } from './error-sink';
 import { formatRelease, releaseInfo } from './release';
 
 const DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
@@ -25,6 +26,8 @@ export function monitoringEnabled(): boolean {
 
 /** Call once, before the root component renders. Safe to call when disabled. */
 export function initMonitoring(): void {
+  // Data-layer background failures route through here (no-op until enabled).
+  setErrorSink(reportError);
   if (__DEV__ || !DSN || enabled) return;
   const info = releaseInfo();
   Sentry.init({

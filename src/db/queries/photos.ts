@@ -54,7 +54,7 @@ async function persistPhotoFile(logId: number, sourceUri: string, photoUuid: str
   return { uri: dest, byteSize: meta.byteSize, checksum: meta.checksum };
 }
 
-const PHOTO_TABLES = ['workout_photos'] as const;
+const PHOTO_TABLES = ['workout_photos', 'photo_blob_queue'] as const;
 
 async function enqueuePhotoMetadata(tx: Tx, photoId: number): Promise<void> {
   const row = await tx.getFirstAsync<{
@@ -125,6 +125,7 @@ export async function addWorkoutPhotos(logId: number, sourceUris: string[]): Pro
         );
         const id = Number(res.lastInsertRowId);
         await enqueuePhotoMetadata(tx, id);
+        await enqueuePhotoBlob(uuid, 'upload', null, tx);
         return id;
       });
     } catch (err) {
@@ -138,7 +139,6 @@ export async function addWorkoutPhotos(logId: number, sourceUris: string[]): Pro
       sortOrder,
       createdAt: now,
     });
-    void enqueuePhotoBlob(uuid, 'upload').catch(() => {});
     sort += 1;
   }
   return [...existing, ...added];
@@ -168,12 +168,10 @@ export async function deleteWorkoutPhoto(photoId: number): Promise<void> {
       photoId,
     );
     await enqueuePhotoMetadata(tx, photoId);
+    if (r?.uuid) await enqueuePhotoBlob(r.uuid, 'delete', r.storage_path, tx);
     return r;
   });
   if (row) await deleteLocalPhotoFile(row.uri);
-  if (row?.uuid) {
-    void enqueuePhotoBlob(row.uuid, 'delete', row.storage_path).catch(() => {});
-  }
 }
 
 export async function deletePhotosForWorkout(logId: number): Promise<void> {
@@ -190,15 +188,13 @@ export async function deletePhotosForWorkout(logId: number): Promise<void> {
       logId,
     );
     for (const r of live) {
-      if (r.uuid) await enqueuePhotoMetadata(tx, r.id);
+      if (!r.uuid) continue;
+      await enqueuePhotoMetadata(tx, r.id);
+      await enqueuePhotoBlob(r.uuid, 'delete', r.storage_path, tx);
     }
     return live;
   });
   for (const r of rows) await deleteLocalPhotoFile(r.uri);
-  for (const r of rows) {
-    if (!r.uuid) continue;
-    void enqueuePhotoBlob(r.uuid, 'delete', r.storage_path).catch(() => {});
-  }
 }
 
 interface ProgressPhotoRow {

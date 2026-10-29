@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { openDatabase } from '@/db/client';
+import { captureError } from '@/lib/error-sink';
 import { newUuid } from '@/lib/uuid';
 import { buildSearchText } from '@/lib/exercise-search';
 import type { SyncTable } from './types';
@@ -578,7 +579,8 @@ export async function applyRemoteRow(
       );
     }
     if (!deletedAt && storagePath && !new File(keepLocal).exists) {
-      void enqueuePhotoBlob(id, 'download', storagePath).catch(() => {});
+      // Same connection, so this joins applyPage's transaction (#138).
+      await enqueuePhotoBlob(id, 'download', storagePath, db);
     }
     return 'ok';
   }
@@ -663,10 +665,20 @@ export async function runSync(opts: {
     }
     const client = auth.client;
 
-    const { pushed } = await pushOutbox(opts.userId, supabasePushRpc(client));
+    const { pushed, tableErrors } = await pushOutbox(opts.userId, supabasePushRpc(client));
     await setSyncStatus({ lastPushAt: Date.now() });
 
     await pullAll(client, opts.userId);
+
+    void drainPhotoBlobs(opts).catch((err) => captureError(err, { where: 'photos.drain' }));
+
+    // A table whose push call failed outright is retried next run; the
+    // others already went out. Surface it rather than reporting idle.
+    const pushError = tableErrors.find((e) => !e.blockedBy);
+    if (pushError) {
+      await setSyncStatus({ status: 'error', lastError: pushError.message, lastPullAt: Date.now() });
+      return { ok: false, pushed, error: pushError.message };
+    }
 
     const parked = await quarantinedOutboxCount(MAX_PUSH_ATTEMPTS);
     await setSyncStatus({
@@ -676,8 +688,6 @@ export async function runSync(opts: {
         : null,
       lastPullAt: Date.now(),
     });
-
-    void drainPhotoBlobs(opts).catch((err) => console.warn('[photos] drain failed', err));
 
     return { ok: true, pushed };
   } catch (err) {

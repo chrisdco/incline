@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestDatabase, type TestDbHandle } from '@/db/__tests__/sqlite-adapter';
+import { setErrorSink } from '@/lib/error-sink';
 
 let currentDb: TestDbHandle | null = null;
 
@@ -17,7 +18,7 @@ vi.mock('@/db/client', () => ({
 }));
 
 import type { PushOp } from '../mappers';
-import { enqueueSync, listOutbox, quarantinedOutboxCount } from '../outbox';
+import { enqueueSync, listOutbox, pushBackoffMs, quarantinedOutboxCount } from '../outbox';
 import {
   MAX_PUSH_ATTEMPTS,
   PUSH_CHUNK,
@@ -27,8 +28,14 @@ import {
   SyncAuthError,
   type PushRowResult,
   type PushRpc,
+  type PushSummary,
 } from '../push';
 import type { SyncTable } from '../types';
+
+/** Summary with no dead-letters or whole-table failures. */
+function clean(pushed: number, failed: number): PushSummary {
+  return { pushed, failed, deadLettered: 0, tableErrors: [] };
+}
 
 interface Call {
   table: SyncTable;
@@ -95,6 +102,8 @@ describe('pushOutbox', () => {
   afterEach(() => {
     close();
     currentDb = null;
+    setErrorSink(null);
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -117,47 +126,119 @@ describe('pushOutbox', () => {
       ['set_entries', PUSH_CHUNK],
       ['set_entries', 5],
     ]);
-    expect(result).toEqual({ pushed: sets + 1, failed: 0 });
+    expect(result).toEqual(clean(sets + 1, 0));
     expect(await listOutbox(1000)).toHaveLength(0);
   });
 
   it('acks stale rows (cloud already newer) without rewriting them', async () => {
     await enqueueSync('bodyweight_entries', 'bw-1', 'upsert', { weight: 80, recorded_at: 1, updated_at: 5 });
     const { rpc } = recordingRpc(() => 'stale');
-    expect(await pushOutbox('user-1', rpc)).toEqual({ pushed: 1, failed: 0 });
+    expect(await pushOutbox('user-1', rpc)).toEqual(clean(1, 0));
     expect(await listOutbox()).toHaveLength(0);
   });
 
-  it('a failing row does not block the rows after it, and is quarantined after N attempts', async () => {
+  it('a poison row does not block the rows after it, backs off, and is dead-lettered after N attempts', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_000_000);
+    const reported: Record<string, unknown>[] = [];
+    setErrorSink((_err, ctx) => reported.push(ctx ?? {}));
+
     await enqueueSync('set_entries', 'poison', 'upsert', { updated_at: 1 });
-    await enqueueSync('set_entries', 'good', 'upsert', { updated_at: 2 });
+    // More than one chunk behind the poison row: all of it must flow.
+    for (let i = 0; i < PUSH_CHUNK + 3; i++) {
+      await enqueueSync('set_entries', `good-${i}`, 'upsert', { updated_at: 2 + i });
+    }
     await enqueueSync('bodyweight_entries', 'bw', 'upsert', { weight: 80, recorded_at: 1, updated_at: 3 });
 
     const { rpc, calls } = recordingRpc((_t, op) => (op.row.id === 'poison' ? 'error' : 'applied'));
-    const first = await pushOutbox('user-1', rpc);
-    expect(first).toEqual({ pushed: 2, failed: 1 });
-    const [left] = await listOutbox();
-    expect(left.rowUuid).toBe('poison');
-    expect(left.attempts).toBe(1);
+    expect(await pushOutbox('user-1', rpc)).toEqual(clean(PUSH_CHUNK + 4, 1));
+    const left = await listOutbox();
+    expect(left).toHaveLength(1);
+    expect(left[0]).toMatchObject({
+      rowUuid: 'poison',
+      attempts: 1,
+      nextAttemptAt: 1_000_000 + pushBackoffMs(1),
+    });
 
-    for (let run = 1; run < MAX_PUSH_ATTEMPTS; run++) await pushOutbox('user-1', rpc);
+    // Backing off: an immediate rerun does not resend it.
+    const sentBefore = calls.length;
+    expect(await pushOutbox('user-1', rpc)).toEqual(clean(0, 0));
+    expect(calls.length).toBe(sentBefore);
+
+    let last = clean(0, 0);
+    for (let run = 1; run < MAX_PUSH_ATTEMPTS; run++) {
+      vi.setSystemTime(Date.now() + pushBackoffMs(run));
+      last = await pushOutbox('user-1', rpc);
+    }
+    expect(last.deadLettered).toBe(1);
     expect((await listOutbox())[0].attempts).toBe(MAX_PUSH_ATTEMPTS);
     expect(await quarantinedOutboxCount(MAX_PUSH_ATTEMPTS)).toBe(1);
+    // Reported once, with the SQLSTATE only (no payload, no message text).
+    expect(reported).toEqual([
+      { where: 'sync.push', table: 'set_entries', code: '23503', attempts: MAX_PUSH_ATTEMPTS },
+    ]);
 
-    // Quarantined: no longer sent at all.
+    // Dead-lettered: no longer sent at all, however long we wait.
+    vi.setSystemTime(Date.now() + 24 * 60 * 60 * 1000);
     const before = calls.length;
-    expect(await pushOutbox('user-1', rpc)).toEqual({ pushed: 0, failed: 0 });
+    expect(await pushOutbox('user-1', rpc)).toEqual(clean(0, 0));
     expect(calls.length).toBe(before);
 
-    // A new local edit resets attempts and releases it.
+    // A new local edit resets attempts and backoff, and releases it.
     await enqueueSync('set_entries', 'poison', 'upsert', { updated_at: 10 });
     expect(await quarantinedOutboxCount(MAX_PUSH_ATTEMPTS)).toBe(0);
     const healed = recordingRpc();
-    expect(await pushOutbox('user-1', healed.rpc)).toEqual({ pushed: 1, failed: 0 });
+    expect(await pushOutbox('user-1', healed.rpc)).toEqual(clean(1, 0));
+  });
+
+  it('a table whose call fails outright does not stop independent tables', async () => {
+    await enqueueSync('user_templates', 'tpl-1', 'upsert', { name: 'A', updated_at: 1 });
+    await enqueueSync('user_template_exercises', 'te-1', 'upsert', { template_uuid: 'tpl-1', updated_at: 1 });
+    await enqueueSync('workout_logs', 'log-1', 'upsert', { name: 'Push', started_at: 1, updated_at: 1 });
+    await enqueueSync('set_entries', 'set-1', 'upsert', { workout_log_uuid: 'log-1', updated_at: 1 });
+    await enqueueSync('bodyweight_entries', 'bw-1', 'upsert', { weight: 80, recorded_at: 1, updated_at: 1 });
+
+    const calls: SyncTable[] = [];
+    const rpc: PushRpc = async (table, ops) => {
+      calls.push(table);
+      if (table === 'user_templates') throw new Error('Sync push failed: payload too large');
+      return ops.map((_, idx) => ({ idx, status: 'applied', message: null }));
+    };
+    const result = await pushOutbox('user-1', rpc);
+
+    // Children of the failed table wait; unrelated tables still go out.
+    expect(calls).toEqual(['user_templates', 'bodyweight_entries']);
+    expect(result.pushed).toBe(1);
+    expect(result.tableErrors).toEqual([
+      { table: 'user_templates', message: 'Sync push failed: payload too large' },
+      { table: 'user_template_exercises', message: 'waiting on user_templates', blockedBy: 'user_templates' },
+      { table: 'user_program_workouts', message: 'waiting on user_templates', blockedBy: 'user_templates' },
+      { table: 'workout_logs', message: 'waiting on user_templates', blockedBy: 'user_templates' },
+      { table: 'set_entries', message: 'waiting on workout_logs', blockedBy: 'workout_logs' },
+      { table: 'workout_photos', message: 'waiting on workout_logs', blockedBy: 'workout_logs' },
+    ]);
+    // Not the rows' fault: nothing charged against them.
+    expect((await listOutbox()).map((r) => [r.tableName, r.attempts])).toEqual([
+      ['user_templates', 0],
+      ['user_template_exercises', 0],
+      ['workout_logs', 0],
+      ['set_entries', 0],
+    ]);
+  });
+
+  it('enqueueSync refuses a table this build cannot push', async () => {
+    await expect(enqueueSync('mystery_table' as SyncTable, 'x', 'upsert', {})).rejects.toThrow(
+      /unknown sync table/,
+    );
+    expect(await listOutbox()).toHaveLength(0);
   });
 
   it('quarantines rows for tables this build cannot push', async () => {
-    await enqueueSync('mystery_table' as SyncTable, 'x', 'upsert', { updated_at: 1 });
+    // Left by another build: enqueueSync itself refuses unknown tables now.
+    await currentDb!.runAsync(
+      `INSERT INTO sync_outbox (table_name, row_uuid, op, payload, created_at, attempts)
+       VALUES ('mystery_table', 'x', 'upsert', '{"updated_at":1}', 1, 0)`,
+    );
     const { rpc, calls } = recordingRpc();
     await pushOutbox('user-1', rpc);
     expect(calls).toHaveLength(0);
@@ -172,7 +253,7 @@ describe('pushOutbox', () => {
     );
     await enqueueSync('set_entries', 'fine', 'upsert', { updated_at: 2 });
     const { rpc, calls } = recordingRpc();
-    expect(await pushOutbox('user-1', rpc)).toEqual({ pushed: 1, failed: 1 });
+    expect(await pushOutbox('user-1', rpc)).toEqual(clean(1, 1));
     expect(calls[0].ops.map((o) => o.row.id)).toEqual(['fine']);
     expect((await listOutbox())[0]).toMatchObject({ rowUuid: 'broken', attempts: 1 });
   });

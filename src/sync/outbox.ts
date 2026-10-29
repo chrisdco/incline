@@ -1,5 +1,6 @@
 import { openDatabase } from '@/db/client';
 import type { Tx } from '@/db/write';
+import { isKnownSyncTable } from './tables';
 import type { SyncOp, SyncTable } from './types';
 
 export interface OutboxRow {
@@ -10,12 +11,20 @@ export interface OutboxRow {
   payload: string | null;
   createdAt: number;
   attempts: number;
+  /** Epoch ms before which a failed row is not retried (#139). 0 = due. */
+  nextAttemptAt: number;
+}
+
+/** Retry delay after the `attempts`-th failure: 30s, 1m, 2m … capped at 1h. */
+export function pushBackoffMs(attempts: number): number {
+  return Math.min(60 * 60 * 1000, 30_000 * 2 ** Math.max(0, attempts - 1));
 }
 
 /**
  * Enqueue a mutation for later push. Coalesces duplicate pending rows for the
  * same uuid. Pass the `mutate()` tx so the enqueue commits (or rolls back)
- * with the row change it describes; failures always throw.
+ * with the row change it describes; failures always throw. A new edit clears
+ * any backoff / dead-letter state the row had (#139).
  */
 export async function enqueueSync(
   tableName: SyncTable,
@@ -24,6 +33,8 @@ export async function enqueueSync(
   payload?: Record<string, unknown> | null,
   tx?: Tx,
 ): Promise<void> {
+  // Untyped callers (JSON, casts) must not plant rows push can never send.
+  if (!isKnownSyncTable(tableName)) throw new Error(`enqueueSync: unknown sync table ${String(tableName)}`);
   const db = tx ?? (await openDatabase());
   const now = Date.now();
   const json = payload ? JSON.stringify(payload) : null;
@@ -34,10 +45,11 @@ export async function enqueueSync(
   // schema.ts / ensure-sync-schema.ts. Atomic alone and safe inside a
   // mutate() transaction (no nesting involved).
   await db.runAsync(
-    `INSERT INTO sync_outbox (table_name, row_uuid, op, payload, created_at, attempts)
-     VALUES (?, ?, ?, ?, ?, 0)
+    `INSERT INTO sync_outbox (table_name, row_uuid, op, payload, created_at, attempts, next_attempt_at)
+     VALUES (?, ?, ?, ?, ?, 0, 0)
      ON CONFLICT(table_name, row_uuid)
-     DO UPDATE SET op = excluded.op, payload = excluded.payload, created_at = excluded.created_at, attempts = 0`,
+     DO UPDATE SET op = excluded.op, payload = excluded.payload, created_at = excluded.created_at,
+                   attempts = 0, next_attempt_at = 0`,
     tableName,
     rowUuid,
     op,
@@ -54,6 +66,7 @@ interface OutboxDbRow {
   payload: string | null;
   created_at: number;
   attempts: number;
+  next_attempt_at: number | null;
 }
 
 function mapOutboxRow(r: OutboxDbRow): OutboxRow {
@@ -65,6 +78,7 @@ function mapOutboxRow(r: OutboxDbRow): OutboxRow {
     payload: r.payload,
     createdAt: r.created_at,
     attempts: r.attempts,
+    nextAttemptAt: r.next_attempt_at ?? 0,
   };
 }
 
@@ -79,21 +93,22 @@ export async function listOutbox(limit = 100): Promise<OutboxRow[]> {
 
 /**
  * One keyset page of a table's pushable rows (id > afterId, attempts below
- * the quarantine threshold). Keyset, not OFFSET, so rows that fail and stay
- * behind never get re-read within the same run.
+ * the dead-letter threshold, backoff elapsed). Keyset, not OFFSET, so rows
+ * that fail and stay behind never get re-read within the same run.
  */
 export async function listPushableOutbox(
   tableName: SyncTable,
-  opts: { afterId: number; maxAttempts: number; limit: number },
+  opts: { afterId: number; maxAttempts: number; limit: number; now?: number },
 ): Promise<OutboxRow[]> {
   const db = await openDatabase();
   const rows = await db.getAllAsync<OutboxDbRow>(
     `SELECT * FROM sync_outbox
-     WHERE table_name = ? AND id > ? AND attempts < ?
+     WHERE table_name = ? AND id > ? AND attempts < ? AND next_attempt_at <= ?
      ORDER BY id ASC LIMIT ?`,
     tableName,
     opts.afterId,
     opts.maxAttempts,
+    opts.now ?? Date.now(),
     opts.limit,
   );
   return rows.map(mapOutboxRow);
@@ -145,22 +160,26 @@ export async function removeOutbox(
 }
 
 /**
- * Count a failed push against the row — same match as removeOutbox, so an
- * edit that coalesced in mid-push starts fresh instead of inheriting the
- * failure (and never gets quarantined for the old payload's error).
+ * Count a failed push against the row and back it off (pushBackoffMs) — same
+ * match as removeOutbox, so an edit that coalesced in mid-push starts fresh
+ * instead of inheriting the failure (and never gets dead-lettered for the old
+ * payload's error). Returns false when the row changed and was left alone.
  */
 export async function bumpOutboxAttempt(
-  item: Pick<OutboxRow, 'id' | 'op' | 'payload' | 'createdAt'>,
-): Promise<void> {
+  item: Pick<OutboxRow, 'id' | 'op' | 'payload' | 'createdAt' | 'attempts'>,
+  now = Date.now(),
+): Promise<boolean> {
   const db = await openDatabase();
-  await db.runAsync(
-    `UPDATE sync_outbox SET attempts = attempts + 1
+  const res = await db.runAsync(
+    `UPDATE sync_outbox SET attempts = attempts + 1, next_attempt_at = ?
      WHERE id = ? AND op = ? AND payload IS ? AND created_at = ?`,
+    now + pushBackoffMs(item.attempts + 1),
     item.id,
     item.op,
     item.payload,
     item.createdAt,
   );
+  return res.changes > 0;
 }
 
 export async function clearOutbox(tx?: Tx): Promise<void> {
