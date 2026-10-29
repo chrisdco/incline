@@ -76,14 +76,16 @@ function harness(logs: Record<number, SessionWorkout>, opts: { rest?: Record<num
       return { removed: ids.length, setIds: ids };
     }),
     updateWorkoutNotes: vi.fn(async () => {}),
-    finishWorkout: vi.fn(async () => {}),
-    discardWorkout: vi.fn(async () => {}),
+    // The real ones drop the volatile kv entry inside their transaction.
+    finishWorkout: vi.fn(async (logId: number) => {
+      kv.delete(volatileKey(logId));
+    }),
+    discardWorkout: vi.fn(async (logId: number) => {
+      kv.delete(volatileKey(logId));
+    }),
     kvGet: async (k) => kv.get(k) ?? null,
     kvSet: async (k, v) => {
       kv.set(k, v);
-    },
-    kvRemove: async (k) => {
-      kv.delete(k);
     },
     settings: () => ({ unit: 'metric', showSessionGhost: false, autoStartRest: true, defaultRestSeconds: 90 }),
     now: () => clock,
@@ -186,6 +188,26 @@ describe('session engine: notes draft (#170)', () => {
     for (const [k, v] of h.kv) b.kv.set(k, v);
     await b.engine.open(1);
     expect(b.engine.store.getState().notesDraft).toBe('felt strong');
+  });
+});
+
+describe('session engine: finish is one write (#141)', () => {
+  it('hands the notes draft to finishWorkout instead of a separate notes write', async () => {
+    const h = harness({ 1: workout(1, [set(1, 10, { completed: true })]) });
+    await h.engine.open(1);
+    h.engine.setNotesDraft('  felt strong ');
+    expect(await h.engine.finish()).toBe(true);
+    expect(h.deps.updateWorkoutNotes).not.toHaveBeenCalled();
+    expect(h.deps.finishWorkout).toHaveBeenCalledWith(1, { pausedMs: 0, notes: 'felt strong' });
+  });
+
+  it('a pending draft save cannot re-create the volatile entry after finish', async () => {
+    const h = harness({ 1: workout(1, [set(1, 10, { completed: true })]) });
+    await h.engine.open(1);
+    h.engine.setNotesDraft('late');
+    await h.engine.finish();
+    await tick();
+    expect(h.kv.has(volatileKey(1))).toBe(false);
   });
 });
 

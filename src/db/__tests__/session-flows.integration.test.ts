@@ -68,6 +68,7 @@ import {
   updateWorkoutDuration,
 } from '../queries/sessions';
 import { enqueueSync } from '../../sync/outbox';
+import { volatileKey } from '../../lib/session-volatile';
 
 const faults: { failOn: RegExp | null } = { failOn: null };
 let closeDb = () => {};
@@ -208,6 +209,110 @@ describe('discardWorkout atomicity', () => {
     );
     expect(sets.every((s) => s.deleted_at == null)).toBe(true);
     expect(await openLogCount()).toBe(1);
+  });
+});
+
+describe('finish / discard / remove are one transaction each (#141)', () => {
+  async function seedVolatile(logId: number) {
+    await db().runAsync('INSERT INTO kv (key, value) VALUES (?, ?)', volatileKey(logId), '{"pausedAt":1}');
+  }
+
+  async function hasVolatile(logId: number): Promise<boolean> {
+    const row = await db().getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) as c FROM kv WHERE key = ?',
+      volatileKey(logId),
+    );
+    return (row?.c ?? 0) > 0;
+  }
+
+  async function logRow(logId: number) {
+    return db().getFirstAsync<{ ended_at: number | null; deleted_at: number | null; notes: string }>(
+      'SELECT ended_at, deleted_at, notes FROM workout_logs WHERE id = ?',
+      logId,
+    );
+  }
+
+  it('finish writes notes, closes the log and drops volatile kv together', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    const [id] = await setIds(logId);
+    await updateSet(id, { completed: true, weight: 80, reps: 8 });
+    await seedVolatile(logId);
+
+    await finishWorkout(logId, { notes: 'felt strong' });
+
+    const log = await logRow(logId);
+    expect(log?.ended_at).not.toBeNull();
+    expect(log?.notes).toBe('felt strong');
+    expect(await hasVolatile(logId)).toBe(false);
+  });
+
+  it('finish without notes keeps the saved ones', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await db().runAsync("UPDATE workout_logs SET notes = 'kept' WHERE id = ?", logId);
+
+    await finishWorkout(logId);
+
+    expect((await logRow(logId))?.notes).toBe('kept');
+  });
+
+  it('a failed finish enqueue rolls back notes, close and kv', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    await addExerciseToWorkout(logId, 1);
+    const [first] = await setIds(logId);
+    await updateSet(first, { completed: true, weight: 80, reps: 8 });
+    await seedVolatile(logId);
+    const outboxBefore = await outboxCount();
+
+    faults.failOn = /INSERT INTO sync_outbox/;
+    await expect(finishWorkout(logId, { notes: 'lost' })).rejects.toThrow('injected fault');
+    faults.failOn = null;
+
+    const log = await logRow(logId);
+    expect(log?.ended_at).toBeNull();
+    expect(log?.notes).toBe('');
+    expect(await setIds(logId)).toHaveLength(2);
+    expect(await hasVolatile(logId)).toBe(true);
+    expect(await outboxCount()).toBe(outboxBefore);
+  });
+
+  it('discard drops volatile kv in the same commit, and keeps it on failure', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    await seedVolatile(logId);
+
+    faults.failOn = /INSERT INTO sync_outbox/;
+    await expect(discardWorkout(logId)).rejects.toThrow('injected fault');
+    faults.failOn = null;
+    expect((await logRow(logId))?.deleted_at).toBeNull();
+    expect(await setIds(logId)).toHaveLength(1);
+    expect(await hasVolatile(logId)).toBe(true);
+
+    await discardWorkout(logId);
+    expect((await logRow(logId))?.deleted_at).not.toBeNull();
+    expect(await setIds(logId)).toHaveLength(0);
+    expect(await hasVolatile(logId)).toBe(false);
+  });
+
+  it('a failed remove enqueue keeps every set of the exercise', async () => {
+    await seedExercise(1);
+    const logId = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(logId, 1);
+    await addSet(logId, 1);
+    const before = await setIds(logId);
+    const outboxBefore = await outboxCount();
+
+    faults.failOn = /INSERT INTO sync_outbox/;
+    await expect(removeExerciseFromWorkout(logId, 1)).rejects.toThrow('injected fault');
+    faults.failOn = null;
+
+    expect(await setIds(logId)).toEqual(before);
+    expect(await outboxCount()).toBe(outboxBefore);
   });
 });
 
