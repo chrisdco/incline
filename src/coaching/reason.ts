@@ -14,7 +14,13 @@
 import { estimated1RM, formatWeight } from '@/db/calc';
 import type { Unit } from '@/db/types';
 import { smallestIncrement } from './plates';
-import type { DeloadSuggestion } from './deload';
+import {
+  ALREADY_DELOADED_RATIO,
+  COOLDOWN_DAYS,
+  deloadSentence,
+  MIN_STREAK_WEEKS,
+  type DeloadSuggestion,
+} from './deload';
 import type { LastWorkingSet, ReadinessLevel, ReasonCode, TrainingSuggestion } from './types';
 
 export const REASON_SCHEMA_VERSION = 1;
@@ -207,6 +213,16 @@ export function detectPlateau(history: TopSetSample[]): { sessions: number } | n
   return n >= PLATEAU_SESSIONS ? { sessions: n } : null;
 }
 
+/** {@link detectPlateau} as a displayable signal (exercise detail, Progress "Stalled lifts"). */
+export function plateauSignal(history: TopSetSample[]): CoachingSignal | null {
+  const plateau = detectPlateau(history);
+  if (!plateau) return null;
+  return {
+    rule: 'plateau',
+    sentence: `Your top set hasn't improved in ${plateau.sessions} sessions. Consider a lighter week or a different rep range.`,
+  };
+}
+
 export function sessionsAtTarget(history: TopSetSample[], targetRepsMax: number): number {
   let n = 0;
   for (const h of history) {
@@ -259,13 +275,8 @@ export function explainSuggestion(s: TrainingSuggestion, ctx: ExplainContext): C
       sentence: `Your last session was ${daysSinceLast} days ago. The suggestion doesn't adjust for breaks, so start lighter if it feels heavy.`,
     });
   }
-  const plateau = rule === 'progress' ? null : detectPlateau(ctx.history);
-  if (plateau) {
-    signals.push({
-      rule: 'plateau',
-      sentence: `Your top set hasn't improved in ${plateau.sessions} sessions. Consider a lighter week or a different rep range.`,
-    });
-  }
+  const plateau = rule === 'progress' ? null : plateauSignal(ctx.history);
+  if (plateau) signals.push(plateau);
   return {
     version: REASON_SCHEMA_VERSION,
     rule,
@@ -280,7 +291,6 @@ export function explainSuggestion(s: TrainingSuggestion, ctx: ExplainContext): C
 
 /** Program-level deload (from `detectDeload`) as a reason with rule `deload`. */
 export function buildDeloadReason(d: DeloadSuggestion, ruleVersion: string): CoachingReason {
-  const pct = Math.round(d.volumeScale * 100);
   return {
     version: REASON_SCHEMA_VERSION,
     rule: 'deload',
@@ -288,7 +298,35 @@ export function buildDeloadReason(d: DeloadSuggestion, ruleVersion: string): Coa
     ruleVersion,
     inputs: null,
     output: { kind: 'volume', scale: d.volumeScale, weeksTrained: d.weeksTrained },
-    sentence: `You've trained ${d.weeksTrained} weeks in a row, so cut sets to about ${pct}% for one week.`,
+    sentence: deloadSentence(d),
     signals: [],
+  };
+}
+
+/** One labelled input behind a reason, for "why?" lists. */
+export interface ReasonInputRow {
+  label: string;
+  value: string;
+}
+
+export interface DeloadReasonDetail {
+  reason: CoachingReason;
+  inputs: ReasonInputRow[];
+  /** Plain-language statement of the rule that fired. */
+  rule: string;
+}
+
+/** Deload reason plus the inputs and rule it came from, for the deload screen. */
+export function deloadReasonDetail(d: DeloadSuggestion, ruleVersion: string): DeloadReasonDetail {
+  const reason = buildDeloadReason(d, ruleVersion);
+  const pct = Math.round(d.volumeScale * 100);
+  return {
+    reason,
+    inputs: [
+      { label: 'Training weeks in a row', value: String(d.weeksTrained) },
+      { label: 'Suggested from', value: `${MIN_STREAK_WEEKS} weeks` },
+      { label: 'Working sets for one week', value: `About ${pct}%` },
+    ],
+    rule: `${RULE_LABEL.deload} (rules ${ruleVersion}): suggested after ${MIN_STREAK_WEEKS} or more training weeks in a row, unless last week was already at or under ${Math.round(ALREADY_DELOADED_RATIO * 100)}% of your recent volume or you applied a deload in the last ${COOLDOWN_DAYS} days.`,
   };
 }
