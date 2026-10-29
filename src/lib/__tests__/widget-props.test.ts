@@ -34,6 +34,9 @@ function nextUp(overrides: Partial<Parameters<typeof buildNextUpProps>[0]> = {})
     weeklyGoal: 4,
     streak: 0,
     now: NOW,
+    volumeThisWeek: 0,
+    volumeLastWeek: 0,
+    formatVolume: (kg: number) => `${kg} kg`,
     ...palettes,
     ...overrides,
   });
@@ -49,7 +52,7 @@ describe('buildNextUpProps', () => {
       streak: 3,
     });
 
-    expect(props.eyebrow).toBe('IN PROGRESS');
+    expect(props.eyebrow).toBe('In progress');
     expect(props.title).toBe('Push A');
     expect(props.detail).toBe('Started 24 min ago');
     expect(props.streakLabel).toBe('3-week streak');
@@ -68,7 +71,7 @@ describe('buildNextUpProps', () => {
       sessionsThisWeek: 2,
     });
 
-    expect(props.eyebrow).toBe('TODAY');
+    expect(props.eyebrow).toBe('Today');
     expect(props.title).toBe('Pull B');
     expect(props.detail).toBe('Week 2 · 45 min');
     expect(props.streakLabel).toBe(null);
@@ -76,12 +79,12 @@ describe('buildNextUpProps', () => {
 
   it('falls back to the suggested template, then to an empty ready state', () => {
     const suggested = nextUp({ suggested: { name: 'Legs' } });
-    expect(suggested.eyebrow).toBe('SUGGESTED');
+    expect(suggested.eyebrow).toBe('Suggested');
     expect(suggested.title).toBe('Legs');
     expect(suggested.detail).toBe('Based on your recent training');
 
     const empty = nextUp();
-    expect(empty.eyebrow).toBe('READY');
+    expect(empty.eyebrow).toBe('Ready');
     expect(empty.title).toBe('Start a workout');
     expect(empty.detail).toBe('No active program yet');
   });
@@ -99,6 +102,17 @@ describe('buildNextUpProps', () => {
     expect(nextUp({ streak: 1 }).streakLabel).toBe(null);
     expect(nextUp({ streak: 2 }).streakLabel).toBe('2-week streak');
   });
+
+  it('compares volume with last week, and stays quiet without it', () => {
+    const up = nextUp({ volumeThisWeek: 1200, volumeLastWeek: 1000 });
+    expect(up.volume).toBe('1200 kg');
+    expect(up.volumeDelta).toBe('▲ 200 kg');
+    expect(up.volumeUp).toBe(true);
+    const down = nextUp({ volumeThisWeek: 700, volumeLastWeek: 1000 });
+    expect(down.volumeDelta).toBe('▼ 300 kg');
+    expect(down.volumeUp).toBe(false);
+    expect(nextUp({ volumeThisWeek: 700 }).volumeDelta).toBe(null);
+  });
 });
 
 describe('buildThisWeekProps', () => {
@@ -108,44 +122,38 @@ describe('buildThisWeekProps', () => {
       weeklyGoal: 4,
       sessionsToGoal: 4,
       goalMet: false,
+      trainedDays: [false, false, false, false, false, false, false],
+      todayIndex: 0,
       ...palettes,
       ...overrides,
     });
   }
 
-  it('renders the count against the goal with a progress ratio', () => {
-    const props = thisWeek({ sessionsThisWeek: 3, sessionsToGoal: 1 });
-    expect(props.eyebrow).toBe('THIS WEEK');
-    expect(props.count).toBe('3');
-    expect(props.goalLabel).toBe('/4');
-    expect(props.progress).toBe(0.75);
-    expect(props.showProgress).toBe(true);
-    expect(props.footer).toBe('1 session to go');
-  });
-
-  it('celebrates a met goal and clamps over-achieving progress', () => {
+  it('renders the count against the goal with Mon–Sun days', () => {
     const props = thisWeek({
-      sessionsThisWeek: 5,
-      sessionsToGoal: 0,
-      goalMet: true,
+      sessionsThisWeek: 3,
+      sessionsToGoal: 1,
+      trainedDays: [true, false, true, false, false, true, false],
+      todayIndex: 3,
     });
-    expect(props.progress).toBe(1);
-    expect(props.footer).toBe('Goal met this week');
+    expect(props.eyebrow).toBe('This week');
+    expect(props.count).toBe('3');
+    expect(props.countLabel).toBe('of 4 workouts');
+    expect(props.days.map((d) => d.letter).join('')).toBe('MTWTFSS');
+    expect(props.days.filter((d) => d.trained)).toHaveLength(3);
+    expect(props.days[3].isToday).toBe(true);
+    expect(props.footer).toBe('1 to go');
   });
 
-  it('hides the bar without a goal and pluralises the count', () => {
+  it('marks a met goal', () => {
+    expect(thisWeek({ sessionsThisWeek: 5, sessionsToGoal: 0, goalMet: true }).footer).toBe('Goal met');
+  });
+
+  it('drops the goal without one and pluralises the noun', () => {
     const props = thisWeek({ sessionsThisWeek: 3, weeklyGoal: 0, sessionsToGoal: 0 });
-    expect(props.showProgress).toBe(false);
-    expect(props.progress).toBe(0);
-    expect(props.goalLabel).toBe('');
-    expect(props.footer).toBe('3 sessions logged');
-
-    const singular = thisWeek({ sessionsThisWeek: 1, weeklyGoal: 0, sessionsToGoal: 0 });
-    expect(singular.footer).toBe('1 session logged');
-  });
-
-  it('pluralises the remaining count', () => {
-    expect(thisWeek({ sessionsThisWeek: 1, sessionsToGoal: 3 }).footer).toBe('3 sessions to go');
+    expect(props.countLabel).toBe('workouts');
+    expect(props.footer).toBe('No weekly goal set');
+    expect(thisWeek({ sessionsThisWeek: 1, weeklyGoal: 0, sessionsToGoal: 0 }).countLabel).toBe('workout');
   });
 });
 

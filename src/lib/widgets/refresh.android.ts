@@ -9,7 +9,8 @@
 import { isRunningInExpoGo } from 'expo';
 
 import { getTodayProgramSlot } from '@/db/queries/programs';
-import { getWeeklyConsistency } from '@/db/queries/progress';
+import { formatVolume } from '@/db/calc';
+import { getWeeklyConsistency, getWidgetWeekStats } from '@/db/queries/progress';
 import { getActiveWorkout } from '@/db/queries/sessions';
 import { getSuggestedTemplate } from '@/db/queries/templates';
 import { useSettings } from '@/store/settings-store';
@@ -32,11 +33,12 @@ export async function refreshWidgets(now = Date.now()): Promise<void> {
   inFlight = true;
   try {
     const settings = useSettings.getState();
-    const [active, todaySlot, consistency, suggested] = await Promise.all([
+    const [active, todaySlot, consistency, suggested, week] = await Promise.all([
       getActiveWorkout(),
       getTodayProgramSlot(now),
       getWeeklyConsistency(settings.weeklyWorkoutGoal, now),
       getSuggestedTemplate(),
+      getWidgetWeekStats(now),
     ]);
 
     // Lazy require: the widget runtime (and @expo/ui/jetpack-compose) must not
@@ -70,6 +72,9 @@ export async function refreshWidgets(now = Date.now()): Promise<void> {
         weeklyGoal: consistency.goal,
         streak: consistency.currentWeeklyStreak,
         now,
+        volumeThisWeek: week.volumeThisWeek,
+        volumeLastWeek: week.volumeLastWeek,
+        formatVolume: (kg) => formatVolume(kg, settings.unit),
         ...palettes,
       }),
     );
@@ -80,6 +85,8 @@ export async function refreshWidgets(now = Date.now()): Promise<void> {
         weeklyGoal: consistency.goal,
         sessionsToGoal: consistency.sessionsToGoal,
         goalMet: consistency.goalMet,
+        trainedDays: week.trainedDays,
+        todayIndex: week.todayIndex,
         ...palettes,
       }),
     );

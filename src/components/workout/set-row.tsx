@@ -45,7 +45,8 @@ const SET_TYPE_LABEL: Record<SetType, string> = {
  * tick at the edges; PREV dim text flexes widest (full "36.29kg×10"
  * centered, never a box); KG/REPS share the rest equally. Uniform gaps,
  * tick snug. Locked to set-layout.ts proportions — device screenshot
- * required before any geometry change.
+ * required before any geometry change. Row edges stay square: a rounded
+ * row lets the red swipe-delete action show at its corners.
  */
 export function SetRow({
   ref,
@@ -110,7 +111,7 @@ export function SetRow({
     <View
       style={{ height: SET_ROW_HEIGHT }}
       className={cn(
-        'flex-row items-center gap-2 rounded-xl bg-background px-1',
+        'flex-row items-center gap-2 bg-background px-1',
         completed && 'bg-success/8',
       )}>
       <Pressable

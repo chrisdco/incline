@@ -419,3 +419,46 @@ export async function getWorkoutCountInRange(startMs: number, endMs: number): Pr
   );
   return row?.c ?? 0;
 }
+
+export interface WidgetWeekStats {
+  /** Mon..Sun of the current week: true when a finished workout started that day. */
+  trainedDays: boolean[];
+  /** Index into trainedDays for today (0 = Monday). */
+  todayIndex: number;
+  /** Working volume in kg, this week and last week. */
+  volumeThisWeek: number;
+  volumeLastWeek: number;
+}
+
+/** Two queries for the home-screen widgets: day dots + week-over-week volume. */
+export async function getWidgetWeekStats(now = Date.now()): Promise<WidgetWeekStats> {
+  const db = await openDatabase();
+  const weekStart = startOfWeek(now);
+  const lastWeekStart = weekStart - 7 * 86_400_000;
+  const logs = await db.getAllAsync<{ started_at: number }>(
+    'SELECT started_at FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL AND started_at >= ?',
+    weekStart,
+  );
+  const trainedDays = Array.from({ length: 7 }, () => false);
+  for (const l of logs) {
+    const day = new Date(l.started_at).getDay();
+    trainedDays[day === 0 ? 6 : day - 1] = true;
+  }
+  const vol = await db.getFirstAsync<{ cur: number; prev: number }>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN w.started_at >= ? THEN s.weight * s.reps END), 0) as cur,
+       COALESCE(SUM(CASE WHEN w.started_at < ? THEN s.weight * s.reps END), 0) as prev
+     FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
+     WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND w.started_at >= ? AND ${ghostWorkingSql('s')}`,
+    weekStart,
+    weekStart,
+    lastWeekStart,
+  );
+  const today = new Date(now).getDay();
+  return {
+    trainedDays,
+    todayIndex: today === 0 ? 6 : today - 1,
+    volumeThisWeek: vol?.cur ?? 0,
+    volumeLastWeek: vol?.prev ?? 0,
+  };
+}
