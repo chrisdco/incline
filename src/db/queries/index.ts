@@ -21,6 +21,7 @@ export {
   getExerciseRepRecords,
   getExerciseProgression,
   getExerciseSeries,
+  getRecentTopSetsForExercises,
   type ExerciseFilters,
   type CreateCustomExerciseInput,
   type ExercisePRSummary,
@@ -131,6 +132,7 @@ export {
   getExerciseSuggestion,
   getMuscleExposureDays,
   getExerciseSubstitutes,
+  getStalledLifts,
 } from './coaching/suggestions';
 
 export { getActiveProgramPlanDiff } from './coaching/program-plan';

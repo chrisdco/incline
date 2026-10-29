@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,8 +8,13 @@ import { Icon } from '@/components/common/icon';
 import { Body, Caption } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ListRow, Section } from '@/components/layout';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/toast';
-import { DELOAD_APPLIED_KEY, DELOAD_SNOOZE_KEY, deloadSnoozeUntil } from '@/coaching/deload';
+import { DELOAD_APPLIED_KEY, DELOAD_SNOOZE_KEY, deloadSnoozeUntil, detectDeload } from '@/coaching/deload';
+import { deloadReasonDetail } from '@/coaching/reason';
+import { COACHING_RULE_VERSION } from '@/coaching/types';
+import { useProgressStats } from '@/hooks/use-data';
 import { kvStorage } from '@/db/kv';
 import { createDeloadTemplate, getSuggestedTemplate, getTemplate } from '@/db/queries';
 import type { WorkoutTemplate } from '@/db/types';
@@ -22,6 +27,15 @@ export default function DeloadScreen() {
   const { toast } = useToast();
   const [source, setSource] = useState<WorkoutTemplate | null>(null);
   const [busy, setBusy] = useState(false);
+  const { data: stats } = useProgressStats();
+
+  // Explain with the same rule Home used; snooze / cooldown only gate the nudge,
+  // so they're left out here. Null when the streak doesn't meet the rule.
+  const detail = useMemo(() => {
+    if (!stats) return null;
+    const d = detectDeload({ weeklyStreak: stats.streak, weeklyVolumes: stats.weeklyVolume ?? [] });
+    return d ? deloadReasonDetail(d, COACHING_RULE_VERSION) : null;
+  }, [stats]);
 
   const load = useCallback(async () => {
     const id = templateId ? Number(templateId) : NaN;
@@ -71,6 +85,31 @@ export default function DeloadScreen() {
         <Caption className="mb-4">
           After several hard weeks, cutting sets to about 60% for one week helps you recover. Nothing is applied until you confirm.
         </Caption>
+
+        {detail ? (
+          <View className="mb-6">
+            <Section title="Why" first>
+              <Card>
+                <Body className="text-foreground">{detail.reason.sentence}</Body>
+              </Card>
+            </Section>
+            <Section title="Inputs">
+              <Card className="py-1">
+                {detail.inputs.map((row, i) => (
+                  <View key={row.label}>
+                    {i > 0 ? <Separator /> : null}
+                    <ListRow title={row.label}>
+                      <Body className="tabular-nums text-muted-foreground">{row.value}</Body>
+                    </ListRow>
+                  </View>
+                ))}
+              </Card>
+            </Section>
+            <Section title="Rule">
+              <Caption className="px-1">{detail.rule}</Caption>
+            </Section>
+          </View>
+        ) : null}
 
         {source ? (
           <Card className="mb-4 p-4">

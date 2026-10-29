@@ -4,11 +4,12 @@ import type { WeeklyVolume } from '@/db/types';
 export const DELOAD_SNOOZE_KEY = 'coaching.deload.snoozeUntil';
 export const DELOAD_APPLIED_KEY = 'coaching.deload.lastAppliedAt';
 
-const MIN_STREAK_WEEKS = 4;
-const VOLUME_SCALE = 0.6;
-const ALREADY_DELOADED_RATIO = 0.7;
+export const MIN_STREAK_WEEKS = 4;
+export const VOLUME_SCALE = 0.6;
+export const ALREADY_DELOADED_RATIO = 0.7;
 const SNOOZE_MS = 14 * 86_400_000;
-const COOLDOWN_MS = 21 * 86_400_000;
+export const COOLDOWN_DAYS = 21;
+const COOLDOWN_MS = COOLDOWN_DAYS * 86_400_000;
 
 export interface DeloadSuggestion {
   weeksTrained: number;
@@ -56,13 +57,19 @@ export function detectDeload(input: {
   };
 }
 
+/** Deterministic deload sentence; only uses numbers from the suggestion. */
+export function deloadSentence(d: Pick<DeloadSuggestion, 'weeksTrained' | 'volumeScale'>): string {
+  return `You've trained ${d.weeksTrained} weeks in a row, so cut sets to about ${Math.round(d.volumeScale * 100)}% for one week.`;
+}
+
 export function deloadInsight(suggestion: DeloadSuggestion, href = '/(app)/deload'): CoachingInsight {
   return {
     id: 'deload-week',
     kind: 'deload',
     severity: 'warning',
     title: 'Deload week?',
-    body: suggestion.reasonText,
+    // Same deterministic sentence the deload screen explains (`buildDeloadReason`).
+    body: deloadSentence(suggestion),
     href,
     ruleVersion: COACHING_RULE_VERSION,
   };

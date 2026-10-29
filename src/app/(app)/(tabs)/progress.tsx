@@ -27,7 +27,7 @@ import {
   historyRangeSinceMs,
   type HistoryFilterSelection,
 } from '@/components/progress/history-filters';
-import { usePeriodStats, useWorkoutLogs } from '@/hooks/use-data';
+import { usePeriodStats, useStalledLifts, useWorkoutLogs } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
 import { useShallow } from 'zustand/react/shallow';
 import { usePrimaryHex } from '@/lib/theme';
@@ -70,6 +70,7 @@ export default function ProgressScreen() {
   const [exerciseSheetOpen, setExerciseSheetOpen] = useState(false);
   const [templateSheetOpen, setTemplateSheetOpen] = useState(false);
   const { data: stats, loading, error, refetch } = usePeriodStats(range);
+  const { data: stalled } = useStalledLifts();
 
   const historyFilters = useMemo<WorkoutLogFilters>(() => {
     const filters: WorkoutLogFilters = {};
@@ -193,6 +194,24 @@ export default function ProgressScreen() {
                     <EmptyState title="No records yet" description="Log a few workouts to see your PRs." />
                   )}
                 </Section>
+
+                {/* Plateau signals (advisory, same rule as "Why this weight?"). Hidden when none. */}
+                {stalled && stalled.length > 0 ? (
+                  <Section title="Stalled lifts" first>
+                    <Card className="py-1">
+                      {stalled.map((lift, i) => (
+                        <View key={lift.exerciseId}>
+                          {i > 0 ? <Separator /> : null}
+                          <ListRow
+                            title={lift.name}
+                            subtitle={lift.sentence}
+                            onPress={() => router.push(`/exercise/${lift.exerciseId}` as Href)}
+                          />
+                        </View>
+                      ))}
+                    </Card>
+                  </Section>
+                ) : null}
 
                 {/* Deeper views as one grouped list instead of three cards. */}
                 <Section title="Explore" first>
