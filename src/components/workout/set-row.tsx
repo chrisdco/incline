@@ -11,7 +11,7 @@ import { Check, Trash2 } from 'lucide-react-native';
 import { useHaptics } from '@/hooks/use-haptics';
 import * as Haptics from 'expo-haptics';
 import { NumberStepper, type NumberStepperHandle } from './number-stepper';
-import { SET_CELL, SET_COL, SET_ROW_HEIGHT } from './set-layout';
+import { SET_CELL, SET_ROW_HEIGHT } from './set-layout';
 import { formatWeight } from '@/db/calc';
 import { commitInputToKg, kgToInput } from '@/lib/units';
 import type { SetType, Unit } from '@/db/types';
@@ -120,9 +120,13 @@ export function SetRow({
     <View
       style={{ height: SET_ROW_HEIGHT }}
       className={cn('w-full flex-row items-center gap-2 px-1', completed && 'bg-success/8')}>
+      {/* Layout lives on plain Views: NativeWind drops a Pressable's style
+          *function* when className is also set, so widths given there never
+          applied and SET/PREV collapsed to their text (Oct 29 screenshots). */}
+      <View style={SET_CELL.index} className="self-stretch">
       <Pressable
-        style={({ pressed }) => [{ width: SET_COL.index, opacity: pressed ? 0.55 : 1 }]}
-        className="items-center justify-center self-stretch"
+        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+        className="flex-1 items-center justify-center"
         disabled={!onOpenSetType}
         onPress={onOpenSetType}
         android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
@@ -140,10 +144,12 @@ export function SetRow({
           </Text>
         ) : null}
       </Pressable>
+      </View>
 
+      <View style={SET_CELL.prev} className="self-stretch">
       <Pressable
-        style={({ pressed }) => [SET_CELL.prev, { opacity: pressed ? 0.55 : 1 }]}
-        className="items-center justify-center"
+        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+        className="flex-1 items-center justify-center"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
           selection();
@@ -170,6 +176,7 @@ export function SetRow({
           <Text className="text-xs text-muted-foreground">—</Text>
         )}
       </Pressable>
+      </View>
 
       <NumberStepper
         ref={weightRef}
@@ -193,7 +200,7 @@ export function SetRow({
         onSubmitNext={onSubmitReps}
       />
 
-      <View style={{ width: SET_COL.done }} className="items-center">
+      <View style={SET_CELL.done} className="items-center">
         {onToggleComplete ? (
           <Pressable
             accessibilityRole="button"
