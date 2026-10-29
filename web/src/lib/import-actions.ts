@@ -19,7 +19,7 @@ const importSetSchema = z.object({
   weight: z.number().finite().min(0).max(5000),
   reps: z.number().int().min(0).max(1000),
   rpe: z.number().int().min(1).max(10).nullable(),
-  setType: z.enum(["working", "warmup"]),
+  setType: z.enum(["working", "warmup", "drop", "failure"]),
 });
 
 const importExerciseSchema = z.object({
@@ -153,7 +153,7 @@ export async function importBatchAction(input: unknown): Promise<ImportBatchResu
       if (ex.ref.kind === "custom" && !ref.user_exercise_id) continue;
       ex.sets.forEach((s, i) => {
         const weight = w.fileUnit === "lb" ? s.weight / LB_PER_KG : s.weight;
-        if (s.setType === "working") volume += weight * s.reps;
+        if (s.setType !== "warmup") volume += weight * s.reps;
         setRows.push({
           id: randomUUID(),
           user_id: userId,

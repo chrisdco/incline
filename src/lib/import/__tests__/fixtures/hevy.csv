@@ -1,0 +1,5 @@
+"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"
+"Legs","15 Jan 2024, 18:30","15 Jan 2024, 19:40","","Squat (Barbell)","","","0","warmup","60","5","","",""
+"Legs","15 Jan 2024, 18:30","15 Jan 2024, 19:40","","Squat (Barbell)","","","1","normal","100","5","","","8.5"
+"Legs","15 Jan 2024, 18:30","15 Jan 2024, 19:40","","Squat (Barbell)","","","2","dropset","80","8","","",""
+"Legs","15 Jan 2024, 18:30","15 Jan 2024, 19:40","","Leg Extension (Machine)","","","0","failure","50","12","","",""

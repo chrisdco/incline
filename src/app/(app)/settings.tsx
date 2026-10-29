@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Moon, Sun, Smartphone, Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette,
   Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, ChevronRight, Sparkles, History,
-  Film, FlaskConical, Info,
+  Film, FlaskConical, Info, Upload,
 } from 'lucide-react-native';
 import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
 import { formatRelease, releaseInfo } from '@/lib/release';
@@ -720,6 +720,20 @@ export default function SettingsScreen() {
             <View className="min-w-0 flex-1">
               <Body className="font-medium text-foreground">Download your data</Body>
               <Caption className="mt-0.5">Choose workouts, measurements, and format</Caption>
+            </View>
+            <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/(app)/import' as Href)}
+            accessibilityRole="button"
+            accessibilityLabel="Import from Strong or Hevy"
+            className="flex-row items-center gap-3 border-t border-border py-3">
+            <View className="h-9 w-9 items-center justify-center rounded-xl bg-muted">
+              <Icon icon={Upload} size={18} color="muted-foreground" />
+            </View>
+            <View className="min-w-0 flex-1">
+              <Body className="font-medium text-foreground">Import from Strong / Hevy</Body>
+              <Caption className="mt-0.5">Bring your workout history from a CSV export</Caption>
             </View>
             <Icon icon={ChevronRight} size={18} color="muted-foreground" />
           </Pressable>
