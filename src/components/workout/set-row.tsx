@@ -116,10 +116,10 @@ export function SetRow({
   // Opaque outer layer: the completed tint is translucent, and the red
   // swipe-delete action sits underneath the row.
   const row = (
-    <View className="bg-background">
+    <View className="w-full bg-background">
     <View
       style={{ height: SET_ROW_HEIGHT }}
-      className={cn('flex-row items-center gap-2 px-1', completed && 'bg-success/8')}>
+      className={cn('w-full flex-row items-center gap-2 px-1', completed && 'bg-success/8')}>
       <Pressable
         style={({ pressed }) => [{ width: SET_COL.index, opacity: pressed ? 0.55 : 1 }]}
         className="items-center justify-center self-stretch"
@@ -227,6 +227,10 @@ export function SetRow({
   return (
     <ReanimatedSwipeable
       ref={swipeRef}
+      // Full width, or the swipe wrapper sizes the row to its content and
+      // PREV collapses: KG/REPS/DONE then sit left of their headers.
+      containerStyle={{ width: '100%' }}
+      childrenContainerStyle={{ width: '100%' }}
       friction={1}
       rightThreshold={48}
       overshootRight={false}
