@@ -6,6 +6,7 @@ import { PrimaryActivityIndicator } from '@/components/common/primary-activity-i
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Medal, MoreHorizontal, PencilLine, Share2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
+import { Tappable } from '@/components/ui/tappable';
 
 import { Body, Caption, Text } from '@/components/common/text';
 import { Section, StatBlock } from '@/components/layout';
@@ -426,15 +427,15 @@ export default function SummaryScreen() {
         <Section
           title="Exercises"
           action={
-            <Pressable
+            <Tappable
               onPress={() => router.push({ pathname: '/edit-workout/[id]', params: { id: String(logId) } } as Href)}
-              style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
+              pressedOpacity={0.6}
               accessibilityRole="button"
               accessibilityLabel="Edit workout"
               className="flex-row items-center gap-1">
               <Icon icon={PencilLine} size={14} color="primary" />
               <Caption className="font-medium text-primary">Edit</Caption>
-            </Pressable>
+            </Tappable>
           }>
         <View className="gap-6">
           {breakdown.length === 0 ? (
@@ -443,16 +444,16 @@ export default function SummaryScreen() {
             breakdown.map((b, i) => (
               <View key={b.exerciseId}>
                 {i > 0 ? <View className="mb-6 h-px bg-border/40" /> : null}
-                <Pressable
+                <Tappable
                   onPress={() => router.push(`/exercise/${b.exerciseId}`)}
-                  style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
+                  pressedOpacity={0.6}
                   className="mb-2 flex-row items-center gap-3"
                   accessibilityRole="button"
                   accessibilityLabel={`Open ${b.exerciseName} details`}>
                   <ExerciseThumb name={b.exerciseName} imageUrl={b.imageUrl} />
                   <Body className="flex-1 text-base font-semibold text-foreground">{b.exerciseName}</Body>
                   <Caption>{b.sets.length} sets</Caption>
-                </Pressable>
+                </Tappable>
                 <View className="mb-1 flex-row items-center gap-3 px-1">
                   <Text className="w-10 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
                   <Text className="flex-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Weight × reps</Text>

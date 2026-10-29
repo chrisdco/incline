@@ -7,6 +7,7 @@ import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { Icon } from '@/components/common/icon';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { ExerciseThumb } from '@/components/exercise/exercise-media';
+import { Tappable } from '@/components/ui/tappable';
 
 import { Body, Caption } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
@@ -288,9 +289,9 @@ export default function EditWorkoutScreen() {
 
         {/* Stats row */}
         <View className="mb-5 flex-row gap-3">
-          <Pressable
+          <Tappable
             onPress={() => setDurationOpen(!durationOpen)}
-            style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
+            pressedOpacity={0.7}
             className="flex-1"
             accessibilityRole="button"
             accessibilityLabel="Edit workout duration">
@@ -299,7 +300,7 @@ export default function EditWorkoutScreen() {
               value={formatDuration(log.durationSeconds)}
               icon={<Icon icon={Clock} size={18} color="primary" />}
             />
-          </Pressable>
+          </Tappable>
           <SummaryStat label="Volume" value={formatVolume(workingSetVolume(log?.sets ?? []), unit)} icon={<Icon icon={METRIC_ICONS.volume} size={18} color="info" />} />
           <SummaryStat label="Sets" value={`${completedSets}`} icon={<Icon icon={METRIC_ICONS.sets} size={18} color="warning" />} />
         </View>
@@ -407,15 +408,15 @@ export default function EditWorkoutScreen() {
           {groups.map((g) => (
             <View key={g.exerciseId}>
               {/* Exercise header */}
-              <Pressable
+              <Tappable
                 onPress={() => router.push(`/exercise/${g.exerciseId}`)}
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
+                pressedOpacity={0.6}
                 className="mb-1 flex-row items-center gap-3"
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${g.exerciseName} details`}>
                 <ExerciseThumb name={g.exerciseName} imageUrl={g.imageUrl} />
                 <Body className="flex-1 text-base font-semibold text-primary">{g.exerciseName}</Body>
-              </Pressable>
+              </Tappable>
 
               {/* Add notes placeholder */}
               <Caption className="mb-2 px-1">Add notes here...</Caption>
@@ -460,26 +461,26 @@ export default function EditWorkoutScreen() {
               ))}
 
               {/* Add set */}
-              <Pressable
+              <Tappable
                 onPress={() => onAddSet(g.exerciseId)}
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
+                pressedOpacity={0.6}
                 className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
                 accessibilityRole="button"
                 accessibilityLabel={`Add set to ${g.exerciseName}`}>
                 <Icon icon={Plus} size={15} color="primary" />
                 <Body className="text-sm font-medium text-primary">Add set</Body>
-              </Pressable>
+              </Tappable>
 
               {/* Warm-up set */}
-              <Pressable
+              <Tappable
                 onPress={() => onAddWarmUp(g.exerciseId)}
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
+                pressedOpacity={0.6}
                 className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
                 accessibilityRole="button"
                 accessibilityLabel={`Add warm-up set to ${g.exerciseName}`}>
                 <Icon icon={Flame} size={15} color="warning" />
                 <Body className="text-sm font-medium text-warning">Warm-up (~50%)</Body>
-              </Pressable>
+              </Tappable>
             </View>
           ))}
         </View>

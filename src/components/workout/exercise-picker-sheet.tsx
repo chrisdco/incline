@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { FlashList } from '@shopify/flash-list';
 import { Plus, Trash2 } from 'lucide-react-native';
+import { Tappable } from '@/components/ui/tappable';
 
 import { Sheet } from '@/components/ui/sheet';
 import { SearchBar } from '@/components/common/search-bar';
@@ -154,9 +155,9 @@ const PickerRow = memo(function PickerRow({
   onDelete: (externalId: string) => void;
 }) {
   return (
-    <Pressable
+    <Tappable
       onPress={() => onPick(externalId)}
-      style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+      pressedOpacity={0.55}
       android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}>
       <View className="mb-2">
         <View className="flex-row items-center gap-3 rounded-3xl bg-card p-4">
@@ -186,7 +187,7 @@ const PickerRow = memo(function PickerRow({
           ) : null}
         </View>
       </View>
-    </Pressable>
+    </Tappable>
   );
 });
 
