@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import {
@@ -183,15 +183,15 @@ export function useRestTimer(opts?: {
 
   // Mirror the store into the ongoing notification. `deadline` only changes
   // on start / add / stop, never per tick.
+  // Effect event reads the latest name / next set without making their object
+  // identity a dependency; ongoingKey re-posts only when the text changes.
+  const postOngoing = useEffectEvent((id: number, until: number) => {
+    void showRestOngoing({ sessionId: id, exerciseName: ongoingName, deadline: until, next: ongoingNext });
+  });
   useEffect(() => {
     if (sessionId == null || adoptedFor !== sessionId) return;
-    if (running && deadline > Date.now()) {
-      void showRestOngoing({ sessionId, exerciseName: ongoingName, deadline, next: ongoingNext });
-    } else {
-      void hideRestOngoing();
-    }
-    // ongoingKey stands in for ongoingName / ongoingNext (object identity).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (running && deadline > Date.now()) postOngoing(sessionId, deadline);
+    else void hideRestOngoing();
   }, [adoptedFor, sessionId, running, deadline, ongoingKey]);
 
   useEffect(
