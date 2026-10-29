@@ -1,10 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { router, useSegments, type Href } from 'expo-router';
 
+import { getWorkoutLogState } from '@/db/queries';
 import { actionForResponse, pathForNotificationAction } from '@/lib/notifications/actions';
 import { getNotifications } from '@/lib/notifications/core';
 import { createPendingRoute, isAppRouteReady } from '@/lib/notifications/pending-route';
-import { pathForNotificationPayload } from '@/lib/notifications/routes';
+import {
+  pathForNotificationPayload,
+  pathForSessionLog,
+  sessionIdForPayload,
+} from '@/lib/notifications/routes';
 import { isNotificationPayload } from '@/lib/notifications/types';
 import { cancelRestCompleteNotification, scheduleRestCompleteNotification } from '@/lib/rest-notification';
 import { signalRestRequest } from '@/lib/rest-timer-signal';
@@ -17,6 +22,16 @@ const pendingRoute = createPendingRoute((path) => {
     // Navigator gone mid-flush; the tap is dropped rather than retried forever.
   }
 });
+
+/** Live session, summary or home, depending on the log as it is now (#152). */
+async function resolveSessionPath(sessionId: number): Promise<string> {
+  try {
+    return pathForSessionLog(sessionId, await getWorkoutLogState(sessionId));
+  } catch {
+    // Read failed: keep the old target; the session screen handles a miss.
+    return `/session/${sessionId}`;
+  }
+}
 
 /**
  * Handle taps on local (and later remote) notifications via typed payloads.
@@ -55,17 +70,26 @@ export function useNotificationRouting() {
       const data = request.content.data;
       const action = actionForResponse(response.actionIdentifier, data);
       if (action?.kind === 'snooze_rest') {
-        // Snooze both sides. The scheduled alert is re-armed here because the
-        // response arrives as the app opens, and the in-app countdown is
-        // handed to the session screen through the signal bus (it starts on
-        // mount if the screen was not alive yet).
-        signalRestRequest({ seconds: action.seconds, sessionId: action.sessionId });
         void (async () => {
+          // A snooze from an alert that outlived its workout (finished or
+          // discarded since) must not restart rest for a dead session (#152).
+          const sessionPath =
+            action.sessionId != null ? await resolveSessionPath(action.sessionId) : null;
+          if (sessionPath != null && !sessionPath.startsWith('/session/')) {
+            await cancelRestCompleteNotification();
+            pendingRoute.navigate(sessionPath);
+            return;
+          }
+          // Snooze both sides. The scheduled alert is re-armed here because
+          // the response arrives as the app opens, and the in-app countdown
+          // is handed to the session screen through the signal bus (it
+          // starts on mount if the screen was not alive yet).
+          signalRestRequest({ seconds: action.seconds, sessionId: action.sessionId });
+          const path = pathForNotificationAction(action);
+          if (path) pendingRoute.navigate(path);
           await cancelRestCompleteNotification();
           await scheduleRestCompleteNotification(action.seconds, { sessionId: action.sessionId });
         })();
-        const path = pathForNotificationAction(action);
-        if (path) pendingRoute.navigate(path);
         return;
       }
       if (action?.kind === 'skip_rest') {
@@ -78,6 +102,11 @@ export function useNotificationRouting() {
         return;
       }
       if (isNotificationPayload(data)) {
+        const sessionId = sessionIdForPayload(data);
+        if (sessionId != null) {
+          void resolveSessionPath(sessionId).then((path) => pendingRoute.navigate(path));
+          return;
+        }
         const path = pathForNotificationPayload(data);
         if (path) pendingRoute.navigate(path);
       }

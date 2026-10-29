@@ -178,6 +178,19 @@ export async function getWorkoutLog(id: number): Promise<SessionWorkout | null> 
   return { ...mapLog(log), sets: await getSessionSets(log.id) };
 }
 
+/** Open / finished / discarded state of one log, for notification routing. */
+export async function getWorkoutLogState(
+  id: number,
+): Promise<{ ended_at: number | null; deleted_at: number | null } | null> {
+  const db = await openDatabase();
+  return (
+    (await db.getFirstAsync<{ ended_at: number | null; deleted_at: number | null }>(
+      'SELECT ended_at, deleted_at FROM workout_logs WHERE id = ?',
+      id,
+    )) ?? null
+  );
+}
+
 export async function getRestDefaultsForSession(logId: number): Promise<Record<number, number>> {
   const db = await openDatabase();
   const log = await db.getFirstAsync<{ template_id: number | null }>(

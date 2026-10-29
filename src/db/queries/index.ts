@@ -72,6 +72,7 @@ export {
   getActiveWorkout,
   getWorkoutLog,
   getRestDefaultsForSession,
+  getWorkoutLogState,
   startWorkout,
   addExerciseToWorkout,
   addWarmUpSet,

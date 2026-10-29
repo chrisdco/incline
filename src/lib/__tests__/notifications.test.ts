@@ -12,7 +12,11 @@ import {
   shouldNudgeStreak,
 } from '@/lib/notifications/nudge-rules';
 import { reminderBodyForDay } from '@/lib/notifications/copy';
-import { pathForNotificationPayload } from '@/lib/notifications/routes';
+import {
+  pathForNotificationPayload,
+  pathForSessionLog,
+  sessionIdForPayload,
+} from '@/lib/notifications/routes';
 import {
   NOTIFICATION_IDS,
   isNotificationPayload,
@@ -70,6 +74,29 @@ describe('pathForNotificationPayload', () => {
 
   it('routes rest with a session id to the live session', () => {
     expect(pathForNotificationPayload({ type: 'rest_complete', sessionId: 3 })).toBe('/session/3');
+  });
+});
+
+describe('pathForSessionLog (#152)', () => {
+  it('reopens only an open session', () => {
+    expect(pathForSessionLog(3, { ended_at: null, deleted_at: null })).toBe('/session/3');
+  });
+
+  it('sends a rest tap after Finish to the summary', () => {
+    expect(pathForSessionLog(3, { ended_at: 1_700_000_000_000, deleted_at: null })).toBe('/summary/3');
+  });
+
+  it('sends a discarded or missing log home', () => {
+    expect(pathForSessionLog(3, { ended_at: null, deleted_at: 1 })).toBe('/(app)/(tabs)');
+    expect(pathForSessionLog(3, { ended_at: 5, deleted_at: 6 })).toBe('/(app)/(tabs)');
+    expect(pathForSessionLog(3, null)).toBe('/(app)/(tabs)');
+  });
+
+  it('resolves only session-bound payloads against the log', () => {
+    expect(sessionIdForPayload({ type: 'rest_complete', sessionId: 3 })).toBe(3);
+    expect(sessionIdForPayload({ type: 'abandoned_session', sessionId: 4 })).toBe(4);
+    expect(sessionIdForPayload({ type: 'rest_complete' })).toBeNull();
+    expect(sessionIdForPayload({ type: 'weekly_digest' })).toBeNull();
   });
 });
 
