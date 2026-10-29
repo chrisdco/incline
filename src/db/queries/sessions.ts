@@ -26,6 +26,7 @@ import {
   type TemplateExerciseRow,
 } from './helpers';
 import { ghostWorkingSql, type SessionGhost } from '@/lib/session-ghost';
+import { volatileKey } from '@/lib/session-volatile';
 
 export type { SessionGhost };
 
@@ -541,11 +542,15 @@ export async function updateWorkoutDuration(logId: number, seconds: number): Pro
   });
 }
 
-export async function finishWorkout(logId: number, options?: { pausedMs?: number }): Promise<void> {
-  // Tombstone + volume + close + outbox rows commit atomically: a kill
-  // mid-finish must not push a half-closed log. This is also where an open
-  // session's stored total_volume is settled (edits skip it, see settleVolume).
-  await mutate(['workout_logs', 'set_entries'], async (tx) => {
+export async function finishWorkout(
+  logId: number,
+  options?: { pausedMs?: number; notes?: string },
+): Promise<void> {
+  // Notes + tombstone + volume + close + outbox rows + the session's volatile
+  // kv entry commit atomically (#141): a kill mid-finish must not push a
+  // half-closed log or strand pause state for a closed one. This is also
+  // where an open session's stored total_volume is settled (see settleVolume).
+  await mutate(['workout_logs', 'set_entries', 'kv'], async (tx) => {
     const log = await tx.getFirstAsync<LogRow>('SELECT * FROM workout_logs WHERE id = ?', logId);
     if (!log) return;
     const now = Date.now();
@@ -567,9 +572,10 @@ export async function finishWorkout(logId: number, options?: { pausedMs?: number
 
     await recomputeVolume(logId, tx);
     await tx.runAsync(
-      'UPDATE workout_logs SET ended_at = ?, duration_seconds = ?, updated_at = ? WHERE id = ?',
-      now, duration, now, logId,
+      'UPDATE workout_logs SET ended_at = ?, duration_seconds = ?, notes = COALESCE(?, notes), updated_at = ? WHERE id = ?',
+      now, duration, options?.notes ?? null, now, logId,
     );
+    await tx.runAsync('DELETE FROM kv WHERE key = ?', volatileKey(logId));
     await enqueueSetUpserts(tx, incomplete.map((r) => r.id));
     await enqueueLogUpsert(tx, logId);
   });
@@ -591,9 +597,9 @@ export async function restoreSet(setId: number): Promise<void> {
 
 export async function discardWorkout(logId: number): Promise<void> {
   const now = Date.now();
-  // DB rows commit atomically; file deletion stays outside (files cannot roll
+  // DB rows + kv commit atomically; file deletion stays outside (files cannot roll
   // back, and re-running discard on leftover files is idempotent).
-  await mutate(['workout_logs', 'set_entries'], async (tx) => {
+  await mutate(['workout_logs', 'set_entries', 'kv'], async (tx) => {
     const sets = await tx.getAllAsync<{ id: number }>(
       'SELECT id FROM set_entries WHERE workout_log_id = ? AND deleted_at IS NULL',
       logId,
@@ -606,6 +612,9 @@ export async function discardWorkout(logId: number): Promise<void> {
       'UPDATE workout_logs SET deleted_at = ?, updated_at = ? WHERE id = ?',
       now, now, logId,
     );
+    // Discards from Home / Workouts never pass through the engine, so the
+    // volatile entry is dropped here, in the same commit (#141).
+    await tx.runAsync('DELETE FROM kv WHERE key = ?', volatileKey(logId));
     await enqueueSetUpserts(tx, sets.map((s) => s.id));
     await enqueueLogUpsert(tx, logId);
   });

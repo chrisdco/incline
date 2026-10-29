@@ -43,7 +43,6 @@ export const sessionEngine = createSessionEngine({
   discardWorkout,
   kvGet: kvStorage.getItem,
   kvSet: kvStorage.setItem,
-  kvRemove: kvStorage.removeItem,
   settings: () => {
     const s = useSettings.getState();
     return {
