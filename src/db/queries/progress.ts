@@ -462,3 +462,94 @@ export async function getWidgetWeekStats(now = Date.now()): Promise<WidgetWeekSt
     volumeLastWeek: vol?.prev ?? 0,
   };
 }
+
+export interface WidgetMonthStats {
+  /** Local midnight of the 1st of this month. */
+  monthStart: number;
+  /** Days of the month (1-based) with a finished workout. */
+  trainedDates: number[];
+  workouts: number;
+  durationSec: number;
+  volume: number;
+  /** Same figures for last month up to the same day — a fair comparison mid-month. */
+  prevWorkouts: number;
+  prevDurationSec: number;
+  prevVolume: number;
+}
+
+export interface WidgetExtraStats {
+  month: WidgetMonthStats;
+  /** Working volume (kg) for each of the last 7 days, oldest first; last = today. */
+  dailyVolume: number[];
+  /** Up to 6 routines, most recently trained first, then newest. */
+  routines: { id: number; name: string }[];
+}
+
+/** Three queries feeding the calendar, volume-chart and routines widgets. */
+export async function getWidgetExtraStats(now = Date.now()): Promise<WidgetExtraStats> {
+  const db = await openDatabase();
+  const d = new Date(now);
+  const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+  const prevStart = new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime();
+  const prevCutoff = new Date(d.getFullYear(), d.getMonth() - 1, d.getDate() + 1).getTime();
+  const sevenStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 6).getTime();
+  const since = Math.min(prevStart, sevenStart);
+
+  const logs = await db.getAllAsync<{ started_at: number; ended_at: number; duration_seconds: number; v: number }>(
+    `SELECT w.started_at, w.ended_at, w.duration_seconds,
+       COALESCE((SELECT SUM(s.weight * s.reps) FROM set_entries s
+                 WHERE s.workout_log_id = w.id AND ${ghostWorkingSql('s')}), 0) as v
+     FROM workout_logs w
+     WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND w.started_at >= ?`,
+    since,
+  );
+
+  const month: WidgetMonthStats = {
+    monthStart,
+    trainedDates: [],
+    workouts: 0,
+    durationSec: 0,
+    volume: 0,
+    prevWorkouts: 0,
+    prevDurationSec: 0,
+    prevVolume: 0,
+  };
+  const dates = new Set<number>();
+  const dailyVolume = Array.from({ length: 7 }, () => 0);
+  for (const l of logs) {
+    // Stored duration excludes pauses; fall back to wall time for old rows.
+    const dur = l.duration_seconds > 0 ? l.duration_seconds : Math.max(0, (l.ended_at - l.started_at) / 1000);
+    if (l.started_at >= monthStart) {
+      dates.add(new Date(l.started_at).getDate());
+      month.workouts += 1;
+      month.durationSec += dur;
+      month.volume += l.v;
+    } else if (l.started_at >= prevStart && l.started_at < prevCutoff) {
+      month.prevWorkouts += 1;
+      month.prevDurationSec += dur;
+      month.prevVolume += l.v;
+    }
+    if (l.started_at >= sevenStart) {
+      const idx = Math.floor((startOfDayMs(l.started_at) - sevenStart) / 86_400_000);
+      if (idx >= 0 && idx < 7) dailyVolume[idx] += l.v;
+    }
+  }
+  month.trainedDates = [...dates].sort((a, b) => a - b);
+
+  const routines = await db.getAllAsync<{ id: number; name: string }>(
+    `SELECT t.id, t.name FROM workout_templates t
+     LEFT JOIN (SELECT template_id, MAX(started_at) as last FROM workout_logs
+                WHERE deleted_at IS NULL GROUP BY template_id) u ON u.template_id = t.id
+     WHERE t.deleted_at IS NULL
+     ORDER BY u.last IS NULL, u.last DESC, t.is_custom DESC, t.name
+     LIMIT 6`,
+  );
+
+  return { month, dailyVolume, routines };
+}
+
+function startOfDayMs(ms: number): number {
+  const x = new Date(ms);
+  x.setHours(0, 0, 0, 0);
+  return x.getTime();
+}

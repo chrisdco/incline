@@ -5,6 +5,7 @@
  * an in-progress session wins, then today's program slot, then the suggested
  * template, then an empty ready state.
  */
+import { WIDGET_LINKS } from './build-extra';
 import { formatElapsed, formatUpdatedAt, plural, type WidgetPalettes } from './types';
 
 export interface NextUpProps extends WidgetPalettes {
@@ -19,10 +20,12 @@ export interface NextUpProps extends WidgetPalettes {
   /** "▲ 2.1k kg" / "▼ 302 kg" vs last week; null without last-week data. */
   volumeDelta: string | null;
   volumeUp: boolean;
+  /** Deep link the card opens: the running session, else Home. */
+  url: string;
 }
 
 export interface NextUpInput extends WidgetPalettes {
-  activeSession: { name: string; startedAt: number } | null;
+  activeSession: { id?: number; name: string; startedAt: number } | null;
   today: {
     templateName: string;
     week: number;
@@ -78,6 +81,7 @@ export function buildNextUpProps(input: NextUpInput): NextUpProps {
         ? `${input.volumeThisWeek >= input.volumeLastWeek ? '▲' : '▼'} ${input.formatVolume(Math.abs(input.volumeThisWeek - input.volumeLastWeek))}`
         : null,
     volumeUp: input.volumeThisWeek >= input.volumeLastWeek,
+    url: activeSession?.id != null ? WIDGET_LINKS.session(activeSession.id) : WIDGET_LINKS.home,
     light: input.light,
     dark: input.dark,
   };

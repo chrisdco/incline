@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated preview (sample data). Keep in sync with src/widgets/. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent" android:layout_height="match_parent"
+  android:orientation="vertical" android:padding="14dp"
+  android:background="@drawable/wp_card" >
+
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume" android:textSize="12sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="36.9k kg" android:textSize="22sp" android:textColor="@color/wp_fg" android:maxLines="1" android:textStyle="bold" />
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Last 7 days" android:textSize="11sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+  <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="bottom">
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+      <ImageView android:layout_width="12dp" android:layout_height="30dp" android:src="@drawable/wp_bar" android:scaleType="fitXY" />
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="M" android:textSize="9sp" android:textColor="@color/wp_muted" android:maxLines="1" android:layout_marginTop="3dp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+      <ImageView android:layout_width="12dp" android:layout_height="3dp" android:src="@drawable/wp_bar_off" android:scaleType="fitXY" />
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="T" android:textSize="9sp" android:textColor="@color/wp_muted" android:maxLines="1" android:layout_marginTop="3dp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+      <ImageView android:layout_width="12dp" android:layout_height="44dp" android:src="@drawable/wp_bar" android:scaleType="fitXY" />
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="W" android:textSize="9sp" android:textColor="@color/wp_muted" android:maxLines="1" android:layout_marginTop="3dp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+      <ImageView android:layout_width="12dp" android:layout_height="3dp" android:src="@drawable/wp_bar_off" android:scaleType="fitXY" />
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="T" android:textSize="9sp" android:textColor="@color/wp_muted" android:maxLines="1" android:layout_marginTop="3dp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+      <ImageView android:layout_width="12dp" android:layout_height="36dp" android:src="@drawable/wp_bar" android:scaleType="fitXY" />
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="F" android:textSize="9sp" android:textColor="@color/wp_muted" android:maxLines="1" android:layout_marginTop="3dp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+      <ImageView android:layout_width="12dp" android:layout_height="22dp" android:src="@drawable/wp_bar" android:scaleType="fitXY" />
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="S" android:textSize="9sp" android:textColor="@color/wp_muted" android:maxLines="1" android:layout_marginTop="3dp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+      <ImageView android:layout_width="12dp" android:layout_height="3dp" android:src="@drawable/wp_bar_off" android:scaleType="fitXY" />
+      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="S" android:textSize="9sp" android:textColor="@color/wp_fg" android:maxLines="1" android:textStyle="bold" android:layout_marginTop="3dp"/>
+    </LinearLayout>
+  </LinearLayout>
+</LinearLayout>

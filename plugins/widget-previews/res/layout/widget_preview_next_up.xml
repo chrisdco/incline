@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated preview (sample data). Keep in sync with src/widgets/. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent" android:layout_height="match_parent"
+  android:orientation="horizontal" android:padding="16dp"
+  android:background="@drawable/wp_card" >
+
+  <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Today" android:textSize="12sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Push A" android:textSize="20sp" android:textColor="@color/wp_fg" android:maxLines="1" android:textStyle="bold" android:layout_marginTop="2dp"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Week 3 · 50 min" android:textSize="12sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="4-week streak · 3 of 4 sessions" android:textSize="11sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+  </LinearLayout>
+  <ImageView android:layout_width="1dp" android:layout_height="match_parent" android:src="@drawable/wp_divider" android:scaleType="fitXY" />
+  <LinearLayout android:layout_width="wrap_content" android:layout_height="match_parent" android:orientation="vertical" android:paddingStart="14dp">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume" android:textSize="12sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="20.3k kg" android:textSize="20sp" android:textColor="@color/wp_fg" android:maxLines="1" android:textStyle="bold" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="This week" android:textSize="11sp" android:textColor="@color/wp_muted" android:maxLines="1" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▲ 2.1k kg vs last" android:textSize="12sp" android:textColor="@color/wp_primary" android:maxLines="1" android:textStyle="bold" android:layout_marginTop="8dp"/>
+  </LinearLayout>
+</LinearLayout>
