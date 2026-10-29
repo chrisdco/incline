@@ -13,6 +13,8 @@ export * from './readiness-store';
 export * from './program-plan';
 export * from './feature-pack';
 export * from './narrate-validate';
+export * from './reason';
+export * from './rewrite-reason';
 export {
   requestCoachNarration,
   clearCoachNarrationCache,

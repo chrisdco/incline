@@ -1,4 +1,5 @@
 import type { Unit } from '@/db/types';
+import type { CoachingReason } from './reason';
 
 export const COACHING_RULE_VERSION = '1.3.0';
 
@@ -33,6 +34,8 @@ export interface TrainingSuggestion {
   reasonCode: ReasonCode;
   reasonText: string;
   ruleVersion: string;
+  /** Structured "why" (rule, inputs, sentence). Explains `weight`/`reps`; never changes them. */
+  reason?: CoachingReason;
 }
 
 export interface CoachingInsight {

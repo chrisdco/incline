@@ -1,7 +1,8 @@
 import { openDatabase } from '../../client';
-import { getLastSetsForExercises, listExercises, getExercise } from '../exercises';
+import { getLastSetsForExercises, getRecentTopSetsForExercises, listExercises, getExercise } from '../exercises';
 import { getTemplate } from '../templates';
 import { suggestNextLoad } from '@/coaching/overload';
+import { explainSuggestion, REASON_HISTORY_SESSIONS } from '@/coaching/reason';
 import { getTodayReadiness } from '@/coaching/readiness-store';
 import { rankSubstitutes } from '@/coaching/substitution';
 import type { TrainingSuggestion } from '@/coaching/types';
@@ -28,14 +29,17 @@ export async function getTemplateSuggestions(
   if (!template?.exercises?.length) return [];
 
   const exerciseIds = template.exercises.map((te) => te.exerciseId);
-  const [lastMap, readiness] = await Promise.all([
+  const [lastMap, historyMap, readiness] = await Promise.all([
     getLastSetsForExercises(exerciseIds),
+    getRecentTopSetsForExercises(exerciseIds, REASON_HISTORY_SESSIONS),
     getTodayReadiness(),
   ]);
+  const now = Date.now();
   const out: TrainingSuggestion[] = [];
 
   for (const te of template.exercises) {
     const last = workingSets(lastMap[te.exerciseId] ?? []);
+    const exUnit = resolveWeightUnit(unitOverrides, te.exercise?.refKey, unit);
     const suggestion = suggestNextLoad({
       exerciseId: te.exerciseId,
       exerciseName: te.exercise?.name ?? 'Exercise',
@@ -43,10 +47,22 @@ export async function getTemplateSuggestions(
       targetRepsMin: te.targetRepsMin,
       targetRepsMax: te.targetRepsMax,
       targetSets: te.targetSets,
-      unit: resolveWeightUnit(unitOverrides, te.exercise?.refKey, unit),
+      unit: exUnit,
       readiness,
     });
-    if (suggestion) out.push(suggestion);
+    if (!suggestion) continue;
+    // Numbers above are final; the reason only explains them.
+    suggestion.reason = explainSuggestion(suggestion, {
+      lastSets: last,
+      history: historyMap[te.exerciseId] ?? [],
+      targetRepsMin: te.targetRepsMin,
+      targetRepsMax: te.targetRepsMax,
+      unit: exUnit,
+      unitSource: exUnit === unit ? 'global' : 'exercise',
+      readiness,
+      now,
+    });
+    out.push(suggestion);
   }
   return out;
 }
@@ -60,20 +76,35 @@ export async function getExerciseSuggestion(
   targetSets: number,
   unit: Unit,
 ): Promise<TrainingSuggestion | null> {
-  const [lastMap, readiness] = await Promise.all([
+  const [lastMap, historyMap, readiness] = await Promise.all([
     getLastSetsForExercises([exerciseId]),
+    getRecentTopSetsForExercises([exerciseId], REASON_HISTORY_SESSIONS),
     getTodayReadiness(),
   ]);
-  return suggestNextLoad({
+  const last = workingSets(lastMap[exerciseId] ?? []);
+  const suggestion = suggestNextLoad({
     exerciseId,
     exerciseName,
-    lastWorkingSets: workingSets(lastMap[exerciseId] ?? []),
+    lastWorkingSets: last,
     targetRepsMin,
     targetRepsMax,
     targetSets,
     unit,
     readiness,
   });
+  if (suggestion) {
+    suggestion.reason = explainSuggestion(suggestion, {
+      lastSets: last,
+      history: historyMap[exerciseId] ?? [],
+      targetRepsMin,
+      targetRepsMax,
+      unit,
+      unitSource: 'global',
+      readiness,
+      now: Date.now(),
+    });
+  }
+  return suggestion;
 }
 
 /** Days since each primary muscle was last trained (exposure, not medical recovery). */
