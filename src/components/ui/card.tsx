@@ -25,7 +25,7 @@ export function Card({ className, elevation = 'flat', ...props }: CardProps) {
       className={cn(
         'rounded-3xl border p-4',
         elevation === 'raised'
-          ? 'bg-surface2 shadow-sm'
+          ? 'bg-surface2 shadow-xs'
           : 'bg-surface1',
         cardBorder(aurora, elevation === 'raised'),
         className,
@@ -70,7 +70,7 @@ export function PressableCard({
       style={animatedStyle}
       className={cn(
         'rounded-3xl border p-4',
-        elevation === 'raised' ? 'bg-surface2 shadow-sm' : 'bg-surface1',
+        elevation === 'raised' ? 'bg-surface2 shadow-xs' : 'bg-surface1',
         cardBorder(aurora, elevation === 'raised'),
         disabled && 'opacity-50',
         className,

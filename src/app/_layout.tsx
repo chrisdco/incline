@@ -1,6 +1,6 @@
 import '@/global.css';
 
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { Text as RNText, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@expo/ui/community/bottom-sheet';
 import { ClerkProvider } from '@clerk/expo';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { Uniwind } from 'uniwind';
 import {
   Geist_400Regular,
   Geist_500Medium,
@@ -18,7 +19,6 @@ import {
   Geist_700Bold,
 } from '@expo-google-fonts/geist';
 
-import { cn } from '@/lib/cn';
 import { queryClient } from '@/lib/query-client';
 import { themeHex } from '@/lib/theme';
 import { CLERK_KEY_PROBLEM, CLERK_PUBLISHABLE_KEY, isDevAuthBypassEnabled } from '@/lib/env';
@@ -37,6 +37,7 @@ import { useWidgetRefresh } from '@/hooks/use-widget-refresh';
 import { useWorkoutReminderSync } from '@/hooks/use-workout-reminder-sync';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { useSettings } from '@/store/settings-store';
+import { themeName } from '@/styles/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -72,6 +73,14 @@ function AppShell() {
   // SystemUI covers the root view/overscroll behind routes.)
   const palette = themeHex(scheme, accentTheme);
   const navBackground = palette.background;
+  // One Uniwind theme per scheme x accent (src/global.css). A layout effect so
+  // the switch lands before paint; the theme is global, so sheets and portals
+  // rendered outside this tree follow it too.
+  const uniwindTheme = themeName(scheme, accentTheme);
+
+  useLayoutEffect(() => {
+    Uniwind.setTheme(uniwindTheme);
+  }, [uniwindTheme]);
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(navBackground).catch(() => {});
@@ -103,7 +112,7 @@ function AppShell() {
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <GestureHandlerRootView style={{ flex: 1 }}>
           <BottomSheetModalProvider>
-            <View className={cn('flex-1', isDark && 'dark', `theme-${accentTheme}`)}>
+            <View className="flex-1">
                 <ToastProvider>
                   <NotificationBootstrap />
                   <WidgetBootstrap />

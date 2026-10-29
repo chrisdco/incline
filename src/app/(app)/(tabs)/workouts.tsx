@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy, ArrowUpDown } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 

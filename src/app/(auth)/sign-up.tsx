@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Platform, View, TextInput, Pressable, Image, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { useRouter } from 'expo-router';
 import { useSSO } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
@@ -87,7 +87,7 @@ export default function SignUpScreen() {
     <SafeAreaView className="flex-1 bg-background">
       {/* Scrolls with the keyboard so the primary button is never hidden. */}
       <ScrollView
-        contentContainerClassName="flex-grow justify-center px-6 py-8"
+        contentContainerClassName="grow justify-center px-6 py-8"
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets>
         <View className="mb-8 items-center">

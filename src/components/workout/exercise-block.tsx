@@ -181,11 +181,10 @@ function ExerciseBlockImpl({
           <Pressable
             onPress={() => onOpenExercise?.(exerciseId)}
             disabled={!onOpenExercise}
-            style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
             android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
             accessibilityRole={onOpenExercise ? 'button' : undefined}
             accessibilityLabel={onOpenExercise ? `Open ${name} details` : undefined}
-            className="flex-row items-center gap-1 self-start">
+            className="flex-row items-center gap-1 self-start active:opacity-55">
             <Text className="text-base font-semibold text-foreground" numberOfLines={1}>{name}</Text>
             {onOpenExercise ? <Icon icon={ChevronRight} size={16} color="muted-foreground" /> : null}
           </Pressable>

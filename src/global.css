@@ -1,291 +1,688 @@
 /*
- * GENERATED from src/styles/tokens.ts — do not edit by hand.
+ * GENERATED from src/styles/tokens.ts by src/styles/global-css.ts. Do not edit by hand.
  * Change tokens.ts, then run `pnpm tokens:css` (CI fails when this is stale).
  */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'uniwind';
 
-@layer base {
-  * {
-    border-color: hsl(var(--border));
-  }
+/*
+ * Type scale + radii (docs/design/SYSTEM.md). rem = 14px (polyfills.rem in
+ * metro.config.js), so Tailwind's rem-based defaults keep their NativeWind sizes.
+ */
+@theme {
+  --font-sans: Geist;
+
+  --text-2xs: 11px;
+  --text-2xs--line-height: 14px;
+  --text-display: 34px;
+  --text-display--line-height: 40px;
+  --text-display--letter-spacing: -0.5px;
+
+  --radius-sm: calc(0.9rem - 4px);
+  --radius-md: calc(0.9rem - 2px);
+  --radius-lg: 0.9rem;
 }
 
 /*
- * Neutrals + semantic colors live on :root / .dark.
- * Brand accent (primary / ring / chart-1) is set by theme-* classes on the root View
- * so Settings can swap accents without touching the rest of the palette.
- * Default accent: indigo (also applied via theme-indigo on the root View).
+ * Weight utilities name the registered Geist faces: React Native ignores
+ * fontWeight for custom fonts unless the face itself is referenced.
+ * The family is !important because Uniwind resolves conflicts by CSS cascade,
+ * not className order, and Tailwind emits these two-property utilities before
+ * single-property font-sans (the <Text> base class), which would win.
  */
-:root {
-  --background: 240 20% 98%;
-  --foreground: 240 10% 3.9%;
-  --surface-1: 0 0% 100%;
-  --surface-2: 240 4.8% 95.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 173 80% 32%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 4% 40%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 98%;
-  --success: 142 64% 38%;
-  --success-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
-  --warning-foreground: 0 0% 100%;
-  --info: 217 91% 60%;
-  --info-foreground: 0 0% 100%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 173 80% 32%;
-  --chart-1: 173 70% 38%;
-  --chart-2: 217 91% 60%;
-  --chart-3: 38 92% 50%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 0 72% 55%;
-  --radius: 0.9rem;
+@utility font-medium {
+  font-family: Geist-Medium !important;
+  font-weight: 500;
+}
+@utility font-semibold {
+  font-family: Geist-SemiBold !important;
+  font-weight: 600;
+}
+@utility font-bold {
+  font-family: Geist-Bold !important;
+  font-weight: 700;
+}
+@utility font-extrabold {
+  font-family: Geist-Bold !important;
+  font-weight: 800;
 }
 
-.dark {
-  --background: 240 8% 5%;
-  --foreground: 0 0% 98%;
-  --surface-1: 240 7% 9%;
-  --surface-2: 240 6% 12%;
-  --card: 240 7% 9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 6% 12%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 172 66% 50%;
-  --primary-foreground: 240 10% 4%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 70%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 50%;
-  --destructive-foreground: 0 0% 98%;
-  --success: 142 60% 45%;
-  --success-foreground: 0 0% 100%;
-  --warning: 38 90% 54%;
-  --warning-foreground: 0 0% 100%;
-  --info: 217 88% 64%;
-  --info-foreground: 240 10% 4%;
-  --border: 240 5% 15%;
-  --input: 240 3.7% 18%;
-  --ring: 172 66% 50%;
-  --chart-1: 172 60% 52%;
-  --chart-2: 217 91% 64%;
-  --chart-3: 38 92% 56%;
-  --chart-4: 280 65% 64%;
-  --chart-5: 0 72% 58%;
-  --radius: 0.9rem;
-}
+/*
+ * Themes. `light` / `dark` are the neutral base; `<scheme>-<accent>`
+ * pre-combine the base with an accent (classic accents override primary /
+ * ring / chart-1, aurora skins restyle the palette). The root layout picks
+ * one with Uniwind.setTheme.
+ */
+@layer theme {
+  :root {
+    @variant light {
+      --color-background: hsl(240 20% 98%);
+      --color-foreground: hsl(240 10% 3.9%);
+      --color-surface1: hsl(0 0% 100%);
+      --color-surface2: hsl(240 4.8% 95.9%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(240 10% 3.9%);
+      --color-popover: hsl(0 0% 100%);
+      --color-popover-foreground: hsl(240 10% 3.9%);
+      --color-primary: hsl(173 80% 32%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(240 4.8% 95.9%);
+      --color-secondary-foreground: hsl(240 5.9% 10%);
+      --color-muted: hsl(240 4.8% 95.9%);
+      --color-muted-foreground: hsl(240 4% 40%);
+      --color-accent: hsl(240 4.8% 95.9%);
+      --color-accent-foreground: hsl(240 5.9% 10%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(240 5.9% 90%);
+      --color-input: hsl(240 5.9% 90%);
+      --color-ring: hsl(173 80% 32%);
+      --color-chart1: hsl(173 70% 38%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
 
-/* ---- Accent themes (override primary / ring / chart-1 only) ---- */
+    @variant dark {
+      --color-background: hsl(240 8% 5%);
+      --color-foreground: hsl(0 0% 98%);
+      --color-surface1: hsl(240 7% 9%);
+      --color-surface2: hsl(240 6% 12%);
+      --color-card: hsl(240 7% 9%);
+      --color-card-foreground: hsl(0 0% 98%);
+      --color-popover: hsl(240 6% 12%);
+      --color-popover-foreground: hsl(0 0% 98%);
+      --color-primary: hsl(172 66% 50%);
+      --color-primary-foreground: hsl(240 10% 4%);
+      --color-secondary: hsl(240 3.7% 15.9%);
+      --color-secondary-foreground: hsl(0 0% 98%);
+      --color-muted: hsl(240 3.7% 15.9%);
+      --color-muted-foreground: hsl(240 5% 70%);
+      --color-accent: hsl(240 3.7% 15.9%);
+      --color-accent-foreground: hsl(0 0% 98%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(240 5% 15%);
+      --color-input: hsl(240 3.7% 18%);
+      --color-ring: hsl(172 66% 50%);
+      --color-chart1: hsl(172 60% 52%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
 
-.theme-indigo {
-  --primary: 246 90% 66%;
-  --primary-foreground: 0 0% 100%;
-  --ring: 246 90% 66%;
-  --chart-1: 246 80% 60%;
-}
-.dark.theme-indigo {
-  --primary: 246 85% 72%;
-  --primary-foreground: 240 10% 4%;
-  --ring: 246 85% 72%;
-  --chart-1: 246 75% 68%;
-}
+    @variant light-indigo {
+      --color-background: hsl(240 20% 98%);
+      --color-foreground: hsl(240 10% 3.9%);
+      --color-surface1: hsl(0 0% 100%);
+      --color-surface2: hsl(240 4.8% 95.9%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(240 10% 3.9%);
+      --color-popover: hsl(0 0% 100%);
+      --color-popover-foreground: hsl(240 10% 3.9%);
+      --color-primary: hsl(246 90% 66%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(240 4.8% 95.9%);
+      --color-secondary-foreground: hsl(240 5.9% 10%);
+      --color-muted: hsl(240 4.8% 95.9%);
+      --color-muted-foreground: hsl(240 4% 40%);
+      --color-accent: hsl(240 4.8% 95.9%);
+      --color-accent-foreground: hsl(240 5.9% 10%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(240 5.9% 90%);
+      --color-input: hsl(240 5.9% 90%);
+      --color-ring: hsl(246 90% 66%);
+      --color-chart1: hsl(246 80% 60%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
 
-.theme-teal {
-  --primary: 173 80% 32%;
-  --primary-foreground: 0 0% 100%;
-  --ring: 173 80% 32%;
-  --chart-1: 173 70% 38%;
-}
-.dark.theme-teal {
-  --primary: 172 66% 50%;
-  --primary-foreground: 240 10% 4%;
-  --ring: 172 66% 50%;
-  --chart-1: 172 60% 52%;
-}
+    @variant dark-indigo {
+      --color-background: hsl(240 8% 5%);
+      --color-foreground: hsl(0 0% 98%);
+      --color-surface1: hsl(240 7% 9%);
+      --color-surface2: hsl(240 6% 12%);
+      --color-card: hsl(240 7% 9%);
+      --color-card-foreground: hsl(0 0% 98%);
+      --color-popover: hsl(240 6% 12%);
+      --color-popover-foreground: hsl(0 0% 98%);
+      --color-primary: hsl(246 85% 72%);
+      --color-primary-foreground: hsl(240 10% 4%);
+      --color-secondary: hsl(240 3.7% 15.9%);
+      --color-secondary-foreground: hsl(0 0% 98%);
+      --color-muted: hsl(240 3.7% 15.9%);
+      --color-muted-foreground: hsl(240 5% 70%);
+      --color-accent: hsl(240 3.7% 15.9%);
+      --color-accent-foreground: hsl(0 0% 98%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(240 5% 15%);
+      --color-input: hsl(240 3.7% 18%);
+      --color-ring: hsl(246 85% 72%);
+      --color-chart1: hsl(246 75% 68%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
 
-.theme-copper {
-  --primary: 32 80% 57%;
-  --primary-foreground: 240 10% 4%;
-  --ring: 32 80% 57%;
-  --chart-1: 32 75% 52%;
-}
-.dark.theme-copper {
-  --primary: 32 85% 62%;
-  --primary-foreground: 240 10% 4%;
-  --ring: 32 85% 62%;
-  --chart-1: 32 80% 58%;
-}
+    @variant light-teal {
+      --color-background: hsl(240 20% 98%);
+      --color-foreground: hsl(240 10% 3.9%);
+      --color-surface1: hsl(0 0% 100%);
+      --color-surface2: hsl(240 4.8% 95.9%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(240 10% 3.9%);
+      --color-popover: hsl(0 0% 100%);
+      --color-popover-foreground: hsl(240 10% 3.9%);
+      --color-primary: hsl(173 80% 32%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(240 4.8% 95.9%);
+      --color-secondary-foreground: hsl(240 5.9% 10%);
+      --color-muted: hsl(240 4.8% 95.9%);
+      --color-muted-foreground: hsl(240 4% 40%);
+      --color-accent: hsl(240 4.8% 95.9%);
+      --color-accent-foreground: hsl(240 5.9% 10%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(240 5.9% 90%);
+      --color-input: hsl(240 5.9% 90%);
+      --color-ring: hsl(173 80% 32%);
+      --color-chart1: hsl(173 70% 38%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
 
-.theme-coral {
-  --primary: 0 100% 68%;
-  --primary-foreground: 0 0% 100%;
-  --ring: 0 100% 68%;
-  --chart-1: 0 85% 62%;
-}
-.dark.theme-coral {
-  --primary: 0 90% 72%;
-  --primary-foreground: 240 10% 4%;
-  --ring: 0 90% 72%;
-  --chart-1: 0 80% 68%;
-}
+    @variant dark-teal {
+      --color-background: hsl(240 8% 5%);
+      --color-foreground: hsl(0 0% 98%);
+      --color-surface1: hsl(240 7% 9%);
+      --color-surface2: hsl(240 6% 12%);
+      --color-card: hsl(240 7% 9%);
+      --color-card-foreground: hsl(0 0% 98%);
+      --color-popover: hsl(240 6% 12%);
+      --color-popover-foreground: hsl(0 0% 98%);
+      --color-primary: hsl(172 66% 50%);
+      --color-primary-foreground: hsl(240 10% 4%);
+      --color-secondary: hsl(240 3.7% 15.9%);
+      --color-secondary-foreground: hsl(0 0% 98%);
+      --color-muted: hsl(240 3.7% 15.9%);
+      --color-muted-foreground: hsl(240 5% 70%);
+      --color-accent: hsl(240 3.7% 15.9%);
+      --color-accent-foreground: hsl(0 0% 98%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(240 5% 15%);
+      --color-input: hsl(240 3.7% 18%);
+      --color-ring: hsl(172 66% 50%);
+      --color-chart1: hsl(172 60% 52%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
 
-.theme-emerald {
-  --primary: 142 69% 45%;
-  --primary-foreground: 0 0% 100%;
-  --ring: 142 69% 45%;
-  --chart-1: 142 64% 45%;
-}
-.dark.theme-emerald {
-  --primary: 142 69% 47%;
-  --primary-foreground: 240 10% 4%;
-  --ring: 142 69% 47%;
-  --chart-1: 142 64% 48%;
-}
+    @variant light-copper {
+      --color-background: hsl(240 20% 98%);
+      --color-foreground: hsl(240 10% 3.9%);
+      --color-surface1: hsl(0 0% 100%);
+      --color-surface2: hsl(240 4.8% 95.9%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(240 10% 3.9%);
+      --color-popover: hsl(0 0% 100%);
+      --color-popover-foreground: hsl(240 10% 3.9%);
+      --color-primary: hsl(32 80% 57%);
+      --color-primary-foreground: hsl(240 10% 4%);
+      --color-secondary: hsl(240 4.8% 95.9%);
+      --color-secondary-foreground: hsl(240 5.9% 10%);
+      --color-muted: hsl(240 4.8% 95.9%);
+      --color-muted-foreground: hsl(240 4% 40%);
+      --color-accent: hsl(240 4.8% 95.9%);
+      --color-accent-foreground: hsl(240 5.9% 10%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(240 5.9% 90%);
+      --color-input: hsl(240 5.9% 90%);
+      --color-ring: hsl(32 80% 57%);
+      --color-chart1: hsl(32 75% 52%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
 
-.theme-mint {
-  --primary: 142 68% 48%;
-  --primary-foreground: 0 0% 100%;
-  --ring: 142 68% 48%;
-  --chart-1: 142 62% 46%;
-}
-.dark.theme-mint {
-  --primary: 142 70% 68%;
-  --primary-foreground: 240 10% 4%;
-  --ring: 142 70% 68%;
-  --chart-1: 142 65% 62%;
-}
+    @variant dark-copper {
+      --color-background: hsl(240 8% 5%);
+      --color-foreground: hsl(0 0% 98%);
+      --color-surface1: hsl(240 7% 9%);
+      --color-surface2: hsl(240 6% 12%);
+      --color-card: hsl(240 7% 9%);
+      --color-card-foreground: hsl(0 0% 98%);
+      --color-popover: hsl(240 6% 12%);
+      --color-popover-foreground: hsl(0 0% 98%);
+      --color-primary: hsl(32 85% 62%);
+      --color-primary-foreground: hsl(240 10% 4%);
+      --color-secondary: hsl(240 3.7% 15.9%);
+      --color-secondary-foreground: hsl(0 0% 98%);
+      --color-muted: hsl(240 3.7% 15.9%);
+      --color-muted-foreground: hsl(240 5% 70%);
+      --color-accent: hsl(240 3.7% 15.9%);
+      --color-accent-foreground: hsl(0 0% 98%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(240 5% 15%);
+      --color-input: hsl(240 3.7% 18%);
+      --color-ring: hsl(32 85% 62%);
+      --color-chart1: hsl(32 80% 58%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
 
-/* ---- Neon aurora skins: tinted near-black bases (ref screenshots) ---- */
+    @variant light-coral {
+      --color-background: hsl(240 20% 98%);
+      --color-foreground: hsl(240 10% 3.9%);
+      --color-surface1: hsl(0 0% 100%);
+      --color-surface2: hsl(240 4.8% 95.9%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(240 10% 3.9%);
+      --color-popover: hsl(0 0% 100%);
+      --color-popover-foreground: hsl(240 10% 3.9%);
+      --color-primary: hsl(0 100% 68%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(240 4.8% 95.9%);
+      --color-secondary-foreground: hsl(240 5.9% 10%);
+      --color-muted: hsl(240 4.8% 95.9%);
+      --color-muted-foreground: hsl(240 4% 40%);
+      --color-accent: hsl(240 4.8% 95.9%);
+      --color-accent-foreground: hsl(240 5.9% 10%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(240 5.9% 90%);
+      --color-input: hsl(240 5.9% 90%);
+      --color-ring: hsl(0 100% 68%);
+      --color-chart1: hsl(0 85% 62%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
 
-.theme-rose {
-  --background: 336 40% 99%;
-  --foreground: 335 30% 12%;
-  --surface-1: 336 55% 96%;
-  --surface-2: 336 50% 93%;
-  --card: 336 60% 93%;
-  --card-foreground: 335 30% 12%;
-  --popover: 336 55% 96%;
-  --popover-foreground: 335 30% 12%;
-  --primary: 336 80% 50%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 336 45% 90%;
-  --secondary-foreground: 335 30% 20%;
-  --muted: 336 45% 90%;
-  --muted-foreground: 336 18% 42%;
-  --accent: 336 55% 88%;
-  --accent-foreground: 336 75% 38%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 336 35% 86%;
-  --input: 336 30% 82%;
-  --ring: 336 80% 50%;
-  --chart-1: 336 75% 55%;
-}
-.dark.theme-rose {
-  --background: 320 40% 3%;
-  --foreground: 330 25% 96%;
-  --surface-1: 328 35% 9%;
-  --surface-2: 328 32% 12%;
-  --card: 328 35% 9%;
-  --card-foreground: 330 25% 96%;
-  --popover: 328 32% 12%;
-  --popover-foreground: 330 25% 96%;
-  --primary: 331 85% 68%;
-  --primary-foreground: 331 60% 12%;
-  --secondary: 325 32% 14%;
-  --secondary-foreground: 330 25% 96%;
-  --muted: 328 35% 16%;
-  --muted-foreground: 332 60% 74%;
-  --accent: 331 45% 20%;
-  --accent-foreground: 331 85% 78%;
-  --destructive: 0 62.8% 50%;
-  --destructive-foreground: 0 0% 98%;
-  --success: 142 60% 45%;
-  --success-foreground: 0 0% 100%;
-  --warning: 38 90% 54%;
-  --warning-foreground: 0 0% 100%;
-  --info: 217 88% 64%;
-  --info-foreground: 240 10% 4%;
-  --border: 330 35% 24%;
-  --input: 330 32% 24%;
-  --ring: 331 85% 68%;
-  --chart-1: 331 80% 62%;
-  --chart-2: 217 91% 64%;
-  --chart-3: 38 92% 56%;
-  --chart-4: 280 65% 64%;
-  --chart-5: 0 72% 58%;
-}
+    @variant dark-coral {
+      --color-background: hsl(240 8% 5%);
+      --color-foreground: hsl(0 0% 98%);
+      --color-surface1: hsl(240 7% 9%);
+      --color-surface2: hsl(240 6% 12%);
+      --color-card: hsl(240 7% 9%);
+      --color-card-foreground: hsl(0 0% 98%);
+      --color-popover: hsl(240 6% 12%);
+      --color-popover-foreground: hsl(0 0% 98%);
+      --color-primary: hsl(0 90% 72%);
+      --color-primary-foreground: hsl(240 10% 4%);
+      --color-secondary: hsl(240 3.7% 15.9%);
+      --color-secondary-foreground: hsl(0 0% 98%);
+      --color-muted: hsl(240 3.7% 15.9%);
+      --color-muted-foreground: hsl(240 5% 70%);
+      --color-accent: hsl(240 3.7% 15.9%);
+      --color-accent-foreground: hsl(0 0% 98%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(240 5% 15%);
+      --color-input: hsl(240 3.7% 18%);
+      --color-ring: hsl(0 90% 72%);
+      --color-chart1: hsl(0 80% 68%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
 
-.theme-electron {
-  --background: 190 40% 99%;
-  --foreground: 195 30% 12%;
-  --surface-1: 190 55% 96%;
-  --surface-2: 190 50% 93%;
-  --card: 190 60% 92%;
-  --card-foreground: 195 30% 12%;
-  --popover: 190 55% 96%;
-  --popover-foreground: 195 30% 12%;
-  --primary: 187 85% 36%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 190 45% 89%;
-  --secondary-foreground: 195 30% 20%;
-  --muted: 190 45% 89%;
-  --muted-foreground: 192 20% 40%;
-  --accent: 190 55% 86%;
-  --accent-foreground: 190 80% 32%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 190 35% 84%;
-  --input: 190 30% 80%;
-  --ring: 187 85% 36%;
-  --chart-1: 187 80% 44%;
-}
-.dark.theme-electron {
-  --background: 213 50% 3%;
-  --foreground: 210 20% 96%;
-  --surface-1: 215 44% 8%;
-  --surface-2: 215 40% 11%;
-  --card: 215 44% 8%;
-  --card-foreground: 210 20% 96%;
-  --popover: 215 40% 11%;
-  --popover-foreground: 210 20% 96%;
-  --primary: 193 90% 60%;
-  --primary-foreground: 193 70% 10%;
-  --secondary: 213 35% 14%;
-  --secondary-foreground: 210 20% 96%;
-  --muted: 210 35% 16%;
-  --muted-foreground: 195 60% 72%;
-  --accent: 193 45% 20%;
-  --accent-foreground: 193 85% 74%;
-  --destructive: 0 62.8% 50%;
-  --destructive-foreground: 0 0% 98%;
-  --success: 142 60% 45%;
-  --success-foreground: 0 0% 100%;
-  --warning: 38 90% 54%;
-  --warning-foreground: 0 0% 100%;
-  --info: 217 88% 64%;
-  --info-foreground: 240 10% 4%;
-  --border: 214 35% 22%;
-  --input: 214 32% 24%;
-  --ring: 193 90% 60%;
-  --chart-1: 193 85% 56%;
-  --chart-2: 217 91% 64%;
-  --chart-3: 38 92% 56%;
-  --chart-4: 280 65% 64%;
-  --chart-5: 0 72% 58%;
+    @variant light-emerald {
+      --color-background: hsl(240 20% 98%);
+      --color-foreground: hsl(240 10% 3.9%);
+      --color-surface1: hsl(0 0% 100%);
+      --color-surface2: hsl(240 4.8% 95.9%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(240 10% 3.9%);
+      --color-popover: hsl(0 0% 100%);
+      --color-popover-foreground: hsl(240 10% 3.9%);
+      --color-primary: hsl(142 69% 45%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(240 4.8% 95.9%);
+      --color-secondary-foreground: hsl(240 5.9% 10%);
+      --color-muted: hsl(240 4.8% 95.9%);
+      --color-muted-foreground: hsl(240 4% 40%);
+      --color-accent: hsl(240 4.8% 95.9%);
+      --color-accent-foreground: hsl(240 5.9% 10%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(240 5.9% 90%);
+      --color-input: hsl(240 5.9% 90%);
+      --color-ring: hsl(142 69% 45%);
+      --color-chart1: hsl(142 64% 45%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
+
+    @variant dark-emerald {
+      --color-background: hsl(240 8% 5%);
+      --color-foreground: hsl(0 0% 98%);
+      --color-surface1: hsl(240 7% 9%);
+      --color-surface2: hsl(240 6% 12%);
+      --color-card: hsl(240 7% 9%);
+      --color-card-foreground: hsl(0 0% 98%);
+      --color-popover: hsl(240 6% 12%);
+      --color-popover-foreground: hsl(0 0% 98%);
+      --color-primary: hsl(142 69% 47%);
+      --color-primary-foreground: hsl(240 10% 4%);
+      --color-secondary: hsl(240 3.7% 15.9%);
+      --color-secondary-foreground: hsl(0 0% 98%);
+      --color-muted: hsl(240 3.7% 15.9%);
+      --color-muted-foreground: hsl(240 5% 70%);
+      --color-accent: hsl(240 3.7% 15.9%);
+      --color-accent-foreground: hsl(0 0% 98%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(240 5% 15%);
+      --color-input: hsl(240 3.7% 18%);
+      --color-ring: hsl(142 69% 47%);
+      --color-chart1: hsl(142 64% 48%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
+
+    @variant light-mint {
+      --color-background: hsl(240 20% 98%);
+      --color-foreground: hsl(240 10% 3.9%);
+      --color-surface1: hsl(0 0% 100%);
+      --color-surface2: hsl(240 4.8% 95.9%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(240 10% 3.9%);
+      --color-popover: hsl(0 0% 100%);
+      --color-popover-foreground: hsl(240 10% 3.9%);
+      --color-primary: hsl(142 68% 48%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(240 4.8% 95.9%);
+      --color-secondary-foreground: hsl(240 5.9% 10%);
+      --color-muted: hsl(240 4.8% 95.9%);
+      --color-muted-foreground: hsl(240 4% 40%);
+      --color-accent: hsl(240 4.8% 95.9%);
+      --color-accent-foreground: hsl(240 5.9% 10%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(240 5.9% 90%);
+      --color-input: hsl(240 5.9% 90%);
+      --color-ring: hsl(142 68% 48%);
+      --color-chart1: hsl(142 62% 46%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
+
+    @variant dark-mint {
+      --color-background: hsl(240 8% 5%);
+      --color-foreground: hsl(0 0% 98%);
+      --color-surface1: hsl(240 7% 9%);
+      --color-surface2: hsl(240 6% 12%);
+      --color-card: hsl(240 7% 9%);
+      --color-card-foreground: hsl(0 0% 98%);
+      --color-popover: hsl(240 6% 12%);
+      --color-popover-foreground: hsl(0 0% 98%);
+      --color-primary: hsl(142 70% 68%);
+      --color-primary-foreground: hsl(240 10% 4%);
+      --color-secondary: hsl(240 3.7% 15.9%);
+      --color-secondary-foreground: hsl(0 0% 98%);
+      --color-muted: hsl(240 3.7% 15.9%);
+      --color-muted-foreground: hsl(240 5% 70%);
+      --color-accent: hsl(240 3.7% 15.9%);
+      --color-accent-foreground: hsl(0 0% 98%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(240 5% 15%);
+      --color-input: hsl(240 3.7% 18%);
+      --color-ring: hsl(142 70% 68%);
+      --color-chart1: hsl(142 65% 62%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
+
+    @variant light-rose {
+      --color-background: hsl(336 40% 99%);
+      --color-foreground: hsl(335 30% 12%);
+      --color-surface1: hsl(336 55% 96%);
+      --color-surface2: hsl(336 50% 93%);
+      --color-card: hsl(336 60% 93%);
+      --color-card-foreground: hsl(335 30% 12%);
+      --color-popover: hsl(336 55% 96%);
+      --color-popover-foreground: hsl(335 30% 12%);
+      --color-primary: hsl(336 80% 50%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(336 45% 90%);
+      --color-secondary-foreground: hsl(335 30% 20%);
+      --color-muted: hsl(336 45% 90%);
+      --color-muted-foreground: hsl(336 18% 42%);
+      --color-accent: hsl(336 55% 88%);
+      --color-accent-foreground: hsl(336 75% 38%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(336 35% 86%);
+      --color-input: hsl(336 30% 82%);
+      --color-ring: hsl(336 80% 50%);
+      --color-chart1: hsl(336 75% 55%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
+
+    @variant dark-rose {
+      --color-background: hsl(320 40% 3%);
+      --color-foreground: hsl(330 25% 96%);
+      --color-surface1: hsl(328 35% 9%);
+      --color-surface2: hsl(328 32% 12%);
+      --color-card: hsl(328 35% 9%);
+      --color-card-foreground: hsl(330 25% 96%);
+      --color-popover: hsl(328 32% 12%);
+      --color-popover-foreground: hsl(330 25% 96%);
+      --color-primary: hsl(331 85% 68%);
+      --color-primary-foreground: hsl(331 60% 12%);
+      --color-secondary: hsl(325 32% 14%);
+      --color-secondary-foreground: hsl(330 25% 96%);
+      --color-muted: hsl(328 35% 16%);
+      --color-muted-foreground: hsl(332 60% 74%);
+      --color-accent: hsl(331 45% 20%);
+      --color-accent-foreground: hsl(331 85% 78%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(330 35% 24%);
+      --color-input: hsl(330 32% 24%);
+      --color-ring: hsl(331 85% 68%);
+      --color-chart1: hsl(331 80% 62%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
+
+    @variant light-electron {
+      --color-background: hsl(190 40% 99%);
+      --color-foreground: hsl(195 30% 12%);
+      --color-surface1: hsl(190 55% 96%);
+      --color-surface2: hsl(190 50% 93%);
+      --color-card: hsl(190 60% 92%);
+      --color-card-foreground: hsl(195 30% 12%);
+      --color-popover: hsl(190 55% 96%);
+      --color-popover-foreground: hsl(195 30% 12%);
+      --color-primary: hsl(187 85% 36%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(190 45% 89%);
+      --color-secondary-foreground: hsl(195 30% 20%);
+      --color-muted: hsl(190 45% 89%);
+      --color-muted-foreground: hsl(192 20% 40%);
+      --color-accent: hsl(190 55% 86%);
+      --color-accent-foreground: hsl(190 80% 32%);
+      --color-destructive: hsl(0 72% 51%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 64% 38%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 92% 50%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 91% 60%);
+      --color-info-foreground: hsl(0 0% 100%);
+      --color-border: hsl(190 35% 84%);
+      --color-input: hsl(190 30% 80%);
+      --color-ring: hsl(187 85% 36%);
+      --color-chart1: hsl(187 80% 44%);
+      --color-chart2: hsl(217 91% 60%);
+      --color-chart3: hsl(38 92% 50%);
+      --color-chart4: hsl(280 65% 60%);
+      --color-chart5: hsl(0 72% 55%);
+    }
+
+    @variant dark-electron {
+      --color-background: hsl(213 50% 3%);
+      --color-foreground: hsl(210 20% 96%);
+      --color-surface1: hsl(215 44% 8%);
+      --color-surface2: hsl(215 40% 11%);
+      --color-card: hsl(215 44% 8%);
+      --color-card-foreground: hsl(210 20% 96%);
+      --color-popover: hsl(215 40% 11%);
+      --color-popover-foreground: hsl(210 20% 96%);
+      --color-primary: hsl(193 90% 60%);
+      --color-primary-foreground: hsl(193 70% 10%);
+      --color-secondary: hsl(213 35% 14%);
+      --color-secondary-foreground: hsl(210 20% 96%);
+      --color-muted: hsl(210 35% 16%);
+      --color-muted-foreground: hsl(195 60% 72%);
+      --color-accent: hsl(193 45% 20%);
+      --color-accent-foreground: hsl(193 85% 74%);
+      --color-destructive: hsl(0 62.8% 50%);
+      --color-destructive-foreground: hsl(0 0% 98%);
+      --color-success: hsl(142 60% 45%);
+      --color-success-foreground: hsl(0 0% 100%);
+      --color-warning: hsl(38 90% 54%);
+      --color-warning-foreground: hsl(0 0% 100%);
+      --color-info: hsl(217 88% 64%);
+      --color-info-foreground: hsl(240 10% 4%);
+      --color-border: hsl(214 35% 22%);
+      --color-input: hsl(214 32% 24%);
+      --color-ring: hsl(193 90% 60%);
+      --color-chart1: hsl(193 85% 56%);
+      --color-chart2: hsl(217 91% 64%);
+      --color-chart3: hsl(38 92% 56%);
+      --color-chart4: hsl(280 65% 64%);
+      --color-chart5: hsl(0 72% 58%);
+    }
+  }
 }

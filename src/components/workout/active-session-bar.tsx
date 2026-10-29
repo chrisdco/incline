@@ -73,8 +73,7 @@ export function ActiveSessionBar({
         onPress={open}
         accessibilityRole="button"
         accessibilityLabel="Open workout"
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-        className="h-14 w-14 items-center justify-center rounded-full bg-muted">
+        className="h-14 w-14 items-center justify-center rounded-full bg-muted active:opacity-60">
         <Icon icon={ChevronUp} size={30} color="foreground" />
       </Pressable>
 
@@ -82,8 +81,7 @@ export function ActiveSessionBar({
         onPress={open}
         accessibilityRole="button"
         accessibilityLabel="Open workout"
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-        className="flex-1 flex-row items-center px-2">
+        className="flex-1 flex-row items-center px-2 active:opacity-60">
         <View className="flex-1">
           <View className="flex-row items-center gap-2">
             <View className="h-3 w-3 rounded-full bg-success" />
@@ -104,8 +102,7 @@ export function ActiveSessionBar({
           accessibilityRole="button"
           accessibilityLabel="Discard workout"
           hitSlop={8}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          className="h-14 w-14 items-center justify-center rounded-full bg-muted">
+          className="h-14 w-14 items-center justify-center rounded-full bg-muted active:opacity-60">
           <Icon icon={Trash2} size={28} color="destructive" />
         </Pressable>
       ) : null}

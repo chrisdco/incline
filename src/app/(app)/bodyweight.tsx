@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { useNavigation } from 'expo-router';
 import { Plus, ChevronDown, BarChart3, Settings2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';

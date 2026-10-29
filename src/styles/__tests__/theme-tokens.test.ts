@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildGlobalCss } from '@/styles/global-css';
-import { ACCENT_TOKENS, type AccentTheme, type Scheme } from '@/styles/tokens';
+import { buildGlobalCss, buildThemeList, extraThemeNames, themeName } from '@/styles/global-css';
+import { ACCENT_TOKENS, RADIUS, type AccentTheme, type Scheme } from '@/styles/tokens';
 
 // theme.ts / icon-color.ts export hooks that read the settings store; the
 // pure resolvers under test never call them.
@@ -65,19 +65,47 @@ function resolveVars(css: string, scheme: Scheme, accent: AccentTheme): Record<s
   );
 }
 
+/** Color variables of one Uniwind `@variant <theme>` block, in the baseline's naming (hex). */
+function uniwindThemeVars(css: string, theme: string): Record<string, string> {
+  const body = css.match(new RegExp(`@variant ${theme} \\{([^{}]*)\\}`))?.[1];
+  if (!body) throw new Error(`no @variant ${theme}`);
+  const out: Record<string, string> = {};
+  for (const [, name, value] of body.matchAll(/--color-([\w-]+):\s*hsl\(([^)]+)\);/g)) {
+    out[name.replace(/^(surface|chart)(\d)$/, '$1-$2')] = hslToHex(value);
+  }
+  return out;
+}
+
 describe('global.css generation', () => {
   it('global.css is up to date with tokens.ts (run `pnpm tokens:css`)', async () => {
     await expect(buildGlobalCss()).toMatchFileSnapshot('../../global.css');
   });
 
+  it('uniwind-themes.json is up to date with tokens.ts (run `pnpm tokens:css`)', async () => {
+    await expect(buildThemeList()).toMatchFileSnapshot('../uniwind-themes.json');
+  });
+
   it.each(ACCENTS.flatMap((a) => SCHEMES.map((s) => [a, s] as const)))(
     'resolves the same CSS colors as before: %s / %s',
     (accent, scheme) => {
-      const before = resolveVars(baseline.globalCss, scheme, accent);
+      const { radius, ...before } = resolveVars(baseline.globalCss, scheme, accent);
+      expect(radius).toBe(RADIUS);
       expect(Object.keys(before).length).toBeGreaterThan(30);
-      expect(resolveVars(buildGlobalCss(), scheme, accent)).toEqual(before);
+      expect(uniwindThemeVars(buildGlobalCss(), themeName(scheme, accent))).toEqual(before);
     },
   );
+
+  it.each(SCHEMES)('base %s theme matches the old :root / .dark', (scheme) => {
+    // No theme-* class on the root: only :root / .dark apply.
+    const { radius: _radius, ...before } = resolveVars(baseline.globalCss, scheme, 'none' as AccentTheme);
+    expect(uniwindThemeVars(buildGlobalCss(), scheme)).toEqual(before);
+  });
+
+  it('every theme defines the same variables (Uniwind requirement)', () => {
+    const css = buildGlobalCss();
+    const keys = (t: string) => Object.keys(uniwindThemeVars(css, t)).sort();
+    for (const t of ['dark', ...extraThemeNames()]) expect(keys(t)).toEqual(keys('light'));
+  });
 });
 
 describe('native hex', () => {

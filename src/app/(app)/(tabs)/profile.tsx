@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, View, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { useRouter, type Href } from 'expo-router';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { isDevAuthBypassEnabled } from '@/lib/env';

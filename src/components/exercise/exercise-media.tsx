@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Dumbbell, Pause, Play } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
+import { StyledImage } from '@/components/common/styled';
 import { cn } from '@/lib/cn';
 import { hexToRgba, useThemeHex } from '@/lib/theme';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
@@ -143,10 +144,10 @@ export function ExerciseThumb({
 
   const uri = source.kind === 'gif' ? source.uri : source.frames[0];
   return (
-    <Image
+    <StyledImage
       source={{ uri }}
-      style={{ width: size, height: size, borderRadius: size / 2 }}
-      className={cn('bg-muted', className)}
+      style={{ width: size, height: size }}
+      className={cn('rounded-full bg-muted', className)}
       contentFit="cover"
     />
   );

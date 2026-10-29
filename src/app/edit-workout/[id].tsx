@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { X, Clock, Calendar, Plus, Flame, Undo2 } from 'lucide-react-native';
 import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { Icon } from '@/components/common/icon';
@@ -290,8 +290,7 @@ export default function EditWorkoutScreen() {
         <View className="mb-5 flex-row gap-3">
           <Pressable
             onPress={() => setDurationOpen(!durationOpen)}
-            style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
-            className="flex-1"
+            className="flex-1 active:opacity-70"
             accessibilityRole="button"
             accessibilityLabel="Edit workout duration">
             <SummaryStat
@@ -409,8 +408,7 @@ export default function EditWorkoutScreen() {
               {/* Exercise header */}
               <Pressable
                 onPress={() => router.push(`/exercise/${g.exerciseId}`)}
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-                className="mb-1 flex-row items-center gap-3"
+                className="mb-1 flex-row items-center gap-3 active:opacity-60"
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${g.exerciseName} details`}>
                 <ExerciseThumb name={g.exerciseName} imageUrl={g.imageUrl} />
@@ -462,8 +460,7 @@ export default function EditWorkoutScreen() {
               {/* Add set */}
               <Pressable
                 onPress={() => onAddSet(g.exerciseId)}
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-                className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
+                className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2 active:opacity-60"
                 accessibilityRole="button"
                 accessibilityLabel={`Add set to ${g.exerciseName}`}>
                 <Icon icon={Plus} size={15} color="primary" />
@@ -473,8 +470,7 @@ export default function EditWorkoutScreen() {
               {/* Warm-up set */}
               <Pressable
                 onPress={() => onAddWarmUp(g.exerciseId)}
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-                className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
+                className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2 active:opacity-60"
                 accessibilityRole="button"
                 accessibilityLabel={`Add warm-up set to ${g.exerciseName}`}>
                 <Icon icon={Flame} size={15} color="warning" />

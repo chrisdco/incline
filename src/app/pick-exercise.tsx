@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { FlashList } from '@shopify/flash-list';
 import { ChevronLeft, Info, Plus } from 'lucide-react-native';
 
@@ -368,11 +368,10 @@ const ExercisePickRow = memo(function ExercisePickRow({
       <Pressable
         onPress={() => onPick(exerciseId)}
         disabled={disabled}
-        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1, flex: 1 })}
         android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
         accessibilityRole="button"
         accessibilityLabel={`Choose ${name}`}
-        className="flex-row items-center gap-3">
+        className="flex-1 flex-row items-center gap-3 active:opacity-55">
         <View className="flex-1">
           <View className="flex-row items-center gap-2">
             <Text className="flex-1 text-sm font-semibold text-foreground" numberOfLines={1}>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import * as ImagePicker from 'expo-image-picker';
 import { documentDirectory, makeDirectoryAsync, copyAsync } from 'expo-file-system/legacy';
 import { ArrowLeft, Camera } from 'lucide-react-native';

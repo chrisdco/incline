@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { ArrowLeft, Medal, MoreHorizontal, PencilLine, Share2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
@@ -428,10 +428,9 @@ export default function SummaryScreen() {
           action={
             <Pressable
               onPress={() => router.push({ pathname: '/edit-workout/[id]', params: { id: String(logId) } } as Href)}
-              style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
               accessibilityRole="button"
               accessibilityLabel="Edit workout"
-              className="flex-row items-center gap-1">
+              className="flex-row items-center gap-1 active:opacity-60">
               <Icon icon={PencilLine} size={14} color="primary" />
               <Caption className="font-medium text-primary">Edit</Caption>
             </Pressable>
@@ -445,8 +444,7 @@ export default function SummaryScreen() {
                 {i > 0 ? <View className="mb-6 h-px bg-border/40" /> : null}
                 <Pressable
                   onPress={() => router.push(`/exercise/${b.exerciseId}`)}
-                  style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-                  className="mb-2 flex-row items-center gap-3"
+                  className="mb-2 flex-row items-center gap-3 active:opacity-60"
                   accessibilityRole="button"
                   accessibilityLabel={`Open ${b.exerciseName} details`}>
                   <ExerciseThumb name={b.exerciseName} imageUrl={b.imageUrl} />

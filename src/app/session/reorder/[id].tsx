@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { ChevronDown, ChevronLeft, ChevronUp, GripVertical } from 'lucide-react-native';
 

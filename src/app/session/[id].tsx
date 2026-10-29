@@ -11,7 +11,7 @@ import {
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/common/styled';
 import { Check, MessageSquarePlus, Pause, Play, Plus, X } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
