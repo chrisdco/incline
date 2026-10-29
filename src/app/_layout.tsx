@@ -25,6 +25,7 @@ import { CLERK_KEY_PROBLEM, CLERK_PUBLISHABLE_KEY, isDevAuthBypassEnabled } from
 import { secureTokenCache } from '@/auth/secure-store';
 import { ToastProvider } from '@/components/ui/toast';
 import { UpdateBootstrap } from '@/features/updates';
+import { initMonitoring, withMonitoring } from '@/lib/monitoring';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { useDatabaseReady } from '@/hooks/use-database';
 import { useNotificationRouting } from '@/hooks/use-notification-routing';
@@ -183,7 +184,10 @@ function ConfigErrorScreen({ problem }: { problem: string }) {
  * Clerk provider entirely so no Clerk key or sign-in is needed for UI work.
  * Production bundles always take the Clerk path (see `isDevAuthBypassEnabled`).
  */
-export default function RootLayout() {
+// Before the first render so launch crashes are captured (release builds only).
+initMonitoring();
+
+function RootLayout() {
   // Local SQLite reads (src/lib/query-client.ts) — invalidated by table.
   const shell = (
     <QueryClientProvider client={queryClient}>
@@ -201,3 +205,5 @@ export default function RootLayout() {
     </ClerkProvider>
   );
 }
+
+export default withMonitoring(RootLayout);

@@ -172,6 +172,7 @@
           ]
         }
       ],
+      "@sentry/react-native",
       "./plugins/with-widget-previews"
     ],
     "experiments": {

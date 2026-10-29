@@ -56,6 +56,9 @@ if (isMain) {
   if (process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === '1') {
     console.warn('[check-build-env] EXPO_PUBLIC_DEV_BYPASS_AUTH=1 is set; release bundles ignore it.');
   }
+  if (!process.env.EXPO_PUBLIC_SENTRY_DSN) {
+    console.warn('[check-build-env] EXPO_PUBLIC_SENTRY_DSN not set: crash reporting is off for this build.');
+  }
   const failures = checks
     .map(([name, check]) => [name, check(process.env[name])])
     .filter(([, problem]) => problem);
