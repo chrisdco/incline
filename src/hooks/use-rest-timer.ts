@@ -1,10 +1,17 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import {
   cancelRestCompleteNotification,
   scheduleRestCompleteNotification,
 } from '@/lib/rest-notification';
+import { formatNextSet, type RestNextSet } from '@/lib/rest-ongoing/build';
+import {
+  hideRestOngoing,
+  readRestOngoingDeadline,
+  showRestOngoing,
+  subscribeRestOngoingActions,
+} from '@/lib/rest-ongoing/notify';
 import {
   consumeRestRequest,
   subscribeRestRequest,
@@ -29,11 +36,24 @@ const store = useRestTimerStore;
  *
  * Handles backgrounding via wall-clock deadlines, and schedules a local
  * notification so rest completion still alerts when the user leaves the session.
+ *
+ * `ongoing` feeds the Android lock-screen / shade notification
+ * (`src/lib/rest-ongoing`), which mirrors this store: its Skip / +30s call the
+ * same `stop` / `add` as the in-app bar.
  */
-export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
+export function useRestTimer(opts?: {
+  notify?: boolean;
+  sessionId?: number;
+  ongoing?: { exerciseName: string | null; next: RestNextSet | null };
+}) {
   const notify = opts?.notify !== false;
   const sessionId = opts?.sessionId;
+  const ongoingName = opts?.ongoing?.exerciseName ?? null;
+  const ongoingNext = opts?.ongoing?.next ?? null;
+  // Primitive key: the notification re-posts only when its text would change.
+  const ongoingKey = `${ongoingName ?? ''}|${formatNextSet(ongoingNext) ?? ''}`;
   const running = useRestTimerStore((s) => s.running);
+  const deadline = useRestTimerStore((s) => s.deadline);
   const visible = useRestTimerStore(selectRestVisible);
   const justFinished = useRestTimerStore(selectRestJustFinished);
 
@@ -98,11 +118,16 @@ export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
   const stop = useCallback(() => {
     store.setState(REST_TIMER_IDLE);
     void syncNotification(null);
+    void hideRestOngoing();
   }, [syncNotification]);
 
   const add = useCallback(
     (delta: number) => {
-      const next = Math.max(0, store.getState().remaining + delta);
+      // From the wall-clock deadline, not `remaining`: the 1s tick may not
+      // have run while backgrounded (a +30s from the shade).
+      const { deadline: d, remaining } = store.getState();
+      const left = d > 0 ? Math.max(0, Math.ceil((d - Date.now()) / 1000)) : remaining;
+      const next = Math.max(0, left + delta);
       if (next === 0) {
         // Dropping to zero ends the rest instead of leaving a dead 0s timer.
         store.setState({ remaining: 0, running: false, deadline: 0 });
@@ -126,6 +151,53 @@ export function useRestTimer(opts?: { notify?: boolean; sessionId?: number }) {
     if (pending) accept(pending);
     return subscribeRestRequest(accept);
   }, [start, sessionId]);
+
+  // Adopt a deadline that native Skip/+30s presses changed while JS wasn't
+  // listening (cold start, or this screen was unmounted). Until checked, the
+  // sync below must not cancel that notification.
+  const [adoptedFor, setAdoptedFor] = useState<number | null>(null);
+  useEffect(() => {
+    if (sessionId == null) return;
+    let live = true;
+    void readRestOngoingDeadline(sessionId).then((to) => {
+      if (!live) return;
+      const cur = store.getState();
+      if (to != null && cur.sessionId === sessionId && Math.abs(to - cur.deadline) > 999) {
+        const secs = Math.ceil((to - Date.now()) / 1000);
+        if (secs > 0) {
+          store.setState({
+            remaining: secs,
+            total: Math.max(cur.running ? cur.total : 0, secs),
+            running: true,
+            deadline: to,
+          });
+          void syncNotification(secs);
+        }
+      }
+      setAdoptedFor(sessionId);
+    });
+    return () => {
+      live = false;
+    };
+  }, [sessionId, syncNotification]);
+
+  // Mirror the store into the ongoing notification. `deadline` only changes
+  // on start / add / stop, never per tick.
+  useEffect(() => {
+    if (sessionId == null || adoptedFor !== sessionId) return;
+    if (running && deadline > Date.now()) {
+      void showRestOngoing({ sessionId, exerciseName: ongoingName, deadline, next: ongoingNext });
+    } else {
+      void hideRestOngoing();
+    }
+    // ongoingKey stands in for ongoingName / ongoingNext (object identity).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adoptedFor, sessionId, running, deadline, ongoingKey]);
+
+  useEffect(
+    () => subscribeRestOngoingActions({ onSkip: stop, onAdd: (seconds) => add(seconds) }),
+    [stop, add],
+  );
 
   useEffect(() => {
     if (!running) return;

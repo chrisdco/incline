@@ -262,6 +262,12 @@ a11y/sweeps:
   notification via `expo-widgets` `createCustomNotification`, iOS Live
   Activity + `delivery: 'alarmClock'`) — see
   [#247](https://github.com/chrisdco/incline/issues/247) before designing it.
+  **Rest on lock/shade: built (Android, needs device check).** Ongoing
+  `RestTimer` custom notification (`src/widgets/rest-notification.tsx`,
+  `src/lib/rest-ongoing/`): native header chronometer via the expo-widgets
+  patch, "Until …" + "Next: Set 3 · 80 kg × 8", Skip / +30s mirrored into
+  `rest-timer-store`. With the app dead, presses update only the
+  notification; the rest-complete alarm is not moved. iOS → #282.
 - **Track B — Analytics honesty** ([#126](https://github.com/chrisdco/incline/issues/126)):
   stored vs working volume, one definition across Progress / recap / ghost.
 - **Track C — AI narrations live**: only with a real key deployed; prove
