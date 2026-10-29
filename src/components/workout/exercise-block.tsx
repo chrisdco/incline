@@ -20,7 +20,7 @@ import type { TrainingSuggestion } from '@/coaching/types';
 import { detectSetFatigue } from '@/coaching/fatigue';
 import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical, Scale } from 'lucide-react-native';
 import { SegmentedControl } from '@/components/common/segmented-control';
-import { SET_COL, SET_FLEX } from './set-layout';
+import { SET_CELL, SET_COL } from './set-layout';
 
 const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
   { id: 'working', label: 'Working set', hint: 'Counts toward PRs and progression' },
@@ -159,6 +159,16 @@ function ExerciseBlockImpl({
 
   const fatigue = useMemo(() => detectSetFatigue(sets, unit), [sets, unit]);
 
+  // RPE asks once, inline, for the set just finished; every other set shows
+  // its value as "@8" under the number and edits it from the set menu.
+  // (Inline chips under every completed set crowded the list.)
+  const rpePromptSetId = useMemo(() => {
+    if (!showRpe || !onChangeRpe) return null;
+    const lastDone = [...sets].reverse().find((s) => s.completed);
+    if (!lastDone || (lastDone.setType ?? 'working') === 'warmup' || lastDone.rpe != null) return null;
+    return lastDone.id;
+  }, [sets, showRpe, onChangeRpe]);
+
   const applyAndClose = (weight: number, reps?: number) => {
     onApplyLoad?.(exerciseId, weight, reps);
     setAssistOpen(false);
@@ -240,22 +250,27 @@ function ExerciseBlockImpl({
         </View>
       </View>
 
-      <ExerciseNoteField logId={logId} exerciseId={exerciseId} />
       {/* Plain View: the session screen already layout-animates each block,
           and a nested LinearTransition doubled the animation work on every
           set add/remove. */}
       <View className="gap-2">
-      <Pressable
-        onPress={() => setRestPickerOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={restSeconds > 0 ? `Rest timer, ${restSeconds} seconds. Activate to change.` : 'Rest timer off. Activate to set.'}
-        hitSlop={6}
-        className="flex-row items-center gap-1.5 self-start rounded-full bg-muted px-3 py-1.5">
-        <Icon icon={Clock} size={13} color={restSeconds > 0 ? 'primary' : 'muted-foreground'} />
-        <Text className={cn('text-xs', restSeconds > 0 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
-          {restSeconds > 0 ? `Rest ${restSeconds}s` : 'Rest off'}
-        </Text>
-      </Pressable>
+      {/* Note and rest share one line: one row of chrome instead of two. */}
+      <View className="flex-row items-center gap-2">
+        <View className="min-w-0 flex-1">
+          <ExerciseNoteField logId={logId} exerciseId={exerciseId} />
+        </View>
+        <Pressable
+          onPress={() => setRestPickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={restSeconds > 0 ? `Rest timer, ${restSeconds} seconds. Activate to change.` : 'Rest timer off. Activate to set.'}
+          hitSlop={6}
+          className="flex-row items-center gap-1.5 rounded-full bg-muted px-3 py-1.5">
+          <Icon icon={Clock} size={13} color={restSeconds > 0 ? 'primary' : 'muted-foreground'} />
+          <Text className={cn('text-xs', restSeconds > 0 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+            {restSeconds > 0 ? `Rest ${restSeconds}s` : 'Rest off'}
+          </Text>
+        </Pressable>
+      </View>
       {activeSet && activeSet.weight > 0 ? (
         <PlatesHint exerciseId={exerciseId} weight={activeSet.weight} unit={unit} />
       ) : null}
@@ -282,13 +297,13 @@ function ExerciseBlockImpl({
         <View style={{ width: SET_COL.index }} className="items-center">
           <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
         </View>
-        <View style={{ flex: SET_FLEX.prev }} className="items-center">
+        <View style={SET_CELL.prev} className="items-center">
           <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Prev</Text>
         </View>
-        <View style={{ flex: SET_FLEX.input }} className="items-center">
+        <View style={SET_CELL.input} className="items-center">
           <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{weightLabel}</Text>
         </View>
-        <View style={{ flex: SET_FLEX.input }} className="items-center">
+        <View style={SET_CELL.input} className="items-center">
           <Text className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Reps</Text>
         </View>
         <View style={{ width: SET_COL.done }} className="items-center">
@@ -310,6 +325,7 @@ function ExerciseBlockImpl({
               isNext={!s.completed && activeSet?.id === s.id}
               unit={unit}
               setType={s.setType}
+              rpe={showRpe ? (s.rpe ?? null) : null}
               onOpenSetType={() => setTypeMenuSetId(s.id)}
               onChangeWeight={(v) => onChangeWeight(s.id, v)}
               onChangeReps={(v) => onChangeReps(s.id, v)}
@@ -325,8 +341,8 @@ function ExerciseBlockImpl({
               onRemove={sets.length > 1 ? () => onRemoveSet(s.id) : undefined}
               onSubmitReps={i + 1 < sets.length ? () => rowRefs.current[i + 1]?.focusWeight() : undefined}
             />
-            {showRpe && s.completed && (s.setType ?? 'working') !== 'warmup' && onChangeRpe ? (
-              <RpeChips value={s.rpe ?? null} onChange={(v) => onChangeRpe(s.id, v)} />
+            {rpePromptSetId === s.id && onChangeRpe ? (
+              <RpeChips value={null} onChange={(v) => onChangeRpe(s.id, v)} />
             ) : null}
           </View>
         ))}
@@ -443,9 +459,17 @@ function ExerciseBlockImpl({
       <Sheet
         open={typeMenuSet != null}
         onOpenChange={(open) => { if (!open) setTypeMenuSetId(null); }}
-        title="Set type"
+        title="Set"
         mode="fit">
         <View className="gap-1 pb-2">
+          {showRpe && onChangeRpe && typeMenuSet && (typeMenuSet.setType ?? 'working') !== 'warmup' ? (
+            <View className="mb-1 rounded-xl bg-muted/40 py-2">
+              <RpeChips
+                value={typeMenuSet.rpe ?? null}
+                onChange={(v) => onChangeRpe(typeMenuSet.id, v)}
+              />
+            </View>
+          ) : null}
           {SET_TYPE_OPTIONS.map((opt) => {
             const selected = (typeMenuSet?.setType ?? 'working') === opt.id;
             const badge = SET_TYPE_BADGE[opt.id];

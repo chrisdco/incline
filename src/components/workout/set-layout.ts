@@ -19,3 +19,13 @@ export const SET_FLEX = {
 
 export const SET_ROW_HEIGHT = 48;
 export const SET_INPUT_HEIGHT = 40;
+
+/**
+ * Flex cell styles. flexBasis 0 + minWidth 0 make every row split the width
+ * by proportion alone, so a longer PREV ("105 kg×6") can never push KG/REPS
+ * off the header columns (device screenshot, Oct 29).
+ */
+export const SET_CELL = {
+  prev: { flexGrow: SET_FLEX.prev, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+  input: { flexGrow: SET_FLEX.input, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+} as const;
