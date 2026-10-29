@@ -12,12 +12,16 @@ import Animated, { LinearTransition } from 'react-native-reanimated';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, MessageSquarePlus, Pause, Play, Plus, X } from 'lucide-react-native';
+import { Check, MessageSquarePlus, Pause, Play, Plus, Timer, X } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Body, Caption } from '@/components/common/text';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { ListRow, Section, StatBlock } from '@/components/layout';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
 import { ExerciseBlock } from '@/components/workout/exercise-block';
@@ -83,9 +87,9 @@ const SessionMuscleMap = memo(function SessionMuscleMap({ muscleKey }: { muscleK
     return { muscle: muscle as MuscleGroup, sets: Number(sets), volume: 0 };
   });
   return (
-    <View className="mb-3 items-center rounded-3xl bg-card py-2">
+    <Card className="items-center py-2">
       <MuscleBodyMap distribution={distribution} compact scale={0.72} />
-    </View>
+    </Card>
   );
 });
 
@@ -99,7 +103,7 @@ export default function SessionScreen() {
   const { toast } = useToast();
   const { impact, notify } = useHaptics();
   const clear = useActiveWorkout((s) => s.clear);
-  const { unit, setUnit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost, exerciseWeightUnits, setExerciseWeightUnit } = useSettings(useShallow((s) => ({ unit: s.unit, setUnit: s.setUnit, restSoundEnabled: s.restSoundEnabled, keepScreenAwake: s.keepScreenAwake, showWarmUpSets: s.showWarmUpSets, showRpe: s.showRpe, showSessionGhost: s.showSessionGhost, exerciseWeightUnits: s.exerciseWeightUnits, setExerciseWeightUnit: s.setExerciseWeightUnit })));
+  const { unit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost, exerciseWeightUnits, setExerciseWeightUnit } = useSettings(useShallow((s) => ({ unit: s.unit, restSoundEnabled: s.restSoundEnabled, keepScreenAwake: s.keepScreenAwake, showWarmUpSets: s.showWarmUpSets, showRpe: s.showRpe, showSessionGhost: s.showSessionGhost, exerciseWeightUnits: s.exerciseWeightUnits, setExerciseWeightUnit: s.setExerciseWeightUnit })));
   const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId });
   const restSound = useRestTimerSound();
 
@@ -352,53 +356,39 @@ export default function SessionScreen() {
         <Pressable accessibilityRole="button" accessibilityLabel="Discard workout" onPress={() => setDiscardOpen(true)} className="p-1">
           <Icon icon={X} size={24} color="muted-foreground" />
         </Pressable>
-        <View className="items-center">
-          <Body className="font-semibold text-foreground">{session.name}</Body>
-          {pausedAt ? <Caption className="text-amber-500">Paused</Caption> : null}
-        </View>
+        <Body numberOfLines={1} className="mx-3 flex-1 text-center font-semibold text-foreground">{session.name}</Body>
         <Button size="sm" variant="success" leftIcon={<Icon icon={Check} size={16} color="success-foreground" />} onPress={() => setFinishOpen(true)} disabled={finishing || discarding} loading={finishing}>
           Finish
         </Button>
       </View>
 
-      <View className="flex-row items-center justify-between px-4 py-3">
+      {/* Stats strip: the three numbers a lifter glances at between sets.
+          Values carry the weight; labels and "last time" stay quiet. */}
+      <View className="flex-row px-4 pb-3 pt-1">
         <Pressable
           onPress={() => setTimerSheetOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel="Workout timer"
-          className="flex-1 items-center">
-          <Caption>Duration</Caption>
-          <SessionClock startedAt={session.startedAt} className="mt-0.5 font-semibold text-primary" />
-          {pausedAt ? (
-            <Caption className="mt-0.5 text-amber-500">Paused</Caption>
-          ) : null}
-          {ghost && showSessionGhost ? (
-            <Caption className="mt-0.5">Last time {formatClock(ghost.durationSeconds)}</Caption>
-          ) : null}
+          accessibilityLabel="Workout timer. Activate to pause or resume."
+          className="flex-1">
+          <StatBlock
+            label={pausedAt ? 'Paused' : 'Duration'}
+            value={<SessionClock startedAt={session.startedAt} className={pausedAt ? 'text-lg font-semibold text-foreground' : 'text-lg font-semibold text-primary'} />}
+            tone={pausedAt ? 'default' : 'primary'}
+            sub={ghost && showSessionGhost ? `Last ${formatClock(ghost.durationSeconds)}` : undefined}
+          />
         </Pressable>
-        <Pressable
-          onPress={() => {
-            const next = unit === 'metric' ? 'imperial' : 'metric';
-            setUnit(next);
-            toast({ title: `Units: ${next === 'metric' ? 'kg' : 'lb'}`, description: 'Weight display updated for this workout.' });
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={`Toggle units, currently ${unit === 'metric' ? 'kg' : 'lb'}`}
-          className="flex-1 items-center">
-          <Caption>Volume · {unit === 'metric' ? 'kg' : 'lb'}</Caption>
-          <Body className="mt-0.5 font-semibold text-foreground">{formatVolume(totalVolume, unit)}</Body>
-          {ghost && showSessionGhost ? (
-            <Caption className="mt-0.5">Last time {formatVolume(ghost.workingVolume, unit)}</Caption>
-          ) : null}
-        </Pressable>
-        <View className="flex-1 items-center">
-          <Caption>Sets</Caption>
-          <Body className="mt-0.5 font-semibold text-foreground">{completedSets}/{totalSets}</Body>
-          {ghost && showSessionGhost ? (
-            <Caption className="mt-0.5">Last time {ghost.workingSetCount}</Caption>
-          ) : null}
-        </View>
+        <StatBlock
+          label={`Volume · ${unit === 'metric' ? 'kg' : 'lb'}`}
+          value={formatVolume(totalVolume, unit)}
+          sub={ghost && showSessionGhost ? `Last ${formatVolume(ghost.workingVolume, unit)}` : undefined}
+        />
+        <StatBlock
+          label="Sets"
+          value={`${completedSets}/${totalSets}`}
+          sub={ghost && showSessionGhost ? `Last ${ghost.workingSetCount}` : undefined}
+        />
       </View>
+      <Progress value={totalSets > 0 ? (completedSets / totalSets) * 100 : 0} className="mx-4 mb-1 h-1" />
 
       <ScrollView
         ref={scrollRef}
@@ -407,19 +397,16 @@ export default function SessionScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
-        {muscleKey ? <SessionMuscleMap muscleKey={muscleKey} /> : null}
-
-        <Button variant="outline" className="mb-3" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
-          Add exercise
-        </Button>
-
         {groups.length === 0 ? (
           <View className="items-center py-16">
             <Body className="font-semibold text-foreground">No exercises yet</Body>
-            <Caption className="mt-1 text-center">Add an exercise to start logging sets.</Caption>
+            <Caption className="mb-4 mt-1 text-center">Add an exercise to start logging sets.</Caption>
+            <Button leftIcon={<Icon icon={Plus} size={16} color="primary-foreground" />} onPress={openAddExercise}>
+              Add exercise
+            </Button>
           </View>
         ) : (
-          <View className="gap-5">
+          <View className="gap-6 pt-3">
             {groups.map((g, i) => {
               const prev = i > 0 ? groups[i - 1] : null;
               const inSuperset = g.supersetGroup != null;
@@ -434,12 +421,8 @@ export default function SessionScreen() {
               <View
                 ref={(el) => { groupRefs.current[i] = el; }}
                 className={inSuperset ? 'border-l-2 border-primary/50 pl-3' : undefined}>
-                {i > 0 && !continueSuperset ? <View className="mb-5 h-px bg-border/40" /> : null}
-                {continueSuperset ? (
-                  <Caption className="mb-2 text-primary">Superset</Caption>
-                ) : inSuperset && (!prev || prev.supersetGroup !== g.supersetGroup) ? (
-                  <Caption className="mb-2 text-primary">Superset</Caption>
-                ) : null}
+                {i > 0 && !continueSuperset ? <View className="mb-6 h-px bg-border/40" /> : null}
+                {inSuperset ? <Caption className="mb-2 text-primary">Superset</Caption> : null}
                 <ExerciseBlock
                   logId={logId}
                   name={g.exerciseName}
@@ -474,54 +457,63 @@ export default function SessionScreen() {
           </View>
         )}
 
-        {session.sets.length > 0 ? (
-          <View className="mt-5 mb-3 rounded-2xl bg-card p-3">
-            <Caption className="mb-2 text-muted-foreground">Set rest for all exercises</Caption>
-            <RestPresetBar onSelect={engine.setRestForAll} />
-          </View>
-        ) : null}
-
-        <Pressable
-          onPress={() => {
-            // Collapsing commits the draft, same as blur (#170).
-            if (notesOpen) void engine.commitNotes();
-            setNotesOpen(!notesOpen);
-          }}
-          className="mb-3 flex-row items-center gap-2 rounded-xl bg-card px-4 py-3">
-          <Icon icon={MessageSquarePlus} size={16} color="primary" />
-          <Body className="text-sm text-foreground">{notesOpen ? 'Hide notes' : notes ? 'Show notes' : 'Add notes'}</Body>
-        </Pressable>
-
-        {notesOpen && (
-          <View className="mb-4 rounded-xl bg-card p-4">
-            <Caption className="mb-2">Workout notes</Caption>
-            <TextInput
-              ref={notesRef}
-              value={notes}
-              onChangeText={engine.setNotesDraft}
-              onBlur={() => { void engine.commitNotes(); }}
-              placeholder="How did this session feel?"
-              placeholderTextColor={PLACEHOLDER_COLOR}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              className="rounded-xl bg-background p-3 text-foreground"
-              style={{ minHeight: 80, fontSize: 14, lineHeight: 20 }}
-            />
-          </View>
-        )}
-
-        <Pressable
-          onPress={() => router.push('/(app)/plate-calculator' as Href)}
-          className="mb-3 flex-row items-center gap-2 rounded-xl bg-card px-4 py-3">
-          <Icon icon={METRIC_ICONS.equipment} size={16} color="primary" />
-          <Body className="text-sm text-foreground">Plate calculator</Body>
-        </Pressable>
-
         {groups.length > 0 ? (
-          <Button variant="outline" className="mb-3" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
+          <Button variant="outline" className="mt-6" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
             Add exercise
           </Button>
+        ) : null}
+
+        {/* Everything that is not logging a set sits below the exercises,
+            grouped, so the set list stays the first thing on screen. */}
+        {session.sets.length > 0 ? (
+          <Section title="Workout">
+            <Card className="py-1">
+              <ListRow
+                icon={<Icon icon={MessageSquarePlus} size={18} color="muted-foreground" />}
+                title="Notes"
+                subtitle={notes && !notesOpen ? notes : 'How did this session feel?'}
+                onPress={() => {
+                  // Collapsing commits the draft, same as blur (#170).
+                  if (notesOpen) void engine.commitNotes();
+                  setNotesOpen(!notesOpen);
+                }}
+                accessibilityLabel={notesOpen ? 'Hide notes' : 'Edit notes'}>
+                <Caption className="text-primary">{notesOpen ? 'Done' : notes ? 'Edit' : 'Add'}</Caption>
+              </ListRow>
+              {notesOpen ? (
+                <TextInput
+                  ref={notesRef}
+                  value={notes}
+                  onChangeText={engine.setNotesDraft}
+                  onBlur={() => { void engine.commitNotes(); }}
+                  placeholder="How did this session feel?"
+                  placeholderTextColor={PLACEHOLDER_COLOR}
+                  multiline
+                  autoFocus
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  className="mb-3 rounded-xl bg-background p-3 text-sm text-foreground"
+                  style={{ minHeight: 80 }}
+                />
+              ) : null}
+              <Separator />
+              <ListRow stacked icon={<Icon icon={Timer} size={18} color="muted-foreground" />} title="Rest for all exercises">
+                <RestPresetBar onSelect={engine.setRestForAll} />
+              </ListRow>
+              <Separator />
+              <ListRow
+                icon={<Icon icon={METRIC_ICONS.equipment} size={18} color="muted-foreground" />}
+                title="Plate calculator"
+                onPress={() => router.push('/(app)/plate-calculator' as Href)}
+              />
+            </Card>
+          </Section>
+        ) : null}
+
+        {muscleKey ? (
+          <Section title="Muscles worked">
+            <SessionMuscleMap muscleKey={muscleKey} />
+          </Section>
         ) : null}
       </ScrollView>
 
