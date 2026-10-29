@@ -54,8 +54,10 @@ export function InitialsAvatar({
         contentFit="cover"
         transition={150}
         cachePolicy="memory-disk"
-        className={cn('rounded-full', className)}
-        style={{ width: size, height: size }}
+        className={className}
+        // expo-image ignores NativeWind's rounded-* class, so the radius is
+        // set inline; without it photos rendered square.
+        style={{ width: size, height: size, borderRadius: size / 2 }}
       />
     );
   }
