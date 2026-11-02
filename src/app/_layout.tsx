@@ -27,7 +27,8 @@ import { ToastProvider } from '@/components/ui/toast';
 import { UpdateBootstrap } from '@/features/updates';
 import { initMonitoring, withMonitoring } from '@/lib/monitoring';
 import { ErrorBoundary } from '@/components/common/error-boundary';
-import { useDatabaseReady } from '@/hooks/use-database';
+import { useDatabaseState } from '@/hooks/use-database';
+import { DatabaseErrorScreen } from '@/components/common/database-error-screen';
 import { useNotificationRouting } from '@/hooks/use-notification-routing';
 import { useMonthlyRecapSync } from '@/hooks/use-monthly-recap-sync';
 import { useNudgeSync } from '@/hooks/use-nudge-sync';
@@ -62,7 +63,8 @@ function AppShell() {
     'Geist-SemiBold': Geist_600SemiBold,
     'Geist-Bold': Geist_700Bold,
   });
-  const dbReady = useDatabaseReady();
+  const db = useDatabaseState();
+  const dbReady = db.status === 'ready';
   const scheme = useAppColorScheme();
   const accentTheme = useSettings((s) => s.accentTheme);
   // Paint the OS window + nav containers with the themed background so push /
@@ -77,10 +79,13 @@ function AppShell() {
     void SystemUI.setBackgroundColorAsync(navBackground).catch(() => {});
   }, [navBackground]);
 
+  const dbFailed = db.status === 'error';
   useEffect(() => {
-    if (fontsLoaded && dbReady) SplashScreen.hideAsync();
-  }, [fontsLoaded, dbReady]);
+    if ((fontsLoaded && dbReady) || dbFailed) SplashScreen.hideAsync();
+  }, [fontsLoaded, dbReady, dbFailed]);
 
+  // A broken DB must show something actionable, never a frozen splash (#163).
+  if (db.status === 'error') return <DatabaseErrorScreen error={db.error} onRetry={db.retry} />;
   if (!fontsLoaded || !dbReady) return null;
 
   const isDark = scheme === 'dark';

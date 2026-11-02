@@ -108,7 +108,8 @@ export default function WorkoutPreviewScreen() {
   const actionableSuggestions = suggestions.filter((s) => s.weight > 0);
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 16, paddingBottom: 180 }}>
+    <View className="flex-1 bg-background">
+    <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
       <Caption>Workout routine</Caption>
       <Heading className="mt-1">{template.name}</Heading>
       <Body className="mt-2 text-muted-foreground">{template.description}</Body>
@@ -192,8 +193,10 @@ export default function WorkoutPreviewScreen() {
           );
         })}
       </View>
+    </ScrollView>
 
-      <View className="absolute inset-x-0 bottom-0 border-t border-border bg-background p-5 pb-8 shadow-xl">
+      {/* Footer sits outside the scroll so Start stays put on long routines (#159). */}
+      <View className="border-t border-border bg-background p-5 pb-8">
         <Button size="lg" leftIcon={<Icon icon={Play} size={18} color="primary-foreground" />} onPress={start} disabled={starting}>
           {starting ? 'Starting…' : 'Start workout'}
         </Button>
@@ -208,6 +211,6 @@ export default function WorkoutPreviewScreen() {
         onResume={resumeActive}
         onStartNew={startNewAndDiscard}
       />
-    </ScrollView>
+    </View>
   );
 }
