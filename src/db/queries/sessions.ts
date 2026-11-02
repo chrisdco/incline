@@ -669,7 +669,10 @@ export async function listWorkoutLogs(
      LIMIT ? OFFSET ?`,
     ...params,
   );
-  const items = rows.map(mapLog);
+  // Lists show working-set volume like every other surface (#165); stored
+  // total_volume stays the all-sets record for export/sync.
+  const working = await getWorkingVolumes(rows.map((r) => r.id));
+  const items = rows.map((r) => ({ ...mapLog(r), totalVolume: working.get(r.id) ?? 0 }));
   const nextOffset = items.length === limit ? offset + limit : null;
   return { items, nextOffset };
 }
@@ -752,8 +755,9 @@ async function enrichWorkoutFeed(db: SQLiteDatabase, rows: LogRow[]): Promise<Fe
 
   const prCounts = await getCelebrationPrCounts(logIds);
 
+  const working = await getWorkingVolumes(logIds);
   return rows.map((r) => {
-    const log = mapLog(r);
+    const log = { ...mapLog(r), totalVolume: working.get(r.id) ?? 0 };
     const exMap = exerciseMap.get(r.id);
     return {
       ...log,

@@ -134,11 +134,32 @@ function sanitizeInsight(item: CoachingInsight | FeaturePackInsight): FeaturePac
   };
 }
 
+/**
+ * Custom exercise names are user-controlled text that reaches the LLM (#153).
+ * Keep them name-shaped: no control chars or newlines, no markup/quote
+ * delimiters, collapsed whitespace, capped length; instruction-like names are
+ * replaced outright. Mirrored in supabase/functions/coach-narrate/schema.ts.
+ */
+const MAX_EXERCISE_NAME = 48;
+const INSTRUCTION_LIKE = /\b(ignore|disregard|forget|override|system|assistant|instruction|prompt|you are|act as|respond|reply|output|json)\b/i;
+
+export function sanitizeExerciseName(name: string): string {
+  const cleaned = name
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/[<>{}\[\]`"\|#*_~]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_EXERCISE_NAME)
+    .trim();
+  if (!cleaned || INSTRUCTION_LIKE.test(cleaned)) return 'Custom exercise';
+  return cleaned;
+}
+
 function sanitizeSuggestion(
   item: TrainingSuggestion | FeaturePackSuggestion,
 ): FeaturePackSuggestion {
   return {
-    exerciseName: item.exerciseName,
+    exerciseName: sanitizeExerciseName(item.exerciseName),
     weight: item.weight,
     reps: item.reps,
     targetSets: item.targetSets,
