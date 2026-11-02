@@ -5,12 +5,15 @@
  * Last-write-wins is decided server-side in the same statement as the write
  * (`ON CONFLICT ... WHERE excluded.updated_at > t.updated_at`), so there is
  * no read-then-write race between devices. Each row comes back
- * applied / stale / absent (all acked) or error (attempt bumped). A row that
- * keeps failing is quarantined at MAX_PUSH_ATTEMPTS — skipped, never
- * blocking the rows behind it — until a new local edit resets it.
+ * applied / stale / absent (all acked) or error (attempt bumped + per-row
+ * backoff). A row that keeps failing is dead-lettered at MAX_PUSH_ATTEMPTS —
+ * skipped, reported, never blocking the rows behind it — until a new local
+ * edit resets it. A whole-call failure (other than auth) stops only that
+ * table and the tables whose rows reference it; the rest still push.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { captureError } from '@/lib/error-sink';
 import { buildPushOp, type PushOp } from './mappers';
 import {
   bumpOutboxAttempt,
@@ -92,17 +95,73 @@ export function settlePushResults<T>(
   return { ack, retry };
 }
 
+/**
+ * Server FKs (supabase/sync-schema.sql) a child row needs its parent for. When
+ * a parent table's call fails outright, its children wait for the next run
+ * instead of burning attempts on FK errors the parent push would have fixed.
+ */
+const PUSH_PARENTS: Partial<Record<SyncTable, SyncTable[]>> = {
+  user_template_exercises: ['user_templates', 'user_exercises'],
+  user_program_workouts: ['user_programs', 'user_templates'],
+  workout_logs: ['user_templates'],
+  set_entries: ['workout_logs', 'user_exercises'],
+  workout_photos: ['workout_logs'],
+  user_active_program: ['user_programs'],
+};
+
+export interface PushTableError {
+  table: SyncTable;
+  message: string;
+  /** Set when the table was held back behind a failed parent, not tried. */
+  blockedBy?: SyncTable;
+}
+
 export interface PushSummary {
   pushed: number;
   failed: number;
+  /** Rows that hit MAX_PUSH_ATTEMPTS this run. */
+  deadLettered: number;
+  /** Tables whose call failed outright (or were held back behind one). */
+  tableErrors: PushTableError[];
+}
+
+/** SQLSTATE prefix of a row error ("23503: …") — the part safe to report. */
+function errorCode(message: string): string {
+  return message.split(':')[0]?.trim().slice(0, 16) || 'unknown';
 }
 
 export async function pushOutbox(userId: string, rpc: PushRpc): Promise<PushSummary> {
   await quarantineUnknownTables(PUSH_ORDER, MAX_PUSH_ATTEMPTS);
   let pushed = 0;
   let failed = 0;
+  let deadLettered = 0;
+  const tableErrors: PushTableError[] = [];
+  const blocked = new Set<SyncTable>();
+
+  const fail = async (table: SyncTable, item: OutboxRow, message: string) => {
+    failed++;
+    const counted = await bumpOutboxAttempt(item);
+    if (counted && item.attempts + 1 >= MAX_PUSH_ATTEMPTS) {
+      deadLettered++;
+      captureError(new Error('sync push row dead-lettered'), {
+        where: 'sync.push',
+        table,
+        code: errorCode(message),
+        attempts: item.attempts + 1,
+      });
+    } else {
+      console.warn('[sync] push row failed', table, item.rowUuid, message);
+    }
+  };
 
   for (const table of PUSH_ORDER) {
+    const parent = PUSH_PARENTS[table]?.find((p) => blocked.has(p));
+    if (parent) {
+      blocked.add(table);
+      tableErrors.push({ table, message: `waiting on ${parent}`, blockedBy: parent });
+      continue;
+    }
+
     let afterId = 0;
     for (;;) {
       const page = await listPushableOutbox(table, {
@@ -120,26 +179,31 @@ export async function pushOutbox(userId: string, rpc: PushRpc): Promise<PushSumm
           ops.push(buildPushOp(table, item, userId));
           sent.push(item);
         } catch (err) {
-          console.warn('[sync] unmappable outbox row', table, item.rowUuid, err);
-          await bumpOutboxAttempt(item);
-          failed++;
+          await fail(table, item, `unmappable: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
 
       if (ops.length > 0) {
-        const { ack, retry } = settlePushResults(sent, await rpc(table, ops));
-        for (const item of ack) await removeOutbox(item);
-        for (const { item, message } of retry) {
-          console.warn('[sync] push row failed', table, item.rowUuid, message);
-          await bumpOutboxAttempt(item);
+        let results: PushRowResult[];
+        try {
+          results = await rpc(table, ops);
+        } catch (err) {
+          // Auth stops everything (#201). Anything else is not attributable
+          // to a row: leave attempts alone and move on to independent tables.
+          if (err instanceof SyncAuthError) throw err;
+          blocked.add(table);
+          tableErrors.push({ table, message: err instanceof Error ? err.message : String(err) });
+          break;
         }
+        const { ack, retry } = settlePushResults(sent, results);
+        for (const item of ack) await removeOutbox(item);
+        for (const { item, message } of retry) await fail(table, item, message);
         pushed += ack.length;
-        failed += retry.length;
       }
 
       if (page.length < PUSH_CHUNK) break;
     }
   }
 
-  return { pushed, failed };
+  return { pushed, failed, deadLettered, tableErrors };
 }

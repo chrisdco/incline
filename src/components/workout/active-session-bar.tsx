@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { AppState, Pressable, View } from 'react-native';
+import { AppState, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronUp, Trash2 } from 'lucide-react-native';
+import { Tappable } from '@/components/ui/tappable';
 
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
@@ -69,20 +70,20 @@ export function ActiveSessionBar({
       style={{ borderRadius: 9999 }}
       className={cn('mx-4 mb-2 flex-row items-center border border-border bg-surface2 px-3 py-3 shadow-lg', className)}>
       {/* Whole bar opens — only the trash circle deletes. */}
-      <Pressable
+      <Tappable
         onPress={open}
         accessibilityRole="button"
         accessibilityLabel="Open workout"
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        pressedOpacity={0.6}
         className="h-14 w-14 items-center justify-center rounded-full bg-muted">
         <Icon icon={ChevronUp} size={30} color="foreground" />
-      </Pressable>
+      </Tappable>
 
-      <Pressable
+      <Tappable
         onPress={open}
         accessibilityRole="button"
         accessibilityLabel="Open workout"
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        pressedOpacity={0.6}
         className="flex-1 flex-row items-center px-2">
         <View className="flex-1">
           <View className="flex-row items-center gap-2">
@@ -96,18 +97,18 @@ export function ActiveSessionBar({
             <Text className="text-base text-muted-foreground" numberOfLines={1}>{nextExercise}</Text>
           ) : null}
         </View>
-      </Pressable>
+      </Tappable>
 
       {onDiscard ? (
-        <Pressable
+        <Tappable
           onPress={onDiscard}
           accessibilityRole="button"
           accessibilityLabel="Discard workout"
           hitSlop={8}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          pressedOpacity={0.6}
           className="h-14 w-14 items-center justify-center rounded-full bg-muted">
           <Icon icon={Trash2} size={28} color="destructive" />
-        </Pressable>
+        </Tappable>
       ) : null}
     </View>
   );

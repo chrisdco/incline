@@ -1,5 +1,6 @@
 import { memo, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { Tappable } from '@/components/ui/tappable';
 
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
@@ -178,17 +179,17 @@ function ExerciseBlockImpl({
     <View className={cn('gap-2 rounded-2xl px-1 py-1', className)}>
       <View className="flex-row items-center justify-between px-1">
         <View className="min-w-0 flex-1 pr-2">
-          <Pressable
+          <Tappable
             onPress={() => onOpenExercise?.(exerciseId)}
             disabled={!onOpenExercise}
-            style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+            pressedOpacity={0.55}
             android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
             accessibilityRole={onOpenExercise ? 'button' : undefined}
             accessibilityLabel={onOpenExercise ? `Open ${name} details` : undefined}
             className="flex-row items-center gap-1 self-start">
             <Text className="text-base font-semibold text-foreground" numberOfLines={1}>{name}</Text>
             {onOpenExercise ? <Icon icon={ChevronRight} size={16} color="muted-foreground" /> : null}
-          </Pressable>
+          </Tappable>
           <View className="mt-1 flex-row items-center gap-2">
             <PreviousBestBadge
               lastSets={lastSets}

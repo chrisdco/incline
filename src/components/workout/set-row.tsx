@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { Tappable } from '@/components/ui/tappable';
 
 import { cn } from '@/lib/cn';
 import { Text } from '@/components/common/text';
@@ -124,8 +125,8 @@ export function SetRow({
           *function* when className is also set, so widths given there never
           applied and SET/PREV collapsed to their text (Oct 29 screenshots). */}
       <View style={SET_CELL.index} className="self-stretch">
-      <Pressable
-        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+      <Tappable
+        pressedOpacity={0.55}
         className="flex-1 items-center justify-center"
         disabled={!onOpenSetType}
         onPress={onOpenSetType}
@@ -143,12 +144,12 @@ export function SetRow({
             {SET_TYPE_LETTER[setType]}
           </Text>
         ) : null}
-      </Pressable>
+      </Tappable>
       </View>
 
       <View style={SET_CELL.prev} className="self-stretch">
-      <Pressable
-        style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+      <Tappable
+        pressedOpacity={0.55}
         className="flex-1 items-center justify-center"
         disabled={!hasPrevious || !onApplyPrevious}
         onPress={() => {
@@ -175,7 +176,7 @@ export function SetRow({
         ) : (
           <Text className="text-xs text-muted-foreground">—</Text>
         )}
-      </Pressable>
+      </Tappable>
       </View>
 
       <NumberStepper

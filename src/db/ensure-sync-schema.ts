@@ -79,6 +79,12 @@ export async function ensureSyncSchema(db: SQLiteDatabase): Promise<void> {
     )`);
     await db.execAsync('CREATE INDEX IF NOT EXISTS idx_sync_outbox_order ON sync_outbox(id)');
   }
+  // Per-row push backoff (#139). Additive; 0 = due now, so existing rows push as before.
+  if (!(await hasColumn(db, 'sync_outbox', 'next_attempt_at'))) {
+    await db.execAsync(
+      'ALTER TABLE sync_outbox ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0',
+    );
+  }
 
   // Indexes only after columns exist
   // Dedup first: pre-upsert builds could leave duplicate outbox rows, and a

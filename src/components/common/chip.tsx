@@ -1,4 +1,5 @@
-import { Pressable, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
+import { Tappable } from '@/components/ui/tappable';
 
 import { cn } from '@/lib/cn';
 import { Text } from '@/components/common/text';
@@ -17,9 +18,9 @@ export function Chip({
   className?: string;
 }) {
   return (
-    <Pressable
+    <Tappable
       onPress={onPress}
-      style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+      pressedOpacity={0.55}
       android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
@@ -32,7 +33,7 @@ export function Chip({
       <Text className={cn('font-medium', size === 'sm' ? 'text-xs' : 'text-sm', selected ? 'text-foreground' : 'text-muted-foreground')}>
         {label}
       </Text>
-    </Pressable>
+    </Tappable>
   );
 }
 

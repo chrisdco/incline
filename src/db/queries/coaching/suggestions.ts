@@ -4,6 +4,7 @@ import { getTemplate } from '../templates';
 import { suggestNextLoad } from '@/coaching/overload';
 import { explainSuggestion, REASON_HISTORY_SESSIONS } from '@/coaching/reason';
 import { getTodayReadiness } from '@/coaching/readiness-store';
+import { collectStalledLifts, STALLED_RECENT_DAYS, type StalledLift } from '@/coaching/stalled';
 import { rankSubstitutes } from '@/coaching/substitution';
 import type { TrainingSuggestion } from '@/coaching/types';
 import type { Exercise, SetEntry, Unit } from '../../types';
@@ -125,6 +126,36 @@ export async function getMuscleExposureDays(now = Date.now()): Promise<Record<st
     out[r.primary_muscle] = Math.floor((now - r.last_at) / 86_400_000);
   }
   return out;
+}
+
+/**
+ * Lifts with a plateau signal for Progress. Two queries total: candidate
+ * exercises (trained recently, enough sessions for the check), then one
+ * batched top-set read for all of them.
+ */
+export async function getStalledLifts(now = Date.now()): Promise<StalledLift[]> {
+  const db = await openDatabase();
+  const candidates = await db.getAllAsync<{ id: number; name: string }>(
+    `SELECT e.id, e.name
+     FROM set_entries s
+     JOIN workout_logs w ON w.id = s.workout_log_id
+     JOIN exercises e ON e.id = s.exercise_id
+     WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL
+       AND s.deleted_at IS NULL AND s.completed = 1 AND s.weight > 0 AND s.reps > 0
+       AND (s.set_type IS NULL OR s.set_type = 'working')
+     GROUP BY e.id
+     HAVING COUNT(DISTINCT w.id) >= ? AND MAX(w.started_at) >= ?`,
+    REASON_HISTORY_SESSIONS,
+    now - STALLED_RECENT_DAYS * 86_400_000,
+  );
+  if (candidates.length === 0) return [];
+  const names: Record<number, string> = {};
+  for (const c of candidates) names[c.id] = c.name;
+  const histories = await getRecentTopSetsForExercises(
+    candidates.map((c) => c.id),
+    REASON_HISTORY_SESSIONS,
+  );
+  return collectStalledLifts(histories, names, now);
 }
 
 /** Ranked local substitutes by muscle, pattern, and equipment. */

@@ -236,7 +236,8 @@ export const SCHEMA_STATEMENTS: string[] = [
     op TEXT NOT NULL,
     payload TEXT,
     created_at INTEGER NOT NULL,
-    attempts INTEGER NOT NULL DEFAULT 0
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at INTEGER NOT NULL DEFAULT 0
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sync_outbox_order ON sync_outbox(id)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_outbox_row ON sync_outbox(table_name, row_uuid)`,
