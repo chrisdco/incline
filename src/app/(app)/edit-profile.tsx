@@ -14,7 +14,7 @@ import { Chip } from '@/components/common/chip';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { useProfile } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
-import { displayToKg, kgToInput } from '@/lib/units';
+import { commitInputToKg, displayToKg, kgToInput } from '@/lib/units';
 import { useToast } from '@/components/ui/toast';
 import { saveProfile } from '@/db/queries';
 import { EXPERIENCE_LABELS, GOAL_LABELS } from '@/lib/labels';
@@ -73,8 +73,14 @@ export default function EditProfileScreen() {
     setSaving(true);
     // Computed outside the try: the compiler can't lower conditionals inside one.
     const bw = bodyweight.trim() ? parseFloat(bodyweight.replace(',', '.')) : null;
-    // Typed in the display unit; profile stores canonical kg.
-    const savedBodyweight = Number.isFinite(bw as number) ? displayToKg(bw as number, unit) : null;
+    // Typed in the display unit; profile stores canonical kg. An untouched
+    // field keeps the stored kg instead of a rounded round trip (#136).
+    const prevKg = profile?.bodyweight ?? null;
+    const savedBodyweight = Number.isFinite(bw as number)
+      ? prevKg != null
+        ? (commitInputToKg(bw as number, prevKg, unit) ?? prevKg)
+        : displayToKg(bw as number, unit)
+      : null;
     try {
       await saveProfile({
         name: name.trim(),

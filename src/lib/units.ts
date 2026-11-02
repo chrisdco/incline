@@ -80,6 +80,28 @@ export function commitInputToKg(next: number, previousKg: number, unit: Unit): n
 }
 
 /**
+ * One weight field's edit: pins the unit the draft was typed in. The display
+ * unit can flip mid-edit (the session's unit toggle is tappable without
+ * dismissing the keyboard), and the blur that follows runs with the new unit —
+ * committing "100" typed as kg against lb would rewrite 100 kg as 45.36 kg
+ * (#136). Committing against the pinned unit keeps an untouched draft a no-op
+ * and a typed one in the unit it was typed in.
+ */
+export function createWeightEdit() {
+  let pinned: Unit | null = null;
+  return {
+    begin(unit: Unit) {
+      pinned = unit;
+    },
+    commit(next: number, previousKg: number, currentUnit: Unit): number | null {
+      const unit = pinned ?? currentUnit;
+      pinned = null;
+      return commitInputToKg(next, previousKg, unit);
+    },
+  };
+}
+
+/**
  * Display unit for one exercise: its synced override (keyed by
  * `exerciseRefKey`) or the global default. Overrides change display only —
  * stored values are always kg.

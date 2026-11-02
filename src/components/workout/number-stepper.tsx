@@ -32,6 +32,7 @@ export function NumberStepper({
   style,
   step: _step,
   suffix,
+  onFocus,
 }: {
   ref?: Ref<NumberStepperHandle>;
   value: number;
@@ -46,6 +47,8 @@ export function NumberStepper({
   style?: StyleProp<ViewStyle>;
   step?: number;
   suffix?: string;
+  /** Fires when an edit starts (before any draft is typed). */
+  onFocus?: () => void;
 }) {
   void _step;
   const [focused, setFocused] = useState(false);
@@ -85,6 +88,7 @@ export function NumberStepper({
           committedRef.current = false;
           setFocused(true);
           setDraft(value > 0 ? String(value) : '');
+          onFocus?.();
         }}
         onChangeText={(t) => {
           committedRef.current = false;

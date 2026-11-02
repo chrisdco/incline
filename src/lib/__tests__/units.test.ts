@@ -4,6 +4,7 @@ import { formatDisplayWeight, formatVolume, formatWeight } from '@/db/calc';
 import { decreaseLoad, increaseLoad, roundToIncrement } from '@/coaching/plates';
 import {
   commitInputToKg,
+  createWeightEdit,
   displayToKg,
   kgToDisplay,
   kgToInput,
@@ -29,6 +30,27 @@ describe('units', () => {
     const stored = displayToKg(135, 'imperial');
     expect(commitInputToKg(135, stored, 'imperial')).toBeNull();
     expect(commitInputToKg(140, stored, 'imperial')).toBeCloseTo(140 / LB_PER_KG, 9);
+  });
+
+  it('a toggle converts the shown value and never rewrites stored kg (#136)', () => {
+    const stored = 100;
+    // Toggle: the same canonical kg is shown converted, not relabelled.
+    expect(kgToInput(stored, 'metric')).toBe(100);
+    expect(kgToInput(stored, 'imperial')).toBe(220.46);
+    // Field focused in kg, unit flipped to lb before blur, draft untouched.
+    const edit = createWeightEdit();
+    edit.begin('metric');
+    expect(edit.commit(100, stored, 'imperial')).toBeNull();
+    // Without the pin the same blur would store 100 lb as kg.
+    expect(commitInputToKg(100, stored, 'imperial')).toBeCloseTo(100 / LB_PER_KG, 9);
+  });
+
+  it('a draft typed before a toggle commits in the unit it was typed in', () => {
+    const edit = createWeightEdit();
+    edit.begin('metric');
+    expect(edit.commit(105, 100, 'imperial')).toBe(105);
+    // The pin clears: the next edit with no focus event uses the current unit.
+    expect(edit.commit(225, 100, 'imperial')).toBeCloseTo(225 / LB_PER_KG, 9);
   });
 
   it('normalizes labelled rows to canonical kg/cm', () => {
