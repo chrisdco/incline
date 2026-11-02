@@ -373,6 +373,8 @@ export async function updateSet(setId: number, patch: SetPatch): Promise<void> {
   if (patch.completed !== undefined) { sets.push('completed = ?'); args.push(patch.completed ? 1 : 0); }
   if (patch.restSeconds !== undefined) { sets.push('rest_seconds = ?'); args.push(patch.restSeconds); }
   if (patch.setType !== undefined) { sets.push('set_type = ?'); args.push(patch.setType); }
+  // Warm-ups carry no RPE: a hidden leftover would leak into averages and coaching (#166).
+  if (patch.setType === 'warmup' && patch.rpe === undefined) { sets.push('rpe = NULL'); }
   if (patch.rpe !== undefined) {
     sets.push('rpe = ?');
     const n = patch.rpe;

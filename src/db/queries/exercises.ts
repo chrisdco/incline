@@ -431,6 +431,7 @@ export async function getExerciseHistory(exerciseId: number, limit = 10): Promis
     `SELECT w.id as workoutLogId, w.name as workoutName, w.started_at as startedAt, s.set_index as setIndex, s.weight, s.reps, s.completed as completed, s.rpe as rpe
      FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
      WHERE s.exercise_id = ? AND w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL AND s.completed = 1
+       AND (s.set_type IS NULL OR s.set_type = 'working')
      ORDER BY w.started_at DESC, s.set_index LIMIT ?`,
     exerciseId, limit,
   );
