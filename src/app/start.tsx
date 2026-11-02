@@ -10,6 +10,11 @@ import { useActiveWorkout } from '@/store/active-workout-store';
  * session if there is one (never starts a second), otherwise starts an empty
  * workout and lands in it. Replaces itself so Back returns to Home.
  */
+async function resumeOrStart(): Promise<number> {
+  const active = await getActiveWorkout();
+  return active?.id ?? startWorkout(null, 'Workout');
+}
+
 export default function StartRoute() {
   const router = useRouter();
   const ran = useRef(false);
@@ -17,16 +22,13 @@ export default function StartRoute() {
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
-    void (async () => {
-      try {
-        const active = await getActiveWorkout();
-        const id = active?.id ?? (await startWorkout(null, 'Workout'));
+    resumeOrStart().then(
+      (id) => {
         useActiveWorkout.getState().setActive(id);
         router.replace(`/session/${id}`);
-      } catch {
-        router.replace('/');
-      }
-    })();
+      },
+      () => router.replace('/'),
+    );
   }, [router]);
 
   return (

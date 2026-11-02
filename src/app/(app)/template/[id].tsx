@@ -29,6 +29,7 @@ import {
   linkTemplateExerciseWithNext,
   unlinkTemplateExercise,
 } from '@/db/queries';
+import { captureError } from '@/lib/error-sink';
 import { DIFFICULTY_LABELS } from '@/lib/labels';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
 import type { Difficulty, TemplateExercise } from '@/db/types';
@@ -125,14 +126,20 @@ export default function TemplateEditorScreen() {
   const updateExercise = async (te: Exercise, patch: ExercisePatch) => {
     setExercises((prev) => prev.map((e) => (e.id === te.id ? { ...e, ...patch } : e)));
     if (templateId && te.id > 0) {
-      await updateTemplateExercise(te.id, patch).catch(() => {});
+      await updateTemplateExercise(te.id, patch).catch((err: unknown) => {
+        captureError(err, { where: 'template.update-exercise' });
+        toast({ title: 'Could not save that change', variant: 'destructive' });
+      });
     }
   };
 
   const removeExercise = async (te: Exercise) => {
     setExercises((prev) => prev.filter((e) => e.id !== te.id));
     if (templateId && te.id > 0) {
-      await removeTemplateExercise(te.id).catch(() => {});
+      await removeTemplateExercise(te.id).catch((err: unknown) => {
+        captureError(err, { where: 'template.remove-exercise' });
+        toast({ title: 'Could not save that change', variant: 'destructive' });
+      });
     }
   };
 

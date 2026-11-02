@@ -57,6 +57,16 @@ No arbitrary sizes (`text-[13px]`). Numbers that change in place use `tabular-nu
 `onPress`), `RowIcon`, `StatBlock`. Existing: `Card`, `PressableCard`,
 `SectionHeader`, `EmptyState` / `ErrorState`, `Chip`, `SegmentedControl`.
 
+## NativeWind rules (lint-enforced where possible)
+
+- **Press feedback:** `<Tappable pressedOpacity>` (`src/components/ui/tappable`),
+  never `style={({ pressed }) => …}` next to `className`: NativeWind v4 drops
+  the style function, so feedback and any layout in it silently vanish (#291).
+- **Layout** goes in `className` or on a wrapper `View`, not inside a press style.
+- **expo-image** ignores `rounded-*`: set `borderRadius` in `style`.
+- **Third-party components** (bottom sheet, gesture-handler inputs) only take
+  `className` if registered with `cssInterop`; otherwise use `style`.
+
 ## Gym-loop surfaces
 
 Session rows, cards and pickers still need the side-by-side reference check

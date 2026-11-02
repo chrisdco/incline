@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useLayoutEffect, useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
-import { Lightbulb, Trophy, Plus, Play } from 'lucide-react-native';
+import { Lightbulb, Minus, Trophy, Plus, Play } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Body, Caption, Text, Title } from '@/components/common/text';
-import { Section, StatBlock } from '@/components/layout';
+import { ListRow, Section, StatBlock } from '@/components/layout';
 import { ExerciseMedia, ExerciseThumb } from '@/components/exercise/exercise-media';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import { useSettings } from '@/store/settings-store';
 import { MOVEMENT_LABELS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/lib/labels';
 import { estimated1RM, formatDisplayVolume, formatDisplayWeight, formatWeight, relativeTime } from '@/db/calc';
 import { kgToDisplay, weightLabel } from '@/lib/units';
+import { RULE_LABEL, type CoachingSignal } from '@/coaching/reason';
 import type { Exercise, ExerciseHistoryRow, Unit } from '@/db/types';
 import { resolveWeightUnit } from '@/lib/units';
 
@@ -106,6 +107,7 @@ export default function ExerciseDetailScreen() {
   const prSummary = stats?.prSummary ?? null;
   const repRecords = stats?.repRecords ?? NO_RECORDS;
   const series = stats?.series ?? NO_SERIES;
+  const plateau = stats?.plateau ?? null;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: true, title: '' });
@@ -232,6 +234,7 @@ export default function ExerciseDetailScreen() {
             exercise={exercise}
             prSummary={prSummary}
             repRecords={repRecords}
+            plateau={plateau}
             unit={unit}
           />
         )}
@@ -260,11 +263,12 @@ function chartDateLabel(iso: string): string {
 }
 
 function SummaryTab({
-  exercise, prSummary, repRecords, unit,
+  exercise, prSummary, repRecords, plateau, unit,
 }: {
   exercise: Exercise;
   prSummary: ExercisePRSummary | null;
   repRecords: RepRecord[];
+  plateau: CoachingSignal | null;
   unit: Unit;
 }) {
   return (
@@ -284,6 +288,19 @@ function SummaryTab({
               <StatBlock align="start" label="Best set" value={formatWeight(prSummary.bestSetVolume, unit)} />
               <StatBlock align="start" label="Best session" value={formatWeight(prSummary.bestSessionVolume, unit)} />
             </View>
+          </Card>
+        </Section>
+      ) : null}
+
+      {/* Plateau is advisory (same rule as "Why this weight?"): quiet row, no alarm colour. */}
+      {plateau ? (
+        <Section title="Coaching" first className="mb-6">
+          <Card className="py-1">
+            <ListRow
+              icon={<Icon icon={Minus} size={18} color="muted-foreground" />}
+              title={RULE_LABEL.plateau}
+              subtitle={plateau.sentence}
+            />
           </Card>
         </Section>
       ) : null}

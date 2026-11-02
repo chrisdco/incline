@@ -42,6 +42,12 @@ module.exports = defineConfig([
           selector: "Literal[value=/(^|\\s)rounded-lg(\\s|$)/]",
           message: "rounded-lg is retired: use rounded-md (inset), rounded-xl (controls), rounded-2xl (tiles) or rounded-3xl (cards).",
         },
+        {
+          // NativeWind v4 drops a style *function* when className is also set
+          // (#291/#292): press feedback and any layout in it never apply.
+          selector: "JSXOpeningElement:has(JSXAttribute[name.name='className']) > JSXAttribute[name.name='style'] > JSXExpressionContainer > ArrowFunctionExpression",
+          message: "NativeWind drops a style function next to className. Use <Tappable pressedOpacity> (components/ui/tappable) and put layout in className or on a wrapper View.",
+        },
       ],
     },
   },

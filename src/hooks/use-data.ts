@@ -8,6 +8,8 @@ import {
   getExercisePRSummary,
   getExerciseRepRecords,
   getExerciseSeries,
+  getRecentTopSetsForExercises,
+  getStalledLifts,
   getProgram,
   getProfile,
   getPeriodStats,
@@ -27,6 +29,8 @@ import {
   type WorkoutLogFilters,
 } from '@/db/queries';
 import type { Exercise, MonthlyRecap, PeriodStats, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutTemplate } from '@/db/types';
+import { plateauSignal, REASON_HISTORY_SESSIONS } from '@/coaching/reason';
+import type { StalledLift } from '@/coaching/stalled';
 import type { DbTable } from '@/db/write';
 import { dbKey } from '@/lib/query-client';
 import { TABLES } from '@/lib/query-keys';
@@ -79,16 +83,17 @@ export function useSearchExercises(query: string, filters?: ExerciseFilters) {
 export function useExerciseHistory(exerciseId: number) {
   return useDbQuery(TABLES.logs, ['exerciseHistory', exerciseId], () => getExerciseHistory(exerciseId));
 }
-/** PRs, rep records and chart series for exercise detail: one cached read, refreshed by set writes. */
+/** PRs, rep records, chart series and plateau signal for exercise detail: one cached read, refreshed by set writes. */
 export function useExerciseStats(exerciseId: number) {
   return useDbQuery(TABLES.logs, ['exerciseStats', exerciseId], async () => {
-    if (!exerciseId) return { prSummary: null, repRecords: [], series: [] };
-    const [prSummary, repRecords, series] = await Promise.all([
+    if (!exerciseId) return { prSummary: null, repRecords: [], series: [], plateau: null };
+    const [prSummary, repRecords, series, topSets] = await Promise.all([
       getExercisePRSummary(exerciseId),
       getExerciseRepRecords(exerciseId),
       getExerciseSeries(exerciseId),
+      getRecentTopSetsForExercises([exerciseId], REASON_HISTORY_SESSIONS),
     ]);
-    return { prSummary, repRecords, series };
+    return { prSummary, repRecords, series, plateau: plateauSignal(topSets[exerciseId] ?? []) };
   });
 }
 
@@ -113,6 +118,10 @@ export function useTodayProgramSlot() {
 }
 
 /* ---- progress & profile ---- */
+/** Progress "Stalled lifts": plateau signals across recently trained exercises (batched). */
+export function useStalledLifts() {
+  return useDbQuery<StalledLift[]>(TABLES.logs, ['stalledLifts'], () => getStalledLifts());
+}
 export function useProgressStats(weeks = 8) {
   return useDbQuery<ProgressStats>(TABLES.progress, ['progressStats', weeks], () => getProgressStats(weeks));
 }

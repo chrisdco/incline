@@ -38,6 +38,16 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
+async function readPickedCsv(): Promise<{ name: string; content: string } | null> {
+  const res = await DocumentPicker.getDocumentAsync({
+    type: ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/plain', '*/*'],
+    copyToCacheDirectory: true,
+  });
+  const asset = res.canceled ? undefined : res.assets[0];
+  if (!asset) return null;
+  return { name: asset.name, content: await readAsStringAsync(asset.uri) };
+}
+
 export default function ImportScreen() {
   const router = useRouter();
   const { toast } = useToast();
@@ -97,35 +107,31 @@ export default function ImportScreen() {
     return out;
   }, [effective, showConfident]);
 
-  const pick = async () => {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/plain', '*/*'],
-        copyToCacheDirectory: true,
-      });
-      if (res.canceled || !res.assets[0]) return;
-      const asset = res.assets[0];
-      const content = await readAsStringAsync(asset.uri);
-      setOverrides(new Map());
-      setOutcome(null);
-      setFileName(asset.name);
-      setText(content);
-    } catch {
-      toast({ title: 'Could not read that file', variant: 'destructive' });
-    }
+  // Promise chains, not try/catch: the React Compiler can't optimize value
+  // blocks inside try (it skipped this whole screen).
+  const pick = () => {
+    readPickedCsv().then(
+      (file) => {
+        if (!file) return;
+        setOverrides(new Map());
+        setOutcome(null);
+        setFileName(file.name);
+        setText(file.content);
+      },
+      () => toast({ title: 'Could not read that file', variant: 'destructive' }),
+    );
   };
 
-  const runImport = async () => {
+  const runImport = () => {
     if (busy || planned.length === 0) return;
     setBusy(true);
     const exerciseIds = new Map(effective.map((m) => [m.importName, m.exerciseId] as const));
     const equipment = new Map(effective.map((m) => [m.importName, m.equipment] as const));
-    try {
-      setOutcome(await importWorkouts(planned, { exerciseIds, equipment }));
-    } catch {
-      toast({ title: 'Import failed', description: 'Nothing was changed.', variant: 'destructive' });
-    }
-    setBusy(false);
+    importWorkouts(planned, { exerciseIds, equipment })
+      .then(setOutcome, () =>
+        toast({ title: 'Import failed', description: 'Nothing was changed.', variant: 'destructive' }),
+      )
+      .finally(() => setBusy(false));
   };
 
   const targetName = (m: ExerciseMatch): string => {

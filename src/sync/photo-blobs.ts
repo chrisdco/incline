@@ -6,6 +6,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { openDatabase } from '@/db/client';
 import { getLocalAccountOwner } from '@/db/account';
+import { mutate, type Tx } from '@/db/write';
+import { captureError } from '@/lib/error-sink';
 import { getAuthedSupabase, type GetToken } from './supabase-auth';
 import { enqueueSync } from './outbox';
 
@@ -13,12 +15,17 @@ const BUCKET = 'workout-photos';
 const MAX_ATTEMPTS = 8;
 const CONCURRENCY = 2;
 
+/**
+ * Queue a blob transfer. Pass the tx of the write that needs it so the job
+ * commits with that row (#138) — never fire-and-forget.
+ */
 export async function enqueuePhotoBlob(
   photoUuid: string,
   op: 'upload' | 'download' | 'delete',
   storagePath?: string | null,
+  tx?: Tx,
 ): Promise<void> {
-  const db = await openDatabase();
+  const db = tx ?? (await openDatabase());
   const now = Date.now();
   await db.runAsync(
     `INSERT INTO photo_blob_queue (photo_uuid, op, storage_path, attempts, next_attempt_at, created_at)
@@ -64,7 +71,7 @@ export async function drainPhotoBlobs(opts: {
       } catch (err) {
         const attempts = job.attempts + 1;
         if (attempts >= MAX_ATTEMPTS) {
-          console.warn('[photos] giving up blob job', job.op, job.photo_uuid, err);
+          captureError(err, { where: 'photos.blob', op: job.op, attempts });
           await db.runAsync('DELETE FROM photo_blob_queue WHERE id = ?', job.id);
           continue;
         }
@@ -135,22 +142,26 @@ async function uploadPhoto(
   });
   if (error) throw error;
   const now = Date.now();
-  await db.runAsync(
-    'UPDATE workout_photos SET storage_path = ?, updated_at = ? WHERE uuid = ?',
-    path,
-    now,
-    photoUuid,
-  );
-  await enqueueSync('workout_photos', photoUuid, row.deleted_at ? 'delete' : 'upsert', {
-    workout_log_uuid: row.log_uuid,
-    storage_path: path,
-    content_type: row.content_type ?? 'image/jpeg',
-    byte_size: buf.byteLength,
-    checksum: row.checksum,
-    sort_order: row.sort_order,
-    created_at: row.created_at,
-    updated_at: now,
-    deleted_at: row.deleted_at,
+  // One transaction: a bumped updated_at with no outbox row would never push
+  // (pull LWW sees local as newer), so the two commit together (#137).
+  await mutate(['workout_photos'], async (tx) => {
+    await tx.runAsync(
+      'UPDATE workout_photos SET storage_path = ?, updated_at = ? WHERE uuid = ?',
+      path,
+      now,
+      photoUuid,
+    );
+    await enqueueSync('workout_photos', photoUuid, row.deleted_at ? 'delete' : 'upsert', {
+      workout_log_uuid: row.log_uuid,
+      storage_path: path,
+      content_type: row.content_type ?? 'image/jpeg',
+      byte_size: buf.byteLength,
+      checksum: row.checksum,
+      sort_order: row.sort_order,
+      created_at: row.created_at,
+      updated_at: now,
+      deleted_at: row.deleted_at,
+    }, tx);
   });
 }
 

@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 import { STORAGE_KEYS } from '@/constants/config';
 import { kvStorage } from '@/db/kv';
+import { mutate } from '@/db/write';
 import type { Settings, Unit, ThemeMode, AccentTheme, CalendarHeatMetric, WeekStartsOn, BodyMetric, ExerciseMediaStyle, ExerciseMediaAnimation, DevExerciseMediaOverride } from '@/db/types';
 import { isCalendarHeatMetric, isWeekStartsOn, DEFAULT_ENABLED_BODY_METRICS } from '@/db/types';
 import { DEFAULT_ACCENT_THEME, isAccentTheme, isAuroraAccent } from '@/lib/accent-themes';
@@ -16,6 +17,7 @@ import {
   sanitizeExerciseWeightUnits,
 } from '@/sync/account-prefs';
 import { enqueueSync } from '@/sync/outbox';
+import { runBackgroundWrite } from '@/sync/background';
 
 interface SettingsState extends Settings {
   /** Last Classic accent — restored when leaving an aurora preset. Device-local. */
@@ -371,19 +373,31 @@ useSettings.subscribe((state, prev) => {
     return;
   }
   const updatedAt = Date.now();
-  void (async () => {
-    await kvStorage.setItem(ACCOUNT_PREFS_UPDATED_AT_KEY, String(updatedAt));
-    await enqueueSync(
-      'user_preferences',
-      ACCOUNT_PREFS_ROW,
-      'upsert',
-      {
-        ...pickAccountPrefs(state as unknown as Record<string, unknown>),
-        updated_at: updatedAt,
-        deleted_at: null,
-      },
-    );
-  })().catch(() => {});
+  const prefs = pickAccountPrefs(state as unknown as Record<string, unknown>);
+  // Stamp + outbox row in one transaction (#137): a stamp without its row
+  // would make pull treat the unpushed local prefs as newest forever.
+  // Retried, then reported (#138); a retry that lost to a newer change bails.
+  void runBackgroundWrite('prefs.enqueue', () =>
+    mutate(['kv'], async (tx) => {
+      const stamp = await tx.getFirstAsync<{ value: string }>(
+        'SELECT value FROM kv WHERE key = ?',
+        ACCOUNT_PREFS_UPDATED_AT_KEY,
+      );
+      if (Number(stamp?.value ?? 0) > updatedAt) return;
+      await tx.runAsync(
+        'INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+        ACCOUNT_PREFS_UPDATED_AT_KEY,
+        String(updatedAt),
+      );
+      await enqueueSync(
+        'user_preferences',
+        ACCOUNT_PREFS_ROW,
+        'upsert',
+        { ...prefs, updated_at: updatedAt, deleted_at: null },
+        tx,
+      );
+    }),
+  );
 });
 
 /**
