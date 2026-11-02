@@ -17,14 +17,14 @@ ALTER TABLE account_deletions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "account_deletions_select_own" ON account_deletions;
 CREATE POLICY "account_deletions_select_own" ON account_deletions
   FOR SELECT TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "account_deletions_insert_own" ON account_deletions;
 CREATE POLICY "account_deletions_insert_own" ON account_deletions
   FOR INSERT TO authenticated
-  WITH CHECK (user_id = auth.jwt() ->> 'sub');
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
 
 DROP POLICY IF EXISTS "account_deletions_delete_own" ON account_deletions;
 CREATE POLICY "account_deletions_delete_own" ON account_deletions
   FOR DELETE TO authenticated
-  USING (user_id = auth.jwt() ->> 'sub');
+  USING (user_id = (select auth.jwt() ->> 'sub'));
