@@ -68,12 +68,18 @@ export default function ShareWorkoutScreen() {
     useCallback(() => {
       let active = true;
       void (async () => {
-        const [s, prs, split] = await Promise.all([
+        // A failed load falls through to the not-found state instead of spinning forever (#155).
+        const loaded = await Promise.all([
           getWorkoutLog(logId),
           getWorkoutPrCount(logId),
           getWorkoutMuscleSplit(logId),
-        ]);
+        ]).catch(() => null);
         if (!active) return;
+        if (!loaded) {
+          setLoading(false);
+          return;
+        }
+        const [s, prs, split] = loaded;
         setLog(s);
         setPrCount(prs);
         setMuscles(split.map((x) => x.muscle));

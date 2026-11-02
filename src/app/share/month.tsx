@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 import { Body } from '@/components/common/text';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
+import { ErrorState } from '@/components/common/states';
 import { useToast } from '@/components/ui/toast';
 import { ShareActionBar } from '@/components/share/share-action-bar';
 import { ShareCardPager } from '@/components/share/share-card-pager';
@@ -46,7 +47,7 @@ export default function ShareMonthScreen() {
   const { toast } = useToast();
   const { unit, weekStartsOn } = useSettings(useShallow((s) => ({ unit: s.unit, weekStartsOn: s.weekStartsOn })));
   const { data: profile } = useProfile();
-  const { data: recap, loading } = useMonthlyRecap(resolvedStart);
+  const { data: recap, loading, error, refetch } = useMonthlyRecap(resolvedStart);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [settling, setSettling] = useState(false);
@@ -97,10 +98,23 @@ export default function ShareMonthScreen() {
     setBusy(false);
   };
 
-  if (loading || !recap) {
+  if (loading && !recap) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background">
         <PrimaryActivityIndicator />
+      </SafeAreaView>
+    );
+  }
+
+  // A failed or empty load must offer a way out, never an endless spinner (#155).
+  if (!recap) {
+    return (
+      <SafeAreaView className="flex-1 bg-background">
+        <ErrorState
+          title="Could not load this card"
+          description={error ? 'The recap query failed. Your data is safe.' : 'No recap for this month yet.'}
+          onRetry={refetch}
+        />
       </SafeAreaView>
     );
   }
