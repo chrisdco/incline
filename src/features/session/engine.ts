@@ -8,6 +8,7 @@ import {
   isCelebrationPrKind,
 } from '@/coaching/pr';
 import { formatWeight } from '@/db/calc';
+import { volatileKey } from '@/lib/session-volatile';
 import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
 
 import type { ExercisePRSummary, SessionGhost, SessionSet, SessionWorkout, SetPatch } from '@/db/queries';
@@ -57,6 +58,8 @@ export interface SessionEngineState {
   discarding: boolean;
 }
 
+export { volatileKey };
+
 /** What survives a kill: written to kv under `volatileKey(logId)`. */
 export interface VolatileSessionState {
   /**
@@ -96,11 +99,11 @@ export interface SessionEngineDeps {
     exerciseId: number,
   ) => Promise<{ removed: number; setIds: number[] }>;
   updateWorkoutNotes: (logId: number, notes: string) => Promise<void>;
-  finishWorkout: (logId: number, options?: { pausedMs?: number }) => Promise<void>;
+  /** One transaction: notes, close, outbox rows and the volatile kv entry. */
+  finishWorkout: (logId: number, options?: { pausedMs?: number; notes?: string }) => Promise<void>;
   discardWorkout: (logId: number) => Promise<void>;
   kvGet: (key: string) => Promise<string | null>;
   kvSet: (key: string, value: string) => Promise<void>;
-  kvRemove: (key: string) => Promise<void>;
   settings: () => {
     unit: Unit;
     /** Per-exercise display units keyed by exerciseRefKey (§15). */
@@ -129,7 +132,6 @@ export interface SessionEngineUi {
 }
 
 export const UNDO_LIMIT = 10;
-export const volatileKey = (logId: number) => `session:${logId}:volatile`;
 
 const IDLE: SessionEngineState = {
   logId: null,
@@ -236,6 +238,12 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     const { logId, session } = get();
     if (logId == null || session == null) return Promise.resolve();
     return deps.kvSet(volatileKey(logId), JSON.stringify(volatile())).catch(() => {});
+  }
+
+  /** Finish / discard: a pending draft save must not re-create the kv entry. */
+  function cancelNotesTimer() {
+    if (notesTimer) clearTimeout(notesTimer);
+    notesTimer = null;
   }
 
   /** Rest defaults fill exercises that have no explicit (edited/restored) value. */
@@ -646,15 +654,17 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       }
       set({ finishing: true });
       ui.stopRest();
+      cancelNotesTimer();
       const pausedMs = pausedMsAt(state, now());
       const notes = state.notesDraft.trim();
+      // Notes ride in finish's transaction (#141): a kill can no longer save
+      // the notes and leave the log open, and the volatile kv entry is
+      // deleted in the same commit.
       const run = engine
         .flushWrites()
-        .then(() => (notes ? deps.updateWorkoutNotes(logId, notes) : undefined))
-        .then(() => deps.finishWorkout(logId, { pausedMs }))
+        .then(() => deps.finishWorkout(logId, notes ? { pausedMs, notes } : { pausedMs }))
         .then(
           () => {
-            void deps.kvRemove(volatileKey(logId)).catch(() => {});
             set({ undo: [] });
             ui.toast({ title: 'Workout saved', variant: 'success' });
             return true;
@@ -676,12 +686,12 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       if (logId == null) return Promise.resolve(false);
       set({ discarding: true });
       ui.stopRest();
+      cancelNotesTimer();
       const run = engine
         .flushWrites()
         .then(() => deps.discardWorkout(logId))
         .then(
           () => {
-            void deps.kvRemove(volatileKey(logId)).catch(() => {});
             set({ undo: [] });
             return true;
           },
