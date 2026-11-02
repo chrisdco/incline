@@ -267,12 +267,14 @@ export default function EditWorkoutScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center justify-between border-b border-border px-4 py-3">
-        <Button variant="ghost" size="sm" onPress={() => router.back()}>
-          Cancel
+        {/* Set edits apply live, so there is nothing to cancel: Close keeps
+            notes too, the same as Done (#161). */}
+        <Button variant="ghost" size="sm" onPress={handleSave} disabled={saving}>
+          Close
         </Button>
         <Body className="text-base font-semibold text-foreground">Edit Workout</Body>
         <Button variant="ghost" size="sm" onPress={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving...' : 'Done'}
         </Button>
       </View>
 

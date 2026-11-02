@@ -607,6 +607,9 @@ export default function SessionScreen() {
                 leftIcon={<Icon icon={Pause} size={18} color="primary-foreground" />}
                 onPress={() => {
                   engine.pause();
+                  // Pausing ends any rest too: a rest alarm while paused would
+                  // fire at a break the user chose to take (#171).
+                  rest.stop();
                   impact();
                 }}>
                 Pause

@@ -344,12 +344,30 @@ export default function ProfileScreen() {
         description={
           pending > 0
             ? `This permanently deletes every completed workout. ${pending} unsynced change${pending === 1 ? '' : 's'} will upload afterward — cleared items sync as deletions.`
-            : 'This permanently deletes every completed workout. This cannot be undone.'
+            : 'This permanently deletes every completed workout. This cannot be undone. Export a copy first if you might want it.'
         }
         footer={
           <>
+            {/* Export first + a second confirm: this is unrecoverable (#162). */}
+            <Button
+              variant="outline"
+              onPress={() => {
+                setClearOpen(false);
+                router.push('/(app)/export' as Href);
+              }}>
+              Export first
+            </Button>
             <Button variant="outline" onPress={() => setClearOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onPress={clearHistory}>Delete</Button>
+            <Button
+              variant="destructive"
+              onPress={() =>
+                Alert.alert('Delete every workout?', 'Your history, PRs and stats go too. There is no undo.', [
+                  { text: 'Keep history', style: 'cancel' },
+                  { text: 'Delete everything', style: 'destructive', onPress: () => void clearHistory() },
+                ])
+              }>
+              Delete
+            </Button>
           </>
         }
       />
