@@ -67,6 +67,14 @@ function fromJson(text: string | null): unknown {
   }
 }
 
+/** Keep the local log bounded: the newest rows are the useful ones. */
+export const AI_ACTIVITY_KEEP = 500;
+export const AI_FEEDBACK_KEEP = 2000;
+
+async function prune(tx: Tx, table: 'ai_activity' | 'ai_feedback', keep: number): Promise<void> {
+  await tx.runAsync(`DELETE FROM ${table} WHERE id <= (SELECT id FROM ${table} ORDER BY id DESC LIMIT 1 OFFSET ?)`, keep);
+}
+
 async function insertFeedback(
   tx: Tx,
   input: { proposalId: string; task: string; outcome: FeedbackOutcome; reason?: string; editDiff?: unknown },
@@ -82,6 +90,7 @@ async function insertFeedback(
     toJson(input.editDiff),
     now,
   );
+  await prune(tx, 'ai_feedback', AI_FEEDBACK_KEEP);
 }
 
 /** Apply an AI change atomically with its activity + feedback rows. Returns the activity id. */
@@ -100,6 +109,7 @@ export async function applyAiChange<B, A>(input: ApplyAiChangeInput<B, A>): Prom
       toJson(after),
       now,
     );
+    await prune(tx, 'ai_activity', AI_ACTIVITY_KEEP);
     await insertFeedback(
       tx,
       { proposalId: input.proposalId, task: input.task, outcome: input.outcome ?? 'applied', editDiff: input.editDiff },

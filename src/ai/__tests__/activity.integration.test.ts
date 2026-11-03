@@ -125,3 +125,23 @@ describe('AI activity', () => {
     expect(fb).toEqual([{ outcome: 'rejected', reason: 'too_long' }]);
   });
 });
+
+describe('AI activity retention', () => {
+  it('keeps only the newest AI_FEEDBACK_KEEP feedback rows', async () => {
+    const { AI_FEEDBACK_KEEP } = await import('../activity');
+    for (let i = 0; i < AI_FEEDBACK_KEEP + 3; i++) {
+      await currentDb!.runAsync(
+        `INSERT INTO ai_feedback (proposal_id, task, outcome, created_at) VALUES (?, 't', 'rejected', 0)`,
+        `old-${i}`,
+      );
+    }
+    await recordAiFeedback({ proposalId: 'newest', task: 't', outcome: 'rejected' });
+    const count = await currentDb!.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM ai_feedback');
+    expect(count?.c).toBe(AI_FEEDBACK_KEEP);
+    const last = await currentDb!.getFirstAsync<{ proposal_id: string }>(
+      'SELECT proposal_id FROM ai_feedback ORDER BY id DESC LIMIT 1',
+    );
+    expect(last?.proposal_id).toBe('newest');
+    expect(await currentDb!.getFirstAsync("SELECT 1 FROM ai_feedback WHERE proposal_id = 'old-0'")).toBeNull();
+  });
+});

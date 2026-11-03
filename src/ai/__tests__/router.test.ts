@@ -144,7 +144,28 @@ describe('runAiTask', () => {
     const again = await runAiTask(t, 'k1', { providers: [provider('a', run)], cache: kv });
     expect(run).toHaveBeenCalledTimes(1);
     expect(again).toMatchObject({ status: 'ok', cached: true, output: { text: 'fresh' } });
-    expect([...kv.data.keys()]).toEqual(['ai.cache.t.v1.k1']);
+    expect([...kv.data.keys()]).toEqual(['ai.cache.t.k1']);
+  });
+
+  it('keeps one cache entry per slot: a new key replaces the old, the old key misses', async () => {
+    const kv = memoryKv();
+    const run = vi.fn(async (_t: unknown, input: unknown) => ({ text: String(input) }));
+    const t = task({ cacheKey: (input) => input, cacheSlot: () => 'user1.home' });
+    await runAiTask(t, 'pack-a', { providers: [provider('a', run)], cache: kv });
+    await runAiTask(t, 'pack-b', { providers: [provider('a', run)], cache: kv });
+    expect([...kv.data.keys()]).toEqual(['ai.cache.t.user1.home']);
+    const back = await runAiTask(t, 'pack-a', { providers: [provider('a', run)], cache: kv });
+    expect(back).toMatchObject({ cached: false, output: { text: 'pack-a' } });
+    expect(run).toHaveBeenCalledTimes(3);
+  });
+
+  it('an already-aborted signal cancels without calling the provider', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const run = vi.fn(async () => ({ text: 'x' }));
+    const result = await runAiTask(task({}), 'hi', { signal: controller.signal, providers: [provider('a', run)] });
+    expect(result).toMatchObject({ status: 'fallback', reason: 'cancelled' });
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('dedupes identical in-flight requests', async () => {

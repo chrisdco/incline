@@ -69,6 +69,12 @@ export interface AiTask<I, O> {
   fallback(input: I): O | null;
   /** Stable key for cache + in-flight dedupe; omit to never cache. */
   cacheKey?(input: I): Promise<string> | string;
+  /**
+   * Where the cached entry lives (e.g. user + surface). One entry per slot,
+   * overwritten when the key changes, so the cache stays bounded even when
+   * the key is a content hash. Defaults to the key itself.
+   */
+  cacheSlot?(input: I): string;
 }
 
 export interface RunContext {

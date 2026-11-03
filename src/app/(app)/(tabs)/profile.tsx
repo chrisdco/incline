@@ -39,6 +39,7 @@ import { saveProfile, clearWorkoutHistory, resetUserData } from '@/db/queries';
 import { requestDeletion } from '@/lib/account-deletion';
 import { ACCOUNT_DELETION_ENABLED } from '@/constants/config';
 import { useActiveWorkout } from '@/store/active-workout-store';
+import { resetAiSettings } from '@/ai/byok';
 import { GOAL_LABELS } from '@/lib/labels';
 import { formatVolume } from '@/db/calc';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
@@ -115,6 +116,7 @@ export default function ProfileScreen() {
       console.warn('[profile] local wipe incomplete after scheduled deletion', err);
     }
     useActiveWorkout.getState().clear();
+    await resetAiSettings().catch(() => undefined);
     setDeleteOpen(false);
     setDeleting(false);
     try {

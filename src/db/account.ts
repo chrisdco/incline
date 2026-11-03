@@ -64,6 +64,12 @@ export async function completeAccountSwitch(clerkUserId: string): Promise<void> 
   await resetUserData();
   useActiveWorkout.getState().clear();
   try {
+    const { resetAiSettings } = await import('@/ai/byok');
+    await resetAiSettings();
+  } catch {
+    // Keystore unavailable — the kv half was already wiped with the data.
+  }
+  try {
     const { resetAccountPreferences } = await import('@/store/settings-store');
     resetAccountPreferences();
   } catch {

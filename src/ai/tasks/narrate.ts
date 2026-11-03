@@ -70,4 +70,8 @@ export const narrateTask: AiTask<NarrateInput, CoachNarration> = {
   async cacheKey(input) {
     return `${input.userId}.${input.surface}.${await hashFeaturePack(packFor(input))}`;
   },
+  // One cached narration per user + surface: a new pack replaces the old one.
+  cacheSlot(input) {
+    return `${input.userId}.${input.surface}`;
+  },
 };
