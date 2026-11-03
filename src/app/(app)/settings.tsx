@@ -7,6 +7,8 @@ import {
   Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, ChevronRight, Sparkles, History,
   Film, FlaskConical, Info, Upload,
 } from 'lucide-react-native';
+import { useAiSettings } from '@/ai/byok';
+import { byokPreset, type ByokConfig } from '@/ai/byok-presets';
 import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
 import { formatRelease, releaseInfo } from '@/lib/release';
 import { Icon } from '@/components/common/icon';
@@ -105,6 +107,12 @@ function formatSyncTime(ms: number | null | undefined): string {
   }
 }
 
+/** One-line state for the AI row: off, cloud, or the user's own provider. */
+function aiSummary(enabled: boolean, byok: ByokConfig | null): string {
+  if (!enabled) return 'Off';
+  return byok ? `On · ${byokPreset(byok.presetId).label} (your key)` : 'On · Incline cloud';
+}
+
 export default function SettingsScreen() {
   const {
     unit, themeMode, accentTheme, hapticsEnabled,
@@ -118,7 +126,6 @@ export default function SettingsScreen() {
     exerciseMediaStyle, exerciseMediaAnimation, devExerciseMediaOverride,
     setUnit, setThemeMode, setAccentTheme, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe,
     setShowSessionGhost,
-    setAiExplanationsEnabled,
     setCalendarHeatMetric, setWeekStartsOn, setKeepScreenAwake, setWeeklyWorkoutGoal,
     setWorkoutRemindersEnabled, setWorkoutReminderDays, setWorkoutReminderTime,
     setWeeklyDigestEnabled, setWeeklyDigestTime,
@@ -127,6 +134,7 @@ export default function SettingsScreen() {
     applyThemePreset,
   } = useSettings();
   const router = useRouter();
+  const aiByok = useAiSettings((s) => s.byok);
   const { data: profile, refetch } = useProfile();
   const scheme = useAppColorScheme();
   const { toast } = useToast();
@@ -354,14 +362,11 @@ export default function SettingsScreen() {
         <Card>
           <ListRow
             icon={<Icon icon={Sparkles} size={18} color="muted-foreground" />}
-            title="AI explanations"
-            subtitle="Numbers still come from local rules; optional AI wording">
-            <Switch
-              value={aiExplanationsEnabled}
-              onValueChange={setAiExplanationsEnabled}
-              accessibilityLabel="AI explanations"
-            />
-          </ListRow>
+            title="AI"
+            subtitle={aiSummary(aiExplanationsEnabled, aiByok)}
+            onPress={() => router.push('/(app)/ai-settings' as Href)}
+            accessibilityLabel="AI settings"
+          />
         </Card>
 
         <SectionLabel className="mt-6">Notifications · reminders</SectionLabel>
