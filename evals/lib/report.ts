@@ -10,6 +10,8 @@ export interface CaseResult {
   latencyMs: number;
   promptTokens: number | null;
   completionTokens: number | null;
+  /** 429 back-offs before the call succeeded. */
+  retries?: number;
 }
 
 export interface EvalSummary {
@@ -22,6 +24,7 @@ export interface EvalSummary {
   latencyP95Ms: number;
   avgPromptTokens: number | null;
   avgCompletionTokens: number | null;
+  rateLimitRetries: number;
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -52,6 +55,7 @@ export function summarize(task: string, provider: string, results: CaseResult[])
     latencyP95Ms: percentile(latencies, 95),
     avgPromptTokens: avg(results.map((r) => r.promptTokens)),
     avgCompletionTokens: avg(results.map((r) => r.completionTokens)),
+    rateLimitRetries: results.reduce((n, r) => n + (r.retries ?? 0), 0),
   };
 }
 
@@ -70,6 +74,7 @@ export function writeReport(summary: EvalSummary, results: CaseResult[]): string
     p95: `${summary.latencyP95Ms} ms`,
     avgIn: summary.avgPromptTokens ?? '—',
     avgOut: summary.avgCompletionTokens ?? '—',
+    retries429: summary.rateLimitRetries,
   });
   if (Object.keys(summary.failuresByStage).length) console.log('[eval] failures:', summary.failuresByStage);
   console.log(`[eval] report: ${file}`);

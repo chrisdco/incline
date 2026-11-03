@@ -11,7 +11,7 @@ import { sanitizeNarrationResponse, validateNarrationResponse } from '@/coaching
 import type { FeaturePackV1 } from '@/coaching/feature-pack';
 import { SYSTEM_PROMPT } from '../../supabase/functions/coach-narrate/prompt';
 import { validateNarrationResponse as edgeValidate } from '../../supabase/functions/coach-narrate/schema';
-import { parseJsonLoose, providerFromEnv, type ChatMessage } from '../lib/provider';
+import { limitFixtures, parseJsonLoose, ProviderHttpError, providerFromEnv, type ChatMessage } from '../lib/provider';
 import { summarize, writeReport, type CaseResult } from '../lib/report';
 import { NARRATE_FIXTURES } from './fixtures';
 
@@ -36,7 +36,7 @@ const provider = providerFromEnv(stubResponder);
 describe.skipIf(!provider)('narrate eval', () => {
   it(`passes ≥ ${MIN_PASS * 100}% of fixtures`, async () => {
     const results: CaseResult[] = [];
-    for (const { id, pack } of NARRATE_FIXTURES) {
+    for (const { id, pack } of limitFixtures(NARRATE_FIXTURES)) {
       const messages: ChatMessage[] = [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: JSON.stringify(pack) },
@@ -45,7 +45,8 @@ describe.skipIf(!provider)('narrate eval', () => {
       try {
         completion = await provider!.complete(messages, { json: true, temperature: 0.4 });
       } catch (err) {
-        results.push({ id, ok: false, failure: 'http', detail: String(err), latencyMs: 0, promptTokens: null, completionTokens: null });
+        const failure = err instanceof ProviderHttpError && err.status === 429 ? 'rate_limited' : 'http';
+        results.push({ id, ok: false, failure, detail: String(err), latencyMs: 0, promptTokens: null, completionTokens: null });
         continue;
       }
       const base = {
@@ -53,6 +54,7 @@ describe.skipIf(!provider)('narrate eval', () => {
         latencyMs: completion.latencyMs,
         promptTokens: completion.promptTokens,
         completionTokens: completion.completionTokens,
+        retries: completion.retries,
       };
       const parsed = parseJsonLoose(completion.text);
       if (parsed === undefined) {

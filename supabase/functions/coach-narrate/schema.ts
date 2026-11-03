@@ -378,7 +378,9 @@ function collectAllowedNumbers(pack: FeaturePackV1): Set<string> {
       if (typeof week.volume === 'number') parts.push(String(week.volume));
     }
   }
-  return new Set(extractNumberTokens(parts.join(' ')));
+  // "18% lighter" restates -18: a magnitude is speakable when its signed value is.
+  const tokens = extractNumberTokens(parts.join(' '));
+  return new Set(tokens.flatMap((t) => (t.startsWith('-') ? [t, t.slice(1)] : [t])));
 }
 
 export function validateNarrationResponse(
@@ -423,6 +425,9 @@ export function sanitizeNarrationResponse(raw: unknown, pack: FeaturePackV1): un
       cited.push(id);
     }
     out.citedInsightIds = cited;
+  } else if (out.citedInsightIds === undefined) {
+    // Omitted citations (common when there is nothing to cite) mean "none".
+    out.citedInsightIds = [];
   }
   return out;
 }
