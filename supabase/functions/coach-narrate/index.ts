@@ -11,7 +11,7 @@ import {
   type FeaturePackV1,
   type NarrateSurface,
 } from './schema.ts';
-import { SYSTEM_PROMPT } from './prompt.ts';
+import { buildUserMessage, SYSTEM_PROMPT } from './prompt.ts';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -125,7 +125,7 @@ async function completeNarration(pack: FeaturePackV1): Promise<unknown> {
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: JSON.stringify(pack) },
+          { role: 'user', content: buildUserMessage(pack) },
         ],
       }),
     });

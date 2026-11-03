@@ -9,17 +9,21 @@ vi.mock('expo-crypto', () => ({
 
 import { sanitizeNarrationResponse, validateNarrationResponse } from '@/coaching/narrate-validate';
 import type { FeaturePackV1 } from '@/coaching/feature-pack';
-import { SYSTEM_PROMPT } from '../../supabase/functions/coach-narrate/prompt';
+import { buildUserMessage, NARRATION_JSON_SCHEMA, SYSTEM_PROMPT } from '../../supabase/functions/coach-narrate/prompt';
 import { validateNarrationResponse as edgeValidate } from '../../supabase/functions/coach-narrate/schema';
 import { limitFixtures, parseJsonLoose, ProviderHttpError, providerFromEnv, type ChatMessage } from '../lib/provider';
 import { summarize, writeReport, type CaseResult } from '../lib/report';
 import { NARRATE_FIXTURES } from './fixtures';
 
 const MIN_PASS = Number(process.env.EVAL_MIN_PASS ?? '0.9');
+/** EVAL_STRICT_SCHEMA=1 sends a json_schema response_format (constrained decoding where supported). */
+const STRICT = process.env.EVAL_STRICT_SCHEMA === '1';
 
 /** Deterministic stand-in so the harness itself can be smoke-tested offline. */
 function stubResponder(messages: ChatMessage[]): string {
-  const pack = JSON.parse(messages[messages.length - 1].content) as FeaturePackV1;
+  const user = messages[messages.length - 1].content;
+  // buildUserMessage puts the pack JSON on the line after "FeaturePack:".
+  const pack = JSON.parse(user.split('\n')[1]) as FeaturePackV1;
   const first = pack.insights[0];
   if (first) {
     return JSON.stringify({
@@ -39,11 +43,16 @@ describe.skipIf(!provider)('narrate eval', () => {
     for (const { id, pack } of limitFixtures(NARRATE_FIXTURES)) {
       const messages: ChatMessage[] = [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: JSON.stringify(pack) },
+        { role: 'user', content: buildUserMessage(pack) },
       ];
       let completion;
       try {
-        completion = await provider!.complete(messages, { json: true, temperature: 0.4 });
+        completion = await provider!.complete(
+          messages,
+          STRICT
+            ? { jsonSchema: { name: 'narration', schema: NARRATION_JSON_SCHEMA as unknown as Record<string, unknown> }, temperature: 0.4 }
+            : { json: true, temperature: 0.4 },
+        );
       } catch (err) {
         const failure = err instanceof ProviderHttpError && err.status === 429 ? 'rate_limited' : 'http';
         results.push({ id, ok: false, failure, detail: String(err), latencyMs: 0, promptTokens: null, completionTokens: null });

@@ -5,7 +5,7 @@ import type { Unit } from '@/db/types';
 import { kgToDisplay } from '@/lib/units';
 
 export const FEATURE_PACK_VERSION = 'FeaturePackV1' as const;
-export const COACH_NARRATE_PROMPT_VERSION = 'narrate-1.0.0';
+export const COACH_NARRATE_PROMPT_VERSION = 'narrate-1.1.0';
 export const MAX_FEATURE_PACK_INSIGHTS = 8;
 export const MAX_FEATURE_PACK_SUGGESTIONS = 6;
 export const MAX_FEATURE_PACK_BYTES = 12_000;
