@@ -1,0 +1,93 @@
+import { createHash } from 'node:crypto';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('expo-crypto', () => ({
+  CryptoDigestAlgorithm: { SHA256: 'SHA256' },
+  digestStringAsync: async (_algo: string, value: string) =>
+    createHash('sha256').update(value, 'utf8').digest('hex'),
+}));
+
+import { sanitizeNarrationResponse, validateNarrationResponse } from '@/coaching/narrate-validate';
+import type { FeaturePackV1 } from '@/coaching/feature-pack';
+import { buildUserMessage, NARRATION_JSON_SCHEMA, SYSTEM_PROMPT } from '../../supabase/functions/coach-narrate/prompt';
+import { validateNarrationResponse as edgeValidate } from '../../supabase/functions/coach-narrate/schema';
+import { limitFixtures, parseJsonLoose, ProviderHttpError, providerFromEnv, type ChatMessage } from '../lib/provider';
+import { summarize, writeReport, type CaseResult } from '../lib/report';
+import { NARRATE_FIXTURES } from './fixtures';
+
+const MIN_PASS = Number(process.env.EVAL_MIN_PASS ?? '0.9');
+/** EVAL_STRICT_SCHEMA=1 sends a json_schema response_format (constrained decoding where supported). */
+const STRICT = process.env.EVAL_STRICT_SCHEMA === '1';
+
+/** Deterministic stand-in so the harness itself can be smoke-tested offline. */
+function stubResponder(messages: ChatMessage[]): string {
+  const user = messages[messages.length - 1].content;
+  // buildUserMessage puts the pack JSON on the line after "FeaturePack:".
+  const pack = JSON.parse(user.split('\n')[1]) as FeaturePackV1;
+  const first = pack.insights[0];
+  if (first) {
+    return JSON.stringify({
+      headline: first.title.slice(0, 80),
+      paragraphs: [first.body],
+      citedInsightIds: [first.id],
+    });
+  }
+  return JSON.stringify({ headline: 'Nice work', paragraphs: ['Keep showing up.'], citedInsightIds: [] });
+}
+
+const provider = providerFromEnv(stubResponder);
+
+describe.skipIf(!provider)('narrate eval', () => {
+  it(`passes ≥ ${MIN_PASS * 100}% of fixtures`, async () => {
+    const results: CaseResult[] = [];
+    for (const { id, pack } of limitFixtures(NARRATE_FIXTURES)) {
+      const messages: ChatMessage[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildUserMessage(pack) },
+      ];
+      let completion;
+      try {
+        completion = await provider!.complete(
+          messages,
+          STRICT
+            ? { jsonSchema: { name: 'narration', schema: NARRATION_JSON_SCHEMA as unknown as Record<string, unknown> }, temperature: 0.4 }
+            : { json: true, temperature: 0.4 },
+        );
+      } catch (err) {
+        const failure = err instanceof ProviderHttpError && err.status === 429 ? 'rate_limited' : 'http';
+        results.push({ id, ok: false, failure, detail: String(err), latencyMs: 0, promptTokens: null, completionTokens: null });
+        continue;
+      }
+      const base = {
+        id,
+        latencyMs: completion.latencyMs,
+        promptTokens: completion.promptTokens,
+        completionTokens: completion.completionTokens,
+        retries: completion.retries,
+      };
+      const parsed = parseJsonLoose(completion.text);
+      if (parsed === undefined) {
+        results.push({ ...base, ok: false, failure: 'json', detail: completion.text.slice(0, 300) });
+        continue;
+      }
+      // Same order as production: soft sanitize, then the hard gate.
+      const client = validateNarrationResponse(sanitizeNarrationResponse(parsed, pack), pack);
+      if (!client.ok) {
+        const stage = /number/i.test(client.error) ? 'numbers' : 'schema';
+        results.push({ ...base, ok: false, failure: stage, detail: `${client.error} :: ${completion.text.slice(0, 300)}` });
+        continue;
+      }
+      // #189: the edge copy must agree with the client gate.
+      const edge = edgeValidate(client.narration, pack);
+      if (!edge.ok) {
+        results.push({ ...base, ok: false, failure: 'edge_disagrees', detail: edge.error });
+        continue;
+      }
+      results.push({ ...base, ok: true });
+    }
+
+    const summary = summarize('narrate', provider!.id, results);
+    writeReport(summary, results);
+    expect(summary.passRate).toBeGreaterThanOrEqual(MIN_PASS);
+  });
+});

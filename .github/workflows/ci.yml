@@ -3,12 +3,21 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+
+# A new push to a PR cancels its older run; main keeps every run.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    # Real runs take ~80 s; anything near this is a hang, not slowness.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -23,9 +32,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm run typecheck
+      # ESLint (content strategy: checkout mtimes are always new) and tsc
+      # incremental state. A stale cache only costs speed, never correctness.
+      - uses: actions/cache@v4
+        with:
+          path: node_modules/.cache/ci
+          key: ci-cache-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.js', 'tsconfig.json') }}-${{ github.sha }}
+          restore-keys: ci-cache-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.js', 'tsconfig.json') }}-
 
-      - run: pnpm run lint
+      - run: pnpm run typecheck --incremental --tsBuildInfoFile node_modules/.cache/ci/tsbuildinfo
+
+      - run: pnpm run lint -- --cache --cache-strategy content --cache-location node_modules/.cache/ci/eslint/
 
       # Every component/hook in src/ must compile under React Compiler;
       # a bailout silently ships that function unoptimized.

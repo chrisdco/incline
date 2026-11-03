@@ -213,6 +213,35 @@ a11y/sweeps:
 - [#205](https://github.com/chrisdco/incline/issues/205) charts + toasts a11y batch
 - [#215](https://github.com/chrisdco/incline/issues/215) tokenized search with typo tolerance + recency
 
+## AI track ([AI-ARCHITECTURE.md](decisions/AI-ARCHITECTURE.md))
+
+AI proposes, rules verify, the user applies. Work the steps in order; each
+step's issue is opened when it starts. Evals live in [evals/](../evals/README.md).
+
+- [x] **0. Write-up + evals:** decision doc, [resources](ai/RESOURCES.md), the
+  narrate eval (runnable), and the voice and template fixtures.
+- [ ] **1. Foundations + AI UI kit:**
+  - `src/ai/`: adapters, router, tasks, guardrails, proposals/undo.
+  - `src/components/ai/*`.
+  - `ai_feedback` and `ai_activity`.
+  - `ai-task` edge function behind Cloudflare AI Gateway, with Groq and
+    OpenRouter as the providers.
+  - Picks up #148 and #189.
+- [ ] **2. Templates AI:** `TemplateDiff` to create, modify, duplicate, or
+  build a template from a workout; editor chips.
+- [ ] **3. Challenges v1:** rules-only Winter Arc presets and check-ins first,
+  then AI plan drafting and `PlanDiff` changes.
+- [ ] **4. Smart surfaces + personalisation:**
+  - Context chips, the Ask sheet, and voice logging (gym loop: Hevy/Strong
+    side-by-side check before PR).
+  - `coach_memory` learning, the "What Incline knows about you" screen, and
+    the activity log.
+- [ ] **5. Health Connect:** read activity, sleep, HRV, weight and nutrition;
+  write workouts; readiness rule (#7).
+- [ ] **6. Nutrition logging:** grounded in Open Food Facts and USDA;
+  two-way sync with Samsung Health through Health Connect.
+- [ ] **7. On-device:** SDK 59 + `expo-ai` adapter.
+
 ## P2 — Coaching & intelligence
 
 - [#126](https://github.com/chrisdco/incline/issues/126) reconcile stored `total_volume` vs working-set volume — one written rule, no silent history rewrite (Track B)

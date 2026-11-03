@@ -96,6 +96,37 @@ describe('validateNarrationResponse', () => {
     }
   });
 
+  it('accepts the magnitude of a negative pack number ("18% lighter" for -18), not the reverse', () => {
+    const down = buildFeaturePackV1({
+      unit: 'metric',
+      surface: 'post_session',
+      insights: [
+        {
+          id: 'volume-trend',
+          kind: 'volume_trend',
+          severity: 'info',
+          title: 'Lighter session',
+          body: 'Volume -18% vs last week',
+          ruleVersion: COACHING_RULE_VERSION,
+        },
+      ],
+      aggregates: { volumeDeltaPct: -18 },
+    });
+    const said = (text: string) =>
+      validateNarrationResponse({ headline: 'Lighter day', paragraphs: [text], citedInsightIds: [] }, down).ok;
+    expect(said('Volume was 18% lighter than last week.')).toBe(true);
+    expect(said('Volume fell -18%.')).toBe(true);
+    // A positive pack number never licenses its negative.
+    expect(said('Volume fell -12%.')).toBe(false);
+    expect(validateNarrationResponse({ headline: 'Down', paragraphs: ['Volume -12%'], citedInsightIds: [] }, pack).ok).toBe(false);
+  });
+
+  it('treats omitted citedInsightIds as none (models drop it when nothing applies)', () => {
+    const result = validateNarrationResponse({ headline: 'Nice session', paragraphs: ['Keep it up.'] }, pack);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.narration.citedInsightIds).toEqual([]);
+  });
+
   it('still rejects unrecoverable output: empty headline, no paragraphs, invented numbers', () => {
     expect(
       validateNarrationResponse(

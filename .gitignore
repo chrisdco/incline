@@ -58,3 +58,6 @@ tsc_out.txt
 
 # Supabase CLI link/cache state (per machine)
 supabase/.temp/
+
+# model eval reports
+evals/results/
