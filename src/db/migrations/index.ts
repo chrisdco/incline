@@ -18,6 +18,7 @@ import { migration016 } from './016_photo_sync_metadata';
 import { migration017 } from './017_session_exercise_notes';
 import { migration018 } from './018_set_sort_order';
 import { migration019 } from './019_exercise_search_text';
+import { migration020 } from './020_ai_activity';
 import type { Migration } from './types';
 
 export type { Migration } from './types';
@@ -43,6 +44,7 @@ export const MIGRATIONS: Migration[] = [
   migration017,
   migration018,
   migration019,
+  migration020,
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 1;

@@ -8,7 +8,9 @@
  * `runMigrations` in `client.ts`. Keep SCHEMA_VERSION in sync with the latest
  * migration version.
  */
-export const SCHEMA_VERSION = 19;
+import { AI_ACTIVITY_DDL } from './migrations/020_ai_activity';
+
+export const SCHEMA_VERSION = 20;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -257,6 +259,9 @@ export const SCHEMA_STATEMENTS: string[] = [
     PRIMARY KEY (workout_log_id, exercise_id)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_session_exercise_notes_log ON session_exercise_notes(workout_log_id)`,
+
+  // ---- AI activity log + feedback (local-only, migration 020) ----
+  ...AI_ACTIVITY_DDL,
 
   `CREATE TABLE IF NOT EXISTS schema_meta (
     key TEXT PRIMARY KEY,

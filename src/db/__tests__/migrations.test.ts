@@ -1,6 +1,6 @@
 /**
  * Migration tests against better-sqlite3 (Node). Where the migration module
- * has no native imports, tests run the REAL up() (017/018/019) — no mirrors
+ * has no native imports, tests run the REAL up() (017/018/019/020) — no mirrors
  * to drift. Older/complex migrations keep SQL mirrors with a comment.
  */
 import Database from 'better-sqlite3';
@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { migration017 } from '../migrations/017_session_exercise_notes';
 import { migration018 } from '../migrations/018_set_sort_order';
 import { migration019 } from '../migrations/019_exercise_search_text';
+import { migration020 } from '../migrations/020_ai_activity';
 import { createTestDatabase } from './sqlite-adapter';
 
 function createV1Db() {
@@ -280,6 +281,21 @@ describe('schema migrations (better-sqlite3)', () => {
     expect(row?.search_text).toContain('bench press');
     expect(row?.search_text).toContain('barbell');
     expect(row?.search_text).not.toMatch(/[()]/);
+    t.close();
+  });
+
+  it('creates ai_activity + ai_feedback, idempotent (020, real up)', async () => {
+    const t = createTestDatabase({ ddl: [] });
+    await migration020.up(t.db as unknown as SQLiteDatabase);
+    await migration020.up(t.db as unknown as SQLiteDatabase);
+    const cols = await t.db.getAllAsync<{ name: string }>(`PRAGMA table_info(ai_activity)`);
+    expect(cols.map((c) => c.name)).toEqual(
+      expect.arrayContaining(['proposal_id', 'kind', 'before_json', 'after_json', 'status', 'reverted_at']),
+    );
+    await t.db.runAsync(
+      `INSERT INTO ai_feedback (proposal_id, task, outcome, created_at) VALUES ('p', 'templates', 'rejected', 1)`,
+    );
+    expect(await t.db.getFirstAsync('SELECT outcome FROM ai_feedback')).toEqual({ outcome: 'rejected' });
     t.close();
   });
 });
