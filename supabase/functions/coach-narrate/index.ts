@@ -11,6 +11,7 @@ import {
   type FeaturePackV1,
   type NarrateSurface,
 } from './schema.ts';
+import { SYSTEM_PROMPT } from './prompt.ts';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -20,17 +21,6 @@ const corsHeaders: Record<string, string> = {
 
 const RATE_LIMIT_PER_DAY = 10;
 const RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-const SYSTEM_PROMPT = `You are a copywriter for a strength-training coach app.
-You ONLY narrate the FeaturePack JSON the user provides.
-
-Rules:
-- Never invent numbers, loads, reps, percentages, PRs, or dates. Repeat only values present in the pack.
-- Do not give medical advice or diagnose injury.
-- You do not change the training plan. Rules already computed the numbers.
-- Cite the insight ids you used in citedInsightIds (must be a subset of pack.insights[].id).
-- Output JSON only: { "headline": string (max 80 characters), "paragraphs": string[1-3], "citedInsightIds": string[] }
-- Headline is a short coaching line. Paragraphs are 1–3 short paragraphs in plain language.`;
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {

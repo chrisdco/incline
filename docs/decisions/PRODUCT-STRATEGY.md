@@ -32,7 +32,8 @@ AI is a multiplier on that foundation, never the foundation itself.
 New apps will lead with "AI coach writes your program". Their weak points
 are what Incline should own:
 
-1. **Numbers from rules, words from AI.** Every load, PR, readiness and
+1. **Numbers from rules, words from AI** *(superseded 2026-11-03 by
+   [AI-ARCHITECTURE.md](AI-ARCHITECTURE.md): AI proposes, rules verify)*. Every load, PR, readiness and
    fatigue call comes from deterministic, tested code (`src/coaching`). AI
    only rewords the feature pack (`buildFeaturePackV1`), so it can't
    invent a weight. Make this visible: "Why this weight?" on every suggestion.
@@ -84,7 +85,9 @@ are what Incline should own:
 
 ## Guardrails
 
-- Never ship an AI-generated number the rules didn't produce.
+- AI proposes, rules verify, the user applies: no AI change reaches data without
+  guardrails and a preview or Undo ([AI-ARCHITECTURE.md](AI-ARCHITECTURE.md),
+  which supersedes the older "never an AI-generated number" rule and §2.1).
 - No feature may make the offline app worse.
 - Every new surface goes through the design system and, for gym-loop
   surfaces, the reference side-by-side.
