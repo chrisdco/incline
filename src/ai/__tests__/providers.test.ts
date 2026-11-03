@@ -151,3 +151,20 @@ describe('gateway provider', () => {
     expect(await p.isAvailable()).toBe(false);
   });
 });
+
+describe('testAiConnection', () => {
+  it('passes when the model clears the narration gate, and explains failures', async () => {
+    const { testAiConnection } = await import('../connection-test');
+    const config = { presetId: 'groq' as const, baseUrl: 'https://x/v1', model: 'm' };
+    const good = await testAiConnection(config, async () => 'k', async () =>
+      chatReply('{"headline":"3 weeks strong","paragraphs":["Every week for 3 weeks."],"citedInsightIds":["streak"]}'),
+    );
+    expect(good).toMatchObject({ ok: true, headline: '3 weeks strong' });
+
+    const noKey = await testAiConnection(config, async () => null, async () => chatReply('{}'));
+    expect(noKey).toMatchObject({ ok: false, reason: 'unavailable' });
+
+    const badKey = await testAiConnection(config, async () => 'k', async () => new Response('bad key', { status: 401 }));
+    expect(badKey).toMatchObject({ ok: false, reason: 'unavailable' });
+  });
+});

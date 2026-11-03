@@ -1,4 +1,4 @@
-import { byokPreset, type ByokConfig } from './byok';
+import { byokPreset, type ByokConfig } from './byok-presets';
 import { createChatProvider } from './providers/chat';
 import { createGatewayProvider } from './providers/gateway';
 import type { AiProvider } from './types';

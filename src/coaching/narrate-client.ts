@@ -1,7 +1,7 @@
 import type { FeaturePackV1, NarrateSurface } from './feature-pack';
 import type { CoachNarration } from './narrate-validate';
 import type { CoachingInsightKind } from './types';
-import type { ByokConfig } from '@/ai/byok';
+import type { ByokConfig } from '@/ai/byok-presets';
 import type { AiEvent, KvLike } from '@/ai/types';
 import type { GetToken } from '@/sync/supabase-auth';
 
