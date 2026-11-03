@@ -1,16 +1,14 @@
-import {
-  COACH_NARRATE_PROMPT_VERSION,
-  hashFeaturePack,
-  type FeaturePackV1,
-  type NarrateSurface,
-} from './feature-pack';
-import { validateNarrationResponse, type CoachNarration } from './narrate-validate';
+import type { FeaturePackV1, NarrateSurface } from './feature-pack';
+import type { CoachNarration } from './narrate-validate';
 import type { CoachingInsightKind } from './types';
+import type { ByokConfig } from '@/ai/byok';
+import type { AiEvent, KvLike } from '@/ai/types';
 import type { GetToken } from '@/sync/supabase-auth';
 
 export type { CoachNarration } from './narrate-validate';
 export type { NarrateSurface };
 
+/** Pre-router cache prefix; still cleared on account switch for old installs. */
 export const COACH_NARRATE_KV_PREFIX = 'coach.narrate.';
 export const COACH_NARRATE_TIMEOUT_MS = 12_000;
 
@@ -40,16 +38,15 @@ export interface RequestCoachNarrationInput {
 export interface NarrateClientOverrides {
   aiExplanationsEnabled?: boolean;
   backendReady?: boolean;
-  kv?: {
-    getItem: (key: string) => Promise<string | null>;
-    setItem: (key: string, value: string) => Promise<void>;
-  };
+  kv?: KvLike;
   fetchImpl?: typeof fetch;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  /** null = no BYOK; undefined = read the device setting. */
+  byok?: ByokConfig | null;
+  getByokKey?: () => Promise<string | null>;
+  onEvent?: (event: AiEvent) => void;
 }
-
-const inflight = new Map<string, Promise<CoachNarration | null>>();
 
 async function readAiEnabled(override?: boolean): Promise<boolean> {
   if (typeof override === 'boolean') return override;
@@ -63,33 +60,51 @@ async function readBackendReady(override?: boolean): Promise<boolean> {
   return syncBackendReady();
 }
 
-async function readKv(override?: NarrateClientOverrides['kv']) {
+async function readKv(override?: KvLike): Promise<KvLike> {
   if (override) return override;
   const { kvStorage } = await import('@/db/kv');
   return kvStorage;
 }
 
-function parseCached(raw: string | null): CoachNarration | null {
-  if (!raw) return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return null;
-    const rec = parsed as Record<string, unknown>;
-    if (typeof rec.headline !== 'string' || !Array.isArray(rec.paragraphs)) return null;
-    return {
-      headline: rec.headline,
-      paragraphs: rec.paragraphs.filter((p): p is string => typeof p === 'string'),
-      citedInsightIds: Array.isArray(rec.citedInsightIds)
-        ? rec.citedInsightIds.filter((id): id is string => typeof id === 'string')
-        : [],
-    };
-  } catch {
-    return null;
+async function readByok(overrides?: NarrateClientOverrides) {
+  if (overrides?.byok !== undefined) {
+    return { byok: overrides.byok, getByokKey: overrides.getByokKey ?? (async () => null) };
   }
+  const { useAiSettings, getByokKey } = await import('@/ai/byok');
+  return { byok: useAiSettings.getState().byok, getByokKey };
+}
+
+/** Clerk token for the Supabase template, falling back to the default token. */
+function supabaseToken(getToken: GetToken): () => Promise<string | null> {
+  return async () => {
+    try {
+      const templated = await getToken({ template: 'supabase' });
+      if (templated) return templated;
+    } catch {
+      // Template missing — try the default token.
+    }
+    try {
+      return await getToken();
+    } catch {
+      return null;
+    }
+  };
+}
+
+/** Report fallbacks worth fixing (bad output, bugs) — not offline / quota / signed-out. */
+async function reportEvent(event: AiEvent): Promise<void> {
+  if (event.status === 'ok' || (event.reason !== 'invalid_output' && event.reason !== 'error')) return;
+  // Metadata only (task, reason, providers) — never pack or wording.
+  const { captureError } = await import('@/lib/error-sink');
+  captureError(new Error(`ai.${event.taskId} fallback: ${event.reason}`), {
+    where: `ai.${event.taskId}`,
+    attempts: event.attempts.map((a) => `${a.providerId}:${a.outcome}`).join(','),
+  });
 }
 
 /**
- * Optional AI wording for a FeaturePack. Never throws — callers keep rule copy on null.
+ * Optional AI wording for a FeaturePack via the AI router (BYOK first, then
+ * the Incline gateway). Never throws — callers keep rule copy on null.
  */
 export async function requestCoachNarration(
   input: RequestCoachNarrationInput,
@@ -98,83 +113,37 @@ export async function requestCoachNarration(
   try {
     if (!input.userId) return null;
     if (!(await readAiEnabled(overrides?.aiExplanationsEnabled))) return null;
-    if (!(await readBackendReady(overrides?.backendReady))) return null;
 
-    const pack: FeaturePackV1 = { ...input.pack, surface: input.surface };
-    const packHash = await hashFeaturePack(pack);
-    const cacheKey = coachNarrateKvKey(
-      input.userId,
-      packHash,
-      COACH_NARRATE_PROMPT_VERSION,
-      input.surface,
-    );
+    const [{ runAiTask }, { buildProviderChain }, { narrateTask }] = await Promise.all([
+      import('@/ai/router'),
+      import('@/ai/chain'),
+      import('@/ai/tasks/narrate'),
+    ]);
+    const { byok, getByokKey } = await readByok(overrides);
 
-    const existing = inflight.get(cacheKey);
-    if (existing) return existing;
-
-    const pending = (async () => {
-      const kv = await readKv(overrides?.kv);
-      const cached = parseCached(await kv.getItem(cacheKey));
-      if (cached) return cached;
-
-      const url = overrides?.supabaseUrl ?? (await import('@/lib/env')).SUPABASE_URL;
-      const anon = overrides?.supabaseAnonKey ?? (await import('@/lib/env')).SUPABASE_ANON_KEY;
-      if (!url || !anon || url === 'your_supabase_url') return null;
-
-      let token: string | null = null;
-      try {
-        token = await input.getToken({ template: 'supabase' });
-      } catch {
-        token = null;
-      }
-      if (!token) {
-        try {
-          token = await input.getToken();
-        } catch {
-          return null;
-        }
-      }
-      if (!token) return null;
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), COACH_NARRATE_TIMEOUT_MS);
-      const fetchImpl = overrides?.fetchImpl ?? fetch;
-      try {
-        const res = await fetchImpl(`${url.replace(/\/$/, '')}/functions/v1/coach-narrate`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            apikey: anon,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            pack,
-            packHash,
-            promptVersion: COACH_NARRATE_PROMPT_VERSION,
-            surface: input.surface,
-          }),
-          signal: controller.signal,
-        });
-        if (!res.ok) return null;
-        const json: unknown = await res.json();
-        if (!json || typeof json !== 'object') return null;
-        const body = json as Record<string, unknown>;
-        if (body.ok !== true) return null;
-        const checked = validateNarrationResponse(body.narration, pack);
-        if (!checked.ok) return null;
-        await kv.setItem(cacheKey, JSON.stringify(checked.narration));
-        return checked.narration;
-      } finally {
-        clearTimeout(timer);
-      }
-    })();
-
-    inflight.set(cacheKey, pending);
-    try {
-      return await pending;
-    } finally {
-      inflight.delete(cacheKey);
+    let gateway: Parameters<typeof buildProviderChain>[0]['gateway'] = null;
+    if (await readBackendReady(overrides?.backendReady)) {
+      const env = overrides?.supabaseUrl && overrides.supabaseAnonKey ? null : await import('@/lib/env');
+      gateway = {
+        supabaseUrl: overrides?.supabaseUrl ?? env?.SUPABASE_URL ?? '',
+        anonKey: overrides?.supabaseAnonKey ?? env?.SUPABASE_ANON_KEY ?? '',
+        getToken: supabaseToken(input.getToken),
+      };
     }
+
+    const providers = buildProviderChain({ byok, getByokKey, gateway, fetchImpl: overrides?.fetchImpl });
+    if (providers.length === 0) return null;
+
+    const result = await runAiTask(
+      narrateTask,
+      { surface: input.surface, pack: input.pack, userId: input.userId },
+      {
+        providers,
+        cache: await readKv(overrides?.kv),
+        onEvent: overrides?.onEvent ?? ((e) => void reportEvent(e).catch(() => undefined)),
+      },
+    );
+    return result.status === 'ok' ? result.output : null;
   } catch {
     return null;
   }
@@ -182,6 +151,7 @@ export async function requestCoachNarration(
 
 /** Wipe local narration cache (account switch). Settings flag is left as-is. */
 export async function clearCoachNarrationCache(): Promise<void> {
-  const { kvStorage } = await import('@/db/kv');
+  const [{ kvStorage }, { AI_CACHE_PREFIX }] = await Promise.all([import('@/db/kv'), import('@/ai/router')]);
   await kvStorage.removeKeysWithPrefix(COACH_NARRATE_KV_PREFIX);
+  await kvStorage.removeKeysWithPrefix(`${AI_CACHE_PREFIX}narrate.`);
 }
