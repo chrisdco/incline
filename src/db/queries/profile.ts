@@ -187,6 +187,8 @@ export async function resetUserData(): Promise<void> {
     await tx.execAsync('DELETE FROM programs WHERE is_custom = 1');
 
     await tx.runAsync("DELETE FROM kv WHERE key LIKE 'coach.narrate.%'");
+    // AI reply cache + own-key settings (the key itself: resetAiSettings).
+    await tx.runAsync("DELETE FROM kv WHERE key LIKE 'ai.%'");
     // Local only: the outbox is wiped below, so no active-program delete is queued.
     await tx.runAsync('DELETE FROM kv WHERE key = ?', ACTIVE_PROGRAM_KEY);
 

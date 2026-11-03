@@ -53,7 +53,8 @@ function timeoutSignal(ms: number, outer?: AbortSignal): { signal: AbortSignal; 
     controller.abort();
   }, ms);
   const onOuter = () => controller.abort();
-  outer?.addEventListener('abort', onOuter);
+  if (outer?.aborted) controller.abort();
+  else outer?.addEventListener('abort', onOuter);
   return {
     signal: controller.signal,
     clear: () => {
@@ -105,14 +106,21 @@ async function attemptProvider<I, O>(
   return null;
 }
 
-async function execute<I, O>(task: AiTask<I, O>, input: I, opts: RunAiTaskOptions, cacheKey: string | null): Promise<AiResult<O>> {
+interface CacheRef {
+  /** Storage slot (bounded); the entry inside is only a hit when its key matches. */
+  slot: string;
+  key: string;
+}
+
+async function execute<I, O>(task: AiTask<I, O>, input: I, opts: RunAiTaskOptions, cache: CacheRef | null): Promise<AiResult<O>> {
   const attempts: AiAttempt[] = [];
 
-  if (cacheKey && opts.cache) {
+  if (cache && opts.cache) {
     try {
-      const hit = await opts.cache.getItem(cacheKey);
-      if (hit) {
-        const parsed = task.parse(JSON.parse(hit), input);
+      const hit = await opts.cache.getItem(cache.slot);
+      const entry = hit ? (JSON.parse(hit) as { k?: unknown; o?: unknown }) : null;
+      if (entry && entry.k === cache.key) {
+        const parsed = task.parse(entry.o, input);
         if (parsed.ok) return { status: 'ok', output: parsed.output, providerId: 'cache', cached: true, attempts };
       }
     } catch {
@@ -145,8 +153,8 @@ async function execute<I, O>(task: AiTask<I, O>, input: I, opts: RunAiTaskOption
     }
     const output = await attemptProvider(task, input, provider, opts.signal, attempts);
     if (output !== null) {
-      if (cacheKey && opts.cache) {
-        await opts.cache.setItem(cacheKey, JSON.stringify(output)).catch(() => undefined);
+      if (cache && opts.cache) {
+        await opts.cache.setItem(cache.slot, JSON.stringify({ k: cache.key, o: output })).catch(() => undefined);
       }
       return { status: 'ok', output, providerId: provider.id, cached: false, attempts };
     }
@@ -174,12 +182,15 @@ export async function runAiTask<I, O>(task: AiTask<I, O>, input: I, opts: RunAiT
       result = { status: 'fallback', reason: 'disabled', output: safeFallback(task, input), attempts: [] };
     } else {
       const rawKey = task.cacheKey ? await task.cacheKey(input) : null;
-      const cacheKey = rawKey ? `${CACHE_PREFIX}${task.id}.${task.promptVersion}.${rawKey}` : null;
+      const cacheKey = rawKey ? `${task.id}.${task.promptVersion}.${rawKey}` : null;
+      const cache = cacheKey
+        ? { slot: `${CACHE_PREFIX}${task.id}.${task.cacheSlot?.(input) ?? rawKey}`, key: cacheKey }
+        : null;
       if (cacheKey) {
         const existing = inflight.get(cacheKey) as Promise<AiResult<O>> | undefined;
         if (existing) return await existing;
       }
-      const pending = execute(task, input, opts, cacheKey);
+      const pending = execute(task, input, opts, cache);
       if (cacheKey) inflight.set(cacheKey, pending as Promise<AiResult<unknown>>);
       try {
         result = await pending;

@@ -168,3 +168,21 @@ describe('testAiConnection', () => {
     expect(badKey).toMatchObject({ ok: false, reason: 'unavailable' });
   });
 });
+
+describe('server address checks', () => {
+  it('accepts http(s) hosts with optional port and path', async () => {
+    const { isValidServerUrl } = await import('../byok-presets');
+    expect(isValidServerUrl('http://192.168.1.10:11434/v1')).toBe(true);
+    expect(isValidServerUrl('https://ollama.example.com/v1')).toBe(true);
+    expect(isValidServerUrl('192.168.1.10:11434')).toBe(false);
+    expect(isValidServerUrl('http://')).toBe(false);
+    expect(isValidServerUrl('ftp://x')).toBe(false);
+  });
+
+  it('flags cleartext LAN addresses but not loopback or https', async () => {
+    const { isCleartextLan } = await import('../byok-presets');
+    expect(isCleartextLan('http://192.168.1.10:11434/v1')).toBe(true);
+    expect(isCleartextLan('http://localhost:11434/v1')).toBe(false);
+    expect(isCleartextLan('https://192.168.1.10/v1')).toBe(false);
+  });
+});

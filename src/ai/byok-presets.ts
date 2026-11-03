@@ -76,3 +76,14 @@ export const BYOK_PRESETS: readonly ByokPreset[] = [
 export function byokPreset(id: ByokPresetId): ByokPreset {
   return BYOK_PRESETS.find((p) => p.id === id) ?? BYOK_PRESETS[0];
 }
+
+/** http(s) URL with a host; anything else would fail as a misleading "offline". */
+export function isValidServerUrl(value: string): boolean {
+  return /^https?:\/\/[^\s/:]+(:\d+)?(\/\S*)?$/i.test(value.trim());
+}
+
+/** Release Android builds block cleartext http except to the device itself. */
+export function isCleartextLan(value: string): boolean {
+  const v = value.trim();
+  return /^http:\/\//i.test(v) && !/^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(v);
+}

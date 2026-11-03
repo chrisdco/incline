@@ -35,6 +35,15 @@ export async function clearByokKey(): Promise<void> {
   }
 }
 
+/**
+ * Forget the user's own key and provider. Account switch and account
+ * deletion call this: the next account must never spend this one's key.
+ */
+export async function resetAiSettings(): Promise<void> {
+  useAiSettings.getState().setByok(null);
+  await clearByokKey();
+}
+
 interface AiSettingsState {
   /** null = use Incline cloud only. */
   byok: ByokConfig | null;

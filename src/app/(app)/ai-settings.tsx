@@ -14,7 +14,14 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { clearByokKey, getByokKey, setByokKey, useAiSettings } from '@/ai/byok';
-import { BYOK_PRESETS, byokPreset, type ByokConfig, type ByokPresetId } from '@/ai/byok-presets';
+import {
+  BYOK_PRESETS,
+  byokPreset,
+  isCleartextLan,
+  isValidServerUrl,
+  type ByokConfig,
+  type ByokPresetId,
+} from '@/ai/byok-presets';
 import { testAiConnection, type ConnectionTestResult } from '@/ai/connection-test';
 import { aiFailureCopy } from '@/ai/copy';
 import { SCREEN_CONTENT } from '@/lib/layout';
@@ -66,7 +73,7 @@ function TestResultLine({ result }: { result: ConnectionTestResult }) {
         <Icon icon={CheckCircle2} size={18} color="success" />
         <View className="min-w-0 flex-1">
           <Body className="font-medium text-foreground">Connected · {result.latencyMs} ms</Body>
-          <Caption className="mt-0.5">Sample reply: “{result.headline}”</Caption>
+          <Caption selectable className="mt-0.5">Sample reply: “{result.headline}”</Caption>
         </View>
       </View>
     );
@@ -76,8 +83,8 @@ function TestResultLine({ result }: { result: ConnectionTestResult }) {
     <View className="flex-row items-start gap-2">
       <Icon icon={XCircle} size={18} color="destructive" />
       <View className="min-w-0 flex-1">
-        <Body className="font-medium text-foreground">{copy.title}</Body>
-        <Caption className="mt-0.5">{copy.body}</Caption>
+        <Body selectable className="font-medium text-foreground">{copy.title}</Body>
+        <Caption selectable className="mt-0.5">{copy.body}</Caption>
       </View>
     </View>
   );
@@ -98,6 +105,7 @@ export default function AiSettingsScreen() {
   const [keyDraft, setKeyDraft] = useState('');
   const [storedKey, setStoredKey] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
 
   useEffect(() => {
@@ -107,6 +115,8 @@ export default function AiSettingsScreen() {
   const preset = byokPreset(presetId);
   const hasKey = !preset.needsKey || Boolean(keyDraft.trim() || storedKey);
   const config = draftConfig(presetId, model, baseUrl);
+  const urlOk = isValidServerUrl(config.baseUrl);
+  const canSubmit = hasKey && urlOk && !testing && !saving;
 
   const pickPreset = (id: ByokPresetId) => {
     setPresetId(id);
@@ -123,7 +133,12 @@ export default function AiSettingsScreen() {
   };
 
   const onSave = async () => {
-    if (!(await persistKey(keyDraft))) {
+    if (saving) return;
+    setSaving(true);
+    const keySaved = await persistKey(keyDraft);
+    setSaving(false);
+    if (!keySaved) {
+      // Draft stays in the field so the user can retry.
       toast({ title: 'Could not save the key', variant: 'destructive' });
       return;
     }
@@ -211,7 +226,17 @@ export default function AiSettingsScreen() {
                     keyboardType="url"
                     accessibilityLabel="Server address"
                   />
-                  <Caption>Ollama or LM Studio on your network. Small models are slow on a laptop CPU.</Caption>
+                  {urlOk ? (
+                    <Caption>Ollama or LM Studio on your network. Small models are slow on a laptop CPU.</Caption>
+                  ) : (
+                    <Caption selectable className="text-destructive">Enter an address like http://192.168.1.10:11434/v1</Caption>
+                  )}
+                  {urlOk && process.env.EXPO_OS === 'android' && isCleartextLan(config.baseUrl) ? (
+                    <Caption>
+                      This version of Android blocks plain http to other devices. If the test fails, use an https address
+                      (for example a tunnel to your computer).
+                    </Caption>
+                  ) : null}
                 </View>
               ) : null}
 
@@ -239,10 +264,10 @@ export default function AiSettingsScreen() {
 
               <View className="gap-3 border-t border-border py-3">
                 <View className="flex-row gap-2">
-                  <Button variant="outline" size="sm" className="flex-1" onPress={() => void onTest()} loading={testing} disabled={!hasKey}>
+                  <Button variant="outline" size="sm" className="flex-1" onPress={() => void onTest()} loading={testing} disabled={!canSubmit}>
                     Test connection
                   </Button>
-                  <Button size="sm" className="flex-1" onPress={() => void onSave()} disabled={!hasKey || testing}>
+                  <Button size="sm" className="flex-1" onPress={() => void onSave()} loading={saving} disabled={!canSubmit}>
                     Save
                   </Button>
                 </View>
