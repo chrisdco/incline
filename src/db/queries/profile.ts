@@ -20,6 +20,8 @@ const RESET_TABLES = [
   'photo_blob_queue',
   'workout_logs',
   'session_exercise_notes',
+  'ai_activity',
+  'ai_feedback',
   'bodyweight_entries',
   'body_measurements',
   'user_profile',
@@ -147,6 +149,8 @@ export async function resetUserData(): Promise<void> {
     await tx.execAsync('DELETE FROM photo_blob_queue');
     await tx.execAsync('DELETE FROM workout_logs');
     await tx.execAsync('DELETE FROM session_exercise_notes');
+    await tx.execAsync('DELETE FROM ai_activity');
+    await tx.execAsync('DELETE FROM ai_feedback');
     await tx.execAsync('DELETE FROM bodyweight_entries');
     await tx.execAsync('DELETE FROM body_measurements');
     await tx.execAsync('DELETE FROM user_profile');

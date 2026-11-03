@@ -5,6 +5,8 @@ import { openWriterDatabase } from './client';
 
 /** Local tables a write can declare (see schema.ts). */
 export type DbTable =
+  | 'ai_activity'
+  | 'ai_feedback'
   | 'body_measurements'
   | 'bodyweight_entries'
   | 'exercise_aliases'

@@ -57,6 +57,20 @@ No arbitrary sizes (`text-[13px]`). Numbers that change in place use `tabular-nu
 `onPress`), `RowIcon`, `StatBlock`. Existing: `Card`, `PressableCard`,
 `SectionHeader`, `EmptyState` / `ErrorState`, `Chip`, `SegmentedControl`.
 
+## AI surfaces (`src/components/ai`)
+
+Three states, same everywhere (AI-ARCHITECTURE §1b):
+
+| State | Visual | Component |
+|---|---|---|
+| Suggested — nothing changed | dashed `border-primary/50` + spark badge | `ProposalCard`, `SuggestionChip`, `SuggestedBadge` |
+| Applied with AI | small muted `AI-assisted` tag; row in AI activity log | `AiAssistedTag` |
+| Tracked / imported | source pill (`Health Connect`, `CSV`) | `SourceChip` |
+
+Waiting is `AiThinking` (labelled steps, way out after 6 s); failure is
+`AiFallbackNotice` (copy from `src/ai/copy.ts`, always a way on). Writes go
+through `applyAiChange` (`src/ai/activity.ts`) so every change is logged and revertible.
+
 ## NativeWind rules (lint-enforced where possible)
 
 - **Press feedback:** `<Tappable pressedOpacity>` (`src/components/ui/tappable`),
