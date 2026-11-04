@@ -34,7 +34,7 @@ import { usePrimaryHex } from '@/lib/theme';
 import { isAuroraAccent } from '@/lib/accent-themes';
 import { formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
 import { MUSCLE_LABELS } from '@/lib/labels';
-import { SCREEN_CONTENT } from '@/lib/layout';
+import { useTabScreenContent } from '@/hooks/use-tab-content-inset';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import type { ProgressRange } from '@/db/types';
 import type { WorkoutLogFilters } from '@/db/queries';
@@ -60,6 +60,7 @@ function monthLabel(key: string): string {
 
 export default function ProgressScreen() {
   const router = useRouter();
+  const screenContent = useTabScreenContent();
   const { unit, accentTheme } = useSettings(useShallow((s) => ({ unit: s.unit, accentTheme: s.accentTheme })));
   const primaryHex = usePrimaryHex();
   const aurora = isAuroraAccent(accentTheme);
@@ -125,7 +126,7 @@ export default function ProgressScreen() {
         data={history.items}
         renderItem={({ item }) => <HistoryRow log={item} unit={unit} />}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={SCREEN_CONTENT}
+        contentContainerStyle={screenContent}
         ItemSeparatorComponent={() => <View className="h-px bg-hairline" />}
         onEndReached={history.loadMore}
         onEndReachedThreshold={0.3}

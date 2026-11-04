@@ -527,7 +527,7 @@ export default function SessionScreen() {
         )}
 
         <Pressable
-          onPress={() => router.push('/(app)/plate-calculator' as Href)}
+          onPress={() => router.push('/(app)/calculator?tab=plates' as Href)}
           className="mb-3 flex-row items-center gap-2 rounded-xl bg-card px-4 py-3">
           <Icon icon={METRIC_ICONS.equipment} size={16} color="primary" />
           <Body className="text-sm text-foreground">Plate calculator</Body>

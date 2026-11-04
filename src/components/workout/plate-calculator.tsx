@@ -1,15 +1,13 @@
 import * as React from 'react';
 import { View, TextInput } from 'react-native';
 
-import { Heading, Body, Caption } from '@/components/common/text';
-import { Icon } from '@/components/common/icon';
+import { Body, Caption } from '@/components/common/text';
+import { Card } from '@/components/ui/card';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { Switch } from '@/components/ui/switch';
 import { calculatePlates, BAR_OPTIONS, type BarKind, type Plate } from '@/lib/plate-calculator';
 import { useSettings } from '@/store/settings-store';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
-import { cn } from '@/lib/cn';
-import { METRIC_ICONS } from '@/lib/metric-icons';
 
 interface PlateCalculatorProps {
   /** Target total weight on the bar */
@@ -29,11 +27,8 @@ export function PlateCalculator({ targetWeight: initialTarget, className }: Plat
   const result = calculatePlates(Number(input) || 0, unit, barWeight);
 
   return (
-    <View className={cn('rounded-2xl border border-border bg-card p-4', className)}>
-      <View className="mb-3 flex-row items-center gap-2">
-        <Icon icon={METRIC_ICONS.equipment} color="primary" size={20} />
-        <Heading>Plate Calculator</Heading>
-      </View>
+    // The host screen's tab names it ("Plates"), so no heading of its own.
+    <Card className={className}>
 
       <View className="gap-3">
         <View className="gap-1.5">
@@ -99,7 +94,7 @@ export function PlateCalculator({ targetWeight: initialTarget, className }: Plat
           </Caption>
         ) : null}
       </View>
-    </View>
+    </Card>
   );
 }
 
