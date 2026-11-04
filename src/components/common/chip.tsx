@@ -21,7 +21,9 @@ export function Chip({
     <Tappable
       onPress={onPress}
       pressedOpacity={0.55}
-      android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+      // No android_ripple: on Android it replaces the view's background
+      // drawable, which wiped the chip's fill and border (selected state
+      // invisible in Settings). Tappable's opacity is the press feedback.
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
       className={cn(
