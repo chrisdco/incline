@@ -142,12 +142,13 @@ export function ExerciseThumb({
   }
 
   const uri = source.kind === 'gif' ? source.uri : source.frames[0];
+  // expo-image ignores className fills (like rounded-*), so the wrapper
+  // carries the placeholder; otherwise a loading thumb is an empty gap.
   return (
-    <Image
-      source={{ uri }}
-      style={{ width: size, height: size, borderRadius: size / 2 }}
-      className={cn('bg-muted', className)}
-      contentFit="cover"
-    />
+    <View
+      className={cn('overflow-hidden rounded-full bg-surface2', className)}
+      style={{ width: size, height: size }}>
+      <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" />
+    </View>
   );
 }

@@ -12,9 +12,15 @@ module.exports = {
         input: 'hsl(var(--input) / <alpha-value>)',
         ring: 'hsl(var(--ring) / <alpha-value>)',
         background: 'hsl(var(--background) / <alpha-value>)',
-        foreground: 'hsl(var(--foreground) / <alpha-value>)',
+        foreground: {
+          DEFAULT: 'hsl(var(--foreground) / <alpha-value>)',
+          secondary: 'hsl(var(--foreground-secondary) / <alpha-value>)',
+        },
+        faint: 'hsl(var(--faint) / <alpha-value>)',
         surface1: 'hsl(var(--surface-1) / <alpha-value>)',
         surface2: 'hsl(var(--surface-2) / <alpha-value>)',
+        surface3: 'hsl(var(--surface-3) / <alpha-value>)',
+        hairline: 'hsl(var(--hairline) / <alpha-value>)',
         primary: {
           DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
           foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',

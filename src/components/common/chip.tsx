@@ -27,10 +27,12 @@ export function Chip({
       className={cn(
         'rounded-full border',
         size === 'sm' ? 'px-2.5 py-1' : 'px-3.5 py-1.5',
-        selected ? 'border-border bg-secondary' : 'border-border/70 bg-transparent',
+        // Neutral inverse for "selected" so it reads on any card fill and
+        // with any accent (SYSTEM.md §4: structure stays neutral).
+        selected ? 'border-foreground bg-foreground' : 'border-border bg-transparent',
         className,
       )}>
-      <Text className={cn('font-medium', size === 'sm' ? 'text-xs' : 'text-sm', selected ? 'text-foreground' : 'text-muted-foreground')}>
+      <Text className={cn('font-medium', size === 'sm' ? 'text-xs' : 'text-sm', selected ? 'text-background' : 'text-foreground-secondary')}>
         {label}
       </Text>
     </Tappable>

@@ -5,12 +5,13 @@
  *
  *   Screen padding 16 · Section gap 24 · label → content 8 · row padding 12
  */
-import type { ReactNode } from 'react';
+import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
+import { Card } from '@/components/ui/card';
 import { Body, Caption, Text } from '@/components/common/text';
 
 /** Uppercase group label above a block ("Workout", "Recent"). */
@@ -148,5 +149,51 @@ export function StatBlock({
       </Text>
       {sub ? <Caption className="mt-0.5 text-xs">{sub}</Caption> : null}
     </View>
+  );
+}
+
+/**
+ * One container for a run of rows (iOS inset-grouped list): rows sit flat
+ * inside a single card, separated by hairlines inset to the text. Use this
+ * instead of a card per row (SYSTEM.md §2).
+ */
+export function ListGroup({ children, className }: { children: ReactNode; className?: string }) {
+  const rows = Children.toArray(children).filter(isValidElement);
+  return (
+    <Card className={cn('px-4 py-0', className)}>
+      {rows.map((row, i) => (
+        <Fragment key={row.key ?? i}>
+          {i > 0 ? <View className="h-px bg-hairline" /> : null}
+          {row}
+        </Fragment>
+      ))}
+    </Card>
+  );
+}
+
+/**
+ * A typeset number: value in the current weight, unit smaller and muted on
+ * the same baseline so `369.0k kg` never wraps (SYSTEM.md §3.4).
+ */
+export function Num({
+  value,
+  unit,
+  className,
+  unitClassName,
+}: {
+  value: ReactNode;
+  unit?: string;
+  className?: string;
+  unitClassName?: string;
+}) {
+  return (
+    <Text numberOfLines={1} className={cn('tabular-nums text-foreground', className)}>
+      {value}
+      {unit ? (
+        <Text className={cn('text-sm font-normal text-muted-foreground', unitClassName)}>
+          {` ${unit}`}
+        </Text>
+      ) : null}
+    </Text>
   );
 }
