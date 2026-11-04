@@ -55,7 +55,7 @@ export default function ExercisesScreen() {
         renderItem={({ item }) => <ExerciseListItem exercise={item.exercise} />}
         keyExtractor={(item) => String(item.exercise.id)}
         contentContainerStyle={SCREEN_CONTENT}
-        ItemSeparatorComponent={() => <View className="h-2" />}
+        ItemSeparatorComponent={() => <View className="ml-14 h-px bg-hairline" />}
         ListHeaderComponent={
           <View className="mb-3 gap-3">
             <SearchBar value={query} onChangeText={setQuery} placeholder="Search exercises..." />

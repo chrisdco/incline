@@ -171,6 +171,12 @@ export function ListGroup({ children, className }: { children: ReactNode; classN
   );
 }
 
+/** Split a formatted "138.3k kg" into value and unit for `<Num>`. */
+export function splitUnit(formatted: string): [string, string | undefined] {
+  const m = /^(.*\S)\s+([a-zA-Z%]+)$/.exec(formatted);
+  return m ? [m[1], m[2]] : [formatted, undefined];
+}
+
 /**
  * A typeset number: value in the current weight, unit smaller and muted on
  * the same baseline so `369.0k kg` never wraps (SYSTEM.md §3.4).

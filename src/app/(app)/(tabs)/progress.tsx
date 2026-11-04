@@ -10,7 +10,7 @@ import { Icon } from '@/components/common/icon';
 import { Heading, Caption } from '@/components/common/text';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatCard } from '@/components/common/stat-card';
-import { ListRow, Section } from '@/components/layout';
+import { ListGroup, ListRow, Section } from '@/components/layout';
 import { Separator } from '@/components/ui/separator';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
@@ -126,7 +126,7 @@ export default function ProgressScreen() {
         renderItem={({ item }) => <HistoryRow log={item} unit={unit} />}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={SCREEN_CONTENT}
-        ItemSeparatorComponent={() => <View className="h-2" />}
+        ItemSeparatorComponent={() => <View className="h-px bg-hairline" />}
         onEndReached={history.loadMore}
         onEndReachedThreshold={0.3}
         refreshing={refreshing}
@@ -150,14 +150,14 @@ export default function ProgressScreen() {
             ) : stats ? (
               <>
                 <View className="flex-row gap-3">
-                  <StatCard label="Sessions" value={stats.sessions} icon={<Icon icon={METRIC_ICONS.sessions} size={16} color="primary" />} accent />
-                  <StatCard label="Volume" value={formatVolume(stats.totalVolume, unit)} icon={<Icon icon={METRIC_ICONS.volume} size={16} color="info" />} />
-                  <StatCard label="Streak" value={`${stats.streak}w`} icon={<Icon icon={METRIC_ICONS.streak} size={16} color="warning" />} />
+                  <StatCard label="Sessions" value={stats.sessions} icon={<Icon icon={METRIC_ICONS.sessions} size={16} color="muted-foreground" />} />
+                  <StatCard label="Volume" value={formatVolume(stats.totalVolume, unit)} icon={<Icon icon={METRIC_ICONS.volume} size={16} color="muted-foreground" />} />
+                  <StatCard label="Streak" value={`${stats.streak}w`} icon={<Icon icon={METRIC_ICONS.streak} size={16} color="muted-foreground" />} />
                 </View>
 
                 {stats.trend ? (
-                  <View className="flex-row flex-wrap gap-2">
-                    <TrendChip label="vs previous" delta={stats.trend.volumeDelta} />
+ <View className="-mt-3 flex-row flex-wrap gap-4 px-1">
+                    <TrendChip label="volume vs previous" delta={stats.trend.volumeDelta} />
                     <TrendChip label="sessions" delta={stats.trend.sessionsDelta} />
                   </View>
                 ) : null}
@@ -185,11 +185,11 @@ export default function ProgressScreen() {
 
                 <Section title="Records" first>
                   {stats.prs.length > 0 ? (
-                    <View className="gap-2">
+                    <ListGroup>
                       {stats.prs.slice(0, 5).map((pr) => (
                         <PRCard key={pr.exerciseId} pr={pr} unit={unit} />
                       ))}
-                    </View>
+                    </ListGroup>
                   ) : (
                     <EmptyState title="No records yet" description="Log a few workouts to see your PRs." />
                   )}

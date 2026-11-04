@@ -6,7 +6,7 @@ import { ArrowLeft, Share2 } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Hero } from '@/components/common/text';
-import { SectionLabel } from '@/components/layout';
+import { ListGroup, SectionLabel } from '@/components/layout';
 import { PrimaryActivityIndicator } from
 '@/components/common/primary-activity-indicator';
 import { ErrorState } from '@/components/common/states';
@@ -112,11 +112,11 @@ export default function WeekReportScreen() {
             <SectionLabel className="mt-6">
               Records
             </SectionLabel>
-            <View className="gap-2">
+            <ListGroup>
               {recap.prs.slice(0, 6).map((pr) => (
                 <PRCard key={pr.exerciseId} pr={pr} unit={unit} />
               ))}
-            </View>
+            </ListGroup>
           </>
         ) : null}
 

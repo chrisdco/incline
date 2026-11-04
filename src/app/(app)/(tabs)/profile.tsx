@@ -23,13 +23,13 @@ import {
   Trophy,
   Cloud,
 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { StatCard } from '@/components/common/stat-card';
+import { Card } from '@/components/ui/card';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { useProfile, useProgressStats } from '@/hooks/use-data';
 import { useCloudSync } from '@/hooks/use-cloud-sync';
@@ -44,12 +44,10 @@ import { GOAL_LABELS } from '@/lib/labels';
 import { formatVolume } from '@/db/calc';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
-import { hexToRgba, usePrimaryHex } from '@/lib/theme';
 import { evaluateAchievements } from '@/lib/achievements';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const primary = usePrimaryHex();
   const { toast } = useToast();
   const unit = useSettings((s) => s.unit);
   const { data: profile, refetch } = useProfile();
@@ -144,18 +142,14 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        <View className="mt-2 overflow-hidden rounded-3xl">
-          <LinearGradient
-            colors={[hexToRgba(primary, 0.14), hexToRgba(primary, 0.02)]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View className="p-4">
+        {/* Neutral card: the avatar carries the colour, not an accent wash (SYSTEM.md §4). */}
+        <Card className="mt-2">
+            <View>
               <View className="flex-row items-start gap-4">
                 <Pressable onPress={pickAvatar} accessibilityRole="button" accessibilityLabel="Change profile photo" className="relative">
-                  <InitialsAvatar name={profile?.name ?? ''} uri={profile?.avatarUrl} size={80} />
-                  <View className="absolute bottom-0 right-0 h-6 w-6 items-center justify-center rounded-full bg-primary">
-                    <Icon icon={Camera} size={12} color="primary-foreground" />
+                  <InitialsAvatar name={profile?.name ?? ''} uri={profile?.avatarUrl} size={64} />
+                  <View className="absolute bottom-0 right-0 h-6 w-6 items-center justify-center rounded-full border-2 border-surface1 bg-surface3">
+                    <Icon icon={Camera} size={12} color="foreground" />
                   </View>
                 </Pressable>
                 <View className="flex-1 pt-1">
@@ -176,12 +170,11 @@ export default function ProfileScreen() {
                 Edit profile
               </Button>
             </View>
-          </LinearGradient>
-        </View>
+        </Card>
 
         <View className="mt-6 flex-row gap-3">
           <StatCard label="Sessions" value={stats?.totalSessions ?? 0} icon={<Icon icon={METRIC_ICONS.sessions} size={16} color="muted-foreground" />} />
-          <StatCard label="Volume" value={formatVolume(stats?.totalVolume ?? 0, unit)} icon={<Icon icon={METRIC_ICONS.volume} size={16} color="info" />} />
+          <StatCard label="Volume" value={formatVolume(stats?.totalVolume ?? 0, unit)} icon={<Icon icon={METRIC_ICONS.volume} size={16} color="muted-foreground" />} />
           <StatCard label="Sets" value={stats?.totalSets ?? 0} icon={<Icon icon={METRIC_ICONS.sets} size={16} color="muted-foreground" />} />
         </View>
 

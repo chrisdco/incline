@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/common/text';
-import { PressableCard } from '@/components/ui/card';
+import { Card, PressableCard } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DIFFICULTY_LABELS } from '@/lib/labels';
 import { METRIC_ICONS } from '@/lib/metric-icons';
@@ -44,9 +44,9 @@ export function WorkoutCard({
 }) {
   const router = useRouter();
   return (
-    <View className={cn('rounded-3xl border border-border/60 bg-surface1 p-4', className)}>
+    <Card className={className}>
       <PressableCard
-        className="border-0 bg-transparent p-0 shadow-none"
+        className="border-0 border-transparent bg-transparent p-0 shadow-none"
         onPress={() => router.push(`/workout/${id}`)}
         accessibilityLabel={`Open ${name} routine`}>
         <View className="flex-row items-start justify-between gap-3">
@@ -66,7 +66,7 @@ export function WorkoutCard({
               <Icon icon={MoreHorizontal} size={20} color="muted-foreground" />
             </Pressable>
           ) : (
-            <View className="h-10 w-10 items-center justify-center rounded-3xl bg-muted">
+            <View className="h-10 w-10 items-center justify-center rounded-xl bg-muted">
               <Icon icon={Dumbbell} size={18} color="muted-foreground" />
             </View>
           )}
@@ -107,15 +107,17 @@ export function WorkoutCard({
       </PressableCard>
 
       {onStart ? (
+        // Neutral, not tonal: this repeats on every card, so the accent is
+        // left to the screen's one primary action (SYSTEM.md §1, 60/30/10).
         <Button
           className="mt-3"
           size="sm"
-          variant="tonal"
-          leftIcon={<Icon icon={Play} size={14} color="primary" />}
+          variant="secondary"
+          leftIcon={<Icon icon={Play} size={14} color="secondary-foreground" />}
           onPress={onStart}>
-          Start Routine
+          Start routine
         </Button>
       ) : null}
-    </View>
+    </Card>
   );
 }
