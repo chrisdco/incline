@@ -22,6 +22,18 @@ module.exports = defineConfig([
     },
   },
   {
+    // AI contracts (docs/decisions/AI-PLATFORM.md D1) are shared with Deno and
+    // future hosts: pure TS, relative imports only. scripts/sync-contracts.mjs
+    // enforces the same rule when it copies them to supabase/functions/_shared.
+    files: ["src/contracts/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [{ regex: "^[^.]", message: "Contracts are pure TS: import only files inside src/contracts." }] },
+      ],
+    },
+  },
+  {
     // Design system guard (docs/design/SYSTEM.md): type, radius and spacing
     // come from tokens. Arbitrary values (`text-[13px]`, `p-[7px]`) and the
     // retired `rounded-lg` fail lint; a genuine one-off (micro-marks in a

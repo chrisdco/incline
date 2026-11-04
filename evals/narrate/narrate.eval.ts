@@ -7,10 +7,10 @@ vi.mock('expo-crypto', () => ({
     createHash('sha256').update(value, 'utf8').digest('hex'),
 }));
 
-import { sanitizeNarrationResponse, validateNarrationResponse } from '@/coaching/narrate-validate';
-import type { FeaturePackV1 } from '@/coaching/feature-pack';
-import { buildUserMessage, NARRATION_JSON_SCHEMA, SYSTEM_PROMPT } from '../../supabase/functions/coach-narrate/prompt';
-import { validateNarrationResponse as edgeValidate } from '../../supabase/functions/coach-narrate/schema';
+// One contract for app + edge (AI-PLATFORM D1), so there is no separate edge gate to compare.
+import type { FeaturePackV1 } from '@/contracts/narrate/feature-pack';
+import { sanitizeNarrationResponse, validateNarrationResponse } from '@/contracts/narrate/narration';
+import { buildUserMessage, NARRATION_JSON_SCHEMA, SYSTEM_PROMPT } from '@/contracts/narrate/prompt';
 import { limitFixtures, parseJsonLoose, ProviderHttpError, providerFromEnv, type ChatMessage } from '../lib/provider';
 import { summarize, writeReport, type CaseResult } from '../lib/report';
 import { NARRATE_FIXTURES } from './fixtures';
@@ -75,12 +75,6 @@ describe.skipIf(!provider)('narrate eval', () => {
       if (!client.ok) {
         const stage = /number/i.test(client.error) ? 'numbers' : 'schema';
         results.push({ ...base, ok: false, failure: stage, detail: `${client.error} :: ${completion.text.slice(0, 300)}` });
-        continue;
-      }
-      // #189: the edge copy must agree with the client gate.
-      const edge = edgeValidate(client.narration, pack);
-      if (!edge.ok) {
-        results.push({ ...base, ok: false, failure: 'edge_disagrees', detail: edge.error });
         continue;
       }
       results.push({ ...base, ok: true });

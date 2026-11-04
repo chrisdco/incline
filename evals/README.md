@@ -53,7 +53,7 @@ Each run writes a JSON report to `evals/results/`, which git ignores. The report
 
 | Suite | Status | What it covers |
 |---|---|---|
-| `narrate/` | **runnable** | Runs the production prompt (`supabase/functions/coach-narrate/prompt.ts`) on 20 FeaturePack fixtures. See the checks below. |
+| `narrate/` | **runnable** | Runs the production prompt (`src/contracts/narrate/prompt.ts`) on 20 FeaturePack fixtures. See the checks below. |
 | `probe/` | **runnable** | A capability matrix for the provider and model. It should match the `capabilities` the router declares for that provider. |
 | `voice/` | fixtures only (Step 4) | Transcript → `LogSet` / `EditLastSet`. Ambiguous or unsafe input must be declined. |
 | `templates/` | fixtures only (Step 2) | Intent → `TemplateDiff`, scored on structural limits: equipment, time, exclusions, muscle coverage, declines. |

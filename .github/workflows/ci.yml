@@ -44,6 +44,10 @@ jobs:
 
       - run: pnpm run lint -- --cache --cache-strategy content --cache-location node_modules/.cache/ci/eslint/
 
+      # src/contracts is copied to supabase/functions/_shared for Deno; a stale
+      # copy means the edge runs different gates than the app (#189).
+      - run: node scripts/sync-contracts.mjs --check
+
       # Every component/hook in src/ must compile under React Compiler;
       # a bailout silently ships that function unoptimized.
       - run: pnpm run compiler:check
