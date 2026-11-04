@@ -62,10 +62,13 @@ export function InitialsAvatar({
     );
   }
 
+  // Hex entries are not classes: they go in style, or the avatar paints no
+  // fill and the white initials vanish on light cards.
+  const isHex = bgColor.startsWith('#');
   return (
     <View
-      className={cn('items-center justify-center rounded-full', bgColor, className)}
-      style={{ width: size, height: size }}>
+      className={cn('items-center justify-center rounded-full', !isHex && bgColor, className)}
+      style={{ width: size, height: size, backgroundColor: isHex ? bgColor : undefined }}>
       <Text className="font-semibold text-white" style={{ fontSize: size * 0.4 }}>
         {initials}
       </Text>

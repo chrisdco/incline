@@ -326,9 +326,10 @@ export default function SummaryScreen() {
         ) : null}
       </View>
 
-      {/* Same strip as the live session, so the summary reads as its end state. */}
-      <View className="flex-row px-4 pb-3 pt-1">
-        <StatBlock label="Duration" value={formatDuration(log.durationSeconds)} tone="primary" />
+      {/* Same strip as the live session, so the summary reads as its end state.
+          Pinned above the scroll: the hairline marks the edge content scrolls under. */}
+      <View className="flex-row border-b border-hairline px-4 pb-3 pt-1">
+        <StatBlock label="Duration" value={formatDuration(log.durationSeconds)} />
         <StatBlock
           label={`Volume · ${unit === 'metric' ? 'kg' : 'lb'}`}
           value={volumeLabel}
@@ -337,7 +338,7 @@ export default function SummaryScreen() {
         <StatBlock label="Sets" value={`${completedSets}/${totalSets || completedSets}`} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ ...SCREEN_CONTENT, paddingTop: 4 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ ...SCREEN_CONTENT, paddingTop: 16 }}>
         <View className="mb-4 flex-row items-center gap-3">
           <InitialsAvatar name={athleteName} uri={profile?.avatarUrl} size={40} />
           <View className="flex-1">

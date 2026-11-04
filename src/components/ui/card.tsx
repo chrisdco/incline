@@ -11,11 +11,13 @@ type CardProps = ViewProps & {
   elevation?: 'flat' | 'raised';
 };
 
-function cardBorder(aurora: boolean, raised: boolean): string {
+function cardBorder(aurora: boolean): string {
   // Aurora skins read as lifted neon fills (ref) — hairlines look wireframe
   // on near-black, so cards go borderless and let the tinted fill carry them.
   if (aurora) return 'border-transparent';
-  return raised ? 'border-border' : 'border-border/60';
+  // Dark: the surface step separates the card, a border only adds weight
+  // (SYSTEM.md §2). Light keeps a hairline so white-on-grey stays crisp.
+  return 'border-hairline dark:border-transparent';
 }
 
 export function Card({ className, elevation = 'flat', ...props }: CardProps) {
@@ -23,11 +25,11 @@ export function Card({ className, elevation = 'flat', ...props }: CardProps) {
   return (
     <View
       className={cn(
-        'rounded-3xl border p-4',
+        'rounded-2xl border p-4',
         elevation === 'raised'
-          ? 'bg-surface2 shadow-sm'
+          ? 'bg-surface2'
           : 'bg-surface1',
-        cardBorder(aurora, elevation === 'raised'),
+        cardBorder(aurora),
         className,
       )}
       {...props}
@@ -69,9 +71,9 @@ export function PressableCard({
     <AnimatedPressable
       style={animatedStyle}
       className={cn(
-        'rounded-3xl border p-4',
-        elevation === 'raised' ? 'bg-surface2 shadow-sm' : 'bg-surface1',
-        cardBorder(aurora, elevation === 'raised'),
+        'rounded-2xl border p-4',
+        elevation === 'raised' ? 'bg-surface2' : 'bg-surface1',
+        cardBorder(aurora),
         disabled && 'opacity-50',
         className,
       )}

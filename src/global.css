@@ -19,21 +19,25 @@
  * Default accent: indigo (also applied via theme-indigo on the root View).
  */
 :root {
-  --background: 240 20% 98%;
-  --foreground: 240 10% 3.9%;
+  --background: 240 11% 96.5%;
+  --foreground: 240 10% 4%;
+  --foreground-secondary: 240 5% 26%;
+  --faint: 240 5% 65%;
   --surface-1: 0 0% 100%;
-  --surface-2: 240 4.8% 95.9%;
+  --surface-2: 240 7% 94%;
+  --surface-3: 240 9% 91%;
+  --hairline: 240 6% 90%;
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
+  --card-foreground: 240 10% 4%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
+  --popover-foreground: 240 10% 4%;
   --primary: 173 80% 32%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 4% 40%;
-  --accent: 240 4.8% 95.9%;
+  --secondary: 240 7% 94%;
+  --secondary-foreground: 240 6% 10%;
+  --muted: 240 7% 94%;
+  --muted-foreground: 240 4% 42%;
+  --accent: 240 7% 94%;
   --accent-foreground: 240 5.9% 10%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 98%;
@@ -43,8 +47,8 @@
   --warning-foreground: 0 0% 100%;
   --info: 217 91% 60%;
   --info-foreground: 0 0% 100%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
+  --border: 240 8% 86%;
+  --input: 240 8% 86%;
   --ring: 173 80% 32%;
   --chart-1: 173 70% 38%;
   --chart-2: 217 91% 60%;
@@ -55,21 +59,25 @@
 }
 
 .dark {
-  --background: 240 8% 5%;
+  --background: 240 6% 7%;
   --foreground: 0 0% 98%;
-  --surface-1: 240 7% 9%;
-  --surface-2: 240 6% 12%;
-  --card: 240 7% 9%;
+  --foreground-secondary: 240 5% 78%;
+  --faint: 240 4% 42%;
+  --surface-1: 240 5% 11%;
+  --surface-2: 240 5% 14.5%;
+  --surface-3: 240 5% 18%;
+  --hairline: 240 6% 17.5%;
+  --card: 240 5% 11%;
   --card-foreground: 0 0% 98%;
-  --popover: 240 6% 12%;
+  --popover: 240 5% 18%;
   --popover-foreground: 0 0% 98%;
   --primary: 172 66% 50%;
   --primary-foreground: 240 10% 4%;
-  --secondary: 240 3.7% 15.9%;
+  --secondary: 240 5% 14.5%;
   --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 70%;
-  --accent: 240 3.7% 15.9%;
+  --muted: 240 5% 14.5%;
+  --muted-foreground: 240 5% 64%;
+  --accent: 240 5% 14.5%;
   --accent-foreground: 0 0% 98%;
   --destructive: 0 62.8% 50%;
   --destructive-foreground: 0 0% 98%;
@@ -79,8 +87,8 @@
   --warning-foreground: 0 0% 100%;
   --info: 217 88% 64%;
   --info-foreground: 240 10% 4%;
-  --border: 240 5% 15%;
-  --input: 240 3.7% 18%;
+  --border: 240 5% 21.5%;
+  --input: 240 5% 21.5%;
   --ring: 172 66% 50%;
   --chart-1: 172 60% 52%;
   --chart-2: 217 91% 64%;
