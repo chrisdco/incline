@@ -329,6 +329,11 @@ stateDiagram-v2
 | Model bundled in the APK | `expo-ai` coverage stays low on target devices *and* small tasks need offline use |
 | Self-hosting models | Paid API spend goes above roughly the cost of one small GPU instance a month |
 | Backend on Cloudflare | Supabase limits block us; never just to save a few dollars |
+| A2A / peer-agent protocol | An external agent needs to delegate to Incline as a peer, not call its tools (MCP covers tools) |
+| Workflow engine (Trigger.dev, Inngest, Temporal) | Recipes need multi-step branching with waits |
+| Org / team governance | A coaching product with client accounts exists |
+
+Platform concerns (extensions, MCP, cross-device, automation, governance, tool adoption) live in [AI-PLATFORM.md](AI-PLATFORM.md).
 
 ---
 
