@@ -213,7 +213,7 @@ a11y/sweeps:
 - [#205](https://github.com/chrisdco/incline/issues/205) charts + toasts a11y batch
 - [#215](https://github.com/chrisdco/incline/issues/215) tokenized search with typo tolerance + recency
 
-## AI track ([AI-ARCHITECTURE.md](decisions/AI-ARCHITECTURE.md))
+## AI track ([AI-ARCHITECTURE.md](decisions/AI-ARCHITECTURE.md), platform: [AI-PLATFORM.md](decisions/AI-PLATFORM.md))
 
 AI proposes, rules verify, the user applies. Work the steps in order; each
 step's issue is opened when it starts. Evals live in [evals/](../evals/README.md).
@@ -223,12 +223,14 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
 - [ ] **1. Foundations + AI UI kit:**
   - `src/ai/`: adapters, router, tasks, guardrails, proposals/undo.
   - `src/components/ai/*`.
-  - `ai_feedback` and `ai_activity`.
+  - [x] `ai_feedback` and `ai_activity`, the UI kit, AI settings (#307–#310).
+  - Platform prep (AI-PLATFORM §10): `src/contracts/` boundary + Deno sync,
+    action registry, `ai_activity.actor` / `device_id`, kill switches.
   - `ai-task` edge function behind Cloudflare AI Gateway, with Groq and
     OpenRouter as the providers.
   - Picks up #148 and #189.
 - [ ] **2. Templates AI:** `TemplateDiff` to create, modify, duplicate, or
-  build a template from a workout; editor chips.
+  build a template from a workout; editor chips. Then MCP v1 (#242).
 - [ ] **3. Challenges v1:** rules-only Winter Arc presets and check-ins first,
   then AI plan drafting and `PlanDiff` changes.
 - [ ] **4. Smart surfaces + personalisation:**
