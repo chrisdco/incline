@@ -27,6 +27,7 @@ import { useSettings } from '@/store/settings-store';
 import { useShallow } from 'zustand/react/shallow';
 import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
+import { useSessionBarInset } from '@/hooks/use-tab-content-inset';
 import { useHaptics } from '@/hooks/use-haptics';
 import { startWorkout, discardWorkout, deleteWorkout, createTemplateFromWorkoutLog } from '@/db/queries';
 import { setCachedSession } from '@/lib/query-keys';
@@ -49,6 +50,7 @@ function FeedSeparator() {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const barInset = useSessionBarInset();
   const { toast } = useToast();
   const { impact } = useHaptics();
   const { unit, weeklyWorkoutGoal, dismissedAnnouncementIds, dismissAnnouncement } = useSettings(useShallow((s) => ({ unit: s.unit, weeklyWorkoutGoal: s.weeklyWorkoutGoal, dismissedAnnouncementIds: s.dismissedAnnouncementIds, dismissAnnouncement: s.dismissAnnouncement })));
@@ -401,7 +403,7 @@ export default function HomeScreen() {
         onEndReachedThreshold={0.5}
         refreshing={refreshing}
         onRefresh={onRefresh}
-        contentContainerStyle={{ paddingTop: 24, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingTop: 24, paddingBottom: 32 + barInset }}
         ItemSeparatorComponent={FeedSeparator}
         showsVerticalScrollIndicator={false}
       />

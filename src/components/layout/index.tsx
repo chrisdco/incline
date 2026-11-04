@@ -75,6 +75,7 @@ export function ListRow({
   stacked,
   onPress,
   accessibilityLabel,
+  tone = 'default',
 }: {
   icon?: ReactNode;
   title: string;
@@ -83,6 +84,8 @@ export function ListRow({
   stacked?: boolean;
   onPress?: () => void;
   accessibilityLabel?: string;
+  /** `destructive` reds the title (delete / clear rows). */
+  tone?: 'default' | 'destructive';
 }) {
   // flex-1 only beside a trailing control: in the stacked column it means
   // flexBasis 0 and the title block collapses to zero height.
@@ -90,7 +93,7 @@ export function ListRow({
     <View className={cn('min-w-0 flex-row items-center gap-3', !stacked && 'flex-1')}>
       {icon ? <RowIcon>{icon}</RowIcon> : null}
       <View className="min-w-0 flex-1">
-        <Body className="font-medium text-foreground">{title}</Body>
+        <Body className={cn('font-medium', tone === 'destructive' ? 'text-destructive' : 'text-foreground')}>{title}</Body>
         {subtitle ? <Caption className="mt-0.5">{subtitle}</Caption> : null}
       </View>
     </View>

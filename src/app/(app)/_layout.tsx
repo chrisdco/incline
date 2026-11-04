@@ -19,6 +19,8 @@ export default function AppLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="exercises" options={{ headerShown: true, title: 'Exercises' }} />
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
+        <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notifications' }} />
+        <Stack.Screen name="appearance" options={{ headerShown: true, title: 'Appearance' }} />
         <Stack.Screen name="export" options={{ headerShown: false }} />
         <Stack.Screen name="ai-settings" options={{ headerShown: false }} />
         <Stack.Screen name="import" options={{ headerShown: false }} />
@@ -28,7 +30,6 @@ export default function AppLayout() {
         <Stack.Screen name="bodyweight" options={{ headerShown: true, title: 'Measurements' }} />
         <Stack.Screen name="calendar" options={{ headerShown: false }} />
         <Stack.Screen name="calculator" options={{ headerShown: false }} />
-        <Stack.Screen name="plate-calculator" options={{ headerShown: false }} />
         <Stack.Screen name="muscle-distribution" options={{ headerShown: false }} />
         <Stack.Screen name="progress-photos" options={{ headerShown: false }} />
         <Stack.Screen name="deload" options={{ headerShown: false }} />

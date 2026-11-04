@@ -30,7 +30,8 @@ import { useSettings } from '@/store/settings-store';
 import { usePrimaryHex } from '@/lib/theme';
 import { isAuroraAccent } from '@/lib/accent-themes';
 import type { TemplateSummary } from '@/db/queries';
-import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
+import { SCREEN_HEADER } from '@/lib/layout';
+import { useTabScreenContent } from '@/hooks/use-tab-content-inset';
 import { filterRoutineSummaries, sortRoutineSummaries, type RoutineSort } from '@/lib/exercise-filters';
 
 type Tab = 'routines' | 'programs';
@@ -40,6 +41,7 @@ const ROUTINE_SEARCH_MIN = 5;
 export default function WorkoutsScreen() {
   const [tab, setTab] = useState<Tab>('routines');
   const router = useRouter();
+  const screenContent = useTabScreenContent();
   const templates = useTemplateSummaries();
   const programs = usePrograms();
   const refetchTemplates = templates.refetch;
@@ -204,7 +206,7 @@ export default function WorkoutsScreen() {
             />
           )}
           keyExtractor={(item) => String(item.template.id)}
-          contentContainerStyle={SCREEN_CONTENT}
+          contentContainerStyle={screenContent}
           ItemSeparatorComponent={() => <View className="h-3" />}
           refreshing={refreshing}
           onRefresh={onRefresh}
@@ -286,7 +288,7 @@ export default function WorkoutsScreen() {
             </Pressable>
           )}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={SCREEN_CONTENT}
+          contentContainerStyle={screenContent}
           ItemSeparatorComponent={() => <View className="h-3" />}
           refreshing={refreshing}
           onRefresh={onRefresh}

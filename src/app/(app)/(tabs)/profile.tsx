@@ -9,19 +9,15 @@ import { documentDirectory, makeDirectoryAsync, copyAsync } from 'expo-file-syst
 import {
   Settings as SettingsIcon,
   Pencil,
-  ChevronRight,
-  Trash2,
-  Info,
   Dumbbell,
-  BarChart3,
   Ruler,
   Calendar,
   LogOut,
   Camera,
   Calculator,
-  Weight,
   Trophy,
-  Cloud,
+  UserX,
+  FlaskConical,
 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
@@ -30,36 +26,33 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { StatCard } from '@/components/common/stat-card';
 import { Card } from '@/components/ui/card';
+import { ListGroup, ListRow, Section } from '@/components/layout';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { useProfile, useProgressStats } from '@/hooks/use-data';
-import { useCloudSync } from '@/hooks/use-cloud-sync';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
-import { saveProfile, clearWorkoutHistory, resetUserData } from '@/db/queries';
+import { saveProfile, resetUserData } from '@/db/queries';
 import { requestDeletion } from '@/lib/account-deletion';
 import { ACCOUNT_DELETION_ENABLED } from '@/constants/config';
 import { useActiveWorkout } from '@/store/active-workout-store';
 import { resetAiSettings } from '@/ai/byok';
 import { GOAL_LABELS } from '@/lib/labels';
 import { formatVolume } from '@/db/calc';
-import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
+import { SCREEN_HEADER } from '@/lib/layout';
+import { useTabScreenContent } from '@/hooks/use-tab-content-inset';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { evaluateAchievements } from '@/lib/achievements';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const screenContent = useTabScreenContent();
   const { toast } = useToast();
   const unit = useSettings((s) => s.unit);
   const { data: profile, refetch } = useProfile();
-  const { data: stats, refetch: refetchStats } = useProgressStats();
+  const { data: stats } = useProgressStats();
   const { signOut, userId, getToken } = useAppAuth();
-  const [clearOpen, setClearOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  // Backup visibility at the point of danger: destructive actions below must
-  // never run blind to unsynced changes.
-  const { pending, status, syncing, enabled: syncEnabled, syncNow } = useCloudSync({ auto: false });
-  const syncError = status?.status === 'error' && !!status?.lastError;
 
   const pickAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -85,13 +78,6 @@ export default function ProfileScreen() {
     await saveProfile({ avatarUrl: localUri });
     refetch();
     toast({ title: 'Profile photo updated', variant: 'success' });
-  };
-
-  const clearHistory = async () => {
-    setClearOpen(false);
-    await clearWorkoutHistory();
-    refetchStats();
-    toast({ title: 'Workout history cleared', variant: 'info' });
   };
 
   const deleteAccount = async () => {
@@ -130,7 +116,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={SCREEN_CONTENT}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={screenContent}>
         <View className={`${SCREEN_HEADER} flex-row items-center justify-between px-0`}>
           <Heading>Profile</Heading>
           <Pressable
@@ -178,194 +164,88 @@ export default function ProfileScreen() {
           <StatCard label="Sets" value={stats?.totalSets ?? 0} icon={<Icon icon={METRIC_ICONS.sets} size={16} color="muted-foreground" />} />
         </View>
 
-        <Pressable
-          onPress={() => router.push('/(app)/milestones' as Href)}
-          accessibilityRole="button"
-          accessibilityLabel="Open milestones"
-          className="mt-6">
-          <View className="flex-row items-center justify-between rounded-3xl bg-card p-4">
-            <View className="flex-row items-center gap-3">
-              <Icon icon={Trophy} size={20} color="primary" />
-              <View>
-                <Body className="font-semibold text-foreground">Milestones</Body>
-                <Caption className="mt-0.5">
-                  {unlockedCount}/{achievements.length} unlocked
-                </Caption>
-              </View>
-            </View>
-            <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-          </View>
-        </Pressable>
+        {/* One grouped list, not a card per link. Statistics lives in the
+            Progress tab; backup and clearing history live in Settings. */}
+        <Section title="Training">
+          <ListGroup>
+            <ListRow
+              icon={<Icon icon={Trophy} size={18} color="muted-foreground" />}
+              title="Milestones"
+              subtitle={`${unlockedCount}/${achievements.length} unlocked`}
+              onPress={() => router.push('/(app)/milestones' as Href)}
+            />
+            <ListRow
+              icon={<Icon icon={Dumbbell} size={18} color="muted-foreground" />}
+              title="Exercises"
+              onPress={() => router.push('/(app)/exercises' as Href)}
+            />
+            <ListRow
+              icon={<Icon icon={Ruler} size={18} color="muted-foreground" />}
+              title="Measurements"
+              onPress={() => router.push('/(app)/bodyweight' as Href)}
+            />
+            <ListRow
+              icon={<Icon icon={Calendar} size={18} color="muted-foreground" />}
+              title="Calendar"
+              onPress={() => router.push('/(app)/calendar' as Href)}
+            />
+            <ListRow
+              icon={<Icon icon={Calculator} size={18} color="muted-foreground" />}
+              title="Calculators"
+              subtitle="1RM and plates"
+              onPress={() => router.push('/(app)/calculator' as Href)}
+            />
+          </ListGroup>
+        </Section>
 
-        <Caption className="mb-3 mt-6">Dashboard</Caption>
-        <View className="flex-row gap-3">
-          <Pressable onPress={() => router.push('/(app)/(tabs)/progress')} accessibilityRole="button" accessibilityLabel="Statistics" className="flex-1 flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={BarChart3} size={20} color="muted-foreground" />
-            <Body className="font-medium text-foreground">Statistics</Body>
-          </Pressable>
-          <Pressable onPress={() => router.push('/(app)/exercises' as Href)} accessibilityRole="button" accessibilityLabel="Exercises" className="flex-1 flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={Dumbbell} size={20} color="muted-foreground" />
-            <Body className="font-medium text-foreground">Exercises</Body>
-          </Pressable>
-        </View>
-        <View className="mt-3 flex-row gap-3">
-          <Pressable onPress={() => router.push('/(app)/bodyweight' as Href)} accessibilityRole="button" accessibilityLabel="Measurements" className="flex-1 flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={Ruler} size={20} color="muted-foreground" />
-            <Body className="font-medium text-foreground">Measures</Body>
-          </Pressable>
-          <Pressable onPress={() => router.push('/(app)/calendar' as Href)} accessibilityRole="button" accessibilityLabel="Calendar" className="flex-1 flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={Calendar} size={20} color="muted-foreground" />
-            <Body className="font-medium text-foreground">Calendar</Body>
-          </Pressable>
-        </View>
+        {/* Hidden under the dev auth bypass: stub sign-out is a noop and the
+            gate would bounce straight back into the app. */}
+        {!isDevAuthBypassEnabled() ? (
+          <Section title="Account">
+            <ListGroup>
+              {ACCOUNT_DELETION_ENABLED ? (
+                <ListRow
+                  icon={<Icon icon={UserX} size={18} color="destructive" />}
+                  title="Delete account"
+                  subtitle="30-day undo window"
+                  tone="destructive"
+                  onPress={() => setDeleteOpen(true)}
+                />
+              ) : null}
+              <ListRow
+                icon={<Icon icon={LogOut} size={18} color="muted-foreground" />}
+                title="Sign out"
+                onPress={async () => {
+                  await signOut();
+                  router.replace('/(auth)/sign-in' as Href);
+                }}
+              />
+            </ListGroup>
+          </Section>
+        ) : null}
 
-        <Caption className="mb-3 mt-6">Tools</Caption>
-        <View className="flex-row gap-3">
-          <Pressable onPress={() => router.push('/(app)/calculator' as Href)} accessibilityRole="button" accessibilityLabel="1RM calculator" className="flex-1 flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={Calculator} size={20} color="muted-foreground" />
-            <Body className="font-medium text-foreground">1RM Calc</Body>
-          </Pressable>
-          <Pressable onPress={() => router.push('/(app)/plate-calculator' as Href)} accessibilityRole="button" accessibilityLabel="Plate calculator" className="flex-1 flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={Weight} size={20} color="muted-foreground" />
-            <Body className="font-medium text-foreground">Plates</Body>
-          </Pressable>
-        </View>
-
-        <View className="mt-6 gap-2">
-          <Pressable
-            onPress={() => {
-              if (syncing) return;
-              // Retry only exists when sync can actually run. Logged out /
-              // unconfigured / dev-bypass goes to Settings instead of
-              // promising an upload that cannot happen.
-              if (!syncEnabled) {
-                router.push('/(app)/settings' as Href);
-                return;
-              }
-              if (pending > 0 || syncError) {
-                void (async () => {
-                  const result = await syncNow();
-                  if (!result.ok && result.error) {
-                    toast({ title: 'Sync failed', description: result.error, variant: 'destructive' });
-                  }
-                })();
-              } else {
-                router.push('/(app)/settings' as Href);
-              }
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={
-              !syncEnabled
-                ? 'Backup off. Activate for sync details.'
-                : pending > 0
-                  ? `${pending} changes waiting to upload. Activate to retry.`
-                  : syncError
-                    ? 'Last sync failed. Activate to retry.'
-                    : 'Backup up to date. Activate for sync details.'
-            }
-            className="flex-row items-center gap-3 rounded-3xl bg-card p-4"
-            android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={Cloud} size={20} color={!syncEnabled || pending > 0 || syncError ? 'warning' : 'muted-foreground'} />
-            <View className="flex-1">
-              <Body className="font-medium text-foreground">
-                {!syncEnabled ? 'Backup off' : pending > 0 ? `${pending} change${pending === 1 ? '' : 's'} waiting` : syncError ? 'Sync failed' : 'Backed up'}
-              </Body>
-              <Caption>
-                {!syncEnabled
-                  ? 'Sign in + Supabase to enable backup'
-                  : pending > 0
-                    ? 'Tap to retry upload'
-                    : syncError
-                      ? (status?.lastError ?? 'Tap to retry')
-                      : 'Tap for sync details'}
-              </Caption>
-            </View>
-            {syncing ? null : <Icon icon={ChevronRight} size={18} color="muted-foreground" />}
-          </Pressable>
-
-          <Pressable onPress={() => setClearOpen(true)} accessibilityRole="button" accessibilityLabel="Clear workout history" className="flex-row items-center gap-3 rounded-3xl border border-destructive/20 bg-destructive/10 p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={Trash2} size={20} color="destructive" />
-            <Body className="flex-1 font-medium text-foreground">Clear workout history</Body>
-            <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-          </Pressable>
-
-          {!isDevAuthBypassEnabled() && ACCOUNT_DELETION_ENABLED && (
-          <Pressable onPress={() => setDeleteOpen(true)} accessibilityRole="button" accessibilityLabel="Delete account" className="flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={LogOut} size={20} color="destructive" />
-            <View className="flex-1">
-              <Body className="font-medium text-destructive">Delete account</Body>
-              <Caption>30-day undo window</Caption>
-            </View>
-            <Icon icon={ChevronRight} size={18} color="muted-foreground" />
-          </Pressable>
-          )}
-
-          <View className="flex-row items-center gap-3 rounded-3xl bg-card p-4">
-            <Icon icon={Info} size={20} color="muted-foreground" />
-            <View className="flex-1">
-              <Body className="font-medium text-foreground">About Incline</Body>
-              <Caption>Version 1.0.0</Caption>
-            </View>
-          </View>
-
-          {__DEV__ && (
-            <View className="mt-4 gap-2 rounded-3xl border border-dashed border-border p-4">
-              <Caption className="mb-1 font-semibold">Dev Tools</Caption>
-              <Button variant="outline" size="sm" onPress={async () => {
-                await resetUserData();
-                Alert.alert('Done', 'Logs, bodyweight, and profile cleared. Routines kept.');
-                router.replace('/(onboarding)');
-              }}>
-                Clear Logs &amp; Reset Profile
-              </Button>
-            </View>
-          )}
-
-          {/* Hidden under the dev auth bypass: stub sign-out is a noop and the
-              gate would bounce straight back into the app. */}
-          {!isDevAuthBypassEnabled() && (
-          <Pressable onPress={async () => { await signOut(); router.replace('/(auth)/sign-in' as Href); }} accessibilityRole="button" accessibilityLabel="Sign out" className="flex-row items-center gap-3 rounded-3xl bg-card p-4" android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
-            <Icon icon={LogOut} size={20} color="muted-foreground" />
-            <Body className="flex-1 font-medium text-foreground">Sign out</Body>
-          </Pressable>
-          )}
-        </View>
+        {__DEV__ ? (
+          <Section title="Dev tools">
+            <ListGroup>
+              <ListRow
+                icon={<Icon icon={FlaskConical} size={18} color="muted-foreground" />}
+                title="Reset logs and profile"
+                subtitle="Routines kept">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onPress={async () => {
+                    await resetUserData();
+                    Alert.alert('Done', 'Logs, bodyweight, and profile cleared. Routines kept.');
+                    router.replace('/(onboarding)');
+                  }}>
+                  Reset
+                </Button>
+              </ListRow>
+            </ListGroup>
+          </Section>
+        ) : null}
       </ScrollView>
-
-      <Dialog
-        open={clearOpen}
-        onOpenChange={setClearOpen}
-        title="Clear all history?"
-        description={
-          pending > 0
-            ? `This permanently deletes every completed workout. ${pending} unsynced change${pending === 1 ? '' : 's'} will upload afterward — cleared items sync as deletions.`
-            : 'This permanently deletes every completed workout. This cannot be undone. Export a copy first if you might want it.'
-        }
-        footer={
-          <>
-            {/* Export first + a second confirm: this is unrecoverable (#162). */}
-            <Button
-              variant="outline"
-              onPress={() => {
-                setClearOpen(false);
-                router.push('/(app)/export' as Href);
-              }}>
-              Export first
-            </Button>
-            <Button variant="outline" onPress={() => setClearOpen(false)}>Cancel</Button>
-            <Button
-              variant="destructive"
-              onPress={() =>
-                Alert.alert('Delete every workout?', 'Your history, PRs and stats go too. There is no undo.', [
-                  { text: 'Keep history', style: 'cancel' },
-                  { text: 'Delete everything', style: 'destructive', onPress: () => void clearHistory() },
-                ])
-              }>
-              Delete
-            </Button>
-          </>
-        }
-      />
 
       <Dialog
         open={deleteOpen}

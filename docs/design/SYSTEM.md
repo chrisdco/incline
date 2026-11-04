@@ -224,3 +224,20 @@ Session screen (2026-11 pass): set-row geometry is unchanged
 are neutral; stats strip ends in a divider, units muted via `Num`; "Add set"
 is a solid `surface-2` button, warm-up a text action under it — no dashed
 boxes. Accent stays on the suggestion, the next-set tick and supersets.
+
+## Profile and Settings (2026-11 pass)
+
+- **Profile** is identity + stats + one grouped `Training` list (Milestones,
+  Exercises, Measurements, Calendar, Calculators) + `Account`. No tile
+  grids, no card per link. Stats live in the Progress tab, backup and
+  clearing history in Settings.
+- **Settings** is a hub: Workout, Units, App (→ Appearance, Notifications,
+  AI coaching sub-screens), Display, Backup, Your data, About. A topic gets
+  its own screen once it has more than a few rows.
+- Destructive rows are plain `ListRow tone="destructive"` inside the group,
+  never a tinted card.
+- **Tabs clear the session bar:** tab screens use `useTabScreenContent()` /
+  `useSessionBarInset()` (`src/hooks/use-tab-content-inset.ts`) so the last
+  row is never under the floating workout bar.
+- Calculators are one screen with a segment (`/(app)/calculator`,
+  `?tab=plates` opens plates).
