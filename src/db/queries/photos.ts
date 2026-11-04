@@ -175,18 +175,31 @@ export async function deleteWorkoutPhoto(photoId: number): Promise<void> {
 }
 
 export async function deletePhotosForWorkout(logId: number): Promise<void> {
+  await deletePhotosForWorkouts([logId]);
+}
+
+/** Tombstone every live photo of these logs in one commit, then remove the files. */
+export async function deletePhotosForWorkouts(logIds: number[]): Promise<void> {
+  if (logIds.length === 0) return;
   const now = Date.now();
   const rows = await mutate(PHOTO_TABLES, async (tx) => {
-    const live = await tx.getAllAsync<{ id: number; uri: string; uuid: string | null; storage_path: string | null }>(
-      'SELECT id, uri, uuid, storage_path FROM workout_photos WHERE workout_log_id = ? AND deleted_at IS NULL',
-      logId,
-    );
-    await tx.runAsync(
-      'UPDATE workout_photos SET deleted_at = ?, updated_at = ? WHERE workout_log_id = ? AND deleted_at IS NULL',
-      now,
-      now,
-      logId,
-    );
+    const live: { id: number; uri: string; uuid: string | null; storage_path: string | null }[] = [];
+    for (let i = 0; i < logIds.length; i += 500) {
+      const chunk = logIds.slice(i, i + 500);
+      const placeholders = chunk.map(() => '?').join(',');
+      live.push(
+        ...(await tx.getAllAsync<{ id: number; uri: string; uuid: string | null; storage_path: string | null }>(
+          `SELECT id, uri, uuid, storage_path FROM workout_photos WHERE workout_log_id IN (${placeholders}) AND deleted_at IS NULL`,
+          ...chunk,
+        )),
+      );
+      await tx.runAsync(
+        `UPDATE workout_photos SET deleted_at = ?, updated_at = ? WHERE workout_log_id IN (${placeholders}) AND deleted_at IS NULL`,
+        now,
+        now,
+        ...chunk,
+      );
+    }
     for (const r of live) {
       if (!r.uuid) continue;
       await enqueuePhotoMetadata(tx, r.id);

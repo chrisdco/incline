@@ -13,7 +13,7 @@ import type {
   WorkoutLog,
 } from '../types';
 import { getCelebrationPrCounts } from './coaching/prs';
-import { deletePhotosForWorkout } from './photos';
+import { deletePhotosForWorkout, deletePhotosForWorkouts } from './photos';
 import { getLastSetsForExercise, getLastSetsForExercises } from './exercises';
 import {
   getSessionSets,
@@ -37,33 +37,42 @@ export interface MuscleSplit {
 }
 
 export async function enqueueLogUpsert(tx: Tx, logId: number): Promise<void> {
-  const log = await tx.getFirstAsync<LogRow & { template_uuid: string | null }>(
+  await enqueueLogUpserts(tx, [logId]);
+}
+
+/** Enqueue upserts (or deletes, for tombstoned logs) for a batch of logs: one SELECT. */
+export async function enqueueLogUpserts(tx: Tx, logIds: number[]): Promise<void> {
+  if (logIds.length === 0) return;
+  const placeholders = logIds.map(() => '?').join(',');
+  const logs = await tx.getAllAsync<LogRow & { template_uuid: string | null }>(
     `SELECT w.*, t.uuid as template_uuid
      FROM workout_logs w
      LEFT JOIN workout_templates t ON t.id = w.template_id AND t.is_custom = 1
-     WHERE w.id = ?`,
-    logId,
+     WHERE w.id IN (${placeholders})`,
+    ...logIds,
   );
-  if (!log?.uuid) return;
-  await enqueueSync(
-    'workout_logs',
-    log.uuid,
-    log.deleted_at ? 'delete' : 'upsert',
-    {
-      template_uuid: log.template_uuid,
-      name: log.name,
-      started_at: log.started_at,
-      ended_at: log.ended_at,
-      duration_seconds: log.duration_seconds,
-      total_volume: log.total_volume,
-      unit: log.unit,
-      notes: log.notes,
-      created_at: log.created_at,
-      updated_at: log.updated_at,
-      deleted_at: log.deleted_at,
-    },
-    tx,
-  );
+  for (const log of logs) {
+    if (!log.uuid) continue;
+    await enqueueSync(
+      'workout_logs',
+      log.uuid,
+      log.deleted_at ? 'delete' : 'upsert',
+      {
+        template_uuid: log.template_uuid,
+        name: log.name,
+        started_at: log.started_at,
+        ended_at: log.ended_at,
+        duration_seconds: log.duration_seconds,
+        total_volume: log.total_volume,
+        unit: log.unit,
+        notes: log.notes,
+        created_at: log.created_at,
+        updated_at: log.updated_at,
+        deleted_at: log.deleted_at,
+      },
+      tx,
+    );
+  }
 }
 
 type SetSyncRow = SetRow & {
@@ -853,15 +862,47 @@ export async function deleteWorkout(logId: number): Promise<void> {
   await discardWorkout(logId);
 }
 
+/** IN-list size per statement, well under SQLite's bound-parameter limit. */
+const CLEAR_CHUNK = 500;
+
+/**
+ * Discard every completed workout in one commit (plus one for photos, whose
+ * files are removed after it, as in `discardWorkout`). An open session is
+ * left alone: the confirm copy promises completed workouts only.
+ */
 export async function clearWorkoutHistory(): Promise<void> {
-  const db = await openDatabase();
   const now = Date.now();
-  const logs = await db.getAllAsync<{ id: number }>(
-    'SELECT id FROM workout_logs WHERE deleted_at IS NULL',
-  );
-  for (const log of logs) {
-    await discardWorkout(log.id);
-  }
-  // Touch timestamp if somehow empty
-  void now;
+  const logIds = await mutate(['workout_logs', 'set_entries', 'kv'], async (tx) => {
+    const logs = await tx.getAllAsync<{ id: number }>(
+      'SELECT id FROM workout_logs WHERE deleted_at IS NULL AND ended_at IS NOT NULL',
+    );
+    const ids = logs.map((l) => l.id);
+    for (let i = 0; i < ids.length; i += CLEAR_CHUNK) {
+      const chunk = ids.slice(i, i + CLEAR_CHUNK);
+      const placeholders = chunk.map(() => '?').join(',');
+      const sets = await tx.getAllAsync<{ id: number }>(
+        `SELECT id FROM set_entries WHERE workout_log_id IN (${placeholders}) AND deleted_at IS NULL`,
+        ...chunk,
+      );
+      await tx.runAsync(
+        `UPDATE set_entries SET deleted_at = ?, updated_at = ? WHERE workout_log_id IN (${placeholders}) AND deleted_at IS NULL`,
+        now, now, ...chunk,
+      );
+      await tx.runAsync(
+        `UPDATE workout_logs SET deleted_at = ?, updated_at = ? WHERE id IN (${placeholders})`,
+        now, now, ...chunk,
+      );
+      await tx.runAsync(
+        `DELETE FROM kv WHERE key IN (${placeholders})`,
+        ...chunk.map((id) => volatileKey(id)),
+      );
+      const setIds = sets.map((s) => s.id);
+      for (let j = 0; j < setIds.length; j += CLEAR_CHUNK) {
+        await enqueueSetUpserts(tx, setIds.slice(j, j + CLEAR_CHUNK));
+      }
+      await enqueueLogUpserts(tx, chunk);
+    }
+    return ids;
+  });
+  await deletePhotosForWorkouts(logIds);
 }
