@@ -183,7 +183,7 @@ export default function OnboardingScreen() {
                       key={g}
                       onPress={() => setGoal(g)}
                       className={`flex-row items-center gap-3 rounded-2xl border-2 px-4 py-4 ${
-                        goal === g ? 'border-primary bg-primary/10' : 'border-border bg-card'
+                        goal === g ? 'border-primary bg-primary/15' : 'border-transparent bg-surface1'
                       }`}>
                       <Icon icon={IconComp} size={20} color={goal === g ? 'primary' : 'muted-foreground'} />
                       <Body className={`flex-1 font-medium ${goal === g ? 'text-primary' : 'text-foreground'}`}>
@@ -209,7 +209,7 @@ export default function OnboardingScreen() {
                     key={l}
                     onPress={() => setExperienceLevel(l)}
                     className={`rounded-2xl border-2 px-4 py-4 ${
-                      experienceLevel === l ? 'border-primary bg-primary/10' : 'border-border bg-card'
+                      experienceLevel === l ? 'border-primary bg-primary/15' : 'border-transparent bg-surface1'
                     }`}>
                     <Body className={`font-medium ${experienceLevel === l ? 'text-primary' : 'text-foreground'}`}>
                       {l.charAt(0).toUpperCase() + l.slice(1)}

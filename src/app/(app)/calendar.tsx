@@ -66,7 +66,7 @@ function CalendarStat({
     <View
       accessible
       accessibilityLabel={accessibilityLabel ?? label}
-      className="min-w-0 flex-1 flex-row items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-3">
+      className="min-w-0 flex-1 flex-row items-center gap-2 rounded-xl bg-surface1 px-4 py-3">
       <Icon icon={icon} size={16} color={iconColor} />
       <Caption className="flex-1 text-sm font-medium text-foreground" numberOfLines={1}>
         {label}
@@ -270,7 +270,7 @@ const MiniMonth = memo(function MiniMonth({
       accessibilityRole="button"
       accessibilityLabel={`${MONTH_NAMES[month]} ${year}`}
       className={cn(
-        'w-[48%] rounded-2xl border border-border/60 bg-card px-2.5 py-2.5',
+        'w-[48%] rounded-2xl border border-transparent bg-surface1 px-2.5 py-2.5',
         isFutureMonth && 'opacity-40',
         isCurrentMonth && 'border-primary/40',
       )}>
@@ -689,8 +689,8 @@ export default function CalendarScreen() {
                 onPress={() => jumpToMonth(pickerYear, month)}
                 className={cn(
                   'min-w-[22%] flex-1 items-center rounded-2xl border px-2 py-3',
-                  available ? 'border-border bg-card' : 'border-transparent opacity-35',
-                  visible.year === pickerYear && visible.month === month && 'border-primary bg-primary/10',
+                  available ? 'border-transparent bg-surface2' : 'border-transparent opacity-35',
+                  visible.year === pickerYear && visible.month === month && 'border-primary bg-primary/15',
                 )}>
                 <Body className="text-sm font-medium text-foreground">{label}</Body>
                 {count > 0 ? (
