@@ -55,6 +55,7 @@ import { onTablesChanged } from '../changes';
 import {
   addExerciseToWorkout,
   addSet,
+  clearWorkoutHistory,
   discardWorkout,
   finishWorkout,
   getWorkoutLog,
@@ -313,6 +314,57 @@ describe('finish / discard / remove are one transaction each (#141)', () => {
 
     expect(await setIds(logId)).toEqual(before);
     expect(await outboxCount()).toBe(outboxBefore);
+  });
+});
+
+describe('clearWorkoutHistory', () => {
+  it('tombstones every finished log in one commit and leaves the open session', async () => {
+    await seedExercise(1);
+    const finished: number[] = [];
+    for (const name of ['Push', 'Pull', 'Legs']) {
+      const id = await startWorkout(null, name);
+      await addExerciseToWorkout(id, 1);
+      await updateSet((await setIds(id))[0], { completed: true, weight: 50, reps: 5 });
+      await finishWorkout(id);
+      finished.push(id);
+    }
+    const open = await startWorkout(null, 'Arms');
+    await addExerciseToWorkout(open, 1);
+    await db().runAsync('INSERT INTO kv (key, value) VALUES (?, ?)', volatileKey(finished[0]), '{}');
+
+    const begins = vi.spyOn(db(), 'execAsync');
+    await clearWorkoutHistory();
+    // One commit for logs/sets/kv and one for photos, however many logs.
+    expect(begins.mock.calls.filter(([sql]) => /^BEGIN/.test(sql))).toHaveLength(2);
+    begins.mockRestore();
+
+    const live = await db().getAllAsync<{ id: number }>(
+      'SELECT id FROM workout_logs WHERE deleted_at IS NULL',
+    );
+    expect(live.map((r) => r.id)).toEqual([open]);
+    for (const id of finished) expect(await setIds(id)).toHaveLength(0);
+    expect(await setIds(open)).toHaveLength(1);
+    const kv = await db().getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM kv WHERE key = ?', volatileKey(finished[0]));
+    expect(kv?.c).toBe(0);
+    const deletes = await db().getAllAsync<{ c: number }>(
+      "SELECT COUNT(*) as c FROM sync_outbox WHERE table_name = 'workout_logs' AND op = 'delete'",
+    );
+    expect(deletes[0].c).toBe(finished.length);
+  });
+
+  it('rolls back the whole clear when an enqueue fails', async () => {
+    await seedExercise(1);
+    const id = await startWorkout(null, 'Push');
+    await addExerciseToWorkout(id, 1);
+    await updateSet((await setIds(id))[0], { completed: true, weight: 50, reps: 5 });
+    await finishWorkout(id);
+
+    faults.failOn = /INSERT INTO sync_outbox/;
+    await expect(clearWorkoutHistory()).rejects.toThrow('injected fault');
+    faults.failOn = null;
+    expect(await setIds(id)).toHaveLength(1);
+    const row = await db().getFirstAsync<{ deleted_at: number | null }>('SELECT deleted_at FROM workout_logs WHERE id = ?', id);
+    expect(row?.deleted_at).toBeNull();
   });
 });
 
