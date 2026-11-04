@@ -15,5 +15,7 @@ export function aiErrorFromStatus(status: number, body: string): AiError {
   if (status === 429) return new AiError('rate_limited', body.slice(0, 200));
   if (status === 401 || status === 403 || status === 404) return new AiError('unavailable', `HTTP ${status}`);
   if (status === 502 && body.includes('invalid_model_output')) return new AiError('invalid_output', body.slice(0, 200));
+  // ai-task kill switch: same meaning as the local switch.
+  if (status === 503 && body.includes('"disabled"')) return new AiError('disabled', 'switched off remotely');
   return new AiError('error', `HTTP ${status}: ${body.slice(0, 200)}`);
 }

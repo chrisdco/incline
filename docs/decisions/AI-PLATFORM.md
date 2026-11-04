@@ -350,6 +350,14 @@ Findings get fixed in one PR before templates AI starts.
 
 ## Change log
 
+- 2026-11-04: `ai-task` deployed. It replaces `coach-narrate`, which was never deployed. One task table runs on the shared contracts, with:
+  - an atomic per-user quota (`ai_task_consume`);
+  - a per-user cache that never stores stubs;
+  - a remote kill switch;
+  - a Groq primary with an optional fallback upstream;
+  - Cloudflare AI Gateway set through `AI_BASE_URL` / `CF_AIG_TOKEN`.
+
+  It needs the user to set the secrets `CLERK_FRONTEND_API` and `GROQ_API_KEY`.
 - 2026-11-04: Step-1 platform prep shipped:
   - the contracts boundary (#312);
   - the action registry (`src/ai/actions.ts`, `applyAiAction`);

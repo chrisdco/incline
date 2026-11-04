@@ -43,20 +43,19 @@ export const narrateTask: AiTask<NarrateInput, CoachNarration> = {
   },
   outputSchema: NARRATION_JSON_SCHEMA as unknown as Record<string, unknown>,
   gateway: {
-    fn: 'coach-narrate',
+    fn: 'ai-task',
     async body(input) {
       const pack = packFor(input);
       return {
-        pack,
-        packHash: await hashFeaturePack(pack),
+        task: 'narrate',
         promptVersion: COACH_NARRATE_PROMPT_VERSION,
-        surface: input.surface,
+        input: { pack, packHash: await hashFeaturePack(pack), surface: input.surface },
       };
     },
     pick(json) {
       if (!json || typeof json !== 'object') return null;
-      const body = json as { ok?: unknown; narration?: unknown };
-      return body.ok === true ? (body.narration ?? null) : null;
+      const body = json as { ok?: unknown; output?: unknown };
+      return body.ok === true ? (body.output ?? null) : null;
     },
   },
   parse(raw, input) {

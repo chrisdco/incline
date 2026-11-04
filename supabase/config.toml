@@ -2,9 +2,9 @@
 #
 # Clerk is a third-party JWT (template `supabase`, aud typically `authenticated`).
 # Gateway `verify_jwt = true` works when Clerk JWKS is configured in Supabase Auth
-# the same way as user-data sync. This function uses `verify_jwt = false` and
+# the same way as user-data sync. Functions use `verify_jwt = false` and
 # validates Authorization Bearer inside the function (jose + Clerk JWKS /
 # SUPABASE_JWKS) so `sub` is trusted even if the gateway cannot map the token.
 
-[functions.coach-narrate]
+[functions.ai-task]
 verify_jwt = false

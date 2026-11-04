@@ -373,7 +373,7 @@ Platform concerns (extensions, MCP, cross-device, automation, governance, tool a
   - `src/app/share/week.tsx`
   - `docs/design/SYSTEM.md`
   - `src/components/ui/tappable.tsx`
-  - `supabase/functions/coach-narrate/*`
+  - `supabase/functions/ai-task/*` (replaced `coach-narrate`)
 - **New:**
   - `src/ai/*`
   - `src/components/ai/*`
