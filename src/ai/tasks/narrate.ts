@@ -8,9 +8,9 @@ import {
   sanitizeNarrationResponse,
   validateNarrationResponse,
   type CoachNarration,
-} from '@/coaching/narrate-validate';
+} from '@/contracts/narrate/narration';
+import { buildUserMessage, NARRATION_JSON_SCHEMA, SYSTEM_PROMPT } from '@/contracts/narrate/prompt';
 
-import { buildUserMessage, NARRATION_JSON_SCHEMA, SYSTEM_PROMPT } from '../../../supabase/functions/coach-narrate/prompt';
 import type { AiTask } from '../types';
 
 /**

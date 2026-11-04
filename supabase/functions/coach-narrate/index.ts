@@ -11,7 +11,7 @@ import {
   type FeaturePackV1,
   type NarrateSurface,
 } from './schema.ts';
-import { buildUserMessage, SYSTEM_PROMPT } from './prompt.ts';
+import { buildUserMessage, SYSTEM_PROMPT } from '../_shared/contracts/narrate/prompt.ts';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
