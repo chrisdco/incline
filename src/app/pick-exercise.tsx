@@ -6,13 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { ChevronLeft, Info, Plus } from 'lucide-react-native';
 import { Tappable } from '@/components/ui/tappable';
+import { cn } from '@/lib/cn';
 
 import { Body, Caption, Heading, Text } from '@/components/common/text';
 import { SectionLabel } from '@/components/layout';
 import { Icon } from '@/components/common/icon';
 import { Button } from '@/components/ui/button';
 import { SearchBar } from '@/components/common/search-bar';
-import { MuscleBadge } from '@/components/exercise/muscle-badge';
+import { muscleLabel } from '@/components/exercise/muscle-badge';
+import { EQUIPMENT_LABELS } from '@/lib/labels';
 import { CreateExerciseForm } from '@/components/exercise/create-exercise-form';
 import {
   ExerciseFilterBar,
@@ -248,10 +250,11 @@ export default function PickExerciseScreen() {
                 {suggested != null && suggested.length > 0 ? (
                   <View>
                     <SectionLabel>Suggested replacements</SectionLabel>
-                    <View className="gap-2">
-                      {suggested.map((ex) => (
+                    <View>
+                      {suggested.map((ex, i) => (
                         <ExercisePickRow
                           key={ex.id}
+                          divider={i > 0}
                           exerciseId={ex.id}
                           name={ex.name}
                           primaryMuscle={ex.primaryMuscle}
@@ -269,10 +272,11 @@ export default function PickExerciseScreen() {
                 {recent != null && recent.length > 0 ? (
                   <View>
                     <SectionLabel>Recent</SectionLabel>
-                    <View className="gap-2">
-                      {recent.map((ex) => (
+                    <View>
+                      {recent.map((ex, i) => (
                         <ExercisePickRow
                           key={ex.id}
+                          divider={i > 0}
                           exerciseId={ex.id}
                           name={ex.name}
                           primaryMuscle={ex.primaryMuscle}
@@ -307,9 +311,10 @@ export default function PickExerciseScreen() {
               </View>
             )
           }
-          renderItem={({ item }) => (
-            <View className="mb-2">
+          renderItem={({ item, index }) => (
+            <View>
               <ExercisePickRow
+                divider={index > 0}
                 exerciseId={item.id}
                 name={item.name}
                 primaryMuscle={item.primaryMuscle}
@@ -350,6 +355,7 @@ const ExercisePickRow = memo(function ExercisePickRow({
   equipment,
   isCustom,
   badge,
+  divider,
   disabled,
   onPick,
   onInfo,
@@ -360,12 +366,14 @@ const ExercisePickRow = memo(function ExercisePickRow({
   equipment: string;
   isCustom: boolean;
   badge?: string;
+  divider?: boolean;
   disabled?: boolean;
   onPick: (exerciseId: number) => void;
   onInfo: (exerciseId: number) => void;
 }) {
   return (
-    <View className="flex-row items-center gap-2 rounded-3xl bg-card p-4">
+    // Flat row, hairline above (SYSTEM.md §2; Hevy/Strong pickers are plain lists).
+    <View className={cn('flex-row items-center gap-2 py-3', divider && 'border-t border-divider')}>
       <Tappable
         onPress={() => onPick(exerciseId)}
         disabled={disabled}
@@ -376,7 +384,7 @@ const ExercisePickRow = memo(function ExercisePickRow({
         className="flex-row items-center gap-3">
         <View className="flex-1">
           <View className="flex-row items-center gap-2">
-            <Text className="flex-1 text-sm font-semibold text-foreground" numberOfLines={1}>
+            <Text className="flex-1 text-base font-medium text-foreground" numberOfLines={1}>
               {name}
             </Text>
             {badge ? (
@@ -385,10 +393,9 @@ const ExercisePickRow = memo(function ExercisePickRow({
               </View>
             ) : null}
           </View>
-          <View className="mt-1 flex-row flex-wrap items-center gap-1.5">
-            <MuscleBadge muscle={primaryMuscle} />
-            <Text className="text-xs text-muted-foreground">{equipment}</Text>
-          </View>
+          <Text className="mt-0.5 text-sm text-muted-foreground" numberOfLines={1}>
+            {muscleLabel(primaryMuscle)} · {EQUIPMENT_LABELS[equipment as keyof typeof EQUIPMENT_LABELS] ?? equipment}
+          </Text>
         </View>
       </Tappable>
       <Pressable
@@ -400,7 +407,7 @@ const ExercisePickRow = memo(function ExercisePickRow({
         <Icon icon={Info} size={18} color="muted-foreground" />
       </Pressable>
       {isCustom ? (
-        <Body className="text-2xs font-semibold text-primary">Custom</Body>
+        <Body className="text-2xs font-semibold text-muted-foreground">Custom</Body>
       ) : null}
     </View>
   );

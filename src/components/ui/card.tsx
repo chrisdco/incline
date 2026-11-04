@@ -24,7 +24,7 @@ function cardBorder(aurora: boolean, dark: boolean): string {
   if (aurora) return 'border-transparent';
   // Dark: the surface step separates the card, a border only adds weight
   // (SYSTEM.md §2). Light keeps a hairline so white-on-grey stays crisp.
-  return dark ? 'border-transparent' : 'border-hairline';
+  return dark ? 'border-transparent' : 'border-divider';
 }
 
 export function Card({ className, elevation = 'flat', ...props }: CardProps) {

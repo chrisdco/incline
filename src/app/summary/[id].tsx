@@ -328,7 +328,7 @@ export default function SummaryScreen() {
 
       {/* Same strip as the live session, so the summary reads as its end state.
           Pinned above the scroll: the hairline marks the edge content scrolls under. */}
-      <View className="flex-row border-b border-hairline px-4 pb-3 pt-1">
+      <View className="flex-row border-b border-divider px-4 pb-3 pt-1">
         <StatBlock label="Duration" value={formatDuration(log.durationSeconds)} />
         <StatBlock
           label={`Volume · ${unit === 'metric' ? 'kg' : 'lb'}`}

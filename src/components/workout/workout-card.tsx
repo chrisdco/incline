@@ -2,7 +2,6 @@ import { Pressable, View } from 'react-native';
 import { Clock, Dumbbell, MoreHorizontal, Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
-import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/common/text';
 import { Card, PressableCard } from '@/components/ui/card';

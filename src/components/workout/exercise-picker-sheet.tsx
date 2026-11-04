@@ -13,7 +13,8 @@ import {
   type ExerciseFilterValues,
 } from '@/components/exercise/exercise-filter-bar';
 import { CreateExerciseForm } from '@/components/exercise/create-exercise-form';
-import { MuscleBadge } from '@/components/exercise/muscle-badge';
+import { muscleLabel } from '@/components/exercise/muscle-badge';
+import { EQUIPMENT_LABELS } from '@/lib/labels';
 import { EmptyState } from '@/components/common/states';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/common/icon';
@@ -131,7 +132,7 @@ async function loadPickerCatalog(
 }
 
 function PickerSeparator() {
-  return <View className="h-2" />;
+  return <View className="h-px bg-hairline" />;
 }
 
 /** Memoized row: search keystrokes re-render the list, not every visible row. */
@@ -159,21 +160,19 @@ const PickerRow = memo(function PickerRow({
       onPress={() => onPick(externalId)}
       pressedOpacity={0.55}
       android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}>
-      <View className="mb-2">
-        <View className="flex-row items-center gap-3 rounded-3xl bg-card p-4">
+      {/* Flat row; the list draws hairlines (SYSTEM.md §2). */}
+      <View>
+        <View className="flex-row items-center gap-3 py-3">
           <View className="flex-1">
             <View className="flex-row items-center gap-2">
-              <Text className="text-sm font-semibold text-foreground">{name}</Text>
+              <Text className="shrink text-base font-medium text-foreground" numberOfLines={1}>{name}</Text>
               {isCustom ? (
-                <View className="rounded-full bg-primary/15 px-2 py-0.5">
-                  <Text className="text-2xs font-semibold text-primary">Custom</Text>
-                </View>
+                <Text className="text-2xs font-semibold text-muted-foreground">Custom</Text>
               ) : null}
             </View>
-            <View className="mt-1 flex-row flex-wrap items-center gap-1.5">
-              <MuscleBadge muscle={targetMuscle} />
-              <Text className="text-xs text-muted-foreground">{equipment}</Text>
-            </View>
+            <Text className="mt-0.5 text-sm text-muted-foreground" numberOfLines={1}>
+              {muscleLabel(targetMuscle)} · {EQUIPMENT_LABELS[equipment as keyof typeof EQUIPMENT_LABELS] ?? equipment}
+            </Text>
           </View>
           {canDelete ? (
             <Pressable

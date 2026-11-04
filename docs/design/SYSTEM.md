@@ -59,7 +59,7 @@ Surfaces — neutral zinc (chroma ≈ 0), four steps that are visibly apart:
 | `surface-1` | `#FFFFFF` | `#1A1A1D` | grouped lists, cards (≈11%) |
 | `surface-2` | `#F0F0F2` | `#232327` | inputs, tiles in cards, raised (≈15%) |
 | `surface-3` | `#E6E6EA` | `#2C2C31` | sheets, popovers, pressed (≈19%) |
-| `hairline` | `#E4E4E7` | `#2A2A2F` | row dividers inside a group |
+| `hairline` | `#E4E4E7` | `#2A2A2F` | row dividers inside a group (`bg-hairline`; as a border, `border-divider`) |
 | `border` | `#D9D9DE` | `#34343A` | inputs, outline buttons only |
 
 Text — four tiers (contrast on `surface-1`):
@@ -89,7 +89,9 @@ Deltas = coloured text + arrow, no pill.
 4. **Typeset numbers** — `tabular-nums`; `<Num>` splits value and unit
    (unit muted, smaller, no wrap); axis `39k`; right-aligned columns.
 5. **Icons only where they distinguish** — no identical icon per row.
-6. **Filters collapse** — one chip row + "Filters" sheet.
+6. **Filters collapse** — one row of facet buttons (Muscle · Equipment ·
+   Pattern); a tapped facet opens its options as one chip row inline
+   (`ExerciseFilterBar`, Hevy/Strong pattern).
 
 ### 4. Identity without volume (accent-agnostic)
 
@@ -203,6 +205,9 @@ through `applyAiChange` (`src/ai/activity.ts`) so every change is logged and rev
 - **Layout** goes in `className` or on a wrapper `View`, not inside a press style.
 - **expo-image** ignores `rounded-*` and `bg-*`: set `borderRadius` in `style`,
   put placeholder fills on a wrapper `View`.
+- **Borders in the divider colour are `border-divider`**, never
+  `border-hairline`: NativeWind's own `border-hairline` is a hairline
+  *width* on all four sides and beats the colour.
 - **No `dark:` variants.** They don't follow the app's theme setting (light
   mode rendered dark fills on device). Branch on `useIsDark()` instead
   (see `Card`, `SegmentedControl`).
@@ -213,3 +218,9 @@ through `applyAiChange` (`src/ai/activity.ts`) so every change is logged and rev
 
 Session rows, cards and pickers still need the side-by-side reference check
 (AGENTS.md) before PR. Their anatomy lives in the component header comments.
+
+Session screen (2026-11 pass): set-row geometry is unchanged
+(`set-layout.ts`). Around it: one filled action (Finish); duration and rest
+are neutral; stats strip ends in a divider, units muted via `Num`; "Add set"
+is a solid `surface-2` button, warm-up a text action under it — no dashed
+boxes. Accent stays on the suggestion, the next-set tick and supersets.
