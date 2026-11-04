@@ -466,22 +466,22 @@ export default function EditWorkoutScreen() {
               <Tappable
                 onPress={() => onAddSet(g.exerciseId)}
                 pressedOpacity={0.6}
-                className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
+                className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl bg-surface2 py-2.5"
                 accessibilityRole="button"
                 accessibilityLabel={`Add set to ${g.exerciseName}`}>
-                <Icon icon={Plus} size={15} color="primary" />
-                <Body className="text-sm font-medium text-primary">Add set</Body>
+                <Icon icon={Plus} size={15} color="foreground" />
+                <Body className="text-sm font-medium text-foreground">Add set</Body>
               </Tappable>
 
               {/* Warm-up set */}
               <Tappable
                 onPress={() => onAddWarmUp(g.exerciseId)}
                 pressedOpacity={0.6}
-                className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
+                className="flex-row items-center justify-center gap-1.5 py-2"
                 accessibilityRole="button"
                 accessibilityLabel={`Add warm-up set to ${g.exerciseName}`}>
                 <Icon icon={Flame} size={15} color="warning" />
-                <Body className="text-sm font-medium text-warning">Warm-up (~50%)</Body>
+                <Body className="text-sm font-medium text-muted-foreground">Warm-up (~50%)</Body>
               </Tappable>
             </View>
           ))}

@@ -215,7 +215,7 @@ export default function SignInScreen() {
       {/* Password Reset Modal */}
       <Modal visible={resetVisible} transparent animationType="fade" onRequestClose={() => setResetVisible(false)}>
         <View className="flex-1 items-center justify-center bg-black/50 px-6">
-          <View className="w-full max-w-sm gap-4 rounded-2xl bg-card p-6">
+          <View className="w-full max-w-sm gap-4 rounded-3xl bg-surface3 p-6">
             <Heading>
               {resetStep === 'verify' || resetStep === 'resetting' ? 'Enter Code' : 'Reset Password'}
             </Heading>
