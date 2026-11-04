@@ -91,6 +91,11 @@ describe('ai-task server: narrate', () => {
     expect(await server.cacheKey(parsed.value)).toBe(k1);
   });
 
+  it('finishes its model budget before the app gives up on the request', () => {
+    // The app aborts at narrateTask.timeoutMs; server work after that only burns quota.
+    expect(server.budgetMs).toBeLessThan(narrateTask.timeoutMs - 2_000);
+  });
+
   it('builds the shared prompt', async () => {
     const parsed = await server.parseInput((await appBody()).input);
     if (!parsed.ok) throw new Error(parsed.error);

@@ -25,7 +25,8 @@ export interface ServerTask<I = unknown, O = unknown> {
   promptVersion: string;
   /** Calls per user per day through the shared Incline key. */
   dailyLimit: number;
-  timeoutMs: number;
+  /** Whole-request model budget; keep it under the app task's `timeoutMs`. */
+  budgetMs: number;
   parseInput(raw: unknown): Promise<Parsed<I>> | Parsed<I>;
   cacheKey(input: I): Promise<string>;
   messages(input: I): ChatMessage[];
@@ -43,7 +44,8 @@ const narrate: ServerTask<NarrateInput> = {
   id: 'narrate',
   promptVersion: COACH_NARRATE_PROMPT_VERSION,
   dailyLimit: 20,
-  timeoutMs: 10_000,
+  // App narrate timeout is 12 s; leave room for auth, cache and network.
+  budgetMs: 9_000,
   async parseInput(raw) {
     if (!raw || typeof raw !== 'object') return { ok: false, error: 'input must be an object' };
     const rec = raw as Record<string, unknown>;
