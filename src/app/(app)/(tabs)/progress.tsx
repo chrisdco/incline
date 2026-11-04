@@ -13,7 +13,7 @@ import { StatCard } from '@/components/common/stat-card';
 import { ListGroup, ListRow, Section } from '@/components/layout';
 import { Separator } from '@/components/ui/separator';
 import { EmptyState, ErrorState } from '@/components/common/states';
-import { ListSkeleton } from '@/components/common/skeleton';
+import { StatRowSkeleton } from '@/components/common/skeleton';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { VolumeChart } from '@/components/progress/volume-chart';
 import { TrendChip } from '@/components/progress/trend-chip';
@@ -142,9 +142,7 @@ export default function ProgressScreen() {
             <SegmentedControl value={range} onChange={setRange} values={RANGES} />
 
             {loading && !stats ? (
-              <View className="flex-row gap-3">
-                <ListSkeleton count={1} />
-              </View>
+              <StatRowSkeleton />
             ) : error ? (
               <ErrorState onRetry={refetch} />
             ) : stats ? (

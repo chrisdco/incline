@@ -313,6 +313,29 @@ describe('session engine: assist for new exercises (#157)', () => {
   });
 });
 
+describe('session engine: assist read failures', () => {
+  it('a failed prev/PR read is retried on the next refresh', async () => {
+    const h = harness({ 1: workout(1, [set(1, 10)]) });
+    vi.mocked(h.deps.getLastSetsForExercises).mockRejectedValueOnce(new Error('database is locked'));
+    await h.engine.open(1);
+    expect(h.engine.store.getState().lastSets).toEqual({});
+
+    await h.engine.refresh();
+    expect(h.engine.store.getState().lastSets[10]?.[0]?.weight).toBe(40);
+  });
+
+  it('a failed rest-defaults read still opens the session, refresh fills it', async () => {
+    const h = harness({ 1: workout(1, [set(1, 10)]) }, { rest: { 1: { 10: 120 } } });
+    vi.mocked(h.deps.getRestDefaultsForSession).mockRejectedValueOnce(new Error('database is locked'));
+    await h.engine.open(1);
+    expect(h.engine.store.getState().session?.id).toBe(1);
+    expect(h.engine.store.getState().restSeconds).toEqual({});
+
+    await h.engine.refresh();
+    expect(h.engine.store.getState().restSeconds).toEqual({ 10: 120 });
+  });
+});
+
 describe('session engine: finish / discard guards', () => {
   it('refuses to finish an empty workout and explains why (#172)', async () => {
     const h = harness({ 1: workout(1, [set(1, 10)]) });

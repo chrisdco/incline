@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { Body } from '@/components/common/text';
-import { FinishConfetti } from '@/components/workout/finish-confetti';
+import { ConfettiBurst } from '@/components/workout/confetti-lottie';
 import { getWorkoutCountInRange } from '@/db/queries';
 import {
   celebrationKind,
@@ -63,24 +62,12 @@ function useFinishMoment(active: boolean, prCount: number) {
 
 /** Full-screen confetti (Modal) — Lottie first, Reanimated backup. */
 export function FinishCelebrationOverlay({ active }: { active: boolean }) {
-  const [useLottie, setUseLottie] = useState(true);
   if (!active) return null;
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent>
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        {useLottie ? (
-          <LottieView
-            source={require('../../../assets/lottie/confetti.json')}
-            autoPlay
-            loop={false}
-            resizeMode="cover"
-            style={StyleSheet.absoluteFill}
-            onAnimationFailure={() => setUseLottie(false)}
-          />
-        ) : (
-          <FinishConfetti active />
-        )}
+        <ConfettiBurst />
       </View>
     </Modal>
   );
