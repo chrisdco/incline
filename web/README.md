@@ -82,7 +82,7 @@ already ships inside `node_modules/next/dist/docs/` plus the generated
 
 - Done: CSV import (Hevy + Strong, dry-run, idempotent skips).
 - Progress photos via signed URLs (private bucket, server-side).
-- Coach narration surface (read `coach_narration_cache`, same honesty rules).
+- Coach narration surface (read `ai_task_cache` (task `narrate`), same honesty rules).
 - Milestones, 1RM/plate calculators.
 - Coach dashboard + admin panel (specs first; need the #78 grants model).
 - Polish: motion micro-interactions, cmdk exercise search, OG cards, sitemap.

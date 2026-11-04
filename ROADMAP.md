@@ -28,7 +28,7 @@ Tracking lives in **GitHub milestones** (architecture notes are on each mileston
 ## Next (see [docs/WORK-QUEUE.md](docs/WORK-QUEUE.md) verify-to-close first)
 
 - **Prove sync ops** — deploy schema + Edge Function, two-device matrix, then close #119–#122 on proof
-- **Deploy AI narrations** — run `supabase/coach-narrate.sql`, deploy function, set secrets ([#99](https://github.com/ChrisDc777/incline/issues/99) code on main)
+- **AI narrations live** — `ai-task` is deployed; set its `CLERK_FRONTEND_API` + `GROQ_API_KEY` secrets ([#99](https://github.com/ChrisDc777/incline/issues/99))
 - **Photo cloud sync** — Storage backup for session pics ([#109](https://github.com/ChrisDc777/incline/issues/109)); local week-vs-week compare already shipped ([#23](https://github.com/ChrisDc777/incline/issues/23))
 - Then pick exactly one Week-2 track (session alerts, #126 volume, or narration polish) per WORK-QUEUE
 

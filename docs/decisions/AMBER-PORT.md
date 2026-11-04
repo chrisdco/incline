@@ -13,7 +13,7 @@ that makes session logging await network/AI.
 | Motion tokens | `src/styles/motion.ts` |
 | Button polish (loading, retention, a11y) | `src/components/ui/button.tsx` |
 | Narrate soft sanitizer (client) | `src/coaching/narrate-validate.ts` (+ tests) |
-| Narrate soft sanitizer (edge mirror) | `supabase/functions/coach-narrate/schema.ts` |
+| Narrate soft sanitizer (shared with edge) | `src/contracts/narrate/narration.ts` |
 | Account-switch narration wipe | `src/app/index.tsx` |
 | Share sheets formSheet convention | `src/app/_layout.tsx` |
 

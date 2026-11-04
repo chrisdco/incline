@@ -110,12 +110,12 @@ describe('chat provider (BYOK / local)', () => {
 });
 
 describe('gateway provider', () => {
-  it('posts the narrate body with the Clerk token and picks the narration', async () => {
+  it('posts the narrate task to ai-task with the Clerk token and picks the output', async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(
         JSON.stringify({
           ok: true,
-          narration: { headline: 'Climbing', paragraphs: ['Volume +12% vs last week.'], citedInsightIds: ['volume-trend'] },
+          output: { headline: 'Climbing', paragraphs: ['Volume +12% vs last week.'], citedInsightIds: ['volume-trend'] },
         }),
       ),
     );
@@ -128,11 +128,11 @@ describe('gateway provider', () => {
     const result = await runAiTask(narrateTask, input, { providers: [p] });
     expect(result).toMatchObject({ status: 'ok', providerId: 'gateway' });
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe('https://proj.supabase.co/functions/v1/coach-narrate');
+    expect(url).toBe('https://proj.supabase.co/functions/v1/ai-task');
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jwt');
     const body = JSON.parse(init.body as string);
-    expect(body).toMatchObject({ surface: 'home', promptVersion: narrateTask.promptVersion });
-    expect(body.packHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(body).toMatchObject({ task: 'narrate', promptVersion: narrateTask.promptVersion, input: { surface: 'home' } });
+    expect(body.input.packHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('signed out → unavailable; ok:false → invalid_output; never retried', async () => {
@@ -144,6 +144,13 @@ describe('gateway provider', () => {
     const result = await runAiTask(narrateTask, input, { providers: [p] });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({ status: 'fallback', reason: 'invalid_output' });
+  });
+
+  it('a remote kill switch (503 disabled) falls back as disabled', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ ok: false, error: 'disabled' }), { status: 503 }));
+    const p = createGatewayProvider({ supabaseUrl: 'https://p', anonKey: 'a', getToken: async () => 't', fetchImpl });
+    const result = await runAiTask(narrateTask, input, { providers: [p] });
+    expect(result).toMatchObject({ status: 'fallback', reason: 'disabled' });
   });
 
   it('unconfigured backend is unavailable', async () => {

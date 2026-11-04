@@ -43,7 +43,7 @@ export type ParseResult<O> = { ok: true; output: O } | { ok: false; error: strin
 
 /** Server-side execution of a task through the Incline gateway (edge function). */
 export interface GatewaySpec<I> {
-  /** Edge function name, e.g. 'coach-narrate' (later the generic 'ai-task'). */
+  /** Edge function name: 'ai-task' (body carries the task id). */
   fn: string;
   body(input: I): Promise<unknown> | unknown;
   /** Pull the task output out of the gateway's JSON response (null = not ok). */

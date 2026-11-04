@@ -77,8 +77,9 @@ Deploy first (both still required):
   `user_program_workouts`, `user_active_program`, `user_preferences`,
   `workout_photos` (+ private Storage bucket `workout-photos`).
 - Confirm live `set_entries` has `set_type` / `rpe` / `superset_group`.
-- Deploy `supabase/coach-narrate.sql` + Edge Function + `OPENAI_API_KEY`
-  (or `COACH_NARRATE_STUB=1`); `aiExplanationsEnabled` stays default off.
+- Set the `ai-task` secrets: `CLERK_FRONTEND_API` (so Clerk tokens verify) and
+  `GROQ_API_KEY` (or `AI_API_KEY` + `AI_BASE_URL`). Without a key it serves the stub
+  narration; `aiExplanationsEnabled` stays default off.
 
 | Issue | Pass if |
 |-------|---------|
@@ -227,8 +228,10 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
   - [x] Platform prep (AI-PLATFORM §10): `src/contracts/` boundary + Deno
     sync (#312), action registry, `ai_activity.actor` / `device_id`, remote
     kill switches (`ai_flags`).
-  - `ai-task` edge function behind Cloudflare AI Gateway, with Groq and
-    OpenRouter as the providers.
+  - [x] `ai-task` edge function (deployed; `supabase/ai-task.sql` applied):
+    task table, per-user cache + quota, kill switch, Groq primary with an
+    optional fallback upstream. Cloudflare AI Gateway = set `AI_BASE_URL`.
+  - [ ] Set the `ai-task` secrets (user): `CLERK_FRONTEND_API`, `GROQ_API_KEY`.
   - Picks up #148 and #189.
 - [ ] **2. Templates AI:** `TemplateDiff` to create, modify, duplicate, or
   build a template from a workout; editor chips. Then MCP v1 (#242).

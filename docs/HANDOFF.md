@@ -39,11 +39,10 @@ branch names, or schema versions into this file.
 ## Ops still required (detail in WORK-QUEUE verify-to-close)
 
 Re-run `supabase/sync-schema.sql` (**blocking**: it creates the `sync_push`
-RPC that sync needs since #259); deploy `supabase/coach-narrate.sql` +
-Edge Function + key (or stub); two-device matrix for workouts, programs,
-prefs, photos. **#99 coach-narrate** dashboard deploy still required from
-earlier work (any OpenAI-compatible provider: `OPENAI_API_KEY`, optional
-`COACH_NARRATE_BASE_URL` + `COACH_NARRATE_MODEL`).
+RPC that sync needs since #259); set the `ai-task` edge secrets
+(`CLERK_FRONTEND_API`, `GROQ_API_KEY`; it is deployed and serves a stub without a key); two-device matrix for workouts, programs,
+prefs, photos.`coach-narrate` was replaced by the generic `ai-task` function (any
+OpenAI-compatible upstream: `AI_API_KEY`, optional `AI_BASE_URL` + `AI_MODEL`).
 
 ## Architecture constraints (do not break)
 
