@@ -271,7 +271,7 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     const { unit, exerciseWeightUnits, showSessionGhost } = deps.settings();
     const ids = [...new Set(s.sets.map((x) => x.exerciseId))];
     for (const id of ids) assistKnown.add(id);
-    const [lastMap, prMap, sug, ghost] = await Promise.all([
+    const loaded = await Promise.all([
       deps.getLastSetsForExercises(ids),
       deps.getExercisePRSummaries(ids),
       s.templateId ? deps.getTemplateSuggestions(s.templateId, unit, exerciseWeightUnits) : Promise.resolve([]),
@@ -283,8 +283,9 @@ export function createSessionEngine(deps: SessionEngineDeps) {
             excludeLogId: s.id,
           })
         : Promise.resolve(null),
-    ]);
-    if (run !== assistRun || !isCurrent(gen, s.id)) return;
+    ]).catch(() => forget(ids));
+    if (!loaded || run !== assistRun || !isCurrent(gen, s.id)) return;
+    const [lastMap, prMap, sug, ghost] = loaded;
     set({
       lastSets: lastMap,
       prs: prMap,
@@ -293,15 +294,25 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     });
   }
 
+  /**
+   * A failed assist read (e.g. a busy database) un-marks its ids so the next
+   * refresh fetches them again; otherwise prev/PRs stay blank until reopen.
+   */
+  function forget(ids: number[]): null {
+    for (const id of ids) assistKnown.delete(id);
+    return null;
+  }
+
   /** #157: fetch assist only for exercises it has never seen, then merge. */
   async function loadAssistFor(gen: number, logId: number, ids: number[]): Promise<void> {
     if (ids.length === 0) return;
     for (const id of ids) assistKnown.add(id);
-    const [lastMap, prMap] = await Promise.all([
+    const loaded = await Promise.all([
       deps.getLastSetsForExercises(ids),
       deps.getExercisePRSummaries(ids),
-    ]);
-    if (!isCurrent(gen, logId)) return;
+    ]).catch(() => forget(ids));
+    if (!loaded || !isCurrent(gen, logId)) return;
+    const [lastMap, prMap] = loaded;
     set((s) => ({ lastSets: { ...s.lastSets, ...lastMap }, prs: { ...s.prs, ...prMap } }));
   }
 
@@ -351,7 +362,8 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       const [s, rawVolatile, defaults] = await Promise.all([
         deps.getWorkoutLog(logId),
         deps.kvGet(volatileKey(logId)).catch(() => null),
-        deps.getRestDefaultsForSession(logId),
+        // Missing defaults are filled by the next refresh; never sink open().
+        deps.getRestDefaultsForSession(logId).catch(() => ({})),
       ]);
       if (!isCurrent(gen, logId)) return;
       const saved = parseVolatile(rawVolatile, s?.startedAt);
@@ -375,7 +387,7 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       const gen = generation;
       const [s, defaults] = await Promise.all([
         loadRows(gen, logId),
-        deps.getRestDefaultsForSession(logId),
+        deps.getRestDefaultsForSession(logId).catch(() => ({})),
       ]);
       if (!isCurrent(gen, logId)) return;
       mergeRestDefaults(defaults);
