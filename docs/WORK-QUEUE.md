@@ -224,8 +224,9 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
   - `src/ai/`: adapters, router, tasks, guardrails, proposals/undo.
   - `src/components/ai/*`.
   - [x] `ai_feedback` and `ai_activity`, the UI kit, AI settings (#307–#310).
-  - Platform prep (AI-PLATFORM §10): `src/contracts/` boundary + Deno sync,
-    action registry, `ai_activity.actor` / `device_id`, kill switches.
+  - [x] Platform prep (AI-PLATFORM §10): `src/contracts/` boundary + Deno
+    sync (#312), action registry, `ai_activity.actor` / `device_id`, remote
+    kill switches (`ai_flags`).
   - `ai-task` edge function behind Cloudflare AI Gateway, with Groq and
     OpenRouter as the providers.
   - Picks up #148 and #189.

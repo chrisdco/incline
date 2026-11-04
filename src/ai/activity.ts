@@ -1,12 +1,19 @@
+import type { AiActionRef } from '@/contracts/ai/action';
+import { DEFAULT_AI_ACTOR, isAiActor, type AiActor } from '@/contracts/ai/actor';
 import { openDatabase } from '@/db/client';
-import { mutate, type DbTable, type Tx } from '@/db/write';
+import { mutate, type Tx } from '@/db/write';
+import { getDeviceId } from '@/lib/device-id';
+
+import { getAiAction } from './actions';
+import { isAiActorEnabled, isAiTaskEnabled } from './flags';
 
 /**
- * AI → data, the only way (AI-ARCHITECTURE §1b "Transparency"): an applied
- * proposal runs its write AND its `ai_activity` row in one `mutate()`, so the
- * log can never miss a change or list one that didn't commit. Reverts are
- * per-kind handlers that put `before` back; kinds without one are listed but
- * not revertible. Outcomes go to `ai_feedback` for personalisation.
+ * AI → data, the only way (AI-ARCHITECTURE §1b, AI-PLATFORM §0): an applied
+ * proposal is a registered action (./actions) whose write AND `ai_activity`
+ * row run in one `mutate()`, so the log can never miss a change or list one
+ * that didn't commit. Every row records its actor and device. Reverts use the
+ * action's own `revert`; actions without one are listed but not revertible.
+ * Outcomes go to `ai_feedback` for personalisation.
  */
 
 export type FeedbackOutcome = 'applied' | 'edited' | 'rejected' | 'regenerated';
@@ -17,6 +24,8 @@ export interface AiActivityRow {
   task: string;
   kind: string;
   summary: string;
+  actor: AiActor;
+  deviceId: string | null;
   before: unknown;
   after: unknown;
   status: 'applied' | 'reverted';
@@ -24,35 +33,24 @@ export interface AiActivityRow {
   revertedAt: number | null;
 }
 
-export interface RevertHandler {
-  /** Tables the revert writes (emitted as changed after COMMIT). */
-  tables: readonly DbTable[];
-  revert: (tx: Tx, before: unknown, after: unknown) => Promise<void>;
-}
-
-const revertHandlers = new Map<string, RevertHandler>();
-
-export function registerRevertHandler(kind: string, handler: RevertHandler): void {
-  revertHandlers.set(kind, handler);
-}
-
-export function canRevert(kind: string): boolean {
-  return revertHandlers.has(kind);
-}
-
-export interface ApplyAiChangeInput<B, A> {
+export interface ApplyAiActionInput {
   proposalId: string;
   task: string;
-  kind: string;
-  /** One line for the activity log, e.g. "Swapped Back Squat → Leg Press in Legs A". */
-  summary: string;
-  tables: readonly DbTable[];
-  /** Applies the change on `tx` and returns what it replaced and what it wrote. */
-  apply: (tx: Tx) => Promise<{ before: B; after: A }>;
+  action: AiActionRef;
+  /** Defaults to the in-app AI. */
+  actor?: AiActor;
   /** `edited` when the user changed the proposal before applying. */
   outcome?: Extract<FeedbackOutcome, 'applied' | 'edited'>;
   editDiff?: unknown;
 }
+
+export type ApplyAiActionResult =
+  | { status: 'applied'; activityId: number }
+  | {
+      status: 'rejected';
+      reason: 'unknown_action' | 'invalid_payload' | 'invalid_actor' | 'disabled';
+      detail?: string;
+    };
 
 function toJson(value: unknown): string | null {
   return value === undefined ? null : JSON.stringify(value);
@@ -93,20 +91,38 @@ async function insertFeedback(
   await prune(tx, 'ai_feedback', AI_FEEDBACK_KEEP);
 }
 
-/** Apply an AI change atomically with its activity + feedback rows. Returns the activity id. */
-export async function applyAiChange<B, A>(input: ApplyAiChangeInput<B, A>): Promise<number> {
-  return mutate([...input.tables, 'ai_activity', 'ai_feedback'], async (tx) => {
-    const { before, after } = await input.apply(tx);
+/**
+ * Apply an AI action atomically with its activity + feedback rows. Rejects
+ * (writes nothing) for unknown types, bad payloads, bad actors, and anything
+ * switched off remotely. A failing write throws and rolls everything back.
+ */
+export async function applyAiAction(input: ApplyAiActionInput): Promise<ApplyAiActionResult> {
+  const actor = input.actor ?? DEFAULT_AI_ACTOR;
+  if (!isAiActor(actor)) return { status: 'rejected', reason: 'invalid_actor' };
+  const def = getAiAction(input.action.type);
+  if (!def) return { status: 'rejected', reason: 'unknown_action', detail: input.action.type };
+  const parsed = def.parse(input.action.payload);
+  if (!parsed.ok) return { status: 'rejected', reason: 'invalid_payload', detail: parsed.error };
+  if (!(await isAiTaskEnabled(input.task)) || !(await isAiActorEnabled(actor))) {
+    return { status: 'rejected', reason: 'disabled' };
+  }
+  // Read before the transaction: kv uses the same connection.
+  const deviceId = await getDeviceId().catch(() => null);
+
+  const activityId = await mutate([...def.tables, 'ai_activity', 'ai_feedback'], async (tx) => {
+    const { before, after, summary } = await def.apply(tx, parsed.output);
     const now = Date.now();
     const res = await tx.runAsync(
-      `INSERT INTO ai_activity (proposal_id, task, kind, summary, before_json, after_json, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'applied', ?)`,
+      `INSERT INTO ai_activity (proposal_id, task, kind, summary, before_json, after_json, status, actor, device_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'applied', ?, ?, ?)`,
       input.proposalId,
       input.task,
-      input.kind,
-      input.summary,
+      def.type,
+      summary,
       toJson(before),
       toJson(after),
+      actor,
+      deviceId,
       now,
     );
     await prune(tx, 'ai_activity', AI_ACTIVITY_KEEP);
@@ -117,6 +133,7 @@ export async function applyAiChange<B, A>(input: ApplyAiChangeInput<B, A>): Prom
     );
     return res.lastInsertRowId;
   });
+  return { status: 'applied', activityId };
 }
 
 export type RevertResult = 'reverted' | 'already_reverted' | 'not_revertible' | 'not_found';
@@ -130,17 +147,18 @@ export async function revertAiActivity(id: number): Promise<RevertResult> {
   );
   if (!row) return 'not_found';
   if (row.status === 'reverted') return 'already_reverted';
-  const handler = revertHandlers.get(row.kind);
-  if (!handler) return 'not_revertible';
+  const def = getAiAction(row.kind);
+  const revert = def?.revert;
+  if (!def || !revert) return 'not_revertible';
 
-  return mutate([...handler.tables, 'ai_activity'], async (tx) => {
+  return mutate([...def.tables, 'ai_activity'], async (tx) => {
     // Re-read inside the transaction: a double-tap must not revert twice.
     const fresh = await tx.getFirstAsync<{ status: string; before_json: string | null; after_json: string | null }>(
       'SELECT status, before_json, after_json FROM ai_activity WHERE id = ?',
       id,
     );
     if (!fresh || fresh.status === 'reverted') return 'already_reverted' as const;
-    await handler.revert(tx, fromJson(fresh.before_json), fromJson(fresh.after_json));
+    await revert(tx, fromJson(fresh.before_json), fromJson(fresh.after_json));
     await tx.runAsync("UPDATE ai_activity SET status = 'reverted', reverted_at = ? WHERE id = ?", Date.now(), id);
     return 'reverted' as const;
   });
@@ -162,6 +180,8 @@ interface ActivityDbRow {
   task: string;
   kind: string;
   summary: string;
+  actor: string;
+  device_id: string | null;
   before_json: string | null;
   after_json: string | null;
   status: 'applied' | 'reverted';
@@ -182,6 +202,8 @@ export async function listAiActivity(limit = 100): Promise<AiActivityRow[]> {
     task: r.task,
     kind: r.kind,
     summary: r.summary,
+    actor: isAiActor(r.actor) ? r.actor : DEFAULT_AI_ACTOR,
+    deviceId: r.device_id,
     before: fromJson(r.before_json),
     after: fromJson(r.after_json),
     status: r.status,
