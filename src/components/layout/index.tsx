@@ -84,8 +84,10 @@ export function ListRow({
   onPress?: () => void;
   accessibilityLabel?: string;
 }) {
+  // flex-1 only beside a trailing control: in the stacked column it means
+  // flexBasis 0 and the title block collapses to zero height.
   const head = (
-    <View className="min-w-0 flex-1 flex-row items-center gap-3">
+    <View className={cn('min-w-0 flex-row items-center gap-3', !stacked && 'flex-1')}>
       {icon ? <RowIcon>{icon}</RowIcon> : null}
       <View className="min-w-0 flex-1">
         <Body className="font-medium text-foreground">{title}</Body>

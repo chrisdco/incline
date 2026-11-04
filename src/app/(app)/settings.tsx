@@ -507,7 +507,7 @@ export default function SettingsScreen() {
         <Card>
           <ListRow stacked
             icon={themeMode === 'dark' ? <Icon icon={Moon} size={18} color="muted-foreground" /> : themeMode === 'light' ? <Icon icon={Sun} size={18} color="muted-foreground" /> : <Icon icon={Smartphone} size={18} color="muted-foreground" />}
-            title="Theme">
+            title="Mode">
             <View className="flex-row flex-wrap gap-2">
               <Chip label="System" selected={themeMode === 'system'} onPress={() => setThemeMode('system')} />
               <Chip label="Light" selected={themeMode === 'light'} onPress={() => setThemeMode('light')} />
