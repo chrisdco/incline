@@ -8,6 +8,7 @@ import type { Migration } from './types';
  * every AI-originated change with before/after so it can be listed and
  * reverted; `ai_feedback` records proposal outcomes (applied / edited /
  * rejected / regenerated) for personalisation. Local-only for now.
+ * Fresh installs get the 021 columns (actor, device_id) here too.
  */
 export const AI_ACTIVITY_DDL = [
   `CREATE TABLE IF NOT EXISTS ai_activity (
@@ -19,6 +20,8 @@ export const AI_ACTIVITY_DDL = [
     before_json TEXT,
     after_json TEXT,
     status TEXT NOT NULL DEFAULT 'applied',
+    actor TEXT NOT NULL DEFAULT 'app_ai',
+    device_id TEXT,
     created_at INTEGER NOT NULL,
     reverted_at INTEGER
   )`,

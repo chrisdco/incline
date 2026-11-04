@@ -12,6 +12,7 @@ import { migration017 } from '../migrations/017_session_exercise_notes';
 import { migration018 } from '../migrations/018_set_sort_order';
 import { migration019 } from '../migrations/019_exercise_search_text';
 import { migration020 } from '../migrations/020_ai_activity';
+import { migration021 } from '../migrations/021_ai_activity_actor';
 import { createTestDatabase } from './sqlite-adapter';
 
 function createV1Db() {
@@ -297,5 +298,27 @@ describe('schema migrations (better-sqlite3)', () => {
     );
     expect(await t.db.getFirstAsync('SELECT outcome FROM ai_feedback')).toEqual({ outcome: 'rejected' });
     t.close();
+  });
+
+  it('adds actor + device_id to a 020-era ai_activity, idempotent (021, real up)', async () => {
+    const t = createTestDatabase({ ddl: [] });
+    await t.db.execAsync(`CREATE TABLE ai_activity (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, proposal_id TEXT NOT NULL, task TEXT NOT NULL, kind TEXT NOT NULL,
+      summary TEXT NOT NULL, before_json TEXT, after_json TEXT, status TEXT NOT NULL DEFAULT 'applied',
+      created_at INTEGER NOT NULL, reverted_at INTEGER)`);
+    await t.db.runAsync(`INSERT INTO ai_activity (proposal_id, task, kind, summary, created_at) VALUES ('p', 't', 'k', 's', 1)`);
+    await migration021.up(t.db as unknown as SQLiteDatabase);
+    await migration021.up(t.db as unknown as SQLiteDatabase);
+    expect(await t.db.getFirstAsync('SELECT actor, device_id FROM ai_activity')).toEqual({ actor: 'app_ai', device_id: null });
+    t.close();
+  });
+
+  it('fresh installs and upgraded installs end with the same ai_activity columns (020 DDL vs 020+021)', async () => {
+    const fresh = createTestDatabase({ ddl: [] });
+    await migration020.up(fresh.db as unknown as SQLiteDatabase);
+    await migration021.up(fresh.db as unknown as SQLiteDatabase);
+    const cols = await fresh.db.getAllAsync<{ name: string }>('PRAGMA table_info(ai_activity)');
+    expect(cols.map((c) => c.name)).toEqual(expect.arrayContaining(['actor', 'device_id']));
+    fresh.close();
   });
 });

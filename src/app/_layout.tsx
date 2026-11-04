@@ -41,6 +41,15 @@ import { useSettings } from '@/store/settings-store';
 
 SplashScreen.preventAutoHideAsync();
 
+/** Module-level so the dynamic import stays out of compiled components. */
+function refreshAiFlagsLazily(): void {
+  void Promise.all([import('@/ai/flags'), import('@/lib/env')])
+    .then(([{ refreshAiFlags }, env]) =>
+      refreshAiFlags({ supabaseUrl: env.SUPABASE_URL ?? '', anonKey: env.SUPABASE_ANON_KEY ?? '' }),
+    )
+    .catch(() => undefined);
+}
+
 function NotificationBootstrap() {
   useNotificationRouting();
   useWorkoutReminderSync();
@@ -83,6 +92,11 @@ function AppShell() {
   useEffect(() => {
     if ((fontsLoaded && dbReady) || dbFailed) SplashScreen.hideAsync();
   }, [fontsLoaded, dbReady, dbFailed]);
+
+  // AI kill switches (AI-PLATFORM §5): once per app open, never on a timer.
+  useEffect(() => {
+    if (dbReady) refreshAiFlagsLazily();
+  }, [dbReady]);
 
   // A broken DB must show something actionable, never a frozen splash (#163).
   if (db.status === 'error') return <DatabaseErrorScreen error={db.error} onRetry={db.retry} />;

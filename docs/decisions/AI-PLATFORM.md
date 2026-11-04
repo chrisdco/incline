@@ -350,4 +350,9 @@ Findings get fixed in one PR before templates AI starts.
 
 ## Change log
 
+- 2026-11-04: Step-1 platform prep shipped:
+  - the contracts boundary (#312);
+  - the action registry (`src/ai/actions.ts`, `applyAiAction`);
+  - migration 021 (`actor`, `device_id`);
+  - kill switches (Supabase `ai_flags`, `src/ai/flags.ts`, refreshed once per app open).
 - 2026-11-04: Accepted. D1 scaled down to an in-repo `src/contracts/` boundary plus a Deno sync; D5 and D7 deferred; tools adopted per step (§10b); tracking stays on GitHub (§10c).

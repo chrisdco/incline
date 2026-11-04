@@ -37,6 +37,8 @@ export interface RequestCoachNarrationInput {
 
 export interface NarrateClientOverrides {
   aiExplanationsEnabled?: boolean;
+  /** Remote kill switch for the narrate task; undefined = read the cached flags. */
+  taskEnabled?: boolean;
   backendReady?: boolean;
   kv?: KvLike;
   fetchImpl?: typeof fetch;
@@ -114,11 +116,13 @@ export async function requestCoachNarration(
     if (!input.userId) return null;
     if (!(await readAiEnabled(overrides?.aiExplanationsEnabled))) return null;
 
-    const [{ runAiTask }, { buildProviderChain }, { narrateTask }] = await Promise.all([
+    const [{ runAiTask }, { buildProviderChain }, { narrateTask }, { isAiTaskEnabled }] = await Promise.all([
       import('@/ai/router'),
       import('@/ai/chain'),
       import('@/ai/tasks/narrate'),
+      import('@/ai/flags'),
     ]);
+    const taskEnabled = overrides?.taskEnabled ?? (await isAiTaskEnabled(narrateTask.id));
     const { byok, getByokKey } = await readByok(overrides);
 
     let gateway: Parameters<typeof buildProviderChain>[0]['gateway'] = null;
@@ -139,6 +143,7 @@ export async function requestCoachNarration(
       { surface: input.surface, pack: input.pack, userId: input.userId },
       {
         providers,
+        enabled: taskEnabled,
         cache: await readKv(overrides?.kv),
         onEvent: overrides?.onEvent ?? ((e) => void reportEvent(e).catch(() => undefined)),
       },
