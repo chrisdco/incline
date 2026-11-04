@@ -21,6 +21,9 @@ module.exports = {
         surface2: 'hsl(var(--surface-2) / <alpha-value>)',
         surface3: 'hsl(var(--surface-3) / <alpha-value>)',
         hairline: 'hsl(var(--hairline) / <alpha-value>)',
+        // Same colour as `hairline` for borders: NativeWind's own
+        // `border-hairline` is a border *width* (all four sides) and wins.
+        divider: 'hsl(var(--hairline) / <alpha-value>)',
         primary: {
           DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
           foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',

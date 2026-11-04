@@ -1,14 +1,13 @@
 import { clsx, type ClassValue } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
 
-// Theme colours tailwind-merge can't infer from their names. Without this,
-// `border-hairline` reads as a border *width* and silently drops `border`
-// (or survives `border-0`), and `text-foreground-secondary` can't override
-// `text-foreground`.
+// Theme colours tailwind-merge can't infer from their names, so
+// `text-foreground-secondary` can override `text-foreground`. Borders use
+// `border-divider`: `border-hairline` is NativeWind's hairline *width*.
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      color: ['hairline', 'surface1', 'surface2', 'surface3', 'faint', 'foreground-secondary'],
+      color: ['hairline', 'divider', 'surface1', 'surface2', 'surface3', 'faint', 'foreground-secondary'],
     },
   },
 });

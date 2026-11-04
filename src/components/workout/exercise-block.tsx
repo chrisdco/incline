@@ -265,9 +265,9 @@ function ExerciseBlockImpl({
           accessibilityRole="button"
           accessibilityLabel={restSeconds > 0 ? `Rest timer, ${restSeconds} seconds. Activate to change.` : 'Rest timer off. Activate to set.'}
           hitSlop={6}
-          className="flex-row items-center gap-1.5 rounded-full bg-muted px-3 py-1.5">
-          <Icon icon={Clock} size={13} color={restSeconds > 0 ? 'primary' : 'muted-foreground'} />
-          <Text className={cn('text-xs', restSeconds > 0 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+          className="flex-row items-center gap-1.5 rounded-full bg-surface2 px-3 py-1.5">
+          <Icon icon={Clock} size={13} color="muted-foreground" />
+          <Text className={cn('text-xs tabular-nums', restSeconds > 0 ? 'font-medium text-foreground-secondary' : 'text-muted-foreground')}>
             {restSeconds > 0 ? `Rest ${restSeconds}s` : 'Rest off'}
           </Text>
         </Pressable>
@@ -351,21 +351,21 @@ function ExerciseBlockImpl({
 
       <Pressable
         onPress={() => onAddSet(exerciseId)}
-        className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
+        className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl bg-surface2 py-2.5"
         accessibilityRole="button"
         accessibilityLabel="Add set">
-        <Icon icon={Plus} size={15} color="primary" />
-        <Text className="text-sm font-medium text-primary">Add set</Text>
+        <Icon icon={Plus} size={15} color="foreground" />
+        <Text className="text-sm font-medium text-foreground">Add set</Text>
       </Pressable>
 
       {showWarmUpSets ? (
         <Pressable
           onPress={() => onAddWarmUp(exerciseId)}
-          className="mt-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2"
+          className="flex-row items-center justify-center gap-1.5 py-2"
           accessibilityRole="button"
           accessibilityLabel="Add warm-up set">
           <Icon icon={Flame} size={15} color="warning" />
-          <Text className="text-sm font-medium text-warning">Warm-up (~50%)</Text>
+          <Text className="text-sm font-medium text-muted-foreground">Add warm-up (~50%)</Text>
         </Pressable>
       ) : null}
       </View>

@@ -17,6 +17,7 @@ import { Icon } from '@/components/common/icon';
 
 import { Body, Caption } from '@/components/common/text';
 import { ListSkeleton } from '@/components/common/skeleton';
+import { Num, splitUnit } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
@@ -347,6 +348,7 @@ export default function SessionScreen() {
   // Working-only live total: matches the ghost + progress definition so a
   // warm-up can never inflate the number mid-session.
   const totalVolume = workingSetVolume(session.sets);
+  const [volumeValue, volumeUnit] = splitUnit(formatVolume(totalVolume, unit));
 
   // Completed sets only: an unstarted exercise must not paint its muscle as
   // trained. A string key keeps the SVG map from redrawing on edits that
@@ -374,19 +376,19 @@ export default function SessionScreen() {
         </Button>
       </View>
 
-      <View className="flex-row items-center justify-between px-4 py-3">
+      <View className="flex-row items-center justify-between border-b border-divider px-4 py-3">
         <Pressable
           onPress={() => setTimerSheetOpen(true)}
           accessibilityRole="button"
           accessibilityLabel="Workout timer"
           className="flex-1 items-center">
           <Caption>Duration</Caption>
-          <SessionClock startedAt={session.startedAt} className="mt-0.5 font-semibold text-primary" />
+          <SessionClock startedAt={session.startedAt} className="mt-0.5 font-semibold tabular-nums text-foreground" />
           {pausedAt ? (
             <Caption className="mt-0.5 text-amber-500">Paused</Caption>
           ) : null}
           {ghost && showSessionGhost ? (
-            <Caption className="mt-0.5">Last time {formatClock(ghost.durationSeconds)}</Caption>
+            <Caption className="mt-0.5 text-xs">Last {formatClock(ghost.durationSeconds)}</Caption>
           ) : null}
         </Pressable>
         <Pressable
@@ -398,17 +400,17 @@ export default function SessionScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Toggle units, currently ${unit === 'metric' ? 'kg' : 'lb'}`}
           className="flex-1 items-center">
-          <Caption>Volume · {unit === 'metric' ? 'kg' : 'lb'}</Caption>
-          <Body className="mt-0.5 font-semibold text-foreground">{formatVolume(totalVolume, unit)}</Body>
+          <Caption>Volume</Caption>
+          <Num value={volumeValue} unit={volumeUnit} className="mt-0.5 text-base font-semibold" />
           {ghost && showSessionGhost ? (
-            <Caption className="mt-0.5">Last time {formatVolume(ghost.workingVolume, unit)}</Caption>
+            <Caption className="mt-0.5 text-xs">Last {formatVolume(ghost.workingVolume, unit)}</Caption>
           ) : null}
         </Pressable>
         <View className="flex-1 items-center">
           <Caption>Sets</Caption>
           <Body className="mt-0.5 font-semibold text-foreground">{completedSets}/{totalSets}</Body>
           {ghost && showSessionGhost ? (
-            <Caption className="mt-0.5">Last time {ghost.workingSetCount}</Caption>
+            <Caption className="mt-0.5 text-xs">Last {ghost.workingSetCount}</Caption>
           ) : null}
         </View>
       </View>
