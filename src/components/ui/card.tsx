@@ -4,32 +4,38 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { useCallback } from 'react';
 
 import { cn } from '@/lib/cn';
-import { useAuroraSkin } from '@/lib/use-color-scheme';
+import { useAuroraSkin, useIsDark } from '@/lib/use-color-scheme';
 import { Text } from '@/components/common/text';
 
 type CardProps = ViewProps & {
   elevation?: 'flat' | 'raised';
 };
 
-function cardBorder(aurora: boolean): string {
+// `dark:` variants don't track the app theme here (light mode rendered the
+// dark fills on device), so scheme-dependent classes come from useIsDark().
+function cardFill(dark: boolean, raised: boolean): string {
+  // Light: raised stays white (grey-on-grey reads as disabled); dark steps up.
+  return raised && dark ? 'bg-surface2' : 'bg-surface1';
+}
+
+function cardBorder(aurora: boolean, dark: boolean): string {
   // Aurora skins read as lifted neon fills (ref) — hairlines look wireframe
   // on near-black, so cards go borderless and let the tinted fill carry them.
   if (aurora) return 'border-transparent';
   // Dark: the surface step separates the card, a border only adds weight
   // (SYSTEM.md §2). Light keeps a hairline so white-on-grey stays crisp.
-  return 'border-hairline dark:border-transparent';
+  return dark ? 'border-transparent' : 'border-hairline';
 }
 
 export function Card({ className, elevation = 'flat', ...props }: CardProps) {
   const aurora = useAuroraSkin();
+  const dark = useIsDark();
   return (
     <View
       className={cn(
         'rounded-2xl border p-4',
-        elevation === 'raised'
-          ? 'bg-surface2'
-          : 'bg-surface1',
-        cardBorder(aurora),
+        cardFill(dark, elevation === 'raised'),
+        cardBorder(aurora, dark),
         className,
       )}
       {...props}
@@ -54,6 +60,7 @@ export function PressableCard({
   ...props
 }: PressableCardProps) {
   const aurora = useAuroraSkin();
+  const dark = useIsDark();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -72,8 +79,8 @@ export function PressableCard({
       style={animatedStyle}
       className={cn(
         'rounded-2xl border p-4',
-        elevation === 'raised' ? 'bg-surface2' : 'bg-surface1',
-        cardBorder(aurora),
+        cardFill(dark, elevation === 'raised'),
+        cardBorder(aurora, dark),
         disabled && 'opacity-50',
         className,
       )}

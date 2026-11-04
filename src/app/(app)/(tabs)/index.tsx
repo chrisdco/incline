@@ -189,32 +189,7 @@ export default function HomeScreen() {
         <Caption className="mt-2">{weekInsightLine}</Caption>
       ) : null}
 
-      {contextCards.length > 0 ? (
-        <View className="mt-4 gap-3">
-          {contextCards.map((card, i) =>
-            card.kind === 'report_month' ? (
-              <MonthlyReportPromo
-                key={card.id}
-                card={card}
-                index={i}
-                onDismiss={card.dismissKey ? dismissAnnouncement : undefined}
-              />
-            ) : (
-              <HomeContextCard
-                key={card.id}
-                card={card}
-                index={i}
-                onDismiss={card.dismissKey ? dismissAnnouncement : undefined}
-              />
-            ),
-          )}
-          {narrationHeadline ? (
-            <Caption className="text-muted-foreground">{narrationHeadline}</Caption>
-          ) : null}
-        </View>
-      ) : null}
-
-      <View className="mt-6 gap-3">
+      <View className="mt-4 gap-3">
         {heroLoading ? (
           <CardSkeleton />
         ) : programWorkout ? (
@@ -259,7 +234,7 @@ export default function HomeScreen() {
           <Button
             variant="outline"
             size="lg"
-            leftIcon={<Icon icon={Plus} size={18} color="primary" />}
+            leftIcon={<Icon icon={Plus} size={18} color="foreground" />}
             onPress={quickStart}
             disabled={starting}>
             Quick start
@@ -270,6 +245,33 @@ export default function HomeScreen() {
       <View className="mt-4">
         <ReadinessCheckIn value={readiness} onChange={(level) => { void onReadiness(level); }} />
       </View>
+
+      {/* Announcements sit under today's plan: the screen leads with the task (SYSTEM.md §3.1). */}
+      {contextCards.length > 0 ? (
+        <View className="mt-6 gap-3">
+          {contextCards.map((card, i) =>
+            card.kind === 'report_month' ? (
+              <MonthlyReportPromo
+                key={card.id}
+                card={card}
+                index={i}
+                onDismiss={card.dismissKey ? dismissAnnouncement : undefined}
+              />
+            ) : (
+              <HomeContextCard
+                key={card.id}
+                card={card}
+                index={i}
+                onDismiss={card.dismissKey ? dismissAnnouncement : undefined}
+              />
+            ),
+          )}
+          {narrationHeadline ? (
+            <Caption className="text-muted-foreground">{narrationHeadline}</Caption>
+          ) : null}
+        </View>
+      ) : null}
+
 
       {hasData ? (
         <Section title="This week">

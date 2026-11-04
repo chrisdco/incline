@@ -165,7 +165,7 @@ No arbitrary sizes (`text-[13px]`). Numbers that change in place use `tabular-nu
 ## Surfaces
 
 `bg-background` (screen) → `<Card>` / `<ListGroup>` (`bg-surface1`) →
-`elevation="raised"` / inputs (`bg-surface2`) → sheets, popovers, pressed
+`elevation="raised"` / inputs (`bg-surface2` in dark; white in light) → sheets, popovers, pressed
 (`bg-surface3`). Dark cards have no border (the fill step separates them);
 light cards keep a `hairline`. No shadows on cards. Rows inside a group are
 flat, divided by `bg-hairline`. Don't hand-build `rounded-2xl bg-card p-4`:
@@ -201,7 +201,11 @@ through `applyAiChange` (`src/ai/activity.ts`) so every change is logged and rev
   never `style={({ pressed }) => …}` next to `className`: NativeWind v4 drops
   the style function, so feedback and any layout in it silently vanish (#291).
 - **Layout** goes in `className` or on a wrapper `View`, not inside a press style.
-- **expo-image** ignores `rounded-*`: set `borderRadius` in `style`.
+- **expo-image** ignores `rounded-*` and `bg-*`: set `borderRadius` in `style`,
+  put placeholder fills on a wrapper `View`.
+- **No `dark:` variants.** They don't follow the app's theme setting (light
+  mode rendered dark fills on device). Branch on `useIsDark()` instead
+  (see `Card`, `SegmentedControl`).
 - **Third-party components** (bottom sheet, gesture-handler inputs) only take
   `className` if registered with `cssInterop`; otherwise use `style`.
 

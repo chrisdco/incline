@@ -9,19 +9,22 @@ import type { Exercise } from '@/db/types';
 import { MuscleBadge } from './muscle-badge';
 import { ExerciseThumb } from './exercise-media';
 
-/** Exercise row used in the library list and search results. */
+/**
+ * Exercise row used in the library list and search results. Flat — the
+ * list draws hairlines between rows (SYSTEM.md §2, no card per row).
+ */
 export function ExerciseListItem({ exercise, className }: { exercise: Exercise; className?: string }) {
   const router = useRouter();
   return (
     <Tappable
-      className={cn('flex-row items-center gap-3 rounded-3xl bg-card p-4', className)}
+      className={cn('flex-row items-center gap-3 py-3', className)}
       onPress={() => router.push(`/exercise/${exercise.id}`)}
       pressedOpacity={0.55}
       android_ripple={{ color: 'rgba(0,0,0,0.06)' }}>
       <ExerciseThumb name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} size={44} />
       <View className="flex-1">
-        <Text className="text-base font-semibold text-foreground">{exercise.name}</Text>
-        <Text className="mt-0.5 text-xs text-muted-foreground">
+        <Text className="text-base font-medium text-foreground" numberOfLines={1}>{exercise.name}</Text>
+        <Text className="mt-0.5 text-sm text-muted-foreground" numberOfLines={1}>
           {EQUIPMENT_LABELS[exercise.equipment as keyof typeof EQUIPMENT_LABELS] ?? exercise.equipment}{exercise.movementPattern ? ` · ${MOVEMENT_LABELS[exercise.movementPattern as keyof typeof MOVEMENT_LABELS] ?? exercise.movementPattern}` : ''}
         </Text>
       </View>

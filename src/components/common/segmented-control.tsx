@@ -3,6 +3,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/cn';
+import { useIsDark } from '@/lib/use-color-scheme';
 import { Text } from '@/components/common/text';
 
 /**
@@ -19,6 +20,7 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
   className?: string;
 }) {
+  const dark = useIsDark();
   const selectedIndex = Math.max(0, values.findIndex((v) => v.value === value));
   const [widths, setWidths] = useState<number[]>(values.map(() => 0));
   const [offsets, setOffsets] = useState<number[]>(values.map(() => 0));
@@ -53,9 +55,11 @@ export function SegmentedControl<T extends string>({
   }));
 
   return (
-    <View className={cn('relative flex-row rounded-xl border border-border bg-muted/60 p-1', className)}>
+    <View className={cn('relative flex-row rounded-xl bg-surface2 p-1', className)}>
+      {/* iOS-style neutral thumb (lifted surface), not an accent wash: the
+          selected segment is state, not a call to action (SYSTEM.md §4). */}
       <Animated.View
-        className="absolute top-1 bottom-1 rounded-md border border-primary/35 bg-primary/15"
+        className={cn('absolute top-1 bottom-1 rounded-md', dark ? 'bg-surface3' : 'bg-surface1')}
         style={[indicatorStyle, { left: 0, width: Math.max(selectedWidth, 0) }]}
       />
       {values.map((v, i) => {
@@ -72,7 +76,7 @@ export function SegmentedControl<T extends string>({
             <Text
               className={cn(
                 'text-sm font-semibold',
-                isSelected ? 'text-primary' : 'text-muted-foreground',
+                isSelected ? 'text-foreground' : 'text-muted-foreground',
               )}>
               {v.label}
             </Text>
