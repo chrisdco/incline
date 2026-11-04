@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { aiTaskFlag, isFlagDisabled } from '../_shared/contracts/ai/flags.ts';
 import { verifyBearerSub } from '../_shared/edge/auth.ts';
 import { TASKS } from './tasks.ts';
-import { completeJson, upstreams, UpstreamError, type ChatMessage } from './upstream.ts';
+import { completeJson, NotJsonError, upstreams, UpstreamError, type ChatMessage } from './upstream.ts';
 
 /**
  * Generic AI gateway (AI-PLATFORM §1, §10 step 4). POST
@@ -59,31 +59,49 @@ function useStub(): boolean {
 
 type RunResult = { ok: true; output: unknown } | { ok: false; status: number; error: string };
 
+/** Below an attempt's useful minimum, stop rather than start a call that can't finish. */
+const MIN_ATTEMPT_MS = 1_500;
+
+/**
+ * Primary then fallback, one repair retry each, all inside one deadline that
+ * is shorter than the app's own timeout: once the app has given up, any work
+ * here only burns quota.
+ */
 async function generate(
   messages: ChatMessage[],
   parse: (raw: unknown) => { ok: true; value: unknown } | { ok: false; error: string },
-  timeoutMs: number,
+  budgetMs: number,
 ): Promise<RunResult> {
+  const deadline = Date.now() + budgetMs;
   let rateLimited = false;
+  let modelReplied = false;
   for (const up of upstreams()) {
     let hint: string | null = null;
     for (let attempt = 0; attempt < 2; attempt++) {
+      const remaining = deadline - Date.now();
+      if (remaining < MIN_ATTEMPT_MS) break;
       const turn: ChatMessage[] = hint
         ? [...messages, { role: 'user', content: `Your last reply was rejected: ${hint}. Reply again with valid JSON only.` }]
         : messages;
       try {
-        const checked = parse(await completeJson(up, turn, timeoutMs));
+        const checked = parse(await completeJson(up, turn, remaining));
+        modelReplied = true;
         if (checked.ok) return { ok: true, output: checked.value };
         hint = checked.error;
       } catch (err) {
+        if (err instanceof NotJsonError) {
+          modelReplied = true;
+          hint = err.message;
+          continue;
+        }
         if (err instanceof UpstreamError && err.status === 429) rateLimited = true;
         break; // next upstream
       }
     }
   }
-  return rateLimited
-    ? { ok: false, status: 429, error: 'upstream_busy' }
-    : { ok: false, status: 502, error: 'invalid_model_output' };
+  if (modelReplied) return { ok: false, status: 502, error: 'invalid_model_output' };
+  if (rateLimited) return { ok: false, status: 429, error: 'upstream_busy' };
+  return { ok: false, status: 502, error: 'upstream_failed' };
 }
 
 Deno.serve(async (req) => {
@@ -147,8 +165,12 @@ Deno.serve(async (req) => {
     if (!checked.ok) return json(500, { ok: false, error: 'stub_invalid' });
     output = checked.value;
   } else {
-    const result = await generate(task.messages(input.value), (raw) => task.parseOutput(raw, input.value), task.timeoutMs);
-    if (!result.ok) return json(result.status, { ok: false, error: result.error });
+    const result = await generate(task.messages(input.value), (raw) => task.parseOutput(raw, input.value), task.budgetMs);
+    if (!result.ok) {
+      // Nothing was produced: give the call back so an outage doesn't eat the day's quota.
+      await db.rpc('ai_task_refund', { p_user: userId, p_task: task.id });
+      return json(result.status, { ok: false, error: result.error });
+    }
     output = result.output;
   }
 

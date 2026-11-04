@@ -71,3 +71,16 @@ $$;
 
 revoke all on function public.ai_task_cache_prune() from public, anon, authenticated;
 grant execute on function public.ai_task_cache_prune() to service_role;
+
+-- Give back one call when the gateway produced nothing (upstream outage).
+create or replace function public.ai_task_refund(p_user text, p_task text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.ai_task_rate set count = greatest(count - 1, 0) where user_id = p_user and task = p_task;
+$$;
+
+revoke all on function public.ai_task_refund(text, text) from public, anon, authenticated;
+grant execute on function public.ai_task_refund(text, text) to service_role;

@@ -31,6 +31,9 @@ function env(name: string): string | undefined {
   return v ? v : undefined;
 }
 
+/** The model answered, but not with JSON: worth one repair retry. */
+export class NotJsonError extends Error {}
+
 export function upstreams(): Upstream[] {
   const out: Upstream[] = [];
   const key = env('AI_API_KEY') ?? env('GROQ_API_KEY');
@@ -79,7 +82,11 @@ export async function completeJson(up: Upstream, messages: ChatMessage[], timeou
     const data = await res.json();
     const content = data?.choices?.[0]?.message?.content;
     if (typeof content !== 'string') throw new Error(`${up.id} empty completion`);
-    return JSON.parse(content);
+    try {
+      return JSON.parse(content);
+    } catch {
+      throw new NotJsonError('reply was not JSON');
+    }
   } finally {
     clearTimeout(timer);
   }
