@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog } from '@/components/ui/dialog';
 import { Chip } from '@/components/common/chip';
 import { TemplateAsk } from '@/components/ai/template-ask';
+import type { TemplateProposal } from '@/ai/template-edit-client';
 import { ExercisePickerSheet } from '@/components/workout/exercise-picker-sheet';
 import { NumberStepper } from '@/components/workout/number-stepper';
 import { useToast } from '@/components/ui/toast';
@@ -55,6 +56,40 @@ async function addTemplateExercises(templateId: number, exercises: Exercise[]) {
       });
     }
   }
+}
+
+const DRAFT_NAME = 'New routine';
+
+/** An unsaved row for a routine that has no DB id yet (save() writes it). */
+function localExercise(exerciseId: number, exerciseName: string, id: number): Exercise {
+  return {
+    id,
+    templateId: 0,
+    exerciseId,
+    sortOrder: 0,
+    targetSets: 3,
+    targetRepsMin: 8,
+    targetRepsMax: 12,
+    restSeconds: 90,
+    notes: '',
+    supersetGroup: null,
+    exercise: { id: exerciseId, name: exerciseName, primaryMuscle: '', equipment: '', aliases: [], secondaryMuscles: [], movementPattern: '', category: '', instructions: '', tips: '', createdAt: '' },
+  } as unknown as Exercise;
+}
+
+function draftTemplate(name: string, exercises: Exercise[]): WorkoutTemplate {
+  return {
+    id: 0,
+    name: name.trim() || DRAFT_NAME,
+    description: '',
+    category: 'strength',
+    difficulty: 'intermediate',
+    estimatedMinutes: 45,
+    isCustom: true,
+    createdAt: 0,
+    updatedAt: 0,
+    exercises,
+  };
 }
 
 export default function TemplateEditorScreen() {
@@ -107,24 +142,32 @@ export default function TemplateEditorScreen() {
     setExercises(templateExercises(t));
   };
 
+  // New routine: the AI draft fills the editor; Create routine saves it.
+  const applyDraft = (proposal: TemplateProposal) => {
+    const byRef = new Map(exercises.map((e, i) => [`e${i + 1}`, e]));
+    setExercises(
+      proposal.rows.flatMap((row, i) => {
+        if (row.exerciseId === null) return [];
+        const base = row.ref ? byRef.get(row.ref) : undefined;
+        const local = base ?? localExercise(row.exerciseId, row.name, Date.now() + i);
+        return [{
+          ...local,
+          exerciseId: row.exerciseId,
+          sortOrder: i,
+          targetSets: row.sets,
+          targetRepsMin: row.repsMin ?? local.targetRepsMin,
+          targetRepsMax: Math.max(row.repsMin ?? 0, row.repsMax ?? local.targetRepsMax),
+          exercise: base && base.exerciseId === row.exerciseId ? base.exercise : localExercise(row.exerciseId, row.name, 0).exercise,
+        }];
+      }),
+    );
+    if (proposal.name !== DRAFT_NAME && proposal.name !== name.trim()) setName(proposal.name);
+    setEstimatedMinutes(Math.min(180, Math.max(15, Math.round(proposal.minutesAfter / 5) * 5)));
+  };
+
   const addExercise = async (ex: { id: number; name: string }) => {
     if (!templateId) {
-      setExercises((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          templateId: 0,
-          exerciseId: ex.id,
-          sortOrder: prev.length,
-          targetSets: 3,
-          targetRepsMin: 8,
-          targetRepsMax: 12,
-          restSeconds: 90,
-          notes: '',
-          supersetGroup: null,
-          exercise: { id: ex.id, name: ex.name, primaryMuscle: '', equipment: '', aliases: [], secondaryMuscles: [], movementPattern: '', category: '', instructions: '', tips: '', createdAt: '' },
-        } as unknown as Exercise,
-      ]);
+      setExercises((prev) => [...prev, { ...localExercise(ex.id, ex.name, Date.now()), sortOrder: prev.length }]);
       return;
     }
     try {
@@ -291,6 +334,11 @@ export default function TemplateEditorScreen() {
           <>
             <Separator className="my-5" />
             <TemplateAsk template={{ ...template, name: name.trim() || template.name, exercises }} onChanged={() => void reloadFromDb()} />
+          </>
+        ) : isNew ? (
+          <>
+            <Separator className="my-5" />
+            <TemplateAsk template={draftTemplate(name, exercises)} onDraft={applyDraft} />
           </>
         ) : null}
       </NestableScrollContainer>

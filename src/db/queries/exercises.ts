@@ -1,6 +1,8 @@
 import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
-import { buildSearchText, scoreField, tokenize } from '@/lib/exercise-search';
+import { buildSearchText, rankExercises, tokenize } from '@/lib/exercise-search';
+
+export { rankExercises };
 import { enqueueSync } from '@/sync/outbox';
 import { mutate } from '../write';
 import type {
@@ -63,6 +65,24 @@ export async function getRecentExercises(limit = 10): Promise<Exercise[]> {
   return mapExerciseRows(db, rows);
 }
 
+/**
+ * Names for the AI to pick from (template edits): what the user has logged
+ * first, then custom, then seed, then imported. Names only, one query.
+ */
+export async function listExerciseNamesForAi(limit = 150): Promise<string[]> {
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<{ name: string }>(
+    `SELECT e.name FROM exercises e
+     LEFT JOIN (SELECT exercise_id, MAX(id) AS last FROM set_entries WHERE deleted_at IS NULL GROUP BY exercise_id) u
+       ON u.exercise_id = e.id
+     WHERE e.deleted_at IS NULL
+     ORDER BY (u.last IS NOT NULL) DESC, e.is_custom DESC, (e.source = 'seed') DESC, e.name
+     LIMIT ?`,
+    limit,
+  );
+  return rows.map((r) => r.name);
+}
+
 export interface ExerciseFilters {
   muscle?: MuscleGroup;
   equipment?: Equipment;
@@ -118,65 +138,6 @@ export async function searchExercises(
   return rankExercises(exercises, query, options?.recentIds);
 }
 
-/** The JS half of searchExercises: pure, so callers holding a catalog can rank without SQL. */
-export function rankExercises(exercises: Exercise[], query: string, recentIds?: number[]): SearchHit[] {
-  const tokens = tokenize(query);
-
-  if (!tokens.length) return exercises.map((exercise) => ({ exercise, score: 0, matchedOn: 'name' as const }));
-
-  const recentBonus = new Map<number, number>();
-  (recentIds ?? []).forEach((id, i) => {
-    if (!recentBonus.has(id)) recentBonus.set(id, i < 10 ? 12 : 6);
-  });
-
-  const hits: SearchHit[] = [];
-  for (const ex of exercises) {
-    const nameTokens = tokenize(ex.name);
-    let best: { score: number; matchedOn: SearchHit['matchedOn'] } | null = null;
-    const nameHit = scoreField(tokens, nameTokens, {
-      exact: 100, prefix: 88, substring: 72, fuzzy: 55, matchedOn: 'name',
-    });
-    if (nameHit) best = { score: nameHit.score, matchedOn: 'name' };
-    if (!best) {
-      for (const alias of ex.aliases) {
-        const aliasHit = scoreField(tokens, tokenize(alias), {
-          exact: 94, prefix: 82, substring: 66, fuzzy: 50, matchedOn: 'alias',
-        });
-        if (aliasHit) {
-          best = { score: aliasHit.score, matchedOn: 'alias' };
-          break;
-        }
-      }
-    }
-    if (!best) {
-      const muscleHit = scoreField(tokens, tokenize([ex.primaryMuscle, ...ex.secondaryMuscles].join(' ')), {
-        exact: 48, prefix: 44, substring: 40, fuzzy: 36, matchedOn: 'muscle',
-      });
-      if (muscleHit) best = { score: muscleHit.score, matchedOn: 'muscle' };
-    }
-    if (!best && ex.equipment) {
-      const equipHit = scoreField(tokens, tokenize(ex.equipment), {
-        exact: 40, prefix: 36, substring: 32, fuzzy: 28, matchedOn: 'equipment',
-      });
-      if (equipHit) best = { score: equipHit.score, matchedOn: 'equipment' };
-    }
-    if (!best && ex.movementPattern) {
-      const patternHit = scoreField(tokens, tokenize(ex.movementPattern), {
-        exact: 30, prefix: 27, substring: 24, fuzzy: 20, matchedOn: 'pattern',
-      });
-      if (patternHit) best = { score: patternHit.score, matchedOn: 'pattern' };
-    }
-    if (best) {
-      hits.push({
-        exercise: ex,
-        score: best.score + (recentBonus.get(ex.id) ?? 0),
-        matchedOn: best.matchedOn,
-      });
-    }
-  }
-  hits.sort((a, b) => b.score - a.score || a.exercise.name.localeCompare(b.exercise.name));
-  return hits;
-}
 
 /**
  * Best catalog match per AI-proposed name, from one catalog read (no query

@@ -11,10 +11,14 @@ import { useAppAuth } from '@/auth/use-app-auth';
 import { applyAiAction, recordAiFeedback, revertAiActivity } from '@/ai/activity';
 import { registerTemplateActions, TEMPLATE_APPLY_DIFF } from '@/ai/template-actions';
 import {
+  buildTemplateProposal,
   requestTemplateEdit,
+  type ProposalContext,
   type ProposalRow,
   type TemplateProposal,
 } from '@/ai/template-edit-client';
+import { Chip } from '@/components/common/chip';
+import { ExercisePickerSheet } from '@/components/workout/exercise-picker-sheet';
 import type { AiFailure } from '@/ai/types';
 import { captureError } from '@/lib/error-sink';
 import { cn } from '@/lib/cn';
@@ -26,6 +30,7 @@ import { ProposalCard } from './proposal-card';
 import { SuggestionChip } from './suggestion-chip';
 
 const STARTERS = ['Make it 45 minutes', 'Easier on my shoulders', 'Add some back work'] as const;
+const DRAFT_STARTERS = ['Push day, 45 minutes', 'Full body, dumbbells only', 'Leg day, no squat rack'] as const;
 const THINKING = ['Reading your routine', 'Picking exercises', 'Checking the time'] as const;
 const TASK = 'template_edit';
 
@@ -58,7 +63,7 @@ function DiffRow({ row }: { row: ProposalRow }) {
   );
 }
 
-function ProposalBody({ proposal }: { proposal: TemplateProposal }) {
+function ProposalBody({ proposal, onPick }: { proposal: TemplateProposal; onPick: (name: string) => void }) {
   return (
     <View className="gap-2">
       {proposal.rows.map((row, i) => (
@@ -75,9 +80,14 @@ function ProposalBody({ proposal }: { proposal: TemplateProposal }) {
         {proposal.name ? ` · ${proposal.name}` : ''}
       </Caption>
       {proposal.unresolved.length ? (
-        <Caption>
-          No match in your exercise list for {proposal.unresolved.map((n) => `“${n}”`).join(', ')}, so it was left out.
-        </Caption>
+        <View className="gap-2">
+          <Caption>Not in your exercise list yet. Pick one, or it stays out:</Caption>
+          <View className="flex-row flex-wrap gap-2">
+            {proposal.unresolved.map((name) => (
+              <Chip key={name} label={`Pick “${name}”`} onPress={() => onPick(name)} />
+            ))}
+          </View>
+        </View>
       ) : null}
     </View>
   );
@@ -103,18 +113,43 @@ async function applyProposal(proposal: TemplateProposal): Promise<number | null>
 type State =
   | { kind: 'idle' }
   | { kind: 'thinking' }
-  | { kind: 'proposal'; proposal: TemplateProposal }
+  | { kind: 'proposal'; proposal: TemplateProposal; context: ProposalContext }
   | { kind: 'declined'; message: string }
   | { kind: 'failed'; reason: AiFailure };
 
-/** "Change this routine by asking" — nothing is written until Apply. */
-export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate; onChanged: () => void }) {
+/**
+ * "Change this routine by asking" — nothing is written until Apply. With
+ * `onDraft` (a routine not saved yet) the proposal fills the editor instead,
+ * and Create routine saves it like any hand-built one.
+ */
+export function TemplateAsk({
+  template,
+  onChanged,
+  onDraft,
+}: {
+  template: WorkoutTemplate;
+  onChanged?: () => void;
+  onDraft?: (proposal: TemplateProposal) => void;
+}) {
+  const drafting = Boolean(onDraft);
   const { userId, getToken } = useAppAuth();
   const { toast } = useToast();
   const [intent, setIntent] = useState('');
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [applying, setApplying] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const [picking, setPicking] = useState<string | null>(null);
+
+  const pick = (exercise: { id: number; name: string }) => {
+    const name = picking;
+    setPicking(null);
+    if (!name || state.kind !== 'proposal') return;
+    const { context } = state;
+    const resolved = new Map(context.resolved).set(name, { id: exercise.id, name: exercise.name });
+    const next = { ...context, resolved };
+    const proposal = buildTemplateProposal(next.template, next.input, next.diff, resolved, state.proposal.proposalId);
+    setState({ kind: 'proposal', proposal, context: next });
+  };
 
   const ask = async (text: string) => {
     const trimmed = text.trim();
@@ -126,7 +161,7 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
     setState({ kind: 'thinking' });
     const outcome = await requestTemplateEdit({ template, intent: trimmed, getToken, userId, signal: controller.signal });
     if (controller.signal.aborted) return;
-    if (outcome.status === 'proposal') setState({ kind: 'proposal', proposal: outcome.proposal });
+    if (outcome.status === 'proposal') setState({ kind: 'proposal', proposal: outcome.proposal, context: outcome.context });
     else if (outcome.status === 'declined') setState({ kind: 'declined', message: outcome.message });
     else setState({ kind: 'failed', reason: outcome.reason });
   };
@@ -138,6 +173,12 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
 
   const apply = async (proposal: TemplateProposal) => {
     if (!proposal.payload) return;
+    if (onDraft) {
+      onDraft(proposal);
+      setState({ kind: 'idle' });
+      setIntent('');
+      return;
+    }
     setApplying(true);
     const activityId = await applyProposal(proposal);
     setApplying(false);
@@ -147,7 +188,7 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
     }
     setState({ kind: 'idle' });
     setIntent('');
-    onChanged();
+    onChanged?.();
     toast({
       title: 'Routine updated',
       description: proposal.summary,
@@ -156,7 +197,7 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
         label: 'Undo',
         onPress: () => {
           void revertAiActivity(activityId)
-            .then(onChanged)
+            .then(() => onChanged?.())
             .catch((err: unknown) => captureError(err, { where: 'template-ask.undo' }));
         },
       },
@@ -174,7 +215,7 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
     <View className="gap-3">
       <View className="flex-row items-center gap-2">
         <Icon icon={Sparkles} size={16} color="primary" />
-        <Body className="font-semibold text-foreground">Change it by asking</Body>
+        <Body className="font-semibold text-foreground">{drafting ? 'Build it by asking' : 'Change it by asking'}</Body>
       </View>
 
       {state.kind === 'thinking' ? (
@@ -184,14 +225,14 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
           title={state.proposal.summary}
           basis={`“${intent}”`}
           applying={applying}
-          applyLabel={state.proposal.payload ? 'Apply' : 'Nothing to apply'}
+          applyLabel={state.proposal.payload ? (drafting ? 'Use this' : 'Apply') : 'Nothing to apply'}
           onApply={() => void apply(state.proposal)}
           onRegenerate={() => {
             void recordAiFeedback({ proposalId: state.proposal.proposalId, task: TASK, outcome: 'regenerated' });
             retry();
           }}
           onReject={(reason) => reject(state.proposal, reason)}>
-          <ProposalBody proposal={state.proposal} />
+          <ProposalBody proposal={state.proposal} onPick={setPicking} />
         </ProposalCard>
       ) : (
         <>
@@ -200,7 +241,7 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
               className="flex-1 bg-surface1"
               value={intent}
               onChangeText={setIntent}
-              placeholder="e.g. Cut it to 45 minutes"
+              placeholder={drafting ? 'e.g. Push day, 45 min, dumbbells' : 'e.g. Cut it to 45 minutes'}
               returnKeyType="send"
               onSubmitEditing={() => void ask(intent)}
               maxLength={300}
@@ -220,13 +261,19 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
           {state.kind === 'failed' ? <AiFallbackNotice reason={state.reason} onRetry={retry} /> : null}
           {state.kind === 'idle' && !intent ? (
             <View className="flex-row flex-wrap gap-2">
-              {STARTERS.map((s) => (
+              {(drafting ? DRAFT_STARTERS : STARTERS).map((s) => (
                 <SuggestionChip key={s} label={s} onPress={() => void ask(s)} />
               ))}
             </View>
           ) : null}
         </>
       )}
+      <ExercisePickerSheet
+        open={picking !== null}
+        onOpenChange={(open) => !open && setPicking(null)}
+        onPick={pick}
+        title={picking ? `Instead of “${picking}”` : undefined}
+      />
     </View>
   );
 }

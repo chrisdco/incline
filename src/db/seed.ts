@@ -22,7 +22,7 @@ interface SeedExercise {
   tips: string;
 }
 
-const EXERCISES: SeedExercise[] = [
+export const EXERCISES: SeedExercise[] = [
   { id: 1, name: 'Barbell Bench Press', aliases: ['bp', 'bench', 'chest press'], primaryMuscle: 'chest', secondaryMuscles: ['triceps', 'shoulders'], movementPattern: 'horizontal_push', equipment: 'barbell', category: 'strength', isCompound: true, instructions: ['Lie flat with eyes under the bar and shoulder blades retracted.', 'Grip slightly wider than shoulder-width and unrack.', 'Lower to mid-chest, then press to lockout.'], tips: 'Drive through your feet and keep elbows around 45 degrees.' },
   { id: 2, name: 'Barbell Back Squat', aliases: ['squat', 'back squat'], primaryMuscle: 'quads', secondaryMuscles: ['glutes', 'hamstrings', 'core'], movementPattern: 'squat_hinge', equipment: 'barbell', category: 'strength', isCompound: true, instructions: ['Set the bar on your upper back with braced core.', 'Descend until hips break below knee depth.', 'Drive through mid-foot back to standing.'], tips: 'Keep knees tracking over toes and chest tall.' },
   { id: 3, name: 'Conventional Deadlift', aliases: ['dl', 'deadlift'], primaryMuscle: 'hamstrings', secondaryMuscles: ['glutes', 'back', 'traps', 'forearms'], movementPattern: 'squat_hinge', equipment: 'barbell', category: 'strength', isCompound: true, instructions: ['Stand with mid-foot under the bar, hip-width stance.', 'Grip the bar and brace, shins vertical.', 'Push the floor away and extend hips to lockout.'], tips: 'Keep the bar close and your back flat throughout.' },

@@ -108,3 +108,32 @@ describe('prompt', () => {
     expect(msg).toContain('- avoids: dips');
   });
 });
+
+describe('model quirks', () => {
+  it('normalises unicode hyphens in names', () => {
+    const res = parseTemplateDiff({ summary: 's', ops: [{ op: 'add', exercise: 'Push‑Up' }] }, pushB);
+    expect(res.ok && 'ops' in res.value && res.value.ops[0]).toMatchObject({ exercise: 'Push-Up' });
+  });
+
+  it('reads a replace with only targets as setTargets', () => {
+    const res = parseTemplateDiff({ summary: 's', ops: [{ op: 'replace', ref: 'e1', sets: 3 }] }, pushB);
+    expect(res.ok && 'ops' in res.value && res.value.ops).toEqual([{ op: 'setTargets', ref: 'e1', sets: 3 }]);
+  });
+
+  it('reads an empty op list with a summary as "nothing to change"', () => {
+    expect(parseTemplateDiff({ summary: 'Already under 45 minutes.', ops: [] }, pushB)).toEqual({
+      ok: true,
+      value: { decline: 'Already under 45 minutes.' },
+    });
+    expect(parseTemplateDiff({ ops: [] }, pushB).ok).toBe(false);
+  });
+
+  it('adds the time estimate and the catalog to the message', () => {
+    const catalog = ['Goblet Squat', 'Dumbbell Row'];
+    expect(parseTemplateEditInput({ ...pushB, catalog })).toEqual({ ok: true, value: { ...pushB, catalog } });
+    const msg = buildUserMessage({ ...pushB, catalog });
+    expect(msg).toContain('About 30 min now.');
+    expect(msg).toContain('Exercises available: Goblet Squat; Dumbbell Row');
+    expect(buildUserMessage({ ...pushB, rows: [] })).toContain('(empty)');
+  });
+});

@@ -2,6 +2,7 @@ import {
   applyDiffToRows,
   estimateMinutes,
   type DraftRow,
+  type TemplateDiffOp,
   type TemplateEditInput,
 } from '@/contracts/templates/template-edit';
 import type { WorkoutTemplate } from '@/db/types';
@@ -29,13 +30,30 @@ export interface TemplateProposal {
   payload: TemplateApplyPayload | null;
 }
 
+/** Everything needed to rebuild the preview after the user picks an exercise by hand. */
+export interface ProposalContext {
+  template: WorkoutTemplate;
+  input: TemplateEditInput;
+  diff: { summary: string; ops: TemplateDiffOp[] };
+  resolved: Map<string, ResolvedExercise | null>;
+}
+
+export interface ResolvedExercise {
+  id: number;
+  name: string;
+}
+
 export type TemplateEditOutcome =
-  | { status: 'proposal'; proposal: TemplateProposal }
+  | { status: 'proposal'; proposal: TemplateProposal; context: ProposalContext }
   | { status: 'declined'; message: string }
   | { status: 'unavailable'; reason: AiFailure };
 
 /** The routine as the model sees it: rows e1…eN in order, names only. */
-export function templateEditInput(template: WorkoutTemplate, intent: string, memory?: string[]): TemplateEditInput {
+export function templateEditInput(
+  template: WorkoutTemplate,
+  intent: string,
+  extra?: { memory?: string[]; catalog?: string[] },
+): TemplateEditInput {
   return {
     templateName: template.name,
     rows: (template.exercises ?? []).map((te, i) => ({
@@ -46,7 +64,8 @@ export function templateEditInput(template: WorkoutTemplate, intent: string, mem
       repsMax: te.targetRepsMax,
     })),
     intent,
-    ...(memory?.length ? { memory } : {}),
+    ...(extra?.memory?.length ? { memory: extra.memory } : {}),
+    ...(extra?.catalog?.length ? { catalog: extra.catalog } : {}),
   };
 }
 
@@ -54,8 +73,8 @@ export function templateEditInput(template: WorkoutTemplate, intent: string, mem
 export function buildTemplateProposal(
   template: WorkoutTemplate,
   input: TemplateEditInput,
-  diff: { summary: string; ops: Parameters<typeof applyDiffToRows>[1] },
-  resolved: Map<string, { id: number; name: string } | null>,
+  diff: { summary: string; ops: TemplateDiffOp[] },
+  resolved: Map<string, ResolvedExercise | null>,
   proposalId: string,
 ): TemplateProposal {
   const draft = applyDiffToRows(input, diff.ops);
@@ -175,7 +194,8 @@ export async function requestTemplateEdit(input: {
     });
     if (providers.length === 0) return { status: 'unavailable', reason: 'unavailable' };
 
-    const taskInput = templateEditInput(input.template, input.intent);
+    const { listExerciseNamesForAi } = await import('@/db/queries/exercises');
+    const taskInput = templateEditInput(input.template, input.intent, { catalog: await listExerciseNamesForAi() });
     const result = await runAiTask(templateEditTask, taskInput, {
       providers,
       enabled: await isAiTaskEnabled(templateEditTask.id),
@@ -192,10 +212,11 @@ export async function requestTemplateEdit(input: {
       import('@/db/queries/exercises'),
       import('@/lib/uuid'),
     ]);
-    const resolved = await resolveExerciseNames(names);
+    const resolved: Map<string, ResolvedExercise | null> = await resolveExerciseNames(names);
     return {
       status: 'proposal',
       proposal: buildTemplateProposal(input.template, taskInput, diff, resolved, newUuid()),
+      context: { template: input.template, input: taskInput, diff, resolved },
     };
   } catch {
     return { status: 'unavailable', reason: 'error' };

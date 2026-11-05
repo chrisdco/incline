@@ -8,6 +8,7 @@
  * - Light plural folding ("curls" matches "curl").
  * - Equipment parens become tokens ("(Barbell)" is searchable, not noise).
  */
+import type { Exercise, SearchHit } from '@/db/types';
 
 export function normalizeSearchText(raw: string): string {
   return raw
@@ -144,4 +145,64 @@ export function scoreField(
   }
   const score = worst === 3 ? opts.exact : worst === 2 ? opts.prefix : worst === 1 ? opts.substring : opts.fuzzy;
   return { score, matchedOn: fuzzyUsed && worst === 0 ? 'fuzzy' : opts.matchedOn };
+}
+
+/** The JS half of searchExercises: pure, so callers holding a catalog can rank without SQL. */
+export function rankExercises(exercises: Exercise[], query: string, recentIds?: number[]): SearchHit[] {
+  const tokens = tokenize(query);
+
+  if (!tokens.length) return exercises.map((exercise) => ({ exercise, score: 0, matchedOn: 'name' as const }));
+
+  const recentBonus = new Map<number, number>();
+  (recentIds ?? []).forEach((id, i) => {
+    if (!recentBonus.has(id)) recentBonus.set(id, i < 10 ? 12 : 6);
+  });
+
+  const hits: SearchHit[] = [];
+  for (const ex of exercises) {
+    const nameTokens = tokenize(ex.name);
+    let best: { score: number; matchedOn: SearchHit['matchedOn'] } | null = null;
+    const nameHit = scoreField(tokens, nameTokens, {
+      exact: 100, prefix: 88, substring: 72, fuzzy: 55, matchedOn: 'name',
+    });
+    if (nameHit) best = { score: nameHit.score, matchedOn: 'name' };
+    if (!best) {
+      for (const alias of ex.aliases) {
+        const aliasHit = scoreField(tokens, tokenize(alias), {
+          exact: 94, prefix: 82, substring: 66, fuzzy: 50, matchedOn: 'alias',
+        });
+        if (aliasHit) {
+          best = { score: aliasHit.score, matchedOn: 'alias' };
+          break;
+        }
+      }
+    }
+    if (!best) {
+      const muscleHit = scoreField(tokens, tokenize([ex.primaryMuscle, ...ex.secondaryMuscles].join(' ')), {
+        exact: 48, prefix: 44, substring: 40, fuzzy: 36, matchedOn: 'muscle',
+      });
+      if (muscleHit) best = { score: muscleHit.score, matchedOn: 'muscle' };
+    }
+    if (!best && ex.equipment) {
+      const equipHit = scoreField(tokens, tokenize(ex.equipment), {
+        exact: 40, prefix: 36, substring: 32, fuzzy: 28, matchedOn: 'equipment',
+      });
+      if (equipHit) best = { score: equipHit.score, matchedOn: 'equipment' };
+    }
+    if (!best && ex.movementPattern) {
+      const patternHit = scoreField(tokens, tokenize(ex.movementPattern), {
+        exact: 30, prefix: 27, substring: 24, fuzzy: 20, matchedOn: 'pattern',
+      });
+      if (patternHit) best = { score: patternHit.score, matchedOn: 'pattern' };
+    }
+    if (best) {
+      hits.push({
+        exercise: ex,
+        score: best.score + (recentBonus.get(ex.id) ?? 0),
+        matchedOn: best.matchedOn,
+      });
+    }
+  }
+  hits.sort((a, b) => b.score - a.score || a.exercise.name.localeCompare(b.exercise.name));
+  return hits;
 }
