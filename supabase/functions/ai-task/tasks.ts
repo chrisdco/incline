@@ -10,7 +10,14 @@ import {
   validateNarrationResponse,
 } from '../_shared/contracts/narrate/narration.ts';
 import { buildUserMessage, SYSTEM_PROMPT } from '../_shared/contracts/narrate/prompt.ts';
-import { canonicalHash } from './hash.ts';
+import { SYSTEM_PROMPT as TEMPLATE_EDIT_SYSTEM, buildUserMessage as templateEditUser } from '../_shared/contracts/templates/prompt.ts';
+import {
+  parseTemplateDiff,
+  parseTemplateEditInput,
+  TEMPLATE_EDIT_PROMPT_VERSION,
+  type TemplateEditInput,
+} from '../_shared/contracts/templates/template-edit.ts';
+import { canonicalHash, hashJson } from './hash.ts';
 import type { ChatMessage } from './upstream.ts';
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -72,6 +79,27 @@ const narrate: ServerTask<NarrateInput> = {
   stub: (input) => stubNarration(input.pack),
 };
 
+const templateEdit: ServerTask<TemplateEditInput> = {
+  id: 'template_edit',
+  promptVersion: TEMPLATE_EDIT_PROMPT_VERSION,
+  dailyLimit: 30,
+  // App timeout is 20 s; a diff is a longer generation than narration.
+  budgetMs: 15_000,
+  parseInput: parseTemplateEditInput,
+  cacheKey: (input) => hashJson(input),
+  messages: (input) => [
+    { role: 'system', content: TEMPLATE_EDIT_SYSTEM },
+    { role: 'user', content: templateEditUser(input) },
+  ],
+  parseOutput: parseTemplateDiff,
+  // Stub mode: a real, harmless edit so the whole apply/undo path can be exercised.
+  stub: (input) =>
+    input.rows.length
+      ? { summary: 'Stub: one set less on the first exercise', ops: [{ op: 'setTargets', ref: 'e1', sets: Math.max(1, input.rows[0]!.sets - 1) }] }
+      : { decline: 'Add an exercise first.' },
+};
+
 export const TASKS: Record<string, ServerTask> = {
   [narrate.id]: narrate as ServerTask,
+  [templateEdit.id]: templateEdit as ServerTask,
 };
