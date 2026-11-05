@@ -6,11 +6,15 @@
       "description": "Electric indigo — default Incline brand",
       "light": {
         "primary": "246 90% 66%",
+        "foreground": "0 0% 100%",
+        "text": "246 90% 64%",
         "ring": "246 90% 66%",
         "chart1": "246 80% 60%"
       },
       "dark": {
         "primary": "246 85% 72%",
+        "foreground": "240 10% 4%",
+        "text": "246 85% 72%",
         "ring": "246 85% 72%",
         "chart1": "246 75% 68%"
       },
@@ -25,11 +29,15 @@
       "description": "Cool teal, clear in light and dark",
       "light": {
         "primary": "173 80% 32%",
+        "foreground": "240 10% 4%",
+        "text": "173 80% 27%",
         "ring": "173 80% 32%",
         "chart1": "173 70% 38%"
       },
       "dark": {
         "primary": "172 66% 50%",
+        "foreground": "240 10% 4%",
+        "text": "172 66% 50%",
         "ring": "172 66% 50%",
         "chart1": "172 60% 52%"
       },
@@ -44,11 +52,15 @@
       "description": "Warm energy on cool neutrals",
       "light": {
         "primary": "32 80% 57%",
+        "foreground": "240 10% 4%",
+        "text": "32 80% 35%",
         "ring": "32 80% 57%",
         "chart1": "32 75% 52%"
       },
       "dark": {
         "primary": "32 85% 62%",
+        "foreground": "240 10% 4%",
+        "text": "32 85% 62%",
         "ring": "32 85% 62%",
         "chart1": "32 80% 58%"
       },
@@ -63,11 +75,15 @@
       "description": "High-energy accent (distinct from destructive)",
       "light": {
         "primary": "0 100% 68%",
+        "foreground": "240 10% 4%",
+        "text": "0 80% 47%",
         "ring": "0 100% 68%",
         "chart1": "0 85% 62%"
       },
       "dark": {
         "primary": "0 90% 72%",
+        "foreground": "240 10% 4%",
+        "text": "0 90% 72%",
         "ring": "0 90% 72%",
         "chart1": "0 80% 68%"
       },
@@ -82,11 +98,15 @@
       "description": "Classic fitness green (for comparison)",
       "light": {
         "primary": "142 69% 45%",
+        "foreground": "240 10% 4%",
+        "text": "142 69% 29%",
         "ring": "142 69% 45%",
         "chart1": "142 64% 45%"
       },
       "dark": {
         "primary": "142 69% 47%",
+        "foreground": "240 10% 4%",
+        "text": "142 69% 47%",
         "ring": "142 69% 47%",
         "chart1": "142 64% 48%"
       },
@@ -101,11 +121,15 @@
       "description": "Soft seafoam — charts and active states",
       "light": {
         "primary": "142 68% 48%",
+        "foreground": "240 10% 4%",
+        "text": "142 68% 29%",
         "ring": "142 68% 48%",
         "chart1": "142 62% 46%"
       },
       "dark": {
         "primary": "142 70% 68%",
+        "foreground": "240 10% 4%",
+        "text": "142 70% 68%",
         "ring": "142 70% 68%",
         "chart1": "142 65% 62%"
       },
@@ -120,11 +144,15 @@
       "description": "Hot pink aurora — neon dark skin",
       "light": {
         "primary": "336 80% 50%",
+        "foreground": "0 0% 100%",
+        "text": "336 80% 50%",
         "ring": "336 80% 50%",
         "chart1": "336 75% 55%"
       },
       "dark": {
         "primary": "331 85% 68%",
+        "foreground": "331 60% 12%",
+        "text": "331 85% 68%",
         "ring": "331 85% 68%",
         "chart1": "331 80% 62%"
       },
@@ -139,11 +167,15 @@
       "description": "Electric cyan aurora — neon dark skin",
       "light": {
         "primary": "187 85% 36%",
+        "foreground": "0 0% 100%",
+        "text": "187 85% 36%",
         "ring": "187 85% 36%",
         "chart1": "187 80% 44%"
       },
       "dark": {
         "primary": "193 90% 60%",
+        "foreground": "193 70% 10%",
+        "text": "193 90% 60%",
         "ring": "193 90% 60%",
         "chart1": "193 85% 56%"
       },
@@ -234,8 +266,8 @@
           "#0F766E"
         ],
         "icons": {
-          "primary": "hsl(246 90% 66%)",
-          "primary-foreground": "hsl(240 10% 4%)",
+          "primary": "hsl(246 90% 64%)",
+          "primary-foreground": "hsl(0 0% 100%)",
           "secondary-foreground": "hsl(240 6% 10%)",
           "muted-foreground": "hsl(240 4% 42%)",
           "destructive": "hsl(0 72% 51%)",
@@ -335,8 +367,8 @@
           "#0F766E"
         ],
         "icons": {
-          "primary": "hsl(173 80% 32%)",
-          "primary-foreground": "hsl(0 0% 100%)",
+          "primary": "hsl(173 80% 27%)",
+          "primary-foreground": "hsl(240 10% 4%)",
           "secondary-foreground": "hsl(240 6% 10%)",
           "muted-foreground": "hsl(240 4% 42%)",
           "destructive": "hsl(0 72% 51%)",
@@ -376,7 +408,7 @@
         ],
         "icons": {
           "primary": "hsl(172 66% 50%)",
-          "primary-foreground": "hsl(0 0% 100%)",
+          "primary-foreground": "hsl(240 10% 4%)",
           "secondary-foreground": "hsl(0 0% 98%)",
           "muted-foreground": "hsl(240 5% 64%)",
           "destructive": "hsl(0 62.8% 50%)",
@@ -436,7 +468,7 @@
           "#0F766E"
         ],
         "icons": {
-          "primary": "hsl(32 80% 57%)",
+          "primary": "hsl(32 80% 35%)",
           "primary-foreground": "hsl(240 10% 4%)",
           "secondary-foreground": "hsl(240 6% 10%)",
           "muted-foreground": "hsl(240 4% 42%)",
@@ -537,7 +569,7 @@
           "#0F766E"
         ],
         "icons": {
-          "primary": "hsl(0 100% 68%)",
+          "primary": "hsl(0 80% 47%)",
           "primary-foreground": "hsl(240 10% 4%)",
           "secondary-foreground": "hsl(240 6% 10%)",
           "muted-foreground": "hsl(240 4% 42%)",
@@ -638,8 +670,8 @@
           "#0F766E"
         ],
         "icons": {
-          "primary": "hsl(142 69% 45%)",
-          "primary-foreground": "hsl(0 0% 100%)",
+          "primary": "hsl(142 69% 29%)",
+          "primary-foreground": "hsl(240 10% 4%)",
           "secondary-foreground": "hsl(240 6% 10%)",
           "muted-foreground": "hsl(240 4% 42%)",
           "destructive": "hsl(0 72% 51%)",
@@ -679,7 +711,7 @@
         ],
         "icons": {
           "primary": "hsl(142 69% 47%)",
-          "primary-foreground": "hsl(0 0% 100%)",
+          "primary-foreground": "hsl(240 10% 4%)",
           "secondary-foreground": "hsl(0 0% 98%)",
           "muted-foreground": "hsl(240 5% 64%)",
           "destructive": "hsl(0 62.8% 50%)",
@@ -739,8 +771,8 @@
           "#0F766E"
         ],
         "icons": {
-          "primary": "hsl(142 68% 48%)",
-          "primary-foreground": "hsl(0 0% 100%)",
+          "primary": "hsl(142 68% 29%)",
+          "primary-foreground": "hsl(240 10% 4%)",
           "secondary-foreground": "hsl(240 6% 10%)",
           "muted-foreground": "hsl(240 4% 42%)",
           "destructive": "hsl(0 72% 51%)",
@@ -881,7 +913,7 @@
         ],
         "icons": {
           "primary": "hsl(331 85% 68%)",
-          "primary-foreground": "hsl(240 10% 4%)",
+          "primary-foreground": "hsl(331 60% 12%)",
           "secondary-foreground": "hsl(0 0% 98%)",
           "muted-foreground": "hsl(240 5% 64%)",
           "destructive": "hsl(0 62.8% 50%)",
@@ -982,7 +1014,7 @@
         ],
         "icons": {
           "primary": "hsl(193 90% 60%)",
-          "primary-foreground": "hsl(240 10% 4%)",
+          "primary-foreground": "hsl(193 70% 10%)",
           "secondary-foreground": "hsl(0 0% 98%)",
           "muted-foreground": "hsl(240 5% 64%)",
           "destructive": "hsl(0 62.8% 50%)",
@@ -1020,5 +1052,5 @@
       "aurora": true
     }
   },
-  "globalCss": "/*\n * GENERATED from src/styles/tokens.ts — do not edit by hand.\n * Change tokens.ts, then run `pnpm tokens:css` (CI fails when this is stale).\n */\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n@layer base {\n  * {\n    border-color: hsl(var(--border));\n  }\n}\n\n/*\n * Neutrals + semantic colors live on :root / .dark.\n * Brand accent (primary / ring / chart-1) is set by theme-* classes on the root View\n * so Settings can swap accents without touching the rest of the palette.\n * Default accent: indigo (also applied via theme-indigo on the root View).\n */\n:root {\n  --background: 240 11% 96.5%;\n  --foreground: 240 10% 4%;\n  --foreground-secondary: 240 5% 26%;\n  --faint: 240 5% 65%;\n  --surface-1: 0 0% 100%;\n  --surface-2: 240 7% 94%;\n  --surface-3: 240 9% 91%;\n  --hairline: 240 6% 90%;\n  --card: 0 0% 100%;\n  --card-foreground: 240 10% 4%;\n  --popover: 0 0% 100%;\n  --popover-foreground: 240 10% 4%;\n  --primary: 173 80% 32%;\n  --primary-foreground: 0 0% 100%;\n  --secondary: 240 7% 94%;\n  --secondary-foreground: 240 6% 10%;\n  --muted: 240 7% 94%;\n  --muted-foreground: 240 4% 42%;\n  --accent: 240 7% 94%;\n  --accent-foreground: 240 5.9% 10%;\n  --destructive: 0 72% 51%;\n  --destructive-foreground: 0 0% 98%;\n  --success: 142 64% 38%;\n  --success-foreground: 0 0% 100%;\n  --warning: 38 92% 50%;\n  --warning-foreground: 0 0% 100%;\n  --info: 217 91% 60%;\n  --info-foreground: 0 0% 100%;\n  --border: 240 8% 86%;\n  --input: 240 8% 86%;\n  --ring: 173 80% 32%;\n  --chart-1: 173 70% 38%;\n  --chart-2: 217 91% 60%;\n  --chart-3: 38 92% 50%;\n  --chart-4: 280 65% 60%;\n  --chart-5: 0 72% 55%;\n  --radius: 0.9rem;\n}\n\n.dark {\n  --background: 240 6% 7%;\n  --foreground: 0 0% 98%;\n  --foreground-secondary: 240 5% 78%;\n  --faint: 240 4% 42%;\n  --surface-1: 240 5% 11%;\n  --surface-2: 240 5% 14.5%;\n  --surface-3: 240 5% 18%;\n  --hairline: 240 6% 17.5%;\n  --card: 240 5% 11%;\n  --card-foreground: 0 0% 98%;\n  --popover: 240 5% 18%;\n  --popover-foreground: 0 0% 98%;\n  --primary: 172 66% 50%;\n  --primary-foreground: 240 10% 4%;\n  --secondary: 240 5% 14.5%;\n  --secondary-foreground: 0 0% 98%;\n  --muted: 240 5% 14.5%;\n  --muted-foreground: 240 5% 64%;\n  --accent: 240 5% 14.5%;\n  --accent-foreground: 0 0% 98%;\n  --destructive: 0 62.8% 50%;\n  --destructive-foreground: 0 0% 98%;\n  --success: 142 60% 45%;\n  --success-foreground: 0 0% 100%;\n  --warning: 38 90% 54%;\n  --warning-foreground: 0 0% 100%;\n  --info: 217 88% 64%;\n  --info-foreground: 240 10% 4%;\n  --border: 240 5% 21.5%;\n  --input: 240 5% 21.5%;\n  --ring: 172 66% 50%;\n  --chart-1: 172 60% 52%;\n  --chart-2: 217 91% 64%;\n  --chart-3: 38 92% 56%;\n  --chart-4: 280 65% 64%;\n  --chart-5: 0 72% 58%;\n  --radius: 0.9rem;\n}\n\n/* ---- Accent themes (override primary / ring / chart-1 only) ---- */\n\n.theme-indigo {\n  --primary: 246 90% 66%;\n  --primary-foreground: 0 0% 100%;\n  --ring: 246 90% 66%;\n  --chart-1: 246 80% 60%;\n}\n.dark.theme-indigo {\n  --primary: 246 85% 72%;\n  --primary-foreground: 240 10% 4%;\n  --ring: 246 85% 72%;\n  --chart-1: 246 75% 68%;\n}\n\n.theme-teal {\n  --primary: 173 80% 32%;\n  --primary-foreground: 0 0% 100%;\n  --ring: 173 80% 32%;\n  --chart-1: 173 70% 38%;\n}\n.dark.theme-teal {\n  --primary: 172 66% 50%;\n  --primary-foreground: 240 10% 4%;\n  --ring: 172 66% 50%;\n  --chart-1: 172 60% 52%;\n}\n\n.theme-copper {\n  --primary: 32 80% 57%;\n  --primary-foreground: 240 10% 4%;\n  --ring: 32 80% 57%;\n  --chart-1: 32 75% 52%;\n}\n.dark.theme-copper {\n  --primary: 32 85% 62%;\n  --primary-foreground: 240 10% 4%;\n  --ring: 32 85% 62%;\n  --chart-1: 32 80% 58%;\n}\n\n.theme-coral {\n  --primary: 0 100% 68%;\n  --primary-foreground: 0 0% 100%;\n  --ring: 0 100% 68%;\n  --chart-1: 0 85% 62%;\n}\n.dark.theme-coral {\n  --primary: 0 90% 72%;\n  --primary-foreground: 240 10% 4%;\n  --ring: 0 90% 72%;\n  --chart-1: 0 80% 68%;\n}\n\n.theme-emerald {\n  --primary: 142 69% 45%;\n  --primary-foreground: 0 0% 100%;\n  --ring: 142 69% 45%;\n  --chart-1: 142 64% 45%;\n}\n.dark.theme-emerald {\n  --primary: 142 69% 47%;\n  --primary-foreground: 240 10% 4%;\n  --ring: 142 69% 47%;\n  --chart-1: 142 64% 48%;\n}\n\n.theme-mint {\n  --primary: 142 68% 48%;\n  --primary-foreground: 0 0% 100%;\n  --ring: 142 68% 48%;\n  --chart-1: 142 62% 46%;\n}\n.dark.theme-mint {\n  --primary: 142 70% 68%;\n  --primary-foreground: 240 10% 4%;\n  --ring: 142 70% 68%;\n  --chart-1: 142 65% 62%;\n}\n\n/* ---- Neon aurora skins: tinted near-black bases (ref screenshots) ---- */\n\n.theme-rose {\n  --background: 336 40% 99%;\n  --foreground: 335 30% 12%;\n  --surface-1: 336 55% 96%;\n  --surface-2: 336 50% 93%;\n  --card: 336 60% 93%;\n  --card-foreground: 335 30% 12%;\n  --popover: 336 55% 96%;\n  --popover-foreground: 335 30% 12%;\n  --primary: 336 80% 50%;\n  --primary-foreground: 0 0% 100%;\n  --secondary: 336 45% 90%;\n  --secondary-foreground: 335 30% 20%;\n  --muted: 336 45% 90%;\n  --muted-foreground: 336 18% 42%;\n  --accent: 336 55% 88%;\n  --accent-foreground: 336 75% 38%;\n  --destructive: 0 72% 51%;\n  --destructive-foreground: 0 0% 98%;\n  --border: 336 35% 86%;\n  --input: 336 30% 82%;\n  --ring: 336 80% 50%;\n  --chart-1: 336 75% 55%;\n}\n.dark.theme-rose {\n  --background: 320 40% 3%;\n  --foreground: 330 25% 96%;\n  --surface-1: 328 35% 9%;\n  --surface-2: 328 32% 12%;\n  --card: 328 35% 9%;\n  --card-foreground: 330 25% 96%;\n  --popover: 328 32% 12%;\n  --popover-foreground: 330 25% 96%;\n  --primary: 331 85% 68%;\n  --primary-foreground: 331 60% 12%;\n  --secondary: 325 32% 14%;\n  --secondary-foreground: 330 25% 96%;\n  --muted: 328 35% 16%;\n  --muted-foreground: 332 60% 74%;\n  --accent: 331 45% 20%;\n  --accent-foreground: 331 85% 78%;\n  --destructive: 0 62.8% 50%;\n  --destructive-foreground: 0 0% 98%;\n  --success: 142 60% 45%;\n  --success-foreground: 0 0% 100%;\n  --warning: 38 90% 54%;\n  --warning-foreground: 0 0% 100%;\n  --info: 217 88% 64%;\n  --info-foreground: 240 10% 4%;\n  --border: 330 35% 24%;\n  --input: 330 32% 24%;\n  --ring: 331 85% 68%;\n  --chart-1: 331 80% 62%;\n  --chart-2: 217 91% 64%;\n  --chart-3: 38 92% 56%;\n  --chart-4: 280 65% 64%;\n  --chart-5: 0 72% 58%;\n}\n\n.theme-electron {\n  --background: 190 40% 99%;\n  --foreground: 195 30% 12%;\n  --surface-1: 190 55% 96%;\n  --surface-2: 190 50% 93%;\n  --card: 190 60% 92%;\n  --card-foreground: 195 30% 12%;\n  --popover: 190 55% 96%;\n  --popover-foreground: 195 30% 12%;\n  --primary: 187 85% 36%;\n  --primary-foreground: 0 0% 100%;\n  --secondary: 190 45% 89%;\n  --secondary-foreground: 195 30% 20%;\n  --muted: 190 45% 89%;\n  --muted-foreground: 192 20% 40%;\n  --accent: 190 55% 86%;\n  --accent-foreground: 190 80% 32%;\n  --destructive: 0 72% 51%;\n  --destructive-foreground: 0 0% 98%;\n  --border: 190 35% 84%;\n  --input: 190 30% 80%;\n  --ring: 187 85% 36%;\n  --chart-1: 187 80% 44%;\n}\n.dark.theme-electron {\n  --background: 213 50% 3%;\n  --foreground: 210 20% 96%;\n  --surface-1: 215 44% 8%;\n  --surface-2: 215 40% 11%;\n  --card: 215 44% 8%;\n  --card-foreground: 210 20% 96%;\n  --popover: 215 40% 11%;\n  --popover-foreground: 210 20% 96%;\n  --primary: 193 90% 60%;\n  --primary-foreground: 193 70% 10%;\n  --secondary: 213 35% 14%;\n  --secondary-foreground: 210 20% 96%;\n  --muted: 210 35% 16%;\n  --muted-foreground: 195 60% 72%;\n  --accent: 193 45% 20%;\n  --accent-foreground: 193 85% 74%;\n  --destructive: 0 62.8% 50%;\n  --destructive-foreground: 0 0% 98%;\n  --success: 142 60% 45%;\n  --success-foreground: 0 0% 100%;\n  --warning: 38 90% 54%;\n  --warning-foreground: 0 0% 100%;\n  --info: 217 88% 64%;\n  --info-foreground: 240 10% 4%;\n  --border: 214 35% 22%;\n  --input: 214 32% 24%;\n  --ring: 193 90% 60%;\n  --chart-1: 193 85% 56%;\n  --chart-2: 217 91% 64%;\n  --chart-3: 38 92% 56%;\n  --chart-4: 280 65% 64%;\n  --chart-5: 0 72% 58%;\n}\n"
+  "globalCss": "/*\n * GENERATED from src/styles/tokens.ts — do not edit by hand.\n * Change tokens.ts, then run `pnpm tokens:css` (CI fails when this is stale).\n */\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n@layer base {\n  * {\n    border-color: hsl(var(--border));\n  }\n}\n\n/*\n * Neutrals + semantic colors live on :root / .dark.\n * Brand accent (primary / ring / chart-1) is set by theme-* classes on the root View\n * so Settings can swap accents without touching the rest of the palette.\n * Default accent: indigo (also applied via theme-indigo on the root View).\n */\n:root {\n  --background: 240 11% 96.5%;\n  --foreground: 240 10% 4%;\n  --foreground-secondary: 240 5% 26%;\n  --faint: 240 5% 65%;\n  --surface-1: 0 0% 100%;\n  --surface-2: 240 7% 94%;\n  --surface-3: 240 9% 91%;\n  --hairline: 240 6% 90%;\n  --card: 0 0% 100%;\n  --card-foreground: 240 10% 4%;\n  --popover: 0 0% 100%;\n  --popover-foreground: 240 10% 4%;\n  --primary: 173 80% 32%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 173 80% 27%;\n  --secondary: 240 7% 94%;\n  --secondary-foreground: 240 6% 10%;\n  --muted: 240 7% 94%;\n  --muted-foreground: 240 4% 42%;\n  --accent: 240 7% 94%;\n  --accent-foreground: 240 5.9% 10%;\n  --destructive: 0 72% 51%;\n  --destructive-foreground: 0 0% 98%;\n  --success: 142 64% 38%;\n  --success-foreground: 0 0% 100%;\n  --warning: 38 92% 50%;\n  --warning-foreground: 0 0% 100%;\n  --info: 217 91% 60%;\n  --info-foreground: 0 0% 100%;\n  --border: 240 8% 86%;\n  --input: 240 8% 86%;\n  --ring: 173 80% 32%;\n  --chart-1: 173 70% 38%;\n  --chart-2: 217 91% 60%;\n  --chart-3: 38 92% 50%;\n  --chart-4: 280 65% 60%;\n  --chart-5: 0 72% 55%;\n  --radius: 0.9rem;\n}\n\n.dark {\n  --background: 240 6% 7%;\n  --foreground: 0 0% 98%;\n  --foreground-secondary: 240 5% 78%;\n  --faint: 240 4% 42%;\n  --surface-1: 240 5% 11%;\n  --surface-2: 240 5% 14.5%;\n  --surface-3: 240 5% 18%;\n  --hairline: 240 6% 17.5%;\n  --card: 240 5% 11%;\n  --card-foreground: 0 0% 98%;\n  --popover: 240 5% 18%;\n  --popover-foreground: 0 0% 98%;\n  --primary: 172 66% 50%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 172 66% 50%;\n  --secondary: 240 5% 14.5%;\n  --secondary-foreground: 0 0% 98%;\n  --muted: 240 5% 14.5%;\n  --muted-foreground: 240 5% 64%;\n  --accent: 240 5% 14.5%;\n  --accent-foreground: 0 0% 98%;\n  --destructive: 0 62.8% 50%;\n  --destructive-foreground: 0 0% 98%;\n  --success: 142 60% 45%;\n  --success-foreground: 0 0% 100%;\n  --warning: 38 90% 54%;\n  --warning-foreground: 0 0% 100%;\n  --info: 217 88% 64%;\n  --info-foreground: 240 10% 4%;\n  --border: 240 5% 21.5%;\n  --input: 240 5% 21.5%;\n  --ring: 172 66% 50%;\n  --chart-1: 172 60% 52%;\n  --chart-2: 217 91% 64%;\n  --chart-3: 38 92% 56%;\n  --chart-4: 280 65% 64%;\n  --chart-5: 0 72% 58%;\n  --radius: 0.9rem;\n}\n\n/* ---- Accent themes (override primary / ring / chart-1 only) ---- */\n\n.theme-indigo {\n  --primary: 246 90% 66%;\n  --primary-foreground: 0 0% 100%;\n  --primary-text: 246 90% 64%;\n  --ring: 246 90% 66%;\n  --chart-1: 246 80% 60%;\n}\n.dark.theme-indigo {\n  --primary: 246 85% 72%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 246 85% 72%;\n  --ring: 246 85% 72%;\n  --chart-1: 246 75% 68%;\n}\n\n.theme-teal {\n  --primary: 173 80% 32%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 173 80% 27%;\n  --ring: 173 80% 32%;\n  --chart-1: 173 70% 38%;\n}\n.dark.theme-teal {\n  --primary: 172 66% 50%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 172 66% 50%;\n  --ring: 172 66% 50%;\n  --chart-1: 172 60% 52%;\n}\n\n.theme-copper {\n  --primary: 32 80% 57%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 32 80% 35%;\n  --ring: 32 80% 57%;\n  --chart-1: 32 75% 52%;\n}\n.dark.theme-copper {\n  --primary: 32 85% 62%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 32 85% 62%;\n  --ring: 32 85% 62%;\n  --chart-1: 32 80% 58%;\n}\n\n.theme-coral {\n  --primary: 0 100% 68%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 0 80% 47%;\n  --ring: 0 100% 68%;\n  --chart-1: 0 85% 62%;\n}\n.dark.theme-coral {\n  --primary: 0 90% 72%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 0 90% 72%;\n  --ring: 0 90% 72%;\n  --chart-1: 0 80% 68%;\n}\n\n.theme-emerald {\n  --primary: 142 69% 45%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 142 69% 29%;\n  --ring: 142 69% 45%;\n  --chart-1: 142 64% 45%;\n}\n.dark.theme-emerald {\n  --primary: 142 69% 47%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 142 69% 47%;\n  --ring: 142 69% 47%;\n  --chart-1: 142 64% 48%;\n}\n\n.theme-mint {\n  --primary: 142 68% 48%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 142 68% 29%;\n  --ring: 142 68% 48%;\n  --chart-1: 142 62% 46%;\n}\n.dark.theme-mint {\n  --primary: 142 70% 68%;\n  --primary-foreground: 240 10% 4%;\n  --primary-text: 142 70% 68%;\n  --ring: 142 70% 68%;\n  --chart-1: 142 65% 62%;\n}\n\n/* ---- Neon aurora skins: tinted near-black bases (ref screenshots) ---- */\n\n.theme-rose {\n  --background: 336 40% 99%;\n  --foreground: 335 30% 12%;\n  --surface-1: 336 55% 96%;\n  --surface-2: 336 50% 93%;\n  --card: 336 60% 93%;\n  --card-foreground: 335 30% 12%;\n  --popover: 336 55% 96%;\n  --popover-foreground: 335 30% 12%;\n  --primary: 336 80% 50%;\n  --primary-foreground: 0 0% 100%;\n  --primary-text: 336 80% 50%;\n  --secondary: 336 45% 90%;\n  --secondary-foreground: 335 30% 20%;\n  --muted: 336 45% 90%;\n  --muted-foreground: 336 18% 42%;\n  --accent: 336 55% 88%;\n  --accent-foreground: 336 75% 38%;\n  --destructive: 0 72% 51%;\n  --destructive-foreground: 0 0% 98%;\n  --border: 336 35% 86%;\n  --input: 336 30% 82%;\n  --ring: 336 80% 50%;\n  --chart-1: 336 75% 55%;\n}\n.dark.theme-rose {\n  --background: 320 40% 3%;\n  --foreground: 330 25% 96%;\n  --surface-1: 328 35% 9%;\n  --surface-2: 328 32% 12%;\n  --card: 328 35% 9%;\n  --card-foreground: 330 25% 96%;\n  --popover: 328 32% 12%;\n  --popover-foreground: 330 25% 96%;\n  --primary: 331 85% 68%;\n  --primary-foreground: 331 60% 12%;\n  --primary-text: 331 85% 68%;\n  --secondary: 325 32% 14%;\n  --secondary-foreground: 330 25% 96%;\n  --muted: 328 35% 16%;\n  --muted-foreground: 332 60% 74%;\n  --accent: 331 45% 20%;\n  --accent-foreground: 331 85% 78%;\n  --destructive: 0 62.8% 50%;\n  --destructive-foreground: 0 0% 98%;\n  --success: 142 60% 45%;\n  --success-foreground: 0 0% 100%;\n  --warning: 38 90% 54%;\n  --warning-foreground: 0 0% 100%;\n  --info: 217 88% 64%;\n  --info-foreground: 240 10% 4%;\n  --border: 330 35% 24%;\n  --input: 330 32% 24%;\n  --ring: 331 85% 68%;\n  --chart-1: 331 80% 62%;\n  --chart-2: 217 91% 64%;\n  --chart-3: 38 92% 56%;\n  --chart-4: 280 65% 64%;\n  --chart-5: 0 72% 58%;\n}\n\n.theme-electron {\n  --background: 190 40% 99%;\n  --foreground: 195 30% 12%;\n  --surface-1: 190 55% 96%;\n  --surface-2: 190 50% 93%;\n  --card: 190 60% 92%;\n  --card-foreground: 195 30% 12%;\n  --popover: 190 55% 96%;\n  --popover-foreground: 195 30% 12%;\n  --primary: 187 85% 36%;\n  --primary-foreground: 0 0% 100%;\n  --primary-text: 187 85% 36%;\n  --secondary: 190 45% 89%;\n  --secondary-foreground: 195 30% 20%;\n  --muted: 190 45% 89%;\n  --muted-foreground: 192 20% 40%;\n  --accent: 190 55% 86%;\n  --accent-foreground: 190 80% 32%;\n  --destructive: 0 72% 51%;\n  --destructive-foreground: 0 0% 98%;\n  --border: 190 35% 84%;\n  --input: 190 30% 80%;\n  --ring: 187 85% 36%;\n  --chart-1: 187 80% 44%;\n}\n.dark.theme-electron {\n  --background: 213 50% 3%;\n  --foreground: 210 20% 96%;\n  --surface-1: 215 44% 8%;\n  --surface-2: 215 40% 11%;\n  --card: 215 44% 8%;\n  --card-foreground: 210 20% 96%;\n  --popover: 215 40% 11%;\n  --popover-foreground: 210 20% 96%;\n  --primary: 193 90% 60%;\n  --primary-foreground: 193 70% 10%;\n  --primary-text: 193 90% 60%;\n  --secondary: 213 35% 14%;\n  --secondary-foreground: 210 20% 96%;\n  --muted: 210 35% 16%;\n  --muted-foreground: 195 60% 72%;\n  --accent: 193 45% 20%;\n  --accent-foreground: 193 85% 74%;\n  --destructive: 0 62.8% 50%;\n  --destructive-foreground: 0 0% 98%;\n  --success: 142 60% 45%;\n  --success-foreground: 0 0% 100%;\n  --warning: 38 90% 54%;\n  --warning-foreground: 0 0% 100%;\n  --info: 217 88% 64%;\n  --info-foreground: 240 10% 4%;\n  --border: 214 35% 22%;\n  --input: 214 32% 24%;\n  --ring: 193 90% 60%;\n  --chart-1: 193 85% 56%;\n  --chart-2: 217 91% 64%;\n  --chart-3: 38 92% 56%;\n  --chart-4: 280 65% 64%;\n  --chart-5: 0 72% 58%;\n}\n"
 }

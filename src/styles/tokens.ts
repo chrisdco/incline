@@ -48,7 +48,8 @@ export const BASE_VARS = {
     popover: '0 0% 100%',
     'popover-foreground': '240 10% 4%',
     primary: '173 80% 32%',
-    'primary-foreground': '0 0% 100%',
+    'primary-foreground': '240 10% 4%',
+    'primary-text': '173 80% 27%',
     secondary: '240 7% 94%',
     'secondary-foreground': '240 6% 10%',
     muted: '240 7% 94%',
@@ -87,6 +88,7 @@ export const BASE_VARS = {
     'popover-foreground': '0 0% 98%',
     primary: '172 66% 50%',
     'primary-foreground': '240 10% 4%',
+    'primary-text': '172 66% 50%',
     secondary: '240 5% 14.5%',
     'secondary-foreground': '0 0% 98%',
     muted: '240 5% 14.5%',
@@ -115,8 +117,13 @@ export const BASE_VARS = {
 export type BaseVar = keyof (typeof BASE_VARS)['light'];
 
 /** Classic accents only override these four variables. */
-function classicVars(primary: Channels, foreground: Channels, chart1: Channels): VarMap {
-  return { primary, 'primary-foreground': foreground, ring: primary, 'chart-1': chart1 };
+/**
+ * `text` is the accent as text/icon on neutral surfaces (≥ 4.5:1). Light
+ * mode needs a deeper tone than the fill, like iOS tint vs. Material's
+ * primary/onSurface split; dark mode reuses the fill.
+ */
+function classicVars(primary: Channels, foreground: Channels, chart1: Channels, text: Channels = primary): VarMap {
+  return { primary, 'primary-foreground': foreground, 'primary-text': text, ring: primary, 'chart-1': chart1 };
 }
 
 const INK = '240 10% 4%';
@@ -142,7 +149,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
     description: 'Electric indigo — default Incline brand',
     aurora: false,
     vars: {
-      light: classicVars('246 90% 66%', WHITE, '246 80% 60%'),
+      light: classicVars('246 90% 66%', WHITE, '246 80% 60%', '246 90% 64%'),
       dark: classicVars('246 85% 72%', INK, '246 75% 68%'),
     },
     hex: { light: '#6D5DF6', dark: '#8B7CFF' },
@@ -152,7 +159,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
     description: 'Cool teal, clear in light and dark',
     aurora: false,
     vars: {
-      light: classicVars('173 80% 32%', WHITE, '173 70% 38%'),
+      light: classicVars('173 80% 32%', INK, '173 70% 38%', '173 80% 27%'),
       dark: classicVars('172 66% 50%', INK, '172 60% 52%'),
     },
     hex: { light: '#0D9488', dark: '#2DD4BF' },
@@ -162,7 +169,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
     description: 'Warm energy on cool neutrals',
     aurora: false,
     vars: {
-      light: classicVars('32 80% 57%', INK, '32 75% 52%'),
+      light: classicVars('32 80% 57%', INK, '32 75% 52%', '32 80% 35%'),
       dark: classicVars('32 85% 62%', INK, '32 80% 58%'),
     },
     hex: { light: '#E8943A', dark: '#F0A85A' },
@@ -172,7 +179,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
     description: 'High-energy accent (distinct from destructive)',
     aurora: false,
     vars: {
-      light: classicVars('0 100% 68%', WHITE, '0 85% 62%'),
+      light: classicVars('0 100% 68%', INK, '0 85% 62%', '0 80% 47%'),
       dark: classicVars('0 90% 72%', INK, '0 80% 68%'),
     },
     hex: { light: '#FF6B6B', dark: '#FF8585' },
@@ -182,7 +189,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
     description: 'Classic fitness green (for comparison)',
     aurora: false,
     vars: {
-      light: classicVars('142 69% 45%', WHITE, '142 64% 45%'),
+      light: classicVars('142 69% 45%', INK, '142 64% 45%', '142 69% 29%'),
       dark: classicVars('142 69% 47%', INK, '142 64% 48%'),
     },
     hex: { light: '#16a34a', dark: '#22c55e' },
@@ -192,7 +199,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
     description: 'Soft seafoam — charts and active states',
     aurora: false,
     vars: {
-      light: classicVars('142 68% 48%', WHITE, '142 62% 46%'),
+      light: classicVars('142 68% 48%', INK, '142 62% 46%', '142 68% 29%'),
       dark: classicVars('142 70% 68%', INK, '142 65% 62%'),
     },
     hex: { light: '#2DB86A', dark: '#75E69C' },
@@ -213,6 +220,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
         'popover-foreground': '335 30% 12%',
         primary: '336 80% 50%',
         'primary-foreground': WHITE,
+        'primary-text': '336 80% 50%',
         secondary: '336 45% 90%',
         'secondary-foreground': '335 30% 20%',
         muted: '336 45% 90%',
@@ -237,6 +245,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
         'popover-foreground': '330 25% 96%',
         primary: '331 85% 68%',
         'primary-foreground': '331 60% 12%',
+        'primary-text': '331 85% 68%',
         secondary: '325 32% 14%',
         'secondary-foreground': '330 25% 96%',
         muted: '328 35% 16%',
@@ -280,6 +289,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
         'popover-foreground': '195 30% 12%',
         primary: '187 85% 36%',
         'primary-foreground': WHITE,
+        'primary-text': '187 85% 36%',
         secondary: '190 45% 89%',
         'secondary-foreground': '195 30% 20%',
         muted: '190 45% 89%',
@@ -304,6 +314,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
         'popover-foreground': '210 20% 96%',
         primary: '193 90% 60%',
         'primary-foreground': '193 70% 10%',
+        'primary-text': '193 90% 60%',
         secondary: '213 35% 14%',
         'secondary-foreground': '210 20% 96%',
         muted: '210 35% 16%',

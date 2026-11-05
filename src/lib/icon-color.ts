@@ -1,7 +1,6 @@
 import {
   ACCENT_THEMES,
   DEFAULT_ACCENT_THEME,
-  primaryForegroundChannels,
   type AccentTheme,
 } from '@/lib/accent-themes';
 import { useSettings } from '@/store/settings-store';
@@ -63,18 +62,10 @@ export function resolveIconColor(
   isDark: boolean,
   accent: AccentTheme = DEFAULT_ACCENT_THEME,
 ): string {
-  if (color === 'primary') {
-    const channels = isDark
-      ? (ACCENT_THEMES[accent] ?? ACCENT_THEMES.indigo).dark.primary
-      : (ACCENT_THEMES[accent] ?? ACCENT_THEMES.indigo).light.primary;
-    return `hsl(${channels})`;
-  }
-  if (color === 'primary-foreground') {
-    const channels = isDark
-      ? (ACCENT_THEMES[accent] ?? ACCENT_THEMES.indigo).dark.primary
-      : (ACCENT_THEMES[accent] ?? ACCENT_THEMES.indigo).light.primary;
-    return `hsl(${primaryForegroundChannels(channels)})`;
-  }
+  const def = ACCENT_THEMES[accent] ?? ACCENT_THEMES.indigo;
+  // Icons are glyphs on neutral surfaces, so they take the text tone, not the fill.
+  if (color === 'primary') return `hsl(${(isDark ? def.dark : def.light).text})`;
+  if (color === 'primary-foreground') return `hsl(${(isDark ? def.dark : def.light).foreground})`;
   const map = isDark ? DARK_BASE : LIGHT_BASE;
   return map[color as keyof typeof map] ?? color;
 }

@@ -37,7 +37,7 @@ const buttonTextVariants = cva('font-semibold', {
       secondary: 'text-secondary-foreground',
       destructive: 'text-destructive-foreground',
       destructiveTonal: 'text-destructive',
-      tonal: 'text-primary',
+      tonal: 'text-primary-text',
       outline: 'text-foreground',
       ghost: 'text-foreground',
       success: 'text-success-foreground',

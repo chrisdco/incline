@@ -249,7 +249,7 @@ export default function WorkoutsScreen() {
                       hitSlop={8}
                       className="flex-row items-center gap-1">
                       <Icon icon={ArrowUpDown} size={14} color="primary" />
-                      <Caption className="font-medium text-primary">{routineSort === 'recent' ? 'Recent' : 'A–Z'}</Caption>
+                      <Caption className="font-medium text-primary-text">{routineSort === 'recent' ? 'Recent' : 'A–Z'}</Caption>
                     </Pressable>
                   ) : null
                 }>
@@ -305,7 +305,7 @@ export default function WorkoutsScreen() {
                   accessibilityLabel="New program"
                   className="flex-row items-center gap-1">
                   <Icon icon={Plus} size={14} color="primary" />
-                  <Caption className="font-medium text-primary">New</Caption>
+                  <Caption className="font-medium text-primary-text">New</Caption>
                 </Pressable>
               }>
               <Caption className="mb-2 px-1">Multi-week plans built from your routines. The active one drives Home.</Caption>

@@ -22,7 +22,7 @@ export function SectionHeader({
       {action && onAction ? (
         <Text
           accessibilityRole="button"
-          className="text-sm font-medium text-primary"
+          className="text-sm font-medium text-primary-text"
           onPress={onAction}>
           {action}
         </Text>

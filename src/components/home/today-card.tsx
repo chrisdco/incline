@@ -52,7 +52,7 @@ export function TodayCard({
   return (
     <Card elevation="raised">
       <View className="flex-row items-center justify-between">
-        <Text className="text-2xs font-semibold uppercase tracking-wide text-primary">{eyebrow}</Text>
+        <Text className="text-2xs font-semibold uppercase tracking-wide text-primary-text">{eyebrow}</Text>
         {trailing ? <Caption className="text-xs">{trailing}</Caption> : null}
       </View>
       {onPreview ? (

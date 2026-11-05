@@ -389,7 +389,7 @@ const ExercisePickRow = memo(function ExercisePickRow({
             </Text>
             {badge ? (
               <View className="rounded-full bg-primary/15 px-2 py-0.5">
-                <Text className="text-2xs font-semibold text-primary">{badge}</Text>
+                <Text className="text-2xs font-semibold text-primary-text">{badge}</Text>
               </View>
             ) : null}
           </View>

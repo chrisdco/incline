@@ -202,7 +202,7 @@ function ExerciseBlockImpl({
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Exercise targets and shortcuts">
-                <Text className="text-xs font-medium text-primary">PR pace</Text>
+                <Text className="text-xs font-medium text-primary-text">PR pace</Text>
               </Pressable>
             ) : null}
             {loadSuggestion && loadSuggestion.weight > 0 ? (
@@ -211,7 +211,7 @@ function ExerciseBlockImpl({
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Use suggested load">
-                <Text className="text-xs font-medium text-primary">
+                <Text className="text-xs font-medium text-primary-text">
                   Suggested {formatWeight(loadSuggestion.weight, unit)} × {loadSuggestion.reps}
                 </Text>
               </Pressable>
@@ -605,7 +605,7 @@ function AssistRow({
   return (
     <View className="flex-row items-center justify-between gap-3">
       <Caption>{label}</Caption>
-      <Body className={cn('font-medium', accent ? 'text-primary' : 'text-foreground')}>{value}</Body>
+      <Body className={cn('font-medium', accent ? 'text-primary-text' : 'text-foreground')}>{value}</Body>
     </View>
   );
 }

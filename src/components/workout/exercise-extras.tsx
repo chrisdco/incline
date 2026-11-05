@@ -93,7 +93,7 @@ export function ExerciseNoteField({ logId, exerciseId }: { logId: number; exerci
         accessibilityLabel="Done editing exercise note"
         hitSlop={8}
         className="self-end rounded-xl bg-primary/15 px-3 py-1.5">
-        <Text className="text-xs font-semibold text-primary">Done</Text>
+        <Text className="text-xs font-semibold text-primary-text">Done</Text>
       </Pressable>
     </Animated.View>
   );

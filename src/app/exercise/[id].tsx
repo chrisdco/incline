@@ -343,7 +343,7 @@ function SummaryTab({
           {repRecords.map((r) => (
             <View key={r.reps} className="flex-row py-1.5">
               <Body className="w-16 text-sm tabular-nums text-foreground">{r.reps}</Body>
-              <Body className="text-sm font-medium tabular-nums text-primary">{formatWeight(r.weight, unit)}</Body>
+              <Body className="text-sm font-medium tabular-nums text-primary-text">{formatWeight(r.weight, unit)}</Body>
             </View>
           ))}
         </Card>
@@ -482,7 +482,7 @@ function HowToTab({ exercise }: { exercise: Exercise }) {
           {exercise.instructions.map((step, i) => (
             <View key={i} className="flex-row gap-3">
               <View className="h-7 w-7 items-center justify-center rounded-full bg-primary/15">
-                <Caption className="text-primary font-semibold">{i + 1}</Caption>
+                <Caption className="text-primary-text font-semibold">{i + 1}</Caption>
               </View>
               <Body className="flex-1 text-sm text-foreground">{step}</Body>
             </View>

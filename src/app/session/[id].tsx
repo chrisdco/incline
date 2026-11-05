@@ -451,9 +451,9 @@ export default function SessionScreen() {
                 className={inSuperset ? 'border-l-2 border-primary/50 pl-3' : undefined}>
                 {i > 0 && !continueSuperset ? <View className="mb-5 h-px bg-border/40" /> : null}
                 {continueSuperset ? (
-                  <Caption className="mb-2 text-primary">Superset</Caption>
+                  <Caption className="mb-2 text-primary-text">Superset</Caption>
                 ) : inSuperset && (!prev || prev.supersetGroup !== g.supersetGroup) ? (
-                  <Caption className="mb-2 text-primary">Superset</Caption>
+                  <Caption className="mb-2 text-primary-text">Superset</Caption>
                 ) : null}
                 <ExerciseBlock
                   logId={logId}

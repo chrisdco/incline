@@ -33,10 +33,10 @@ export function StatCard({
         <Num
           value={splitUnit(value)[0]}
           unit={splitUnit(value)[1]}
-          className={cn('mt-2 text-2xl font-bold tracking-tight', accent && 'text-primary')}
+          className={cn('mt-2 text-2xl font-bold tracking-tight', accent && 'text-primary-text')}
         />
       ) : (
-        <Text className={cn('mt-2 text-2xl font-bold tracking-tight tabular-nums', accent ? 'text-primary' : 'text-foreground')}>
+        <Text className={cn('mt-2 text-2xl font-bold tracking-tight tabular-nums', accent ? 'text-primary-text' : 'text-foreground')}>
           {value}
         </Text>
       )}

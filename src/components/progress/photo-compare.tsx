@@ -126,7 +126,7 @@ export function PhotoCompare({
         accessibilityLabel="Swap left and right photos"
         className="mt-3 flex-row items-center justify-center gap-2 self-center rounded-full border border-border bg-card px-4 py-2">
         <Icon icon={ArrowLeftRight} size={16} color="primary" />
-        <Caption className="font-medium text-primary">Swap</Caption>
+        <Caption className="font-medium text-primary-text">Swap</Caption>
       </Pressable>
     </View>
   );

@@ -216,7 +216,7 @@ const MonthGrid = memo(function MonthGrid({
                           'text-sm',
                           isToday && 'font-bold text-primary-foreground',
                           !isToday && isFuture && 'text-muted-foreground/40',
-                          !isToday && !isFuture && hasWorkout && 'font-semibold text-primary',
+                          !isToday && !isFuture && hasWorkout && 'font-semibold text-primary-text',
                           !isToday && !isFuture && !hasWorkout && 'text-foreground',
                         )}>
                         {day}
@@ -275,11 +275,11 @@ const MiniMonth = memo(function MiniMonth({
         isCurrentMonth && 'border-primary/40',
       )}>
       <View className="mb-1.5 flex-row items-baseline justify-between">
-        <Caption className={cn('font-semibold', isCurrentMonth ? 'text-primary' : 'text-foreground')}>
+        <Caption className={cn('font-semibold', isCurrentMonth ? 'text-primary-text' : 'text-foreground')}>
           {MONTH_SHORT[month]}
         </Caption>
         {trainedDays > 0 ? (
-          <Caption className={isCurrentMonth ? 'text-primary' : 'text-muted-foreground'}>
+          <Caption className={isCurrentMonth ? 'text-primary-text' : 'text-muted-foreground'}>
             {trainedDays}d
           </Caption>
         ) : null}
@@ -528,7 +528,7 @@ export default function CalendarScreen() {
                 <Icon icon={ChevronDown} size={16} color="muted-foreground" />
               </Pressable>
               <Pressable onPress={goToToday} accessibilityRole="button" accessibilityLabel="Go to today" hitSlop={8}>
-                <Caption className="font-medium text-primary">Today</Caption>
+                <Caption className="font-medium text-primary-text">Today</Caption>
               </Pressable>
             </>
           ) : (
@@ -694,7 +694,7 @@ export default function CalendarScreen() {
                 )}>
                 <Body className="text-sm font-medium text-foreground">{label}</Body>
                 {count > 0 ? (
-                  <Caption className="mt-1 text-2xs font-medium text-primary">{count}d</Caption>
+                  <Caption className="mt-1 text-2xs font-medium text-primary-text">{count}d</Caption>
                 ) : (
                   <View className="mt-1.5 h-3.5" />
                 )}

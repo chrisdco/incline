@@ -23,8 +23,8 @@ export interface AccentDefinition {
   label: string;
   description: string;
   /** Tailwind-friendly HSL channels without `hsl()` wrapper: "H S% L%" */
-  light: { primary: string; ring: string; chart1: string };
-  dark: { primary: string; ring: string; chart1: string };
+  light: { primary: string; foreground: string; text: string; ring: string; chart1: string };
+  dark: { primary: string; foreground: string; text: string; ring: string; chart1: string };
   /** Hex for native props */
   hex: { light: string; dark: string };
 }
@@ -34,6 +34,8 @@ export const ACCENT_THEMES = Object.fromEntries(
     const t = ACCENT_TOKENS[id];
     const channels = (scheme: 'light' | 'dark') => ({
       primary: t.vars[scheme].primary,
+      foreground: t.vars[scheme]['primary-foreground'],
+      text: t.vars[scheme]['primary-text'],
       ring: t.vars[scheme].ring,
       chart1: t.vars[scheme]['chart-1'],
     });
