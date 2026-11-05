@@ -8,6 +8,8 @@
  * 1.1.0: an empty routine is built from scratch (add ops + rename).
  * 1.2.0: a short list of the user's exercise names + the current time estimate.
  */
+import { sanitizeExerciseName } from '../narrate/feature-pack';
+
 export const TEMPLATE_EDIT_PROMPT_VERSION = 'template-edit-1.2.0';
 
 export const MAX_TEMPLATE_ROWS = 30;
@@ -19,6 +21,7 @@ export const MAX_MEMORY_ITEMS = 10;
 export const MAX_CATALOG_NAMES = 150;
 export const SETS_RANGE = [1, 10] as const;
 export const REPS_RANGE = [1, 100] as const;
+export const NOTHING_TO_CHANGE = 'No changes needed for that.';
 
 /** One existing routine row as the model sees it. `ref` is e1, e2, … in order. */
 export interface TemplateRowSnapshot {
@@ -122,7 +125,8 @@ export function parseTemplateEditInput(raw: unknown): Parsed<TemplateEditInput> 
   const catalog = Array.isArray(raw.catalog)
     ? raw.catalog
         .map((m) => cleanText(m, MAX_EXERCISE_NAME * 2))
-        .filter((m): m is string => m !== null)
+        // Custom names are user text: drop any that aren't plain names (same rule as narrate).
+        .filter((m): m is string => m !== null && sanitizeExerciseName(m) === m)
         .slice(0, MAX_CATALOG_NAMES)
     : undefined;
   return {
@@ -147,9 +151,11 @@ export function parseTemplateDiff(raw: unknown, input: TemplateEditInput): Parse
   const decline = cleanText(raw.decline, 200);
   if (decline) return { ok: true, value: { decline } };
   if (!Array.isArray(raw.ops)) return { ok: false, error: 'missing_ops' };
-  // "Nothing to change" sometimes arrives as an empty op list with a summary.
-  const emptySummary = raw.ops.length === 0 ? cleanText(raw.summary, 200) : null;
-  if (emptySummary) return { ok: true, value: { decline: emptySummary } };
+  // "Nothing to change" sometimes arrives as an empty op list. Its summary can
+  // claim a change that never happened ("All exercises removed"), so say it plainly.
+  if (raw.ops.length === 0 && cleanText(raw.summary, 200)) {
+    return { ok: true, value: { decline: NOTHING_TO_CHANGE } };
+  }
 
   const refs = new Set(input.rows.map((r) => r.ref));
   const touched = new Set<string>();
