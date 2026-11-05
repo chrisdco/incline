@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
+import { ListGroup, ListRow } from '@/components/layout';
 import { Body, Caption } from '@/components/common/text';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SegmentedControl } from '@/components/common/segmented-control';
@@ -117,44 +118,37 @@ export default function MuscleDistributionScreen() {
             {coachingNotes.length > 0 ? (
               <View>
                 <Body className="mb-3 text-lg font-semibold text-foreground">Coaching</Body>
-                <View className="gap-2">
+                <ListGroup>
                   {coachingNotes.map((note) => (
-                    <View key={note.id} className="rounded-2xl bg-card px-4 py-3">
-                      <Body className="font-medium text-foreground">{note.title}</Body>
-                      <Caption className="mt-1">{note.body}</Caption>
-                    </View>
+                    <ListRow key={note.id} title={note.title} subtitle={note.body} />
                   ))}
-                </View>
+                </ListGroup>
               </View>
             ) : null}
 
             {topMuscles.length > 0 ? (
               <View>
                 <Body className="mb-3 text-lg font-semibold text-foreground">Most trained</Body>
-                <View className="gap-2">
+                <ListGroup>
                   {topMuscles.map((m, i) => (
-                    <View key={m.muscle} className="flex-row items-center justify-between rounded-2xl bg-card px-4 py-3">
-                      <Body className="font-medium text-foreground">
-                        {i + 1}. {MUSCLE_LABELS[m.muscle]}
-                      </Body>
-                      <Caption>{m.sets} sets</Caption>
-                    </View>
+                    <ListRow key={m.muscle} title={`${i + 1}. ${MUSCLE_LABELS[m.muscle]}`}>
+                      <Caption className="tabular-nums">{m.sets} sets</Caption>
+                    </ListRow>
                   ))}
-                </View>
+                </ListGroup>
               </View>
             ) : null}
 
             {leastMuscles.length > 0 && leastMuscles[0].muscle !== topMuscles[0]?.muscle ? (
               <View>
                 <Body className="mb-3 text-lg font-semibold text-foreground">Least trained</Body>
-                <View className="gap-2">
+                <ListGroup>
                   {leastMuscles.map((m) => (
-                    <View key={`least-${m.muscle}`} className="flex-row items-center justify-between rounded-2xl bg-card px-4 py-3">
-                      <Body className="font-medium text-foreground">{MUSCLE_LABELS[m.muscle]}</Body>
-                      <Caption>{m.sets} sets</Caption>
-                    </View>
+                    <ListRow key={`least-${m.muscle}`} title={MUSCLE_LABELS[m.muscle]}>
+                      <Caption className="tabular-nums">{m.sets} sets</Caption>
+                    </ListRow>
                   ))}
-                </View>
+                </ListGroup>
               </View>
             ) : null}
           </View>

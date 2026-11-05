@@ -82,7 +82,7 @@ function Kpi({
   delta: ReactNode;
 }) {
   return (
-    <View className="min-h-[108px] flex-1 rounded-2xl border border-border px-4 py-4">
+    <View className="min-h-[108px] flex-1 rounded-2xl border border-divider bg-surface1 px-4 py-4">
       <Caption className="text-sm">{label}</Caption>
       <Hero className="mt-2 text-3xl">{value}</Hero>
       <View className="mt-1">{delta}</View>

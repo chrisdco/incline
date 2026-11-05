@@ -144,7 +144,7 @@ export default function ReorderSessionScreen() {
                   delayLongPress={150}
                   accessibilityRole="button"
                   accessibilityLabel={`Drag ${item.name} to reorder`}
-                  className={`mb-2 flex-row items-center gap-3 rounded-2xl bg-card p-4 ${isActive ? 'opacity-80' : ''}`}>
+                  className={`mb-2 flex-row items-center gap-3 rounded-2xl bg-surface1 p-4 ${isActive ? 'opacity-80' : ''}`}>
                   <Icon icon={GripVertical} size={18} color="muted-foreground" />
                   <View className="flex-1">
                     <Body className="font-medium text-foreground" numberOfLines={1}>

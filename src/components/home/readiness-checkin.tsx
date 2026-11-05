@@ -15,7 +15,7 @@ export function ReadinessCheckIn({
   onChange: (level: ReadinessLevel) => void;
 }) {
   return (
-    <View className="mb-4 rounded-2xl bg-card px-4 py-3">
+    <View className="mb-4 rounded-2xl bg-surface1 px-4 py-3">
       <SectionLabel>How do you feel?</SectionLabel>
       <Caption className="mb-3">Optional — tired softens load suggestions today.</Caption>
       <View className="flex-row flex-wrap gap-2">

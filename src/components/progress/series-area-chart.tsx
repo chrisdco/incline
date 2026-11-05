@@ -78,7 +78,7 @@ export const SeriesAreaChart = memo(function SeriesAreaChart({
 
   if (!prepared) {
     return (
-      <View className={cn(title && 'rounded-3xl border border-border/60 bg-card p-4', className)}>
+      <View className={cn(title && 'rounded-2xl bg-surface1 p-4', className)}>
         {title ? <Text className="mb-1 text-lg font-semibold text-foreground">{title}</Text> : null}
         <Text className="text-sm text-muted-foreground">{emptyLabel}</Text>
       </View>
@@ -167,7 +167,7 @@ export const SeriesAreaChart = memo(function SeriesAreaChart({
   }
 
   return (
-    <View className={cn('rounded-3xl border border-border/60 bg-card p-4 shadow-sm', className)}>
+    <View className={cn('rounded-2xl bg-surface1 p-4', className)}>
       <Text className="text-lg font-semibold text-foreground">{title}</Text>
       {prepared.rangeLabel ? (
         <Text className="mt-0.5 text-sm text-muted-foreground">{prepared.rangeLabel}</Text>
