@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Dialog } from '@/components/ui/dialog';
 import { Chip } from '@/components/common/chip';
+import { TemplateAsk } from '@/components/ai/template-ask';
 import { ExercisePickerSheet } from '@/components/workout/exercise-picker-sheet';
 import { NumberStepper } from '@/components/workout/number-stepper';
 import { useToast } from '@/components/ui/toast';
@@ -32,7 +33,7 @@ import {
 import { captureError } from '@/lib/error-sink';
 import { DIFFICULTY_LABELS } from '@/lib/labels';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
-import type { Difficulty, TemplateExercise } from '@/db/types';
+import type { Difficulty, TemplateExercise, WorkoutTemplate } from '@/db/types';
 
 type Exercise = TemplateExercise & { exercise?: { id: number; name: string; primaryMuscle: string; equipment: string } };
 type ExercisePatch = Partial<Pick<TemplateExercise, 'targetSets' | 'targetRepsMin' | 'targetRepsMax' | 'restSeconds' | 'notes' | 'supersetGroup'>>;
@@ -75,6 +76,7 @@ export default function TemplateEditorScreen() {
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [template, setTemplate] = useState<WorkoutTemplate | null>(null);
 
   useEffect(() => {
     navigation.setOptions({ headerShown: true, title: isNew ? 'New routine' : 'Edit routine' });
@@ -84,6 +86,7 @@ export default function TemplateEditorScreen() {
     if (!templateId) return;
     getTemplate(templateId).then((t) => {
       if (t) {
+        setTemplate(t);
         setName(t.name);
         setDescription(t.description);
         setDifficulty(t.difficulty);
@@ -93,6 +96,16 @@ export default function TemplateEditorScreen() {
       setLoading(false);
     });
   }, [templateId]);
+
+  // After an AI apply or undo: the DB moved, so re-read name + rows.
+  const reloadFromDb = async () => {
+    if (!templateId) return;
+    const t = await getTemplate(templateId);
+    if (!t) return;
+    setTemplate(t);
+    setName(t.name);
+    setExercises(templateExercises(t));
+  };
 
   const addExercise = async (ex: { id: number; name: string }) => {
     if (!templateId) {
@@ -273,6 +286,13 @@ export default function TemplateEditorScreen() {
             }
           />
         </View>
+
+        {template ? (
+          <>
+            <Separator className="my-5" />
+            <TemplateAsk template={{ ...template, name: name.trim() || template.name, exercises }} onChanged={() => void reloadFromDb()} />
+          </>
+        ) : null}
       </NestableScrollContainer>
 
       <View className="absolute inset-x-0 bottom-0 border-t border-border bg-background p-5 pb-8">

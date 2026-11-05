@@ -4,3 +4,4 @@ export { AiAssistedTag, SourceChip, SuggestedBadge } from './markers';
 export { ProposalCard, REJECT_REASONS, type ProposalVersions, type RejectReason } from './proposal-card';
 export { SuggestionChip } from './suggestion-chip';
 export { AskScreen } from './ask-screen';
+export { TemplateAsk } from './template-ask';

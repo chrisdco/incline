@@ -132,7 +132,7 @@ export async function getSuggestedTemplate(): Promise<WorkoutTemplate | null> {
   return first ? getTemplate(first.id) : null;
 }
 
-async function enqueueTemplateUpsert(tx: Tx, templateId: number): Promise<void> {
+export async function enqueueTemplateUpsert(tx: Tx, templateId: number): Promise<void> {
   const t = await tx.getFirstAsync<TemplateRow>('SELECT * FROM workout_templates WHERE id = ?', templateId);
   if (!t?.uuid || !t.is_custom) return;
   await enqueueSync('user_templates', t.uuid, 'upsert', {
@@ -147,7 +147,7 @@ async function enqueueTemplateUpsert(tx: Tx, templateId: number): Promise<void> 
   }, tx);
 }
 
-async function enqueueTemplateExerciseUpsert(tx: Tx, teId: number): Promise<void> {
+export async function enqueueTemplateExerciseUpsert(tx: Tx, teId: number): Promise<void> {
   const te = await tx.getFirstAsync<TemplateExerciseRow & { template_uuid: string | null; is_custom: number }>(
     `SELECT te.*, t.uuid as template_uuid, t.is_custom as is_custom
      FROM template_exercises te
@@ -172,7 +172,106 @@ async function enqueueTemplateExerciseUpsert(tx: Tx, teId: number): Promise<void
   }, tx);
 }
 
-const TEMPLATE_TABLES = ['workout_templates', 'template_exercises'] as const;
+export const TEMPLATE_TABLES = ['workout_templates', 'template_exercises'] as const;
+
+/** One row of a whole-routine write. `id` keeps an existing row (and its rest, notes, superset). */
+export interface TemplateStateRow {
+  id?: number;
+  exerciseId: number;
+  sets: number;
+  repsMin: number;
+  repsMax: number;
+}
+
+export interface TemplateSnapshot {
+  name: string;
+  rows: TemplateExerciseRow[];
+}
+
+export async function snapshotTemplate(tx: Tx, templateId: number): Promise<TemplateSnapshot | null> {
+  const t = await tx.getFirstAsync<{ name: string }>(
+    'SELECT name FROM workout_templates WHERE id = ? AND deleted_at IS NULL',
+    templateId,
+  );
+  if (!t) return null;
+  const rows = await tx.getAllAsync<TemplateExerciseRow>(
+    'SELECT * FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL ORDER BY sort_order',
+    templateId,
+  );
+  return { name: t.name, rows };
+}
+
+/**
+ * Moves a routine to `rows` in one pass (AI template edits). Rows left out
+ * are soft-deleted, even on built-in routines, so a revert can bring them
+ * back exactly. Returns the ids it inserted.
+ */
+export async function writeTemplateState(
+  tx: Tx,
+  templateId: number,
+  name: string,
+  rows: TemplateStateRow[],
+  current: TemplateExerciseRow[],
+): Promise<number[]> {
+  const now = Date.now();
+  const keep = new Set(rows.flatMap((r) => (r.id ? [r.id] : [])));
+  for (const row of current) {
+    if (keep.has(row.id)) continue;
+    await tx.runAsync('UPDATE template_exercises SET deleted_at = ?, updated_at = ? WHERE id = ?', now, now, row.id);
+    await enqueueTemplateExerciseUpsert(tx, row.id);
+  }
+  const live = new Set(current.map((r) => r.id));
+  const inserted: number[] = [];
+  for (const [i, row] of rows.entries()) {
+    if (row.id && live.has(row.id)) {
+      await tx.runAsync(
+        `UPDATE template_exercises SET exercise_id = ?, sort_order = ?, target_sets = ?, target_reps_min = ?,
+         target_reps_max = ?, updated_at = ? WHERE id = ?`,
+        row.exerciseId, i, row.sets, row.repsMin, row.repsMax, now, row.id,
+      );
+      await enqueueTemplateExerciseUpsert(tx, row.id);
+    } else {
+      const res = await tx.runAsync(
+        `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?, 90, '', ?, ?)`,
+        templateId, row.exerciseId, i, row.sets, row.repsMin, row.repsMax, newUuid(), now,
+      );
+      inserted.push(res.lastInsertRowId);
+      await enqueueTemplateExerciseUpsert(tx, res.lastInsertRowId);
+    }
+  }
+  await tx.runAsync('UPDATE workout_templates SET name = ?, updated_at = ? WHERE id = ?', name, now, templateId);
+  await enqueueTemplateUpsert(tx, templateId);
+  return inserted;
+}
+
+/** Puts a routine back to a snapshot: restores every row in it, soft-deletes `inserted`. */
+export async function restoreTemplateSnapshot(
+  tx: Tx,
+  templateId: number,
+  before: TemplateSnapshot,
+  inserted: number[],
+): Promise<void> {
+  const now = Date.now();
+  for (const id of inserted) {
+    await tx.runAsync(
+      'UPDATE template_exercises SET deleted_at = ?, updated_at = ? WHERE id = ? AND template_id = ?',
+      now, now, id, templateId,
+    );
+    await enqueueTemplateExerciseUpsert(tx, id);
+  }
+  for (const row of before.rows) {
+    await tx.runAsync(
+      `UPDATE template_exercises SET exercise_id = ?, sort_order = ?, target_sets = ?, target_reps_min = ?,
+       target_reps_max = ?, rest_seconds = ?, notes = ?, superset_group = ?, deleted_at = NULL, updated_at = ?
+       WHERE id = ? AND template_id = ?`,
+      row.exercise_id, row.sort_order, row.target_sets, row.target_reps_min, row.target_reps_max,
+      row.rest_seconds, row.notes, row.superset_group ?? null, now, row.id, templateId,
+    );
+    await enqueueTemplateExerciseUpsert(tx, row.id);
+  }
+  await tx.runAsync('UPDATE workout_templates SET name = ?, updated_at = ? WHERE id = ?', before.name, now, templateId);
+  await enqueueTemplateUpsert(tx, templateId);
+}
 
 /** Sanitize routine duration to a sane 5–240 min window. */
 export function sanitizeEstimatedMinutes(value: unknown, fallback = 45): number {

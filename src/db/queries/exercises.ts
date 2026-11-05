@@ -115,11 +115,17 @@ export async function searchExercises(
 
   // Batch-map (4 queries total, no N+1) then rank in JS.
   const exercises = await mapExerciseRows(db, rows);
+  return rankExercises(exercises, query, options?.recentIds);
+}
+
+/** The JS half of searchExercises: pure, so callers holding a catalog can rank without SQL. */
+export function rankExercises(exercises: Exercise[], query: string, recentIds?: number[]): SearchHit[] {
+  const tokens = tokenize(query);
 
   if (!tokens.length) return exercises.map((exercise) => ({ exercise, score: 0, matchedOn: 'name' as const }));
 
   const recentBonus = new Map<number, number>();
-  (options?.recentIds ?? []).forEach((id, i) => {
+  (recentIds ?? []).forEach((id, i) => {
     if (!recentBonus.has(id)) recentBonus.set(id, i < 10 ? 12 : 6);
   });
 
@@ -170,6 +176,25 @@ export async function searchExercises(
   }
   hits.sort((a, b) => b.score - a.score || a.exercise.name.localeCompare(b.exercise.name));
   return hits;
+}
+
+/**
+ * Best catalog match per AI-proposed name, from one catalog read (no query
+ * per name). Only name/alias hits count: "Row" must not resolve to a random
+ * back exercise through a muscle match.
+ */
+export async function resolveExerciseNames(names: string[]): Promise<Map<string, Exercise | null>> {
+  const out = new Map<string, Exercise | null>();
+  const unique = [...new Set(names)];
+  if (unique.length === 0) return out;
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<ExerciseRow>('SELECT * FROM exercises WHERE deleted_at IS NULL ORDER BY name');
+  const catalog = await mapExerciseRows(db, rows);
+  for (const name of unique) {
+    const top = rankExercises(catalog, name)[0];
+    out.set(name, top && (top.matchedOn === 'name' || top.matchedOn === 'alias') ? top.exercise : null);
+  }
+  return out;
 }
 
 export interface CreateCustomExerciseInput {

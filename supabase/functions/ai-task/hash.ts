@@ -5,3 +5,9 @@ export async function canonicalHash(pack: FeaturePackV1): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalizeFeaturePack(pack)));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/** SHA-256 hex of a value whose key order is fixed by its parser. */
+export async function hashJson(value: unknown): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value)));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
