@@ -237,8 +237,15 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
   build a template from a workout; editor chips (#330–#333).
   - [x] MCP v1 (#242): `incline-mcp` live, 10 tools, personal tokens from
     Settings → AI → Connect AI apps. OAuth and `propose_*` tools come later.
-- [ ] **3. Challenges v1:** rules-only Winter Arc presets and check-ins first,
-  then AI plan drafting and `PlanDiff` changes.
+- [ ] **3. Plans + challenges:**
+  - [x] AI plan builder (#335): Workouts → "Build a plan with AI". Length
+    presets (1–12 wk), days, goal, level, time, equipment + free text
+    ("Winter Arc"). Code owns the skeleton (docs/decisions/PROGRAMMING.md);
+    the model picks exercises; saved as routines + program, one undo.
+    `plan_build` task, 10/day.
+  - [ ] Device test of the builder; eval set for plan drafts.
+  - [ ] Challenge check-ins / streaks on top of a plan; `PlanDiff` changes
+    to an existing plan; community/marketplace plans later.
 - [ ] **4. Smart surfaces + personalisation:**
   - Context chips, the Ask sheet, and voice logging (gym loop: Hevy/Strong
     side-by-side check before PR).
