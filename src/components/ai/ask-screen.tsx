@@ -53,7 +53,7 @@ export function AskScreen({ topInset = 0 }: { topInset?: number }) {
         <ListGroup>
           <ListRow
             title="Edit a routine by asking"
-            subtitle="Open a routine, tap Edit, then ask"
+            subtitle="Open a routine and tap Edit, or start a new one"
             onPress={() => router.push('/(app)/(tabs)/workouts' as Href)}
           />
         </ListGroup>

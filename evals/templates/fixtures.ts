@@ -61,7 +61,7 @@ export const TEMPLATE_FIXTURES: TemplateIntentFixture[] = [
   { id: 'create-memory-avoid', intent: 'Leg day please', memory: ['avoids: barbell back squat (knee)'], constraints: { allResolved: true, mustNotInclude: ['back squat'] } },
   { id: 'create-memory-equipment', intent: 'Upper body day', memory: ['equipment: dumbbells, pull-up bar, bench'], constraints: { allResolved: true, equipmentOnly: ['dumbbell', 'bodyweight'] } },
   { id: 'modify-knee-friendly', intent: 'Make Legs A knee-friendly', base: legsA, constraints: { allResolved: true, mustNotInclude: ['back squat', 'leg extension'], mustCoverMuscles: ['quadriceps', 'hamstrings'] } },
-  { id: 'modify-shorter', intent: 'Cut Push B to 45 minutes', base: pushB, constraints: { allResolved: true, maxMinutes: 47, maxTotalSets: 14 } },
+  { id: 'modify-shorter', intent: 'Cut Push B to 35 minutes', base: pushB, constraints: { allResolved: true, maxMinutes: 37 } },
   { id: 'modify-swap', intent: 'Swap overhead press for something easier on my shoulders', base: pushB, constraints: { allResolved: true, mustNotInclude: ['overhead press'], minExercises: 5, maxExercises: 5 } },
   { id: 'modify-add-pull', intent: 'Add some back work to Push B', base: pushB, constraints: { allResolved: true, minExercises: 6, mustCoverMuscles: ['lats'] } },
   { id: 'duplicate-home', intent: 'Home version of Legs A, I only have dumbbells', base: legsA, constraints: { allResolved: true, equipmentOnly: ['dumbbell', 'bodyweight'], nameMatches: 'Legs A.*Home' } },

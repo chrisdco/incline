@@ -148,3 +148,19 @@ describe('template.apply_diff payload', () => {
     expect((await live(db)).length).toBe(3);
   });
 });
+
+describe('listExerciseNamesForAi', () => {
+  it('puts logged exercises first, then custom, then the rest by name', async () => {
+    const db = currentDb!;
+    await seed(db, true);
+    await db.runAsync(`UPDATE exercises SET is_custom = 1 WHERE id = 5`);
+    await db.runAsync(`UPDATE exercises SET deleted_at = 1 WHERE id = 2`);
+    await db.runAsync(`INSERT INTO workout_logs (id, name, started_at, created_at, updated_at) VALUES (1, 'Push', 1, 1, 1)`);
+    await db.runAsync(
+      `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, created_at, updated_at) VALUES (1, 3, 0, 1, 1)`,
+    );
+    const { listExerciseNamesForAi } = await import('@/db/queries/exercises');
+    expect(await listExerciseNamesForAi()).toEqual(['Lateral Raise', 'Cable Fly', 'Bench Press', 'Landmine Press']);
+    expect(await listExerciseNamesForAi(2)).toEqual(['Lateral Raise', 'Cable Fly']);
+  });
+});

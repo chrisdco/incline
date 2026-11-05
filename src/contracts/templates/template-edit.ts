@@ -5,8 +5,10 @@
  * resolves them to catalog ids, so the model never sees or invents ids.
  *
  * Bump TEMPLATE_EDIT_PROMPT_VERSION when the prompt or this shape changes.
+ * 1.1.0: an empty routine is built from scratch (add ops + rename).
+ * 1.2.0: a short list of the user's exercise names + the current time estimate.
  */
-export const TEMPLATE_EDIT_PROMPT_VERSION = 'template-edit-1.0.0';
+export const TEMPLATE_EDIT_PROMPT_VERSION = 'template-edit-1.2.0';
 
 export const MAX_TEMPLATE_ROWS = 30;
 export const MAX_INTENT_CHARS = 300;
@@ -14,6 +16,7 @@ export const MAX_DIFF_OPS = 20;
 export const MAX_EXERCISE_NAME = 60;
 export const MAX_TEMPLATE_NAME = 60;
 export const MAX_MEMORY_ITEMS = 10;
+export const MAX_CATALOG_NAMES = 150;
 export const SETS_RANGE = [1, 10] as const;
 export const REPS_RANGE = [1, 100] as const;
 
@@ -32,6 +35,8 @@ export interface TemplateEditInput {
   intent: string;
   /** Known user facts (coach memory), e.g. "avoids: back squat (knee)". */
   memory?: string[];
+  /** Exercise names in the user's list, so the model can use names that resolve. */
+  catalog?: string[];
 }
 
 export interface Targets {
@@ -60,7 +65,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function cleanText(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null;
-  const text = value.replace(/\s+/g, ' ').trim().slice(0, max);
+  // Models like U+2011 in "Push-Up"; catalog names use ASCII hyphens.
+  const text = value.replace(/[‐-―−]/g, '-').replace(/\s+/g, ' ').trim().slice(0, max);
   return text || null;
 }
 
@@ -113,7 +119,22 @@ export function parseTemplateEditInput(raw: unknown): Parsed<TemplateEditInput> 
         .filter((m): m is string => m !== null)
         .slice(0, MAX_MEMORY_ITEMS)
     : undefined;
-  return { ok: true, value: { templateName, rows, intent, ...(memory?.length ? { memory } : {}) } };
+  const catalog = Array.isArray(raw.catalog)
+    ? raw.catalog
+        .map((m) => cleanText(m, MAX_EXERCISE_NAME * 2))
+        .filter((m): m is string => m !== null)
+        .slice(0, MAX_CATALOG_NAMES)
+    : undefined;
+  return {
+    ok: true,
+    value: {
+      templateName,
+      rows,
+      intent,
+      ...(memory?.length ? { memory } : {}),
+      ...(catalog?.length ? { catalog } : {}),
+    },
+  };
 }
 
 /**
@@ -126,6 +147,9 @@ export function parseTemplateDiff(raw: unknown, input: TemplateEditInput): Parse
   const decline = cleanText(raw.decline, 200);
   if (decline) return { ok: true, value: { decline } };
   if (!Array.isArray(raw.ops)) return { ok: false, error: 'missing_ops' };
+  // "Nothing to change" sometimes arrives as an empty op list with a summary.
+  const emptySummary = raw.ops.length === 0 ? cleanText(raw.summary, 200) : null;
+  if (emptySummary) return { ok: true, value: { decline: emptySummary } };
 
   const refs = new Set(input.rows.map((r) => r.ref));
   const touched = new Set<string>();
@@ -152,6 +176,10 @@ export function parseTemplateDiff(raw: unknown, input: TemplateEditInput): Parse
         if (ref && exercise && !touched.has(ref)) {
           touched.add(ref);
           ops.push({ op: 'replace', ref, exercise, ...cleanTargets(item) });
+        } else if (ref && !exercise) {
+          // "replace" with only new targets is a setTargets the model mislabelled.
+          const targets = cleanTargets(item);
+          if (Object.keys(targets).length > 0) ops.push({ op: 'setTargets', ref, ...targets });
         }
         break;
       }

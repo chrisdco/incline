@@ -96,7 +96,7 @@ const templateEdit: ServerTask<TemplateEditInput> = {
   stub: (input) =>
     input.rows.length
       ? { summary: 'Stub: one set less on the first exercise', ops: [{ op: 'setTargets', ref: 'e1', sets: Math.max(1, input.rows[0]!.sets - 1) }] }
-      : { decline: 'Add an exercise first.' },
+      : { summary: 'Stub: a one-exercise routine', ops: [{ op: 'add', exercise: 'Push-up', sets: 3, repsMin: 8, repsMax: 12 }] },
 };
 
 export const TASKS: Record<string, ServerTask> = {
