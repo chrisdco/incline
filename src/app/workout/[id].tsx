@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation, type Href } from 'expo-router';
-import { Clock, Play, TrendingUp } from 'lucide-react-native';
+import { Clock, Play, ArrowUpRight } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
@@ -135,7 +135,7 @@ export default function WorkoutPreviewScreen() {
       {actionableSuggestions.length > 0 ? (
         <Card className="mt-4 border-primary/20 bg-primary/5">
           <View className="flex-row items-center gap-2">
-            <Icon icon={TrendingUp} size={16} color="primary" />
+            <Icon icon={ArrowUpRight} size={16} color="primary" />
             <Body className="font-semibold text-foreground">Suggested targets</Body>
           </View>
           <Caption className="mt-2">From your last session — offline, explainable coaching.</Caption>

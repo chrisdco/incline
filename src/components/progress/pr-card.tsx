@@ -1,5 +1,5 @@
 import { Pressable, View } from 'react-native';
-import { TrendingUp } from 'lucide-react-native';
+import { ArrowUpRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { cn } from '@/lib/cn';
@@ -23,7 +23,7 @@ export function PRCard({ pr, unit, className }: { pr: PR; unit: Unit; className?
       className={cn('flex-row items-center gap-3 py-3 active:opacity-70', className)}>
       <View className="min-w-0 flex-1">
         <View className="flex-row items-center gap-1.5">
-          <Icon icon={TrendingUp} size={14} color="primary" />
+          <Icon icon={ArrowUpRight} size={14} color="primary" />
           <Text className="flex-1 text-base font-medium text-foreground" numberOfLines={1}>
             {pr.exerciseName}
           </Text>

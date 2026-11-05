@@ -9,7 +9,7 @@ import {
   Megaphone,
   Sparkles,
   Target,
-  TrendingUp,
+  ArrowUpRight,
   Trophy,
 } from 'lucide-react-native';
 
@@ -25,7 +25,7 @@ const ICONS: Record<HomeContextIcon, typeof Sparkles> = {
   target: Target,
   trophy: Trophy,
   megaphone: Megaphone,
-  trend: TrendingUp,
+  trend: ArrowUpRight,
 };
 
 export const HomeContextCard = memo(function HomeContextCard({

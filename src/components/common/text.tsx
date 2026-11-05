@@ -13,8 +13,9 @@ export function Text({ className, ...props }: TextProps) {
  * utility classes; override anything via className. NativeWind utilities are
  * the primary styling method — these exist only for consistency of voice.
  */
+/** Signature number (Apple Fitness/Health style): display size, bold not black, tabular digits; pair with <Num> for a muted unit. */
 export function Hero({ className, children, ...props }: { className?: string; children: ReactNode } & TextProps) {
-  return <Text className={cn('text-3xl font-extrabold tracking-tight text-foreground', className)} {...props}>{children}</Text>;
+  return <Text className={cn('text-display font-bold tabular-nums text-foreground', className)} {...props}>{children}</Text>;
 }
 export function Heading({ className, children, ...props }: { className?: string; children: ReactNode } & TextProps) {
   return <Text className={cn('text-2xl font-bold tracking-tight text-foreground', className)} {...props}>{children}</Text>;
