@@ -145,6 +145,10 @@ That is the future-proof move: target the **standards** (MCP, `SKILL.md`, OpenAI
    - **MCP Apps:** the proposal preview is rendered as an MCP App (`ui://` resource), so Claude or ChatGPT shows the same diff card the phone does.
    - **MCP Tasks:** long jobs such as "draft a 12-week plan" run as MCP Tasks.
    - **Auth:** OAuth 2.1 with Clerk as the authorization server (we already use Clerk; it documents MCP auth; verify the current Clerk feature set when building).
+   - **Shipped v1 (2026-11):** `supabase/functions/incline-mcp`, stateless JSON-RPC over Streamable HTTP. Contract and pure logic in `src/contracts/mcp/tools.ts` (unit-tested). Nine read tools plus `create_routine`.
+     - *Deviations from the target, on purpose:* auth is a personal access token (`inc_…`, SHA-256 in `mcp_tokens`, max 5, revocable in Settings → AI → Connect AI apps), not OAuth yet. `create_routine` writes directly instead of creating a proposal, but it is additive only (new `user_templates` rows that the app pulls). It never edits or deletes, so the worst case is an unwanted routine the user deletes.
+     - *Limits:* 600 calls a day per user (`ai_task_consume`, task `mcp`); kill switch `actor:mcp:<label>` / `actor:mcp:*`.
+     - *Next:* OAuth via Clerk, `propose_*` tools once the proposals table exists, MCP Apps preview card.
 2. **Export JSON** (the existing stable contract), plus **webhooks** later (`workout.completed`, `proposal.applied`).
 3. **OS agents:** Android **AppFunctions** and iOS **App Intents** let Gemini or Siri call "log set", "start template" and "what's my bench PR" on-device. They map 1:1 from the action and tool registries, which keeps the next platform shift cheap. *Needs a native build; after Health Connect.*
 
