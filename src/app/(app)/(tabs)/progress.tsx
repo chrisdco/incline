@@ -4,7 +4,7 @@ import { PrimaryActivityIndicator } from '@/components/common/primary-activity-i
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
-import { Camera, CalendarRange, Dumbbell, PersonStanding, TrendingUp } from 'lucide-react-native';
+import { Camera, CalendarRange, Dumbbell, PersonStanding, ArrowUpRight } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Caption } from '@/components/common/text';
@@ -177,7 +177,7 @@ export default function ProgressScreen() {
                                 : 'All time'}
                       </CardDescription>
                     </View>
-                    <Icon icon={TrendingUp} size={18} color="muted-foreground" />
+                    <Icon icon={ArrowUpRight} size={18} color="muted-foreground" />
                   </CardHeader>
                   <VolumeChart data={volumeData} unit={unit} />
                 </Card>

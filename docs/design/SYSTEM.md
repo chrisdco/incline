@@ -102,10 +102,12 @@ must read correctly with *any* accent, including in greyscale:
   type and spacing. The accent is a signal layer on top, never the frame.
 - **Accent means progress / current.** PRs, rising e1RM, suggested load,
   the latest bar, the active set, the selected tab — nothing decorative.
-- **A signature number style** — big Geist numerals, tight tracking, muted
-  unit (Hero values on Summary/Progress).
-- **The incline mark** (↗ from the logo) as the one recurring glyph: PR
-  badge, trend arrow, empty states.
+- **A signature number style** — `<Hero>`: `text-display` (34), bold not
+  black, tabular digits, unit muted via `<Num>` (Apple Fitness/Health style).
+- **The incline mark** — the app icon is a serif *i* whose dot is a triangle
+  pointing up-right (source: `assets/brand/incline-icon.svg`, foreground-only
+  `incline-mark.svg`). In UI it appears as `ArrowUpRight` ↗ (PR badge, trend
+  up; `ArrowDownRight` for down), not lucide's zigzag `TrendingUp`.
 - **One chart language** — thin line or bars, older data at 45% opacity,
   latest point in accent with its value labelled.
 

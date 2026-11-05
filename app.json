@@ -21,7 +21,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1a1a1a",
+        "backgroundColor": "#111113",
         "foregroundImage": "./assets/images/icon-preview.png"
       },
       "package": "com.chrisdc777.incline",
@@ -40,7 +40,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1a1a1a",
+          "backgroundColor": "#111113",
           "image": "./assets/images/icon-preview.png",
           "imageWidth": 160,
           "resizeMode": "contain"

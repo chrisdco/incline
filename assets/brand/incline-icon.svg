@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#111113"/>
+  <g fill="#F5F5F7" transform="translate(512 512) scale(1.05) translate(-558 -686)">
+    <!-- the incline mark: a triangle pointing up-right, cut parallel to the serif -->
+    <path d="M490 418 L582 489 Q585 492 581 494 L476 528 Q472 529 472 525 L487 421 Q488 416 490 418 Z"/>
+    <!-- stem: slanted head serif, bracketed foot -->
+    <path d="M594 541 L595 900 Q596 924 652 952 L652 955 L465 955 L465 952 Q522 924 523 900 L524 622 Q523 603 466 588 L465 584 Z"/>
+  </g>
+</svg>
