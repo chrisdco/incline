@@ -83,6 +83,23 @@ function ProposalBody({ proposal }: { proposal: TemplateProposal }) {
   );
 }
 
+/** Module-level so the component stays free of try blocks (React Compiler). */
+async function applyProposal(proposal: TemplateProposal): Promise<number | null> {
+  if (!proposal.payload) return null;
+  try {
+    registerTemplateActions();
+    const res = await applyAiAction({
+      proposalId: proposal.proposalId,
+      task: TASK,
+      action: { type: TEMPLATE_APPLY_DIFF, payload: proposal.payload },
+    });
+    return res.status === 'applied' ? res.activityId : null;
+  } catch (err) {
+    captureError(err, { where: 'template-ask.apply' });
+    return null;
+  }
+}
+
 type State =
   | { kind: 'idle' }
   | { kind: 'thinking' }
@@ -122,39 +139,28 @@ export function TemplateAsk({ template, onChanged }: { template: WorkoutTemplate
   const apply = async (proposal: TemplateProposal) => {
     if (!proposal.payload) return;
     setApplying(true);
-    try {
-      registerTemplateActions();
-      const res = await applyAiAction({
-        proposalId: proposal.proposalId,
-        task: TASK,
-        action: { type: TEMPLATE_APPLY_DIFF, payload: proposal.payload },
-      });
-      if (res.status !== 'applied') {
-        toast({ title: 'Could not apply that change', variant: 'destructive' });
-        return;
-      }
-      setState({ kind: 'idle' });
-      setIntent('');
-      onChanged();
-      toast({
-        title: 'Routine updated',
-        description: proposal.summary,
-        variant: 'success',
-        action: {
-          label: 'Undo',
-          onPress: () => {
-            void revertAiActivity(res.activityId)
-              .then(onChanged)
-              .catch((err: unknown) => captureError(err, { where: 'template-ask.undo' }));
-          },
-        },
-      });
-    } catch (err) {
-      captureError(err, { where: 'template-ask.apply' });
+    const activityId = await applyProposal(proposal);
+    setApplying(false);
+    if (activityId === null) {
       toast({ title: 'Could not apply that change', variant: 'destructive' });
-    } finally {
-      setApplying(false);
+      return;
     }
+    setState({ kind: 'idle' });
+    setIntent('');
+    onChanged();
+    toast({
+      title: 'Routine updated',
+      description: proposal.summary,
+      variant: 'success',
+      action: {
+        label: 'Undo',
+        onPress: () => {
+          void revertAiActivity(activityId)
+            .then(onChanged)
+            .catch((err: unknown) => captureError(err, { where: 'template-ask.undo' }));
+        },
+      },
+    });
   };
 
   const reject = (proposal: TemplateProposal, reason: string | null) => {
