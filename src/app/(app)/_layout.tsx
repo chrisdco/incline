@@ -38,6 +38,7 @@ export default function AppLayout() {
         <Stack.Screen name="progress-photos" options={{ headerShown: false }} />
         <Stack.Screen name="deload" options={{ headerShown: false }} />
         <Stack.Screen name="program-adjust" options={{ headerShown: false }} />
+        <Stack.Screen name="plan-builder" options={{ headerShown: false }} />
         <Stack.Screen name="milestones" options={{ headerShown: false }} />
         <Stack.Screen name="report/week" options={{ headerShown: false }} />
         <Stack.Screen name="report/month" options={{ headerShown: false }} />

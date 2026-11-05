@@ -5,6 +5,7 @@ import { mutate, type Tx } from '../write';
 import { startOfDay, weekdayMon1 } from '../calc';
 import { enqueueSync } from '@/sync/outbox';
 import { templateRefForId } from '@/sync/template-ref';
+import { enqueueTemplateExerciseUpsert, enqueueTemplateUpsert, sanitizeEstimatedMinutes, softDeleteCustomTemplate } from './templates';
 import type { MuscleGroup, Program, ProgramWorkout } from '../types';
 import {
   type ProgramRow,
@@ -439,4 +440,101 @@ export async function getTodayProgramSlot(now = Date.now()): Promise<TodayProgra
     muscles,
     isRestDay: !workout,
   };
+}
+
+/** One routine of an AI-built plan; rows are already resolved to catalog ids. */
+export interface PlanTemplateInput {
+  name: string;
+  estimatedMinutes: number;
+  rows: { exerciseId: number; sets: number; repsMin: number; repsMax: number; restSeconds: number; notes: string }[];
+}
+
+export interface PlanInsertInput {
+  name: string;
+  description: string;
+  weeks: number;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  templates: PlanTemplateInput[];
+  /** `template` indexes `templates`; `day` is the weekday, 1 = Monday. */
+  schedule: { week: number; day: number; template: number }[];
+}
+
+export const PLAN_TABLES = ['workout_templates', 'template_exercises', ...PROGRAM_TABLES, 'kv'] as const;
+
+/**
+ * Writes a whole plan (its routines, the program and every week's slots) in
+ * the caller's transaction. Slots are enqueued here with the new routines'
+ * uuids: templateRefForId reads outside `tx` and would not see them yet.
+ */
+export async function insertPlan(tx: Tx, plan: PlanInsertInput): Promise<{ programId: number; templateIds: number[] }> {
+  const now = Date.now();
+  const templates: { id: number; uuid: string }[] = [];
+  for (const t of plan.templates) {
+    const uuid = newUuid();
+    const res = await tx.runAsync(
+      `INSERT INTO workout_templates (name, description, category, difficulty, estimated_minutes, is_custom, uuid, created_at, updated_at)
+       VALUES (?, ?, 'strength', ?, ?, 1, ?, ?, ?)`,
+      t.name, `Part of ${plan.name}`, plan.difficulty, sanitizeEstimatedMinutes(t.estimatedMinutes), uuid, now, now,
+    );
+    const id = res.lastInsertRowId;
+    templates.push({ id, uuid });
+    await enqueueTemplateUpsert(tx, id);
+    for (const [i, row] of t.rows.entries()) {
+      const child = await tx.runAsync(
+        `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, row.exerciseId, i, row.sets, row.repsMin, row.repsMax, row.restSeconds, row.notes, newUuid(), now,
+      );
+      await enqueueTemplateExerciseUpsert(tx, child.lastInsertRowId);
+    }
+  }
+  const programUuid = newUuid();
+  const res = await tx.runAsync(
+    `INSERT INTO programs (name, description, weeks, is_custom, uuid, created_at, updated_at)
+     VALUES (?, ?, ?, 1, ?, ?, ?)`,
+    plan.name, plan.description, Math.max(1, Math.min(16, plan.weeks)), programUuid, now, now,
+  );
+  const programId = res.lastInsertRowId;
+  await enqueueProgramUpsert(tx, programId);
+  for (const slot of plan.schedule) {
+    const t = templates[slot.template];
+    if (!t || slot.week < 1 || slot.week > plan.weeks) continue;
+    const uuid = newUuid();
+    await tx.runAsync(
+      `INSERT INTO program_workouts (program_id, template_id, week, day, sort_order, uuid, updated_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?)`,
+      programId, t.id, slot.week, slot.day, uuid, now,
+    );
+    await enqueueSync('user_program_workouts', uuid, 'upsert', {
+      program_uuid: programUuid,
+      template_ref: { ref: 'custom', templateUuid: t.uuid },
+      week: slot.week,
+      day: slot.day,
+      sort_order: 0,
+      updated_at: now,
+      deleted_at: null,
+    }, tx);
+  }
+  return { programId, templateIds: templates.map((t) => t.id) };
+}
+
+/** Undo for insertPlan: soft-deletes the program, its slots and its routines in `tx`. */
+export async function softDeletePlan(tx: Tx, programId: number, templateIds: number[]): Promise<void> {
+  const now = Date.now();
+  const slots = await tx.getAllAsync<{ id: number; uuid: string | null }>(
+    'SELECT id, uuid FROM program_workouts WHERE program_id = ? AND deleted_at IS NULL',
+    programId,
+  );
+  await tx.runAsync(
+    'UPDATE program_workouts SET deleted_at = ?, updated_at = ? WHERE program_id = ? AND deleted_at IS NULL',
+    now, now, programId,
+  );
+  for (const s of slots) {
+    if (s.uuid) await enqueueSync('user_program_workouts', s.uuid, 'delete', { updated_at: now, deleted_at: now }, tx);
+  }
+  await tx.runAsync('UPDATE programs SET deleted_at = ?, updated_at = ? WHERE id = ? AND is_custom = 1', now, now, programId);
+  await enqueueProgramUpsert(tx, programId);
+  const active = parseActiveProgram(await readActiveProgram(tx));
+  if (active?.programId === programId) await clearActiveProgramIn(tx, true);
+  for (const id of templateIds) await softDeleteCustomTemplate(tx, id);
 }

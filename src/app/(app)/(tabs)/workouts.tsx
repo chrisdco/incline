@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy, ArrowUpDown } from 'lucide-react-native';
+import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy, ArrowUpDown, Sparkles } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
 import { SearchBar } from '@/components/common/search-bar';
-import { Section } from '@/components/layout';
+import { ListRow, Section } from '@/components/layout';
+import { Card } from '@/components/ui/card';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
@@ -309,6 +310,14 @@ export default function WorkoutsScreen() {
                 </Pressable>
               }>
               <Caption className="mb-2 px-1">Multi-week plans built from your routines. The active one drives Home.</Caption>
+              <Card className="mb-2">
+                <ListRow
+                  icon={<Icon icon={Sparkles} size={18} color="primary" />}
+                  title="Build a plan with AI"
+                  subtitle="Pick a length and goal; get weeks, routines and deloads"
+                  onPress={() => router.push('/plan-builder' as Href)}
+                />
+              </Card>
             </Section>
           }
           ListEmptyComponent={
