@@ -24,7 +24,7 @@ const badgeVariants = cva('flex-row items-center rounded-full px-2.5 py-1', {
 const badgeTextVariants = cva('text-xs font-semibold', {
   variants: {
     variant: {
-      default: 'text-primary',
+      default: 'text-primary-text',
       neutral: 'text-muted-foreground',
       secondary: 'text-secondary-foreground',
       destructive: 'text-destructive',

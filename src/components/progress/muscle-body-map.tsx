@@ -87,7 +87,7 @@ export function MuscleBodyMap({
               )}
               accessibilityRole="button"
               accessibilityState={{ selected: side === s }}>
-              <Caption className={side === s ? 'font-semibold text-primary' : undefined}>
+              <Caption className={side === s ? 'font-semibold text-primary-text' : undefined}>
                 {s === 'front' ? 'Front' : 'Back'}
               </Caption>
             </Pressable>

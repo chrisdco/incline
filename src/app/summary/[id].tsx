@@ -321,7 +321,7 @@ export default function SummaryScreen() {
             accessibilityRole="button"
             accessibilityLabel="Compare session photos"
             className="mb-1 self-end py-1">
-            <Caption className="font-medium text-primary">Compare</Caption>
+            <Caption className="font-medium text-primary-text">Compare</Caption>
           </Pressable>
         ) : null}
       </View>
@@ -368,7 +368,7 @@ export default function SummaryScreen() {
                       <Caption className="mt-0.5">{formatCelebrationKinds(pr.kinds, pr.reps)}</Caption>
                     ) : null}
                   </View>
-                  <Body className="font-semibold tabular-nums text-primary">
+                  <Body className="font-semibold tabular-nums text-primary-text">
                     {formatWeight(pr.weight, unit)} × {pr.reps}
                   </Body>
                 </View>
@@ -435,7 +435,7 @@ export default function SummaryScreen() {
               accessibilityLabel="Edit workout"
               className="flex-row items-center gap-1">
               <Icon icon={PencilLine} size={14} color="primary" />
-              <Caption className="font-medium text-primary">Edit</Caption>
+              <Caption className="font-medium text-primary-text">Edit</Caption>
             </Tappable>
           }>
         <View className="gap-6">

@@ -417,7 +417,7 @@ export default function EditWorkoutScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${g.exerciseName} details`}>
                 <ExerciseThumb name={g.exerciseName} imageUrl={g.imageUrl} />
-                <Body className="flex-1 text-base font-semibold text-primary">{g.exerciseName}</Body>
+                <Body className="flex-1 text-base font-semibold text-primary-text">{g.exerciseName}</Body>
               </Tappable>
 
               {/* Add notes placeholder */}

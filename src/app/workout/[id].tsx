@@ -175,7 +175,7 @@ export default function WorkoutPreviewScreen() {
               </Badge>
             </View>
             {sug && sug.weight > 0 ? (
-              <Caption className="mt-1 text-primary">
+              <Caption className="mt-1 text-primary-text">
                 Try {formatWeight(sug.weight, unit)} × {sug.reps}
               </Caption>
             ) : null}

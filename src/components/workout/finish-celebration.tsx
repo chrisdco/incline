@@ -91,7 +91,7 @@ export function FinishCelebration({
     <>
       <FinishCelebrationOverlay active={showFx} />
       <Animated.View entering={FadeIn.duration(280)} exiting={FadeOut.duration(200)} className="mb-3">
-        <Body className="text-base font-semibold text-primary">{message}</Body>
+        <Body className="text-base font-semibold text-primary-text">{message}</Body>
         {kind === 'normal' ? (
           <Body className="mt-0.5 text-sm text-muted-foreground">Nice work — stats below.</Body>
         ) : null}

@@ -147,7 +147,7 @@ export function HistoryExerciseFilterSheet({
         <SearchBar value={query} onChangeText={setQuery} placeholder="Search logged exercises..." />
         {selectedId != null ? (
           <Pressable onPress={onClear} accessibilityRole="button">
-            <Caption className="font-medium text-primary">Clear exercise filter</Caption>
+            <Caption className="font-medium text-primary-text">Clear exercise filter</Caption>
           </Pressable>
         ) : null}
       </View>
@@ -171,7 +171,7 @@ export function HistoryExerciseFilterSheet({
               android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
               <Body className="font-semibold text-foreground">{item.name}</Body>
               {selectedId === item.id ? (
-                <Caption className="mt-0.5 text-primary">Selected</Caption>
+                <Caption className="mt-0.5 text-primary-text">Selected</Caption>
               ) : null}
             </Pressable>
           ))
@@ -201,7 +201,7 @@ export function HistoryTemplateFilterSheet({
     <Sheet open={open} onOpenChange={onOpenChange} title="Filter by template" mode="expandable" scroll>
       {selectedId != null ? (
         <Pressable onPress={onClear} accessibilityRole="button" className="mb-3">
-          <Caption className="font-medium text-primary">Clear template filter</Caption>
+          <Caption className="font-medium text-primary-text">Clear template filter</Caption>
         </Pressable>
       ) : null}
       <View style={{ minHeight: 280 }}>

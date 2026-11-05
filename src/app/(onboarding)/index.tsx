@@ -186,7 +186,7 @@ export default function OnboardingScreen() {
                         goal === g ? 'border-primary bg-primary/15' : 'border-transparent bg-surface1'
                       }`}>
                       <Icon icon={IconComp} size={20} color={goal === g ? 'primary' : 'muted-foreground'} />
-                      <Body className={`flex-1 font-medium ${goal === g ? 'text-primary' : 'text-foreground'}`}>
+                      <Body className={`flex-1 font-medium ${goal === g ? 'text-primary-text' : 'text-foreground'}`}>
                         {GOAL_LABELS[g]}
                       </Body>
                       {goal === g ? <Icon icon={Check} size={18} color="primary" /> : null}
@@ -211,7 +211,7 @@ export default function OnboardingScreen() {
                     className={`rounded-2xl border-2 px-4 py-4 ${
                       experienceLevel === l ? 'border-primary bg-primary/15' : 'border-transparent bg-surface1'
                     }`}>
-                    <Body className={`font-medium ${experienceLevel === l ? 'text-primary' : 'text-foreground'}`}>
+                    <Body className={`font-medium ${experienceLevel === l ? 'text-primary-text' : 'text-foreground'}`}>
                       {l.charAt(0).toUpperCase() + l.slice(1)}
                     </Body>
                     <Caption className="mt-0.5">{LEVEL_DESCRIPTIONS[l]}</Caption>

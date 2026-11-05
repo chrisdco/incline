@@ -148,7 +148,7 @@ export function StatBlock({
       <Text
         className={cn(
           'mt-1 text-lg font-semibold tabular-nums',
-          tone === 'primary' ? 'text-primary' : 'text-foreground',
+          tone === 'primary' ? 'text-primary-text' : 'text-foreground',
         )}>
         {value}
       </Text>

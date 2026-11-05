@@ -105,7 +105,7 @@ function TimeRangeDropdown({ value, onChange }: { value: TimeRange; onChange: (v
   return (
     <>
       <Pressable onPress={() => setOpen(true)} className="flex-row items-center gap-1">
-        <Text className="text-sm font-medium text-primary">{label}</Text>
+        <Text className="text-sm font-medium text-primary-text">{label}</Text>
         <Icon icon={ChevronDown} size={14} color="primary" />
       </Pressable>
 
@@ -119,7 +119,7 @@ function TimeRangeDropdown({ value, onChange }: { value: TimeRange; onChange: (v
                 setOpen(false);
               }}
               className={cn('rounded-xl px-4 py-3', value === r.value ? 'bg-primary/15' : 'active:bg-muted')}>
-              <Body className={cn(value === r.value ? 'font-semibold text-primary' : 'text-foreground')}>
+              <Body className={cn(value === r.value ? 'font-semibold text-primary-text' : 'text-foreground')}>
                 {r.label}
               </Body>
             </Pressable>

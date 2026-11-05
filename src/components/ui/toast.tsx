@@ -181,7 +181,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                     accessibilityLabel={current.action.label}
                     hitSlop={8}
                     className="rounded-xl bg-primary/15 px-3 py-1.5">
-                    <Text className="text-xs font-semibold text-primary">{current.action.label}</Text>
+                    <Text className="text-xs font-semibold text-primary-text">{current.action.label}</Text>
                   </Pressable>
                 ) : null}
               </Pressable>

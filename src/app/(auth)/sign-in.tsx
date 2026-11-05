@@ -191,7 +191,7 @@ export default function SignInScreen() {
           </View>
 
           <Pressable onPress={openReset} className="self-end">
-            <Caption className="text-primary">Forgot password?</Caption>
+            <Caption className="text-primary-text">Forgot password?</Caption>
           </Pressable>
 
           {error ? (
@@ -205,7 +205,7 @@ export default function SignInScreen() {
           <View className="items-center">
             <Pressable onPress={() => router.push('/(auth)/sign-up')}>
               <Text className="text-sm text-muted-foreground">
-                Don&apos;t have an account? <Text className="font-semibold text-primary">Sign up</Text>
+                Don&apos;t have an account? <Text className="font-semibold text-primary-text">Sign up</Text>
               </Text>
             </Pressable>
           </View>

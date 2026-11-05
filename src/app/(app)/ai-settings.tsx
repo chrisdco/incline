@@ -246,7 +246,7 @@ export default function AiSettingsScreen() {
                     <Body className="font-medium text-foreground">API key</Body>
                     {preset.keyUrl ? (
                       <Pressable onPress={() => void Linking.openURL(preset.keyUrl!)} accessibilityRole="link" hitSlop={8}>
-                        <Caption className="text-primary">Get a key</Caption>
+                        <Caption className="text-primary-text">Get a key</Caption>
                       </Pressable>
                     ) : null}
                   </View>

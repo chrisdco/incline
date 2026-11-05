@@ -129,7 +129,7 @@ export default function ShareMonthScreen() {
         </Pressable>
         <Body className="text-base font-semibold text-foreground">Share</Body>
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
-          <Body className="text-primary">Cancel</Body>
+          <Body className="text-primary-text">Cancel</Body>
         </Pressable>
       </View>
 

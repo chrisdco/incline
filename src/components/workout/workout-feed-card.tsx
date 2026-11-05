@@ -130,7 +130,7 @@ export function WorkoutFeedCard({
           }}
           pressedOpacity={0.6}
           className="mt-3 items-center py-1">
-          <Caption className="text-primary">See {hiddenCount} more exercise{hiddenCount !== 1 ? 's' : ''}</Caption>
+          <Caption className="text-primary-text">See {hiddenCount} more exercise{hiddenCount !== 1 ? 's' : ''}</Caption>
         </Tappable>
       ) : null}
     </Tappable>

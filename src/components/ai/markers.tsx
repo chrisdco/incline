@@ -19,7 +19,7 @@ export function SuggestedBadge({ className }: { className?: string }) {
   return (
     <View className={cn('flex-row items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5', className)}>
       <Icon icon={Sparkles} size={12} color="primary" />
-      <Text className="text-2xs font-semibold text-primary">Suggested</Text>
+      <Text className="text-2xs font-semibold text-primary-text">Suggested</Text>
     </View>
   );
 }

@@ -110,9 +110,16 @@ must read correctly with *any* accent, including in greyscale:
   latest point in accent with its value labelled.
 
 Accent roles, expressed through alpha so they work for every accent:
-`bg-primary` (the one filled CTA), `bg-primary/15` (selected chip/segment,
-one tonal button), `text-primary` (inline actions, suggestions). Semantic
-subtle fills likewise: `bg-success/15`, `bg-warning/15`, …
+`bg-primary` (the one filled CTA, label `text-primary-foreground`),
+`bg-primary/15` (selected chip/segment, one tonal button), `text-primary-text`
+(inline actions, suggestions; `<Icon color="primary">` uses the same tone).
+Semantic subtle fills likewise: `bg-success/15`, `bg-warning/15`, …
+
+Contrast (iOS tint / Material tone roles): the fill stays bright, text uses
+`primary-text`, a deeper tone in light mode that reaches 4.5:1 on background
+and cards. A fill label is white or ink, whichever clears 4.5:1 (most light
+accents take ink). `accent-contrast.test.ts` holds every classic accent to it;
+plain `text-primary` is the fill colour and is not for text.
 
 ### Rollout
 

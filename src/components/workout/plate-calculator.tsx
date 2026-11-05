@@ -77,7 +77,7 @@ export function PlateCalculator({ targetWeight: initialTarget, className }: Plat
                 : `${result.totalPerSide.toFixed(1)}${unit} per side · no bar`}
             </Caption>
             {result.plates.length === 0 ? (
-              <Caption className="text-primary">Bar only — no plates needed</Caption>
+              <Caption className="text-primary-text">Bar only — no plates needed</Caption>
             ) : (
               <View className="flex-row flex-wrap gap-2">
                 {result.plates.map((plate) => (
@@ -102,7 +102,7 @@ function PlateChip({ plate, unit }: { plate: Plate; unit: string }) {
   return (
     <View className="flex-row items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-1.5">
       <View className="h-2 w-2 rounded-full bg-primary" />
-      <Body className="text-sm font-semibold text-primary">
+      <Body className="text-sm font-semibold text-primary-text">
         {plate.count}x {plate.weight}{unit}
       </Body>
     </View>
