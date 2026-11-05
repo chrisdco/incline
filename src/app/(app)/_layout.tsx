@@ -17,6 +17,10 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: themeHex(scheme, accentTheme).background },
         }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="ai"
+          options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6, 1], sheetGrabberVisible: true }}
+        />
         <Stack.Screen name="exercises" options={{ headerShown: true, title: 'Exercises' }} />
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
         <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notifications' }} />

@@ -22,6 +22,8 @@ export function ActiveSessionBar({
   nextExercise,
   refetch,
   onDiscard,
+  embedded,
+  compact,
   className,
 }: {
   logId: number;
@@ -30,6 +32,10 @@ export function ActiveSessionBar({
   nextExercise?: string;
   refetch?: () => void;
   onDiscard?: () => void;
+  /** Inside the native tab bar accessory: the system draws the capsule, so no own chrome. */
+  embedded?: boolean;
+  /** iOS minimized tab bar (inline placement): one line, no next exercise. */
+  compact?: boolean;
   className?: string;
 }) {
   const router = useRouter();
@@ -67,16 +73,21 @@ export function ActiveSessionBar({
 
   return (
     <View
-      style={{ borderRadius: 9999 }}
-      className={cn('mx-4 mb-2 flex-row items-center border border-border bg-surface2 px-3 py-3 shadow-lg', className)}>
+      style={embedded ? undefined : { borderRadius: 9999 }}
+      className={cn(
+        embedded
+          ? 'flex-1 flex-row items-center px-2'
+          : 'mx-4 mb-2 flex-row items-center border border-border bg-surface2 px-3 py-3 shadow-lg',
+        className,
+      )}>
       {/* Whole bar opens — only the trash circle deletes. */}
       <Tappable
         onPress={open}
         accessibilityRole="button"
         accessibilityLabel="Open workout"
         pressedOpacity={0.6}
-        className="h-14 w-14 items-center justify-center rounded-full bg-muted">
-        <Icon icon={ChevronUp} size={30} color="foreground" />
+        className={cn('items-center justify-center rounded-full bg-muted', embedded ? 'h-9 w-9' : 'h-14 w-14')}>
+        <Icon icon={ChevronUp} size={embedded ? 20 : 30} color="foreground" />
       </Tappable>
 
       <Tappable
@@ -93,7 +104,7 @@ export function ActiveSessionBar({
               <Text className="text-base text-muted-foreground">{formatDuration(elapsed)}</Text>
             ) : null}
           </View>
-          {nextExercise ? (
+          {nextExercise && !compact ? (
             <Text className="text-base text-muted-foreground" numberOfLines={1}>{nextExercise}</Text>
           ) : null}
         </View>
@@ -106,8 +117,8 @@ export function ActiveSessionBar({
           accessibilityLabel="Discard workout"
           hitSlop={8}
           pressedOpacity={0.6}
-          className="h-14 w-14 items-center justify-center rounded-full bg-muted">
-          <Icon icon={Trash2} size={28} color="destructive" />
+          className={cn('items-center justify-center rounded-full bg-muted', embedded ? 'h-9 w-9' : 'h-14 w-14')}>
+          <Icon icon={Trash2} size={embedded ? 18 : 28} color="destructive" />
         </Tappable>
       ) : null}
     </View>
