@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, CheckCircle2, Cloud, KeyRound, ShieldCheck, Sparkles, XCircle } from 'lucide-react-native';
+import { ArrowLeft, Bot, CheckCircle2, Cloud, KeyRound, ShieldCheck, Sparkles, XCircle } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Chip } from '@/components/common/chip';
@@ -304,6 +304,16 @@ export default function AiSettingsScreen() {
               </Caption>
             </View>
           </View>
+        </Card>
+
+        <SectionLabel className="mt-6">Connected AI apps</SectionLabel>
+        <Card>
+          <ListRow
+            icon={<Icon icon={Bot} size={18} color="muted-foreground" />}
+            title="Connect Claude and others"
+            subtitle="Let your AI apps read your training and save routines"
+            onPress={() => router.push('/(app)/connect-ai' as Href)}
+          />
         </Card>
       </ScrollView>
     </SafeAreaView>

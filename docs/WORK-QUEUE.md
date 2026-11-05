@@ -233,8 +233,10 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
     optional fallback upstream. Cloudflare AI Gateway = set `AI_BASE_URL`.
   - [ ] Set the `ai-task` secrets (user): `CLERK_FRONTEND_API`, `GROQ_API_KEY`.
   - Picks up #148 and #189.
-- [ ] **2. Templates AI:** `TemplateDiff` to create, modify, duplicate, or
-  build a template from a workout; editor chips. Then MCP v1 (#242).
+- [x] **2. Templates AI:** `TemplateDiff` to create, modify, duplicate, or
+  build a template from a workout; editor chips (#330–#333).
+  - [x] MCP v1 (#242): `incline-mcp` live, 10 tools, personal tokens from
+    Settings → AI → Connect AI apps. OAuth and `propose_*` tools come later.
 - [ ] **3. Challenges v1:** rules-only Winter Arc presets and check-ins first,
   then AI plan drafting and `PlanDiff` changes.
 - [ ] **4. Smart surfaces + personalisation:**
