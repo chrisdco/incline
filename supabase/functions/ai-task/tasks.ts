@@ -17,6 +17,14 @@ import {
   TEMPLATE_EDIT_PROMPT_VERSION,
   type TemplateEditInput,
 } from '../_shared/contracts/templates/template-edit.ts';
+import {
+  parsePlanBuildInput,
+  parsePlanDraft,
+  PLAN_BUILD_PROMPT_VERSION,
+  stubPlanDraft,
+  type PlanBuildInput,
+} from '../_shared/contracts/plans/plan-build.ts';
+import { SYSTEM_PROMPT as PLAN_BUILD_SYSTEM, buildUserMessage as planBuildUser } from '../_shared/contracts/plans/prompt.ts';
 import { canonicalHash, hashJson } from './hash.ts';
 import type { ChatMessage } from './upstream.ts';
 
@@ -99,7 +107,27 @@ const templateEdit: ServerTask<TemplateEditInput> = {
       : { summary: 'Stub: a one-exercise routine', ops: [{ op: 'add', exercise: 'Push-up', sets: 3, repsMin: 8, repsMax: 12 }] },
 };
 
+const planBuild: ServerTask<PlanBuildInput> = {
+  id: 'plan_build',
+  promptVersion: PLAN_BUILD_PROMPT_VERSION,
+  dailyLimit: 10,
+  // App timeout is 35 s; a whole plan is the longest generation we ask for.
+  budgetMs: 28_000,
+  parseInput: parsePlanBuildInput,
+  cacheKey: (input) => hashJson(input),
+  messages: (input) => [
+    { role: 'system', content: PLAN_BUILD_SYSTEM },
+    { role: 'user', content: planBuildUser(input) },
+  ],
+  parseOutput: parsePlanDraft,
+  stub: (input) => {
+    const parsed = parsePlanDraft(stubPlanDraft(input), input);
+    return parsed.ok ? parsed.value : { decline: 'Stub unavailable.' };
+  },
+};
+
 export const TASKS: Record<string, ServerTask> = {
   [narrate.id]: narrate as ServerTask,
   [templateEdit.id]: templateEdit as ServerTask,
+  [planBuild.id]: planBuild as ServerTask,
 };
