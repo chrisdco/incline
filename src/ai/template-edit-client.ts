@@ -26,6 +26,8 @@ export interface TemplateProposal {
   unresolved: string[];
   minutesBefore: number;
   minutesAfter: number;
+  /** Saved as a new routine (a home/deload/… version); the original is untouched. */
+  copy: boolean;
   /** null when nothing applicable is left (all unresolved, or no real change). */
   payload: TemplateApplyPayload | null;
 }
@@ -34,7 +36,7 @@ export interface TemplateProposal {
 export interface ProposalContext {
   template: WorkoutTemplate;
   input: TemplateEditInput;
-  diff: { summary: string; ops: TemplateDiffOp[] };
+  diff: { summary: string; ops: TemplateDiffOp[]; copy?: true };
   resolved: Map<string, ResolvedExercise | null>;
 }
 
@@ -73,7 +75,7 @@ export function templateEditInput(
 export function buildTemplateProposal(
   template: WorkoutTemplate,
   input: TemplateEditInput,
-  diff: { summary: string; ops: TemplateDiffOp[] },
+  diff: { summary: string; ops: TemplateDiffOp[]; copy?: true },
   resolved: Map<string, ResolvedExercise | null>,
   proposalId: string,
 ): TemplateProposal {
@@ -128,8 +130,10 @@ export function buildTemplateProposal(
     unresolved,
     minutesBefore: estimateMinutes(input.rows),
     minutesAfter: estimateMinutes(rows),
+    copy: diff.copy === true,
     payload:
-      stateRows.length === 0 || unchanged
+      // A copy of an unchanged routine is still a new routine; an in-place no-op isn't.
+      stateRows.length === 0 || (unchanged && diff.copy !== true)
         ? null
         : { templateId: template.id, name: draft.name, rows: stateRows, summary: diff.summary },
   };

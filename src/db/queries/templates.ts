@@ -273,6 +273,69 @@ export async function restoreTemplateSnapshot(
   await enqueueTemplateUpsert(tx, templateId);
 }
 
+/**
+ * A new custom routine from `rows` (AI versions). Rows with an `id` copy that
+ * source row's rest, notes and superset; new rows get 90 s rest.
+ */
+export async function insertTemplateCopy(
+  tx: Tx,
+  sourceId: number,
+  name: string,
+  rows: TemplateStateRow[],
+  estimatedMinutes: number,
+): Promise<number | null> {
+  const source = await tx.getFirstAsync<TemplateRow>(
+    'SELECT * FROM workout_templates WHERE id = ? AND deleted_at IS NULL',
+    sourceId,
+  );
+  if (!source) return null;
+  const sourceRows = await tx.getAllAsync<TemplateExerciseRow>(
+    'SELECT * FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL',
+    sourceId,
+  );
+  const byId = new Map(sourceRows.map((r) => [r.id, r]));
+  const now = Date.now();
+  const res = await tx.runAsync(
+    `INSERT INTO workout_templates (name, description, category, difficulty, estimated_minutes, is_custom, uuid, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+    name, source.description ?? '', source.category ?? 'strength', source.difficulty ?? 'intermediate',
+    sanitizeEstimatedMinutes(estimatedMinutes), newUuid(), now, now,
+  );
+  const templateId = res.lastInsertRowId;
+  await enqueueTemplateUpsert(tx, templateId);
+  for (const [i, row] of rows.entries()) {
+    const from = row.id ? byId.get(row.id) : undefined;
+    const child = await tx.runAsync(
+      `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, superset_group, uuid, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      templateId, row.exerciseId, i, row.sets, row.repsMin, row.repsMax,
+      from?.rest_seconds ?? 90, from?.notes ?? '', from?.superset_group ?? null, newUuid(), now,
+    );
+    await enqueueTemplateExerciseUpsert(tx, child.lastInsertRowId);
+  }
+  return templateId;
+}
+
+/** Soft-deletes a custom routine and its rows inside `tx` (sync sees deletes). */
+export async function softDeleteCustomTemplate(tx: Tx, id: number): Promise<void> {
+  const t = await tx.getFirstAsync<TemplateRow>('SELECT * FROM workout_templates WHERE id = ? AND is_custom = 1', id);
+  if (!t) return;
+  const now = Date.now();
+  const children = await tx.getAllAsync<{ id: number; uuid: string | null }>(
+    'SELECT id, uuid FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL',
+    id,
+  );
+  await tx.runAsync(
+    'UPDATE template_exercises SET deleted_at = ?, updated_at = ? WHERE template_id = ? AND deleted_at IS NULL',
+    now, now, id,
+  );
+  for (const child of children) {
+    if (child.uuid) await enqueueSync('user_template_exercises', child.uuid, 'delete', { updated_at: now, deleted_at: now }, tx);
+  }
+  await tx.runAsync('UPDATE workout_templates SET deleted_at = ?, updated_at = ? WHERE id = ?', now, now, id);
+  if (t.uuid) await enqueueSync('user_templates', t.uuid, 'delete', { updated_at: now, deleted_at: now }, tx);
+}
+
 /** Sanitize routine duration to a sane 5–240 min window. */
 export function sanitizeEstimatedMinutes(value: unknown, fallback = 45): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
@@ -315,7 +378,6 @@ export async function updateTemplate(id: number, patch: Partial<Pick<WorkoutTemp
 }
 
 export async function deleteTemplate(id: number): Promise<void> {
-  const now = Date.now();
   await mutate(TEMPLATE_TABLES, async (tx) => {
     const t = await tx.getFirstAsync<TemplateRow>('SELECT * FROM workout_templates WHERE id = ?', id);
     if (!t) return;
@@ -326,33 +388,7 @@ export async function deleteTemplate(id: number): Promise<void> {
       await tx.runAsync('DELETE FROM workout_templates WHERE id = ?', id);
       return;
     }
-
-    const children = await tx.getAllAsync<{ id: number; uuid: string | null }>(
-      'SELECT id, uuid FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL',
-      id,
-    );
-    await tx.runAsync(
-      'UPDATE template_exercises SET deleted_at = ?, updated_at = ? WHERE template_id = ? AND deleted_at IS NULL',
-      now, now, id,
-    );
-    for (const child of children) {
-      if (child.uuid) {
-        await enqueueSync('user_template_exercises', child.uuid, 'delete', {
-          updated_at: now,
-          deleted_at: now,
-        }, tx);
-      }
-    }
-    await tx.runAsync(
-      'UPDATE workout_templates SET deleted_at = ?, updated_at = ? WHERE id = ?',
-      now, now, id,
-    );
-    if (t.uuid) {
-      await enqueueSync('user_templates', t.uuid, 'delete', {
-        updated_at: now,
-        deleted_at: now,
-      }, tx);
-    }
+    await softDeleteCustomTemplate(tx, id);
   });
 }
 

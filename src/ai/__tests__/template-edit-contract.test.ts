@@ -141,3 +141,40 @@ describe('model quirks', () => {
     expect(buildUserMessage({ ...pushB, rows: [] })).toContain('(empty)');
   });
 });
+
+describe('versions are copies', () => {
+  it('passes the copy flag through', () => {
+    const res = parseTemplateDiff({ summary: 's', copy: true, ops: [{ op: 'setTargets', ref: 'e1', sets: 2 }] }, pushB);
+    expect(res.ok && 'ops' in res.value && res.value.copy).toBe(true);
+  });
+
+  it('treats "<name> (Version)" as a copy even without the flag', () => {
+    const res = parseTemplateDiff({ summary: 's', ops: [{ op: 'rename', name: 'Push B (Home)' }] }, pushB);
+    expect(res.ok && 'ops' in res.value && res.value.copy).toBe(true);
+    const plain = parseTemplateDiff({ summary: 's', ops: [{ op: 'rename', name: 'Push Day' }] }, pushB);
+    expect(plain.ok && 'ops' in plain.value && plain.value.copy).toBeUndefined();
+  });
+
+  it('never copies an empty routine (that is a new draft)', () => {
+    const res = parseTemplateDiff({ summary: 's', copy: true, ops: [{ op: 'add', exercise: 'Squat' }] }, { ...pushB, rows: [] });
+    expect(res.ok && 'ops' in res.value && res.value.copy).toBeUndefined();
+  });
+});
+
+describe('versions from the request', () => {
+  it('copies and names a deload the model forgot to flag', () => {
+    const res = parseTemplateDiff(
+      { summary: 'Halved the sets', ops: [{ op: 'setTargets', ref: 'e1', sets: 2 }] },
+      { ...pushB, intent: 'Make a deload version of Push B' },
+    );
+    expect(res.ok && 'ops' in res.value && res.value).toMatchObject({
+      copy: true,
+      ops: [{ op: 'setTargets', ref: 'e1', sets: 2 }, { op: 'rename', name: 'Push B (Deload)' }],
+    });
+  });
+
+  it('leaves plain edits in place', () => {
+    const res = parseTemplateDiff({ summary: 's', ops: [{ op: 'setTargets', ref: 'e1', sets: 2 }] }, { ...pushB, intent: 'Cut it to 45 minutes' });
+    expect(res.ok && 'ops' in res.value && res.value.copy).toBeUndefined();
+  });
+});

@@ -93,6 +93,7 @@ export function scoreFixture(fx: TemplateIntentFixture, raw: unknown): { stage: 
     const covered = catalogRows.some((e) => wanted.includes(e.primaryMuscle) || e.secondaryMuscles.some((m) => wanted.includes(m)));
     if (!covered) return { stage: 'coverage', detail: muscle };
   }
+  if (c.copy && diff.copy !== true) return { stage: 'copy', detail: 'edited in place' };
   if (c.nameMatches && !new RegExp(c.nameMatches, 'i').test(draft.name)) {
     return { stage: 'name', detail: draft.name };
   }

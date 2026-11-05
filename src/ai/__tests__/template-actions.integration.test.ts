@@ -172,3 +172,41 @@ describe('parseTemplateApplyPayload', () => {
     expect(parseTemplateApplyPayload({ ...payload, rows }).ok).toBe(true);
   });
 });
+
+describe('template.create_copy', () => {
+  it('saves a new routine, leaves the source alone, and undo removes the copy', async () => {
+    const db = currentDb!;
+    await seed(db, false);
+    const { TEMPLATE_CREATE_COPY } = await import('../template-actions');
+    const before = await live(db);
+    const res = await applyAiAction({
+      proposalId: 'copy-1',
+      task: 'template_edit',
+      action: { type: TEMPLATE_CREATE_COPY, payload: { ...payload, name: 'Push B (Home)' } },
+    });
+    expect(res.status).toBe('applied');
+    if (res.status !== 'applied') return;
+    const copyId = (res.after as { templateId: number }).templateId;
+    expect(copyId).not.toBe(1);
+
+    expect(await live(db)).toEqual(before);
+    expect(await templateName(db)).toBe('Push B');
+    const copy = await db.getFirstAsync<{ name: string; is_custom: number }>('SELECT name, is_custom FROM workout_templates WHERE id = ?', copyId);
+    expect(copy).toEqual({ name: 'Push B (Home)', is_custom: 1 });
+    const rows = await db.getAllAsync<{ exercise_id: number; target_sets: number; rest_seconds: number; notes: string }>(
+      'SELECT exercise_id, target_sets, rest_seconds, notes FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL ORDER BY sort_order',
+      copyId,
+    );
+    // Row 11 carries its rest and notes over; the new row gets the default rest.
+    expect(rows).toEqual([
+      { exercise_id: 1, target_sets: 3, rest_seconds: 180, notes: 'pause on chest' },
+      { exercise_id: 5, target_sets: 2, rest_seconds: 90, notes: '' },
+      { exercise_id: 4, target_sets: 3, rest_seconds: 120, notes: '' },
+    ]);
+
+    expect(await revertAiActivity(res.activityId)).toBe('reverted');
+    const gone = await db.getFirstAsync<{ deleted_at: number | null }>('SELECT deleted_at FROM workout_templates WHERE id = ?', copyId);
+    expect(gone?.deleted_at).not.toBeNull();
+    expect(await live(db)).toEqual(before);
+  });
+});
