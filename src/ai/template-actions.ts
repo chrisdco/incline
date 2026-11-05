@@ -6,7 +6,7 @@ import {
   type TemplateSnapshot,
   type TemplateStateRow,
 } from '@/db/queries/templates';
-import { MAX_TEMPLATE_NAME, REPS_RANGE, SETS_RANGE } from '@/contracts/templates/template-edit';
+import { MAX_TEMPLATE_NAME } from '@/contracts/templates/template-edit';
 
 import { registerAiAction } from './actions';
 import type { ParseResult } from './types';
@@ -31,6 +31,12 @@ interface After {
 
 export const TEMPLATE_APPLY_DIFF = 'template.apply_diff';
 const MAX_ROWS = 40;
+/**
+ * What a routine row may hold, not what the AI may set (the contract clamps
+ * AI targets tighter). Kept rows pass through as they are, e.g. 12 sets.
+ */
+const ROW_SETS = [0, 50] as const;
+const ROW_REPS = [0, 1000] as const;
 
 function int(value: unknown, [lo, hi]: readonly [number, number]): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= lo && value <= hi;
@@ -55,9 +61,9 @@ export function parseTemplateApplyPayload(raw: unknown): ParseResult<TemplateApp
     if (
       !okId ||
       !int(r.exerciseId, [1, Number.MAX_SAFE_INTEGER]) ||
-      !int(r.sets, SETS_RANGE) ||
-      !int(r.repsMin, REPS_RANGE) ||
-      !int(r.repsMax, REPS_RANGE) ||
+      !int(r.sets, ROW_SETS) ||
+      !int(r.repsMin, ROW_REPS) ||
+      !int(r.repsMax, ROW_REPS) ||
       r.repsMin > r.repsMax
     ) {
       return { ok: false, error: 'invalid row' };

@@ -133,7 +133,7 @@ describe('template.apply_diff payload', () => {
     const db = currentDb!;
     await seed(db, true);
     const bad = [
-      { ...payload, rows: [{ id: 11, exerciseId: 1, sets: 11, repsMin: 6, repsMax: 8 }] },
+      { ...payload, rows: [{ id: 11, exerciseId: 1, sets: 51, repsMin: 6, repsMax: 8 }] },
       { ...payload, rows: [payload.rows[0], payload.rows[0]] },
       { ...payload, rows: [] },
     ];
@@ -162,5 +162,13 @@ describe('listExerciseNamesForAi', () => {
     const { listExerciseNamesForAi } = await import('@/db/queries/exercises');
     expect(await listExerciseNamesForAi()).toEqual(['Lateral Raise', 'Cable Fly', 'Bench Press', 'Landmine Press']);
     expect(await listExerciseNamesForAi(2)).toEqual(['Lateral Raise', 'Cable Fly']);
+  });
+});
+
+describe('parseTemplateApplyPayload', () => {
+  it('accepts kept rows outside the AI limits (12 sets, timed 0 reps)', async () => {
+    const { parseTemplateApplyPayload } = await import('../template-actions');
+    const rows = [{ id: 11, exerciseId: 1, sets: 12, repsMin: 0, repsMax: 0 }];
+    expect(parseTemplateApplyPayload({ ...payload, rows }).ok).toBe(true);
   });
 });
