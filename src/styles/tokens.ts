@@ -149,7 +149,7 @@ export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
   },
   teal: {
     label: 'Teal',
-    description: 'Athletic teal without gym-green cliché',
+    description: 'Cool teal, clear in light and dark',
     aurora: false,
     vars: {
       light: classicVars('173 80% 32%', WHITE, '173 70% 38%'),
