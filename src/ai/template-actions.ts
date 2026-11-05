@@ -1,12 +1,14 @@
 import {
+  insertTemplateCopy,
   restoreTemplateSnapshot,
+  softDeleteCustomTemplate,
   snapshotTemplate,
   TEMPLATE_TABLES,
   writeTemplateState,
   type TemplateSnapshot,
   type TemplateStateRow,
 } from '@/db/queries/templates';
-import { MAX_TEMPLATE_NAME } from '@/contracts/templates/template-edit';
+import { estimateMinutes, MAX_TEMPLATE_NAME } from '@/contracts/templates/template-edit';
 
 import { registerAiAction } from './actions';
 import type { ParseResult } from './types';
@@ -30,6 +32,12 @@ interface After {
 }
 
 export const TEMPLATE_APPLY_DIFF = 'template.apply_diff';
+/** Same payload; `templateId` is the source, and the result is a new routine. */
+export const TEMPLATE_CREATE_COPY = 'template.create_copy';
+
+export interface CopyResult {
+  templateId: number;
+}
 const MAX_ROWS = 40;
 /**
  * What a routine row may hold, not what the AI may set (the contract clamps
@@ -102,6 +110,24 @@ export function registerTemplateActions(): void {
     },
     async revert(tx, before, after) {
       await restoreTemplateSnapshot(tx, before.templateId, before.snapshot, after.inserted);
+    },
+  });
+  registerAiAction<TemplateApplyPayload, { sourceTemplateId: number }, CopyResult>({
+    type: TEMPLATE_CREATE_COPY,
+    tables: TEMPLATE_TABLES,
+    parse: parseTemplateApplyPayload,
+    async apply(tx, payload) {
+      const minutes = estimateMinutes(payload.rows);
+      const templateId = await insertTemplateCopy(tx, payload.templateId, payload.name, payload.rows, minutes);
+      if (templateId === null) throw new Error('template not found');
+      return {
+        before: { sourceTemplateId: payload.templateId },
+        after: { templateId },
+        summary: payload.summary || `Created ${payload.name}`,
+      };
+    },
+    async revert(tx, _before, after) {
+      await softDeleteCustomTemplate(tx, after.templateId);
     },
   });
 }

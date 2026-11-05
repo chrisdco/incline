@@ -45,7 +45,7 @@ export interface ApplyAiActionInput {
 }
 
 export type ApplyAiActionResult =
-  | { status: 'applied'; activityId: number }
+  | { status: 'applied'; activityId: number; /** What the action wrote, e.g. a new row id. */ after: unknown }
   | {
       status: 'rejected';
       reason: 'unknown_action' | 'invalid_payload' | 'invalid_actor' | 'disabled';
@@ -109,7 +109,7 @@ export async function applyAiAction(input: ApplyAiActionInput): Promise<ApplyAiA
   // Read before the transaction: kv uses the same connection.
   const deviceId = await getDeviceId().catch(() => null);
 
-  const activityId = await mutate([...def.tables, 'ai_activity', 'ai_feedback'], async (tx) => {
+  const applied = await mutate([...def.tables, 'ai_activity', 'ai_feedback'], async (tx) => {
     const { before, after, summary } = await def.apply(tx, parsed.output);
     const now = Date.now();
     const res = await tx.runAsync(
@@ -131,9 +131,9 @@ export async function applyAiAction(input: ApplyAiActionInput): Promise<ApplyAiA
       { proposalId: input.proposalId, task: input.task, outcome: input.outcome ?? 'applied', editDiff: input.editDiff },
       now,
     );
-    return res.lastInsertRowId;
+    return { id: res.lastInsertRowId, after };
   });
-  return { status: 'applied', activityId };
+  return { status: 'applied', activityId: applied.id, after: applied.after };
 }
 
 export type RevertResult = 'reverted' | 'already_reverted' | 'not_revertible' | 'not_found';

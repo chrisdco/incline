@@ -10,7 +10,7 @@ export const SYSTEM_PROMPT = `You edit strength-training routines for a workout 
 The user gives you a routine as numbered rows (e1, e2, …) and a request. Reply with the smallest set of changes that does what they asked.
 
 Rules:
-- Output JSON only. Either {"summary": string, "ops": Op[]} or {"decline": string}.
+- Output JSON only. Either {"summary": string, "ops": Op[], "copy"?: true} or {"decline": string}.
 - Op is one of:
   {"op":"add","exercise":name,"sets":n,"repsMin":n,"repsMax":n,"after":ref?}
   {"op":"remove","ref":ref}
@@ -20,7 +20,7 @@ Rules:
   {"op":"rename","name":string}
 - If the routine is (empty), build it from scratch with add ops (usually 4–7 exercises) and a rename.
 - Use names from "Exercises available" when one fits; otherwise a common gym name (e.g. "Goblet Squat"). The list is not complete: if nothing listed fits, use a common gym name; never decline for that. Never invent ids.
-- For a version of the routine (home, deload, travel…), rename it "<name> (<Version>)", e.g. "Push B (Deload)". A deload keeps the exercises with about half the sets.
+- For a version of the routine (home, deload, travel…), set "copy": true (it is saved as a new routine; the original stays) and rename it "<name> (<Version>)", e.g. "Push B (Deload)". A deload keeps the exercises with about half the sets.
 - Equipment limits (in the request or the known facts) apply to every row, new or kept: no barbell exercises when they only have dumbbells; replace rows that need other equipment.
 - Sets 1–10, reps 1–100. At most ${MAX_DIFF_OPS} ops. Keep everything the user did not ask to change.
 - Only if the user gives a time: about 5 min warm-up + 2.5 min per set, so total sets ≤ (minutes − 5) / 2.5 (30 min → 10 sets, 45 → 16, 60 → 22). To shorten, remove sets or exercises, never add.
@@ -58,6 +58,7 @@ export const TEMPLATE_DIFF_JSON_SCHEMA = {
   properties: {
     summary: { type: 'string' },
     decline: { type: 'string' },
+    copy: { type: 'boolean' },
     ops: {
       type: 'array',
       maxItems: MAX_DIFF_OPS,

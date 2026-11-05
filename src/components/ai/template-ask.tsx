@@ -9,7 +9,7 @@ import { Tappable } from '@/components/ui/tappable';
 import { useToast } from '@/components/ui/toast';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { applyAiAction, recordAiFeedback, revertAiActivity } from '@/ai/activity';
-import { registerTemplateActions, TEMPLATE_APPLY_DIFF } from '@/ai/template-actions';
+import { registerTemplateActions, TEMPLATE_APPLY_DIFF, TEMPLATE_CREATE_COPY, type CopyResult } from '@/ai/template-actions';
 import {
   buildTemplateProposal,
   requestTemplateEdit,
@@ -29,7 +29,7 @@ import { AiThinking } from './ai-thinking';
 import { ProposalCard } from './proposal-card';
 import { SuggestionChip } from './suggestion-chip';
 
-const STARTERS = ['Make it 45 minutes', 'Easier on my shoulders', 'Add some back work'] as const;
+const STARTERS = ['Make it 45 minutes', 'Easier on my shoulders', 'Home version, dumbbells only'] as const;
 const DRAFT_STARTERS = ['Push day, 45 minutes', 'Full body, dumbbells only', 'Leg day, no squat rack'] as const;
 const THINKING = ['Reading your routine', 'Picking exercises', 'Checking the time'] as const;
 const TASK = 'template_edit';
@@ -79,6 +79,7 @@ function ProposalBody({ proposal, onPick }: { proposal: TemplateProposal; onPick
         About {proposal.minutesBefore} → {proposal.minutesAfter} min
         {proposal.name ? ` · ${proposal.name}` : ''}
       </Caption>
+      {proposal.copy ? <Caption>Saved as a new routine. This one stays as it is.</Caption> : null}
       {proposal.unresolved.length ? (
         <View className="gap-2">
           <Caption>Not in your exercise list yet. Pick one, or it stays out:</Caption>
@@ -94,16 +95,17 @@ function ProposalBody({ proposal, onPick }: { proposal: TemplateProposal; onPick
 }
 
 /** Module-level so the component stays free of try blocks (React Compiler). */
-async function applyProposal(proposal: TemplateProposal): Promise<number | null> {
+async function applyProposal(proposal: TemplateProposal): Promise<{ activityId: number; copyId: number | null } | null> {
   if (!proposal.payload) return null;
   try {
     registerTemplateActions();
     const res = await applyAiAction({
       proposalId: proposal.proposalId,
       task: TASK,
-      action: { type: TEMPLATE_APPLY_DIFF, payload: proposal.payload },
+      action: { type: proposal.copy ? TEMPLATE_CREATE_COPY : TEMPLATE_APPLY_DIFF, payload: proposal.payload },
     });
-    return res.status === 'applied' ? res.activityId : null;
+    if (res.status !== 'applied') return null;
+    return { activityId: res.activityId, copyId: proposal.copy ? (res.after as CopyResult).templateId : null };
   } catch (err) {
     captureError(err, { where: 'template-ask.apply' });
     return null;
@@ -115,6 +117,7 @@ type State =
   | { kind: 'thinking' }
   | { kind: 'proposal'; proposal: TemplateProposal; context: ProposalContext }
   | { kind: 'declined'; message: string }
+  | { kind: 'created'; templateId: number; name: string }
   | { kind: 'failed'; reason: AiFailure };
 
 /**
@@ -126,10 +129,13 @@ export function TemplateAsk({
   template,
   onChanged,
   onDraft,
+  onOpenRoutine,
 }: {
   template: WorkoutTemplate;
   onChanged?: () => void;
   onDraft?: (proposal: TemplateProposal) => void;
+  /** Opens a routine the AI just created (versions are saved as copies). */
+  onOpenRoutine?: (templateId: number) => void;
 }) {
   const drafting = Boolean(onDraft);
   const { userId, getToken } = useAppAuth();
@@ -180,24 +186,28 @@ export function TemplateAsk({
       return;
     }
     setApplying(true);
-    const activityId = await applyProposal(proposal);
+    const applied = await applyProposal(proposal);
     setApplying(false);
-    if (activityId === null) {
+    if (applied === null) {
       toast({ title: 'Could not apply that change', variant: 'destructive' });
       return;
     }
-    setState({ kind: 'idle' });
+    const { activityId, copyId } = applied;
     setIntent('');
-    onChanged?.();
+    if (copyId !== null) setState({ kind: 'created', templateId: copyId, name: proposal.name });
+    else {
+      setState({ kind: 'idle' });
+      onChanged?.();
+    }
     toast({
-      title: 'Routine updated',
-      description: proposal.summary,
+      title: copyId !== null ? 'New routine saved' : 'Routine updated',
+      description: copyId !== null ? proposal.name : proposal.summary,
       variant: 'success',
       action: {
         label: 'Undo',
         onPress: () => {
           void revertAiActivity(activityId)
-            .then(() => onChanged?.())
+            .then(() => (copyId !== null ? setState({ kind: 'idle' }) : onChanged?.()))
             .catch((err: unknown) => captureError(err, { where: 'template-ask.undo' }));
         },
       },
@@ -225,7 +235,9 @@ export function TemplateAsk({
           title={state.proposal.summary}
           basis={`“${intent}”`}
           applying={applying}
-          applyLabel={state.proposal.payload ? (drafting ? 'Use this' : 'Apply') : 'Nothing to apply'}
+          applyLabel={
+            !state.proposal.payload ? 'Nothing to apply' : drafting ? 'Use this' : state.proposal.copy ? 'Save as new routine' : 'Apply'
+          }
           onApply={() => void apply(state.proposal)}
           onRegenerate={() => {
             void recordAiFeedback({ proposalId: state.proposal.proposalId, task: TASK, outcome: 'regenerated' });
@@ -234,6 +246,14 @@ export function TemplateAsk({
           onReject={(reason) => reject(state.proposal, reason)}>
           <ProposalBody proposal={state.proposal} onPick={setPicking} />
         </ProposalCard>
+      ) : state.kind === 'created' ? (
+        <View className="gap-2">
+          <Caption>Saved “{state.name}”. This routine is unchanged.</Caption>
+          <View className="flex-row flex-wrap gap-2">
+            {onOpenRoutine ? <Chip label={`Open ${state.name}`} onPress={() => onOpenRoutine(state.templateId)} /> : null}
+            <Chip label="Ask something else" onPress={() => setState({ kind: 'idle' })} />
+          </View>
+        </View>
       ) : (
         <>
           <View className="flex-row items-center gap-2">

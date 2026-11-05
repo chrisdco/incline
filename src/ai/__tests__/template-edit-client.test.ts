@@ -81,4 +81,12 @@ describe('buildTemplateProposal', () => {
     );
     expect(proposal.payload).toBeNull();
   });
+
+  it('a copy keeps a payload even when the rows are unchanged', () => {
+    const t = template();
+    const input = templateEditInput(t, 'deload version');
+    const proposal = buildTemplateProposal(t, input, { summary: 'Copy', copy: true, ops: [{ op: 'rename', name: 'Push B' } as never] }, new Map(), 'p3');
+    expect(proposal.copy).toBe(true);
+    expect(proposal.payload?.rows).toHaveLength(2);
+  });
 });

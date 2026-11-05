@@ -333,7 +333,9 @@ export default function TemplateEditorScreen() {
         {template ? (
           <>
             <Separator className="my-5" />
-            <TemplateAsk template={{ ...template, name: name.trim() || template.name, exercises }} onChanged={() => void reloadFromDb()} />
+            <TemplateAsk template={{ ...template, name: name.trim() || template.name, exercises }} onChanged={() => void reloadFromDb()}
+              onOpenRoutine={(newId) => router.push(`/template/${newId}`)}
+            />
           </>
         ) : isNew ? (
           <>

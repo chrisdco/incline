@@ -8,10 +8,11 @@
  * Bump TEMPLATE_EDIT_PROMPT_VERSION when the prompt or this shape changes.
  * 1.1.0: an empty routine is built from scratch (add ops + rename).
  * 1.2.0: a short list of the user's exercise names + the current time estimate.
+ * 1.3.0: `copy: true` = save the result as a new routine (home/deload/travel versions).
  */
 import { sanitizeExerciseName } from '../narrate/feature-pack.ts';
 
-export const TEMPLATE_EDIT_PROMPT_VERSION = 'template-edit-1.2.0';
+export const TEMPLATE_EDIT_PROMPT_VERSION = 'template-edit-1.3.0';
 
 export const MAX_TEMPLATE_ROWS = 30;
 export const MAX_INTENT_CHARS = 300;
@@ -59,7 +60,7 @@ export type TemplateDiffOp =
 
 export type TemplateDiff =
   | { decline: string }
-  | { summary: string; ops: TemplateDiffOp[] };
+  | { summary: string; ops: TemplateDiffOp[]; /** Save as a new routine; the original stays. */ copy?: true };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -212,7 +213,32 @@ export function parseTemplateDiff(raw: unknown, input: TemplateEditInput): Parse
   }
   if (ops.length === 0) return { ok: false, error: 'no_usable_ops' };
   const summary = cleanText(raw.summary, 160) ?? 'Suggested changes';
-  return { ok: true, value: { summary, ops } };
+  const copy =
+    input.rows.length > 0 &&
+    (raw.copy === true || looksLikeVersion(ops, input.templateName) || VERSION_INTENT.test(input.intent));
+  if (copy && !ops.some((op) => op.op === 'rename')) {
+    // A copy with the same name would be two "Push B"s; name it after the request.
+    const name = `${input.templateName} (${versionLabel(input.intent)})`.slice(0, MAX_TEMPLATE_NAME);
+    ops.push({ op: 'rename', name });
+  }
+  return { ok: true, value: { summary, ops, ...(copy ? { copy: true as const } : {}) } };
+}
+
+/** The user asked for a version, not an edit. Checked on their words, not the model's. */
+const VERSION_INTENT = /\b(version|copy|duplicate|variant|deload)\b/i;
+
+function versionLabel(intent: string): string {
+  const hit = /\b(deload|home|travel|hotel|beginner|express|quick|light)\b/i.exec(intent)?.[1];
+  return hit ? hit[0]!.toUpperCase() + hit.slice(1).toLowerCase() : 'Copy';
+}
+
+/**
+ * Small models forget the flag but follow the naming rule: "Legs A (Home)"
+ * from "Legs A" is a version, and a version must never overwrite the original.
+ */
+function looksLikeVersion(ops: TemplateDiffOp[], original: string): boolean {
+  const base = original.toLowerCase();
+  return ops.some((op) => op.op === 'rename' && op.name.toLowerCase().startsWith(`${base} (`));
 }
 
 export type DraftRowStatus = 'kept' | 'changed' | 'replaced' | 'added';
