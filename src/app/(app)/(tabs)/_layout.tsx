@@ -84,7 +84,7 @@ export default function TabsLayout() {
       {/*
         Native tab bar (iOS UITabBar / liquid glass, Android Material nav).
         AI entry follows each platform: iOS gets the separate search-role tab
-        (its own pill on iOS 26.1+; add `prominent` for iOS 27 once expo-router >= 58.0.30); Android gets a
+        (its own pill on iOS 26.1+, `prominent` keeps it visible when the bar minimizes on iOS 27+); Android gets a
         floating button that opens `/ai` as a sheet (its own route: `/ask` is the tab).
       */}
       <NativeTabs
@@ -114,7 +114,7 @@ export default function TabsLayout() {
           <NativeTabs.Trigger.Icon sf={{ default: 'person', selected: 'person.fill' }} src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="person" />} />
           <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="ask" role="search" hidden={android}>
+        <NativeTabs.Trigger name="ask" role="search" prominent hidden={android}>
           <NativeTabs.Trigger.Icon sf="sparkles" src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="auto-awesome" />} />
           <NativeTabs.Trigger.Label>Ask</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
