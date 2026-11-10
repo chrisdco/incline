@@ -5,10 +5,12 @@ packages:
   - web
 
 # Build scripts run only for explicitly trusted deps (pnpm default denies).
-# better-sqlite3 needs its prebuilt native binding for the vitest suites.
+# better-sqlite3 v13 ships prebuilt bindings (win32/linux/darwin) and has no
+# install script, but pnpm synthesizes `node-gyp rebuild` from its binding.gyp,
+# which needs Visual Studio on Windows. Deny the build; the prebuilds are enough.
 allowBuilds:
   '@sentry/cli': true
-  better-sqlite3: true
+  better-sqlite3: false
   browser-tabs-lock: true
   bufferutil: true
   core-js: true
