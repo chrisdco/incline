@@ -25,6 +25,14 @@ import {
   type PlanBuildInput,
 } from '../_shared/contracts/plans/plan-build.ts';
 import { SYSTEM_PROMPT as PLAN_BUILD_SYSTEM, buildUserMessage as planBuildUser } from '../_shared/contracts/plans/prompt.ts';
+import {
+  parsePlanEdit,
+  parsePlanEditInput,
+  PLAN_EDIT_PROMPT_VERSION,
+  stubPlanEdit,
+  type PlanEditInput,
+} from '../_shared/contracts/plans/plan-edit.ts';
+import { PLAN_EDIT_SYSTEM, buildPlanEditMessage } from '../_shared/contracts/plans/edit-prompt.ts';
 import { canonicalHash, hashJson } from './hash.ts';
 import type { ChatMessage } from './upstream.ts';
 
@@ -126,8 +134,25 @@ const planBuild: ServerTask<PlanBuildInput> = {
   },
 };
 
+const planEdit: ServerTask<PlanEditInput> = {
+  id: 'plan_edit',
+  promptVersion: PLAN_EDIT_PROMPT_VERSION,
+  dailyLimit: 30,
+  // App timeout is 20 s; an op list is short, like a routine diff.
+  budgetMs: 15_000,
+  parseInput: parsePlanEditInput,
+  cacheKey: (input) => hashJson(input),
+  messages: (input) => [
+    { role: 'system', content: PLAN_EDIT_SYSTEM },
+    { role: 'user', content: buildPlanEditMessage(input) },
+  ],
+  parseOutput: parsePlanEdit,
+  stub: stubPlanEdit,
+};
+
 export const TASKS: Record<string, ServerTask> = {
   [narrate.id]: narrate as ServerTask,
   [templateEdit.id]: templateEdit as ServerTask,
   [planBuild.id]: planBuild as ServerTask,
+  [planEdit.id]: planEdit as ServerTask,
 };

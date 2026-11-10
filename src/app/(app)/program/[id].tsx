@@ -14,6 +14,7 @@ import { ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
 import { PlanProgressCard } from '@/components/program/plan-progress-card';
+import { PlanAsk } from '@/components/ai/plan-ask';
 import { useActivePlanProgress } from '@/hooks/use-data';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
@@ -220,6 +221,12 @@ export default function ProgramDetailScreen() {
                 Run it again
               </Button>
             ) : null}
+          </View>
+        ) : null}
+
+        {program.isCustom && workouts.length > 0 ? (
+          <View className="mt-6">
+            <PlanAsk program={program} onChanged={() => void load()} />
           </View>
         ) : null}
 
