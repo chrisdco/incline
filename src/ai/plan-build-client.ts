@@ -44,6 +44,8 @@ export interface PlanProposal {
   trimmed: string[];
   /** AI names with no catalog match; left out of the plan. */
   unresolved: string[];
+  /** Matched exercises that need equipment the user doesn't have; left out. */
+  offEquipment: string[];
   /** null when nothing usable is left. */
   payload: PlanInsertInput | null;
 }
@@ -53,7 +55,7 @@ export type PlanBuildOutcome =
   | { status: 'declined'; message: string }
   | { status: 'unavailable'; reason: AiFailure };
 
-export type ResolvedPlanExercise = Pick<Exercise, 'id' | 'name' | 'primaryMuscle' | 'secondaryMuscles'>;
+export type ResolvedPlanExercise = Pick<Exercise, 'id' | 'name' | 'primaryMuscle' | 'secondaryMuscles' | 'equipment'>;
 
 const MAX_TEMPLATE_NAME = 60;
 
@@ -81,6 +83,9 @@ export function buildPlanProposal(
 ): PlanProposal {
   const assembled = assemblePlan(input, draft);
   const unresolved: string[] = [];
+  const offEquipment: string[] = [];
+  // A name can resolve to a variant with other equipment ("Walking Lunges" → barbell).
+  const allowed: ReadonlySet<string> | null = input.equipment?.length ? new Set(input.equipment) : null;
   const ids = new Map<string, number>();
   const days: PlanDay[] = assembled.days.map((d) => {
     const used = new Set<number>();
@@ -88,6 +93,10 @@ export function buildPlanProposal(
       const hit = resolved.get(r.exercise) ?? null;
       if (!hit) {
         if (!unresolved.includes(r.exercise)) unresolved.push(r.exercise);
+        return [];
+      }
+      if (allowed && !allowed.has(hit.equipment) && hit.equipment !== 'bodyweight') {
+        if (!offEquipment.includes(hit.name)) offEquipment.push(hit.name);
         return [];
       }
       if (used.has(hit.id)) return [];
@@ -143,10 +152,50 @@ export function buildPlanProposal(
     warnings: balanced.warnings,
     trimmed: [...balanced.removed, ...assembled.droppedExtras],
     unresolved,
+    offEquipment,
     payload: usable
       ? { name: assembled.name, description, weeks: input.weeks, difficulty: input.experience, templates, schedule }
       : null,
   };
+}
+
+const EQUIPMENT_PREFIX: Record<string, string> = {
+  dumbbell: 'Dumbbell',
+  kettlebell: 'Kettlebell',
+  band: 'Band',
+  cable: 'Cable',
+  machine: 'Machine',
+  barbell: 'Barbell',
+};
+
+/**
+ * Resolve names, then retry any that matched a variant with equipment the
+ * user lacks under an allowed prefix ("Walking Lunges" → "Dumbbell Walking
+ * Lunges"). One extra batched lookup at most.
+ */
+export async function resolvePlanNames(
+  names: string[],
+  equipment: readonly string[] | undefined,
+  resolveNames: (names: string[]) => Promise<Map<string, ResolvedPlanExercise | null>>,
+): Promise<Map<string, ResolvedPlanExercise | null>> {
+  const out = await resolveNames(names);
+  if (!equipment?.length) return out;
+  const allowed = new Set(equipment);
+  const off = (e: ResolvedPlanExercise | null | undefined) => !!e && !allowed.has(e.equipment) && e.equipment !== 'bodyweight';
+  const retries = [...out].filter(([, hit]) => off(hit)).map(([name]) => name);
+  if (!retries.length) return out;
+  const prefixed = retries.flatMap((name) =>
+    equipment.flatMap((eq) => (EQUIPMENT_PREFIX[eq] ? [`${EQUIPMENT_PREFIX[eq]} ${name.replace(/^(barbell|dumbbell|cable|machine)\s+/i, '')}`] : [])),
+  );
+  const second = await resolveNames(prefixed);
+  for (const name of retries) {
+    const fit = prefixed
+      .filter((p) => p.toLowerCase().endsWith(name.replace(/^(barbell|dumbbell|cable|machine)\s+/i, '').toLowerCase()))
+      .map((p) => second.get(p))
+      .find((hit) => hit && !off(hit));
+    if (fit) out.set(name, fit);
+  }
+  return out;
 }
 
 function supabaseToken(getToken: GetToken): () => Promise<string | null> {
@@ -220,7 +269,10 @@ export async function requestPlanBuild(input: {
     if ('decline' in draft) return { status: 'declined', message: draft.decline };
 
     const names = assemblePlan(taskInput, draft).days.flatMap((d) => d.rows.map((r) => r.exercise));
-    const [resolved, { newUuid }] = await Promise.all([resolveExerciseNames(names), import('@/lib/uuid')]);
+    const [resolved, { newUuid }] = await Promise.all([
+      resolvePlanNames(names, taskInput.equipment, resolveExerciseNames),
+      import('@/lib/uuid'),
+    ]);
     return { status: 'proposal', proposal: buildPlanProposal(taskInput, draft, resolved, newUuid()) };
   } catch {
     return { status: 'unavailable', reason: 'error' };

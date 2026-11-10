@@ -117,13 +117,14 @@ function PlanPreview({ proposal }: { proposal: PlanProposal }) {
           {MAJOR_MUSCLES.map((m) => `${MUSCLE_LABEL[m]} ${Math.round(proposal.weekly[m] ?? 0)}`).join(' · ')}
         </Caption>
       </View>
-      {proposal.warnings.length || proposal.unresolved.length ? (
+      {proposal.warnings.length || proposal.unresolved.length || proposal.offEquipment.length ? (
         <View className="flex-row items-start gap-2">
           <Icon icon={TriangleAlert} size={14} color="muted-foreground" />
           <Caption className="min-w-0 flex-1">
             {[
               proposal.warnings.length ? `Outside the usual range: ${proposal.warnings.join(', ')}.` : '',
               proposal.unresolved.length ? `Left out (not in your exercise list): ${proposal.unresolved.join(', ')}.` : '',
+              proposal.offEquipment.length ? `Left out (needs other equipment): ${proposal.offEquipment.join(', ')}.` : '',
             ]
               .filter(Boolean)
               .join(' ')}

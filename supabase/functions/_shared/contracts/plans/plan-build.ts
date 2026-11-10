@@ -304,8 +304,17 @@ export function assemblePlan(input: PlanBuildInput, draft: Exclude<PlanDraft, { 
     });
     let used = rows.reduce((n, r) => n + r.sets, 0);
     for (const x of d.extras) {
-      const sets = Math.min(x.sets, 3);
-      if (used + sets > budget) {
+      // A focus the user asked for outranks generic accessory volume: shave
+      // accessories (never below 2 sets) to make room for at least 2 sets.
+      for (const r of rows) {
+        if (budget - used >= 2) break;
+        if (r.role === 'accessory' && r.sets > 2) {
+          r.sets--;
+          used--;
+        }
+      }
+      const sets = Math.min(x.sets, 3, budget - used);
+      if (sets < Math.min(2, x.sets)) {
         droppedExtras.push(x.exercise);
         continue;
       }

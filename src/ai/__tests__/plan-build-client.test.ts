@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/db/queries/programs', () => ({ insertPlan: vi.fn(), softDeletePlan: vi.fn(), PLAN_TABLES: [] }));
 
-import { buildPlanProposal, type ResolvedPlanExercise } from '@/ai/plan-build-client';
+import { buildPlanProposal, resolvePlanNames, type ResolvedPlanExercise } from '@/ai/plan-build-client';
 import { parsePlanInsertPayload } from '@/ai/plan-actions';
 import { parsePlanDraft, stubPlanDraft, type PlanBuildInput } from '@/contracts/plans/plan-build';
 import { EXERCISES } from '@/db/seed';
@@ -10,7 +10,7 @@ import { EXERCISES } from '@/db/seed';
 const base: PlanBuildInput = { intent: 'Winter Arc', weeks: 4, daysPerWeek: 4, goal: 'hypertrophy', experience: 'intermediate', minutes: 60 };
 
 const catalog = new Map<string, ResolvedPlanExercise | null>(
-  EXERCISES.map((e, i) => [e.name, { id: i + 1, name: e.name, primaryMuscle: e.primaryMuscle, secondaryMuscles: e.secondaryMuscles }]),
+  EXERCISES.map((e, i) => [e.name, { id: i + 1, name: e.name, primaryMuscle: e.primaryMuscle, secondaryMuscles: e.secondaryMuscles, equipment: e.equipment }]),
 );
 
 function draftFor(input: PlanBuildInput) {
@@ -46,6 +46,39 @@ describe('buildPlanProposal', () => {
     const p = buildPlanProposal(input, draftFor(input), catalog, 'p3');
     expect(p.payload!.templates).toHaveLength(4);
     expect(p.payload!.schedule).toHaveLength(4);
+  });
+  it('leaves out exercises that need equipment the user lacks', () => {
+    const input: PlanBuildInput = { ...base, equipment: ['dumbbell'] };
+    const p = buildPlanProposal(input, draftFor(input), catalog, 'p4');
+    const ids = new Set(p.days.flatMap((d) => d.rows.map((r) => r.exerciseId)));
+    const used = [...catalog.values()].filter((e) => e && ids.has(e.id));
+    expect(used.every((e) => e!.equipment === 'dumbbell' || e!.equipment === 'bodyweight')).toBe(true);
+    expect(p.offEquipment.length).toBeGreaterThan(0);
+  });
+  it('makes room for focus extras by shaving accessories', () => {
+    const draft = draftFor(base);
+    draft.days[0]!.extras = [{ exercise: 'Hammer Curl', sets: 3, repsMin: 10, repsMax: 15 }];
+    const p = buildPlanProposal(base, draft, catalog, 'p5');
+    expect(p.trimmed).not.toContain('Hammer Curl');
+    expect(p.days[0]!.rows.some((r) => r.role === 'extra')).toBe(true);
+  });
+});
+
+describe('resolvePlanNames', () => {
+  it('retries a wrong-equipment match under an allowed prefix', async () => {
+    const lookup = async (names: string[]) =>
+      new Map<string, ResolvedPlanExercise | null>(
+        names.map((n) => [
+          n,
+          n === 'Walking Lunges'
+            ? { id: 1, name: 'Walking Lunges', primaryMuscle: 'quads', secondaryMuscles: [], equipment: 'barbell' }
+            : n === 'Dumbbell Walking Lunges'
+              ? { id: 2, name: 'Dumbbell Walking Lunges', primaryMuscle: 'quads', secondaryMuscles: [], equipment: 'dumbbell' }
+              : null,
+        ]),
+      );
+    const out = await resolvePlanNames(['Walking Lunges'], ['dumbbell'], lookup);
+    expect(out.get('Walking Lunges')?.id).toBe(2);
   });
 });
 
