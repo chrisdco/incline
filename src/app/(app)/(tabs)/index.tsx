@@ -20,7 +20,7 @@ import { Section, SectionLabel } from '@/components/layout';
 import { TodayCard } from '@/components/home/today-card';
 import { HomeContextCard } from '@/components/home/home-context-card';
 import { MonthlyReportPromo } from '@/components/home/monthly-report-promo';
-import { useProfile, useSuggestedTemplate, useProgressStats, useWorkoutFeedLogs, useTodayProgramSlot } from '@/hooks/use-data';
+import { useProfile, useSuggestedTemplate, useProgressStats, useWorkoutFeedLogs, useTodayProgramSlot, useActivePlanProgress } from '@/hooks/use-data';
 import { useActiveSession } from '@/hooks/use-active-session';
 import { useHomeCoachingContext } from '@/hooks/use-home-coaching-context';
 import { useSettings } from '@/store/settings-store';
@@ -48,6 +48,13 @@ function FeedSeparator() {
   return <View className="h-3" />;
 }
 
+/** "Week 2 of 8 · 3 in a row" once the plan has progress; module-level for the React Compiler. */
+function planMeta(week: number, progress: { totalWeeks: number; streak: number; finished: boolean } | null | undefined): string {
+  if (!progress) return `Week ${week}`;
+  const head = progress.finished ? 'Plan complete' : `Week ${week} of ${progress.totalWeeks}`;
+  return progress.streak > 1 ? `${head} · ${progress.streak} in a row` : head;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const barInset = useSessionBarInset();
@@ -57,6 +64,7 @@ export default function HomeScreen() {
   const { data: profile, refetch: refetchProfile } = useProfile();
   const { data: suggested, loading: sugLoading } = useSuggestedTemplate();
   const { data: todaySlot, loading: todayLoading, refetch: refetchToday } = useTodayProgramSlot();
+  const { data: planProgress } = useActivePlanProgress();
   const { data: stats, loading: statsLoading, refetch: refetchStats } = useProgressStats();
   const { session } = useActiveSession();
   const clear = useActiveWorkout((s) => s.clear);
@@ -199,7 +207,7 @@ export default function HomeScreen() {
             eyebrow={`Today · ${todaySlot!.program.name}`}
             trailing={programWorkout.estimatedMinutes ? `${programWorkout.estimatedMinutes} min` : null}
             title={programWorkout.templateName ?? 'Workout'}
-            meta={`Week ${todaySlot!.week}`}
+            meta={planMeta(todaySlot!.week, planProgress)}
             muscles={todayMuscles}
             onPreview={() => router.push(`/workout/${programWorkout.templateId}`)}
             onAction={() =>

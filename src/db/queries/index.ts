@@ -63,9 +63,11 @@ export {
   setActiveProgram,
   clearActiveProgram,
   getTodayProgramSlot,
+  getActivePlanProgress,
   weekdayMon1,
   type ActiveProgramState,
   type TodayProgramSlot,
+  type ActivePlanProgress,
 } from './programs';
 
 export {

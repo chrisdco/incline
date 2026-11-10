@@ -3,6 +3,7 @@ import { newUuid } from '@/lib/uuid';
 import { kvStorage } from '../kv';
 import { mutate, type Tx } from '../write';
 import { startOfDay, weekdayMon1 } from '../calc';
+import { addDays, planProgress, type PlanProgress } from '@/lib/plan-progress';
 import { enqueueSync } from '@/sync/outbox';
 import { templateRefForId } from '@/sync/template-ref';
 import { enqueueTemplateExerciseUpsert, enqueueTemplateUpsert, sanitizeEstimatedMinutes, softDeleteCustomTemplate } from './templates';
@@ -440,6 +441,37 @@ export async function getTodayProgramSlot(now = Date.now()): Promise<TodayProgra
     muscles,
     isRestDay: !workout,
   };
+}
+
+export interface ActivePlanProgress extends PlanProgress {
+  programId: number;
+  programName: string;
+  startedAt: number;
+}
+
+/** Progress through the active program, from finished workouts in its window. One query. */
+export async function getActivePlanProgress(now = Date.now()): Promise<ActivePlanProgress | null> {
+  const active = await getActiveProgramState();
+  if (!active) return null;
+  const program = await getProgram(active.programId);
+  if (!program || program.weeks < 1) return null;
+  const start = startOfDay(active.startedAt);
+  const end = addDays(start, program.weeks * 7);
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<{ started_at: number }>(
+    `SELECT started_at FROM workout_logs
+     WHERE deleted_at IS NULL AND ended_at IS NOT NULL AND started_at >= ? AND started_at < ?`,
+    start,
+    end,
+  );
+  const progress = planProgress({
+    startedAt: start,
+    weeks: program.weeks,
+    schedule: (program.workouts ?? []).map((w) => ({ week: w.week, day: w.day })),
+    workouts: rows.map((r) => r.started_at),
+    now,
+  });
+  return { ...progress, programId: program.id, programName: program.name, startedAt: start };
 }
 
 /** One routine of an AI-built plan; rows are already resolved to catalog ids. */
