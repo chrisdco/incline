@@ -6,7 +6,16 @@ import { startOfDay, weekdayMon1 } from '../calc';
 import { addDays, planProgress, type PlanProgress } from '@/lib/plan-progress';
 import { enqueueSync } from '@/sync/outbox';
 import { templateRefForId } from '@/sync/template-ref';
-import { enqueueTemplateExerciseUpsert, enqueueTemplateUpsert, sanitizeEstimatedMinutes, softDeleteCustomTemplate } from './templates';
+import {
+  enqueueTemplateExerciseUpsert,
+  enqueueTemplateUpsert,
+  restoreTemplateSnapshot,
+  sanitizeEstimatedMinutes,
+  snapshotTemplate,
+  softDeleteCustomTemplate,
+  writeTemplateState,
+  type TemplateSnapshot,
+} from './templates';
 import type { MuscleGroup, Program, ProgramWorkout } from '../types';
 import {
   type ProgramRow,
@@ -569,4 +578,152 @@ export async function softDeletePlan(tx: Tx, programId: number, templateIds: num
   const active = parseActiveProgram(await readActiveProgram(tx));
   if (active?.programId === programId) await clearActiveProgramIn(tx, true);
   for (const id of templateIds) await softDeleteCustomTemplate(tx, id);
+}
+
+/** One exercise row of a plan routine (plan edits). */
+export interface PlanRoutineRow {
+  templateId: number;
+  exerciseId: number;
+  name: string;
+}
+
+/** Exercise rows of the given routines, in order. One query. */
+export async function getPlanRoutineRows(templateIds: number[]): Promise<PlanRoutineRow[]> {
+  const ids = [...new Set(templateIds)];
+  if (ids.length === 0) return [];
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<{ template_id: number; exercise_id: number; name: string | null }>(
+    `SELECT te.template_id, te.exercise_id, e.name
+     FROM template_exercises te
+     LEFT JOIN exercises e ON e.id = te.exercise_id
+     WHERE te.template_id IN (${ids.map(() => '?').join(',')}) AND te.deleted_at IS NULL
+     ORDER BY te.template_id, te.sort_order`,
+    ...ids,
+  );
+  return rows.map((r) => ({ templateId: r.template_id, exerciseId: r.exercise_id, name: r.name ?? 'Exercise' }));
+}
+
+/** The approved target of an AI plan edit, resolved to ids. */
+export interface PlanEditPayload {
+  programId: number;
+  name: string;
+  weeks: number;
+  slots: { week: number; day: number; templateId: number }[];
+  swaps: { templateId: number; fromExerciseId: number; toExerciseId: number }[];
+  summary: string;
+}
+
+export interface PlanEditBefore {
+  programId: number;
+  name: string;
+  weeks: number;
+  templates: { templateId: number; snapshot: TemplateSnapshot }[];
+}
+
+export interface PlanEditAfter {
+  insertedSlots: number[];
+  removedSlots: number[];
+}
+
+/**
+ * Moves a custom program to `payload` in the caller's transaction: name and
+ * weeks, slots by diff (unchanged slots keep their ids), and exercise swaps
+ * inside its routines. Returns what a revert needs.
+ */
+export async function writePlanEdit(
+  tx: Tx,
+  payload: PlanEditPayload,
+): Promise<{ before: PlanEditBefore; after: PlanEditAfter }> {
+  const program = await tx.getFirstAsync<ProgramRow>(
+    'SELECT * FROM programs WHERE id = ? AND is_custom = 1 AND deleted_at IS NULL',
+    payload.programId,
+  );
+  if (!program) throw new Error('program not found');
+  const now = Date.now();
+  const live = await tx.getAllAsync<{ id: number; week: number; day: number; template_id: number }>(
+    'SELECT id, week, day, template_id FROM program_workouts WHERE program_id = ? AND deleted_at IS NULL',
+    payload.programId,
+  );
+  const key = (s: { week: number; day: number; templateId: number }) => `${s.week}:${s.day}:${s.templateId}`;
+  const target = new Set(payload.slots.map(key));
+  const kept = new Set<string>();
+  const removedSlots: number[] = [];
+  for (const s of live) {
+    const k = key({ week: s.week, day: s.day, templateId: s.template_id });
+    if (target.has(k) && !kept.has(k)) {
+      kept.add(k);
+      continue;
+    }
+    await tx.runAsync('UPDATE program_workouts SET deleted_at = ?, updated_at = ? WHERE id = ?', now, now, s.id);
+    await enqueueProgramWorkoutUpsert(tx, s.id);
+    removedSlots.push(s.id);
+  }
+  const insertedSlots: number[] = [];
+  for (const s of payload.slots) {
+    if (kept.has(key(s))) continue;
+    kept.add(key(s));
+    const res = await tx.runAsync(
+      `INSERT INTO program_workouts (program_id, template_id, week, day, sort_order, uuid, updated_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?)`,
+      payload.programId, s.templateId, s.week, s.day, newUuid(), now,
+    );
+    insertedSlots.push(res.lastInsertRowId);
+    await enqueueProgramWorkoutUpsert(tx, res.lastInsertRowId);
+  }
+
+  const templates: PlanEditBefore['templates'] = [];
+  const byTemplate = new Map<number, Map<number, number>>();
+  for (const s of payload.swaps) {
+    const map = byTemplate.get(s.templateId) ?? new Map<number, number>();
+    map.set(s.fromExerciseId, s.toExerciseId);
+    byTemplate.set(s.templateId, map);
+  }
+  for (const [templateId, map] of byTemplate) {
+    const snapshot = await snapshotTemplate(tx, templateId);
+    if (!snapshot) continue;
+    const rows = snapshot.rows.map((r) => ({
+      id: r.id,
+      exerciseId: map.get(r.exercise_id) ?? r.exercise_id,
+      sets: r.target_sets,
+      repsMin: r.target_reps_min,
+      repsMax: r.target_reps_max,
+    }));
+    await writeTemplateState(tx, templateId, snapshot.name, rows, snapshot.rows);
+    templates.push({ templateId, snapshot });
+  }
+
+  await tx.runAsync(
+    'UPDATE programs SET name = ?, weeks = ?, updated_at = ? WHERE id = ?',
+    payload.name, Math.max(1, Math.min(16, payload.weeks)), now, payload.programId,
+  );
+  await enqueueProgramUpsert(tx, payload.programId);
+  return {
+    before: { programId: payload.programId, name: program.name, weeks: program.weeks, templates },
+    after: { insertedSlots, removedSlots },
+  };
+}
+
+/** Undo for writePlanEdit. */
+export async function restorePlanEdit(tx: Tx, before: PlanEditBefore, after: PlanEditAfter): Promise<void> {
+  const now = Date.now();
+  for (const id of after.insertedSlots) {
+    await tx.runAsync(
+      'UPDATE program_workouts SET deleted_at = ?, updated_at = ? WHERE id = ? AND program_id = ?',
+      now, now, id, before.programId,
+    );
+    await enqueueProgramWorkoutUpsert(tx, id);
+  }
+  for (const id of after.removedSlots) {
+    await tx.runAsync(
+      'UPDATE program_workouts SET deleted_at = NULL, updated_at = ? WHERE id = ? AND program_id = ?',
+      now, id, before.programId,
+    );
+    await enqueueProgramWorkoutUpsert(tx, id);
+  }
+  for (const t of before.templates) await restoreTemplateSnapshot(tx, t.templateId, t.snapshot, []);
+  await tx.runAsync(
+    'UPDATE programs SET name = ?, weeks = ?, updated_at = ? WHERE id = ? AND is_custom = 1',
+    before.name, before.weeks, now, before.programId,
+  );
+  await enqueueProgramUpsert(tx, before.programId);
 }

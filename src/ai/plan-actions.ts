@@ -1,9 +1,20 @@
-import { insertPlan, PLAN_TABLES, softDeletePlan, type PlanInsertInput } from '@/db/queries/programs';
+import {
+  insertPlan,
+  PLAN_TABLES,
+  restorePlanEdit,
+  softDeletePlan,
+  writePlanEdit,
+  type PlanEditAfter,
+  type PlanEditBefore,
+  type PlanEditPayload,
+  type PlanInsertInput,
+} from '@/db/queries/programs';
 
 import { registerAiAction } from './actions';
 import type { ParseResult } from './types';
 
 export const PROGRAM_CREATE_PLAN = 'program.create_plan';
+export const PROGRAM_APPLY_EDIT = 'program.apply_edit';
 
 export interface PlanCreateResult {
   programId: number;
@@ -86,6 +97,43 @@ export function parsePlanInsertPayload(raw: unknown): ParseResult<PlanInsertInpu
   };
 }
 
+const MAX_SWAPS = 40;
+
+/** Re-checks an approved plan edit before it touches the database. */
+export function parsePlanEditPayload(raw: unknown): ParseResult<PlanEditPayload> {
+  if (!raw || typeof raw !== 'object') return { ok: false, error: 'payload must be an object' };
+  const p = raw as Record<string, unknown>;
+  if (!int(p.programId, 1, Number.MAX_SAFE_INTEGER)) return { ok: false, error: 'invalid programId' };
+  if (!str(p.name, 60) || !p.name.trim()) return { ok: false, error: 'invalid name' };
+  if (!int(p.weeks, 1, 16)) return { ok: false, error: 'invalid weeks' };
+  if (typeof p.summary !== 'string') return { ok: false, error: 'invalid summary' };
+  if (!Array.isArray(p.slots) || p.slots.length > MAX_SLOTS * 2) return { ok: false, error: 'invalid slots' };
+  const slots: PlanEditPayload['slots'] = [];
+  for (const s of p.slots as Record<string, unknown>[]) {
+    if (!s || !int(s.week, 1, p.weeks) || !int(s.day, 1, 7) || !int(s.templateId, 1, Number.MAX_SAFE_INTEGER)) {
+      return { ok: false, error: 'invalid slot' };
+    }
+    slots.push({ week: s.week, day: s.day, templateId: s.templateId });
+  }
+  if (!Array.isArray(p.swaps) || p.swaps.length > MAX_SWAPS) return { ok: false, error: 'invalid swaps' };
+  const swaps: PlanEditPayload['swaps'] = [];
+  for (const s of p.swaps as Record<string, unknown>[]) {
+    if (
+      !s ||
+      !int(s.templateId, 1, Number.MAX_SAFE_INTEGER) ||
+      !int(s.fromExerciseId, 1, Number.MAX_SAFE_INTEGER) ||
+      !int(s.toExerciseId, 1, Number.MAX_SAFE_INTEGER)
+    ) {
+      return { ok: false, error: 'invalid swap' };
+    }
+    swaps.push({ templateId: s.templateId, fromExerciseId: s.fromExerciseId, toExerciseId: s.toExerciseId });
+  }
+  return {
+    ok: true,
+    output: { programId: p.programId, name: p.name.trim(), weeks: p.weeks, slots, swaps, summary: p.summary.slice(0, 160) },
+  };
+}
+
 let registered = false;
 
 /** Idempotent: the plan builder calls it before saving. */
@@ -102,6 +150,18 @@ export function registerPlanActions(): void {
     },
     async revert(tx, _before, after) {
       await softDeletePlan(tx, after.programId, after.templateIds);
+    },
+  });
+  registerAiAction<PlanEditPayload, PlanEditBefore, PlanEditAfter>({
+    type: PROGRAM_APPLY_EDIT,
+    tables: PLAN_TABLES,
+    parse: parsePlanEditPayload,
+    async apply(tx, payload) {
+      const { before, after } = await writePlanEdit(tx, payload);
+      return { before, after, summary: payload.summary || `Edited ${payload.name}` };
+    },
+    async revert(tx, before, after) {
+      await restorePlanEdit(tx, before, after);
     },
   });
 }

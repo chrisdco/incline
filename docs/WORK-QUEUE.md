@@ -243,9 +243,13 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
     ("Winter Arc"). Code owns the skeleton (docs/decisions/PROGRAMMING.md);
     the model picks exercises; saved as routines + program, one undo.
     `plan_build` task, 10/day.
-  - [ ] Device test of the builder; eval set for plan drafts.
-  - [ ] Challenge check-ins / streaks on top of a plan; `PlanDiff` changes
-    to an existing plan; community/marketplace plans later.
+  - [x] Eval set for plan drafts (#339, `evals/plans`, Groq 91%).
+  - [x] Check-ins / streaks for the active plan (#340): week dots, streak,
+    best, "Run it again".
+  - [x] Change a plan by asking: `plan_edit` task, ops move/remove/add day,
+    weeks, swap exercise, rename; preview + one undo. `evals/plan-edit`.
+  - [ ] Device test of the builder, check-ins and plan edits.
+  - [ ] Community/marketplace plans (later).
 - [ ] **4. Smart surfaces + personalisation:**
   - Context chips, the Ask sheet, and voice logging (gym loop: Hevy/Strong
     side-by-side check before PR).
