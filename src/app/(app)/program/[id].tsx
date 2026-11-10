@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
+import { PlanProgressCard } from '@/components/program/plan-progress-card';
+import { useActivePlanProgress } from '@/hooks/use-data';
 import { useToast } from '@/components/ui/toast';
 import { useHaptics } from '@/hooks/use-haptics';
 import { useActiveSession } from '@/hooks/use-active-session';
@@ -56,6 +58,7 @@ export default function ProgramDetailScreen() {
   const [conflictOpen, setConflictOpen] = useState(false);
   const [pendingStart, setPendingStart] = useState<{ templateId: number; name: string } | null>(null);
   const [todayDay] = useState(() => weekdayMon1(Date.now()));
+  const { data: planProgress } = useActivePlanProgress();
 
   const load = useCallback(async () => {
     try {
@@ -144,6 +147,16 @@ export default function ProgramDetailScreen() {
     }
   };
 
+  const restart = async () => {
+    try {
+      await setActiveProgram(programId);
+      impact();
+      toast({ title: 'Plan restarted from today', variant: 'success' });
+    } catch {
+      toast({ title: 'Could not restart the plan', variant: 'destructive' });
+    }
+  };
+
   if (loading) return <ListSkeleton count={3} />;
   if (error || !program) return <ErrorState title="Program not found" />;
 
@@ -197,6 +210,18 @@ export default function ProgramDetailScreen() {
             </Caption>
           ) : null}
         </View>
+
+        {isActive && planProgress?.programId === programId ? (
+          <View className="mt-6">
+            <SectionLabel>Progress</SectionLabel>
+            <PlanProgressCard progress={planProgress} />
+            {planProgress.finished ? (
+              <Button variant="tonal" className="mt-3" onPress={() => void restart()}>
+                Run it again
+              </Button>
+            ) : null}
+          </View>
+        ) : null}
 
         <View className="mt-6 gap-4">
           {Array.from({ length: weeks }, (_, i) => i + 1).map((week) => (

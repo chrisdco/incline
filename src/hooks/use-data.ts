@@ -17,6 +17,7 @@ import {
   getSuggestedTemplate,
   getTemplate,
   getTodayProgramSlot,
+  getActivePlanProgress,
   getWeeklyRecap,
   getMonthlyRecap,
   listPrograms,
@@ -26,6 +27,7 @@ import {
   searchExercises,
   type ExerciseFilters,
   type TodayProgramSlot,
+  type ActivePlanProgress,
   type WorkoutLogFilters,
 } from '@/db/queries';
 import type { Exercise, MonthlyRecap, PeriodStats, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutTemplate } from '@/db/types';
@@ -115,6 +117,10 @@ export function useProgram(id: number) {
 }
 export function useTodayProgramSlot() {
   return useDbQuery<TodayProgramSlot | null>(TABLES.programs, ['todayProgramSlot'], () => getTodayProgramSlot());
+}
+/** Done/missed days and streak for the active program (null when none is active). */
+export function useActivePlanProgress() {
+  return useDbQuery<ActivePlanProgress | null>(TABLES.programs, ['activePlanProgress'], () => getActivePlanProgress());
 }
 
 /* ---- progress & profile ---- */
