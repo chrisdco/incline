@@ -4,7 +4,8 @@ import { router, useSegments, type Href } from 'expo-router';
 import { actionForResponse, pathForNotificationAction } from '@/lib/notifications/actions';
 import { getNotifications } from '@/lib/notifications/core';
 import { createPendingRoute, isAppRouteReady } from '@/lib/notifications/pending-route';
-import { pathForNotificationPayload } from '@/lib/notifications/routes';
+import { pathForNotificationPayload, resolveSessionPath } from '@/lib/notifications/routes';
+import { useActiveWorkout } from '@/store/active-workout-store';
 import { isNotificationPayload } from '@/lib/notifications/types';
 import { cancelRestCompleteNotification, scheduleRestCompleteNotification } from '@/lib/rest-notification';
 import { signalRestRequest } from '@/lib/rest-timer-signal';
@@ -12,7 +13,7 @@ import { signalRestRequest } from '@/lib/rest-timer-signal';
 // App-lifetime: a cold-start tap outlives the first render's effects.
 const pendingRoute = createPendingRoute((path) => {
   try {
-    router.push(path as Href);
+    router.push(resolveSessionPath(path, useActiveWorkout.getState().activeLogId) as Href);
   } catch {
     // Navigator gone mid-flush; the tap is dropped rather than retried forever.
   }

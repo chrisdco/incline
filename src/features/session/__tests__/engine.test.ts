@@ -384,3 +384,39 @@ describe('session engine: rest auto-start', () => {
     expect(h.ui.startRest).toHaveBeenCalledWith(100);
   });
 });
+
+describe('session engine: apply suggestion to remaining sets', () => {
+  it('fills unfinished working sets only and undo restores each set', async () => {
+    const h = harness({
+      1: workout(1, [
+        set(1, 10, { setType: 'warmup', weight: 50, reps: 8 }),
+        set(2, 10, { completed: true, weight: 100, reps: 5 }),
+        set(3, 10, { weight: 100, reps: 5 }),
+        set(4, 10, { weight: 102.5, reps: 4 }),
+        set(5, 11, { weight: 60, reps: 10 }),
+      ]),
+    });
+    await h.engine.open(1);
+    const n = await h.engine.applyLoadToRemaining(10, 105, 5);
+    expect(n).toBe(2);
+    const byId = () => Object.fromEntries(h.engine.store.getState().session!.sets.map((s) => [s.id, [s.weight, s.reps]]));
+    expect(byId()).toMatchObject({ 1: [50, 8], 2: [100, 5], 3: [105, 5], 4: [105, 5], 5: [60, 10] });
+
+    const toast = h.ui.toast.mock.calls.at(-1)![0];
+    expect(toast.title).toContain('2 sets');
+    toast.action.onPress();
+    await h.engine.flushWrites();
+    expect(byId()).toMatchObject({ 3: [100, 5], 4: [102.5, 4] });
+    expect(h.calls.filter((c) => c.startsWith('update:4'))).toEqual([
+      'update:4:{"weight":105,"reps":5}',
+      'update:4:{"weight":102.5,"reps":4}',
+    ]);
+  });
+
+  it('does nothing when every working set is done', async () => {
+    const h = harness({ 1: workout(1, [set(1, 10, { completed: true })]) });
+    await h.engine.open(1);
+    expect(await h.engine.applyLoadToRemaining(10, 105, 5)).toBe(0);
+    expect(h.ui.toast).not.toHaveBeenCalled();
+  });
+});

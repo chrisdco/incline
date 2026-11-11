@@ -36,9 +36,10 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 import { useSettings } from '@/store/settings-store';
 import { useShallow } from 'zustand/react/shallow';
 import { useToast } from '@/components/ui/toast';
-import { formatClock, formatVolume } from '@/db/calc';
+import { formatClock, formatDuration, formatVolume } from '@/db/calc';
 import { workingSetVolume } from '@/lib/session-ghost';
-import { dropCachedSession, getCachedSession, setCachedSession } from '@/lib/query-keys';
+import { catalogQuery, dropCachedSession, getCachedSession, setCachedSession } from '@/lib/query-keys';
+import { useQuery } from '@tanstack/react-query';
 import { finishBlock, pausedMsAt, sessionEngine, useSessionEngine } from '@/features/session';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
 import { motionDuration } from '@/styles/motion';
@@ -134,6 +135,9 @@ export default function SessionScreen() {
       }),
     [sessionSets, exerciseWeightUnits, unit],
   );
+  // Equipment per exercise from the cached catalog: one read for every block (#173).
+  const { data: catalog } = useQuery(catalogQuery);
+  const equipmentById = useMemo(() => new Map((catalog ?? []).map((e) => [e.id, e.equipment ?? null])), [catalog]);
   const rest = useRestTimer({ notify: restSoundEnabled, sessionId: logId, ongoing: restTarget });
   const restSound = useRestTimerSound();
 
@@ -185,9 +189,14 @@ export default function SessionScreen() {
 
   // Pick/reorder screens write directly then go back: refresh rows, plus
   // assist and rest defaults for exercises the engine hasn't seen (#157).
+  // The first focus is the mount itself, which open() already loads: skip it
+  // so a session doesn't load twice on every open (#204).
+  const seenFocus = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      if (engine.store.getState().logId === logId) void engine.refresh();
+      const returning = seenFocus.current;
+      seenFocus.current = true;
+      if (returning && engine.store.getState().logId === logId) void engine.refresh();
       // Leaving the screen commits the notes draft (#170).
       return () => {
         void engine.commitNotes();
@@ -272,6 +281,10 @@ export default function SessionScreen() {
   const onApplyLoad = useCallback((exerciseId: number, weight: number, reps?: number) => {
     impact();
     void engine.applyLoad(exerciseId, weight, reps);
+  }, [impact]);
+  const onApplySuggestion = useCallback((exerciseId: number, weight: number, reps?: number) => {
+    impact();
+    void engine.applyLoadToRemaining(exerciseId, weight, reps);
   }, [impact]);
   const openExercise = useCallback((exerciseId: number) => {
     router.push(`/exercise/${exerciseId}` as Href);
@@ -391,7 +404,7 @@ export default function SessionScreen() {
             <Caption className="mt-0.5 text-amber-500">Paused</Caption>
           ) : null}
           {ghost && showSessionGhost ? (
-            <Caption className="mt-0.5 text-xs">Last {formatClock(ghost.durationSeconds)}</Caption>
+            <Caption className="mt-0.5 text-xs">Last {formatDuration(ghost.durationSeconds)}</Caption>
           ) : null}
         </Pressable>
         <Pressable
@@ -427,14 +440,13 @@ export default function SessionScreen() {
         automaticallyAdjustKeyboardInsets>
         {muscleKey ? <SessionMuscleMap muscleKey={muscleKey} /> : null}
 
-        <Button variant="outline" className="mb-3" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
-          Add exercise
-        </Button>
-
         {groups.length === 0 ? (
           <View className="items-center py-16">
             <Body className="font-semibold text-foreground">No exercises yet</Body>
             <Caption className="mt-1 text-center">Add an exercise to start logging sets.</Caption>
+            <Button className="mt-4" leftIcon={<Icon icon={Plus} size={16} color="primary-foreground" />} onPress={openAddExercise}>
+              Add exercise
+            </Button>
           </View>
         ) : (
           <View className="gap-5">
@@ -476,6 +488,7 @@ export default function SessionScreen() {
                   onAddSet={onAddSet}
                   onAddWarmUp={onAddWarmUp}
                   onApplyLoad={onApplyLoad}
+                  onApplySuggestion={onApplySuggestion}
                   onChangeRpe={engine.changeRpe}
                   onChangeSetType={engine.changeSetType}
                   onOpenExercise={openExercise}
@@ -485,12 +498,19 @@ export default function SessionScreen() {
                   showWarmUpSets={showWarmUpSets}
                   showRpe={showRpe}
                   loadSuggestion={suggestionMap[g.exerciseId] ?? null}
+                  equipment={equipmentById.get(g.exerciseId)}
                 />
               </View>
               </Animated.View>
             );})}
           </View>
         )}
+
+        {groups.length > 0 ? (
+          <Button variant="outline" className="mt-5" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
+            Add exercise
+          </Button>
+        ) : null}
 
         {session.sets.length > 0 ? (
           <View className="mt-5 mb-3 rounded-2xl bg-card p-3">
@@ -536,11 +556,6 @@ export default function SessionScreen() {
           <Body className="text-sm text-foreground">Plate calculator</Body>
         </Pressable>
 
-        {groups.length > 0 ? (
-          <Button variant="outline" className="mb-3" leftIcon={<Icon icon={Plus} size={16} color="primary" />} onPress={openAddExercise}>
-            Add exercise
-          </Button>
-        ) : null}
       </ScrollView>
 
       <SessionDock>

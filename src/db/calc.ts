@@ -142,11 +142,14 @@ export function formatDuration(seconds: number): string {
   return `${sec}s`;
 }
 
+/** Live ticking clock: "04:09", then "1:30:00" past an hour (never "90:00", #204). */
 export function formatClock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
-  const m = Math.floor(s / 60);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
-  return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  const mmss = `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  return h > 0 ? `${h}:${mmss}` : mmss;
 }
 
 /** Canonical kg volume → "12.3k kg" / "980 lb" in the display unit. */

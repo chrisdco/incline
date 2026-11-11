@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Pressable, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { MessageSquarePlus } from 'lucide-react-native';
 
 import { Caption, Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
-import { getExercise, getSessionExerciseNote, saveSessionExerciseNote } from '@/db/queries';
+import { saveSessionExerciseNote } from '@/db/queries';
+import { sessionNotesQuery } from '@/lib/query-keys';
+import { useToast } from '@/components/ui/toast';
 import { calculatePlates } from '@/lib/plate-calculator';
 import { kgToInput } from '@/lib/units';
 import { METRIC_ICONS } from '@/lib/metric-icons';
@@ -14,35 +17,46 @@ import { motionDuration } from '@/styles/motion';
 import type { Unit } from '@/db/types';
 
 /**
- * Per-exercise session note (Hevy parity). Self-contained: loads on mount,
- * saves on blur, blank notes delete the row. Local-only (no outbox).
+ * Per-exercise session note (Hevy parity). Reads its note from the session's
+ * shared notes query (one query for every block, never per row), saves on
+ * blur, blank notes delete the row. Local-only (no outbox).
  */
 export function ExerciseNoteField({ logId, exerciseId }: { logId: number; exerciseId: number }) {
-  const [note, setNote] = useState<string | null>(null);
+  const { data: notes } = useQuery(sessionNotesQuery(logId));
+  const saved = notes?.[exerciseId] ?? '';
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  // Shown until the shared query settles, so the row never pops in (#204).
+  const [optimistic, setOptimistic] = useState<string | null>(null);
+  const note = optimistic ?? saved;
+  const { toast } = useToast();
 
-  useEffect(() => {
-    let active = true;
-    void getSessionExerciseNote(logId, exerciseId).then((n) => {
-      if (!active) return;
-      setNote(n);
-      setDraft(n);
-    });
-    return () => {
-      active = false;
-    };
-  }, [logId, exerciseId]);
+  const save = () => {
+    const next = draft.trim();
+    setOptimistic(next);
+    saveSessionExerciseNote(logId, exerciseId, draft).then(
+      () => setOptimistic(null),
+      () => {
+        setOptimistic(null);
+        toast({ title: 'Couldn’t save the note', description: 'Your text is still in the editor.', variant: 'destructive' });
+        setEditing(true);
+      },
+    );
+  };
 
-  if (note == null) return null;
+  const open = () => {
+    setDraft(note);
+    setEditing(true);
+  };
 
   if (!editing) {
     return (
       <Pressable
-        onPress={() => setEditing(true)}
+        onPress={open}
         accessibilityRole="button"
         accessibilityLabel={note ? 'Edit exercise note' : 'Add exercise note'}
         hitSlop={6}
+        style={{ minHeight: 24 }}
         className="flex-row items-center gap-1.5 px-1 py-0.5">
         <Icon icon={MessageSquarePlus} size={13} color={note ? 'primary' : 'muted-foreground'} />
         {note ? (
@@ -71,12 +85,7 @@ export function ExerciseNoteField({ logId, exerciseId }: { logId: number; exerci
         // Save on blur but STAY mounted: the session ScrollView dismisses the
         // keyboard on drag, and unmounting here closed the editor mid-typing
         // with no way back except re-tap. Explicit Done collapses it.
-        onBlur={() => {
-          setNote(draft.trim());
-          void saveSessionExerciseNote(logId, exerciseId, draft).catch((err) => {
-            console.warn('[notes] exercise note save failed', err);
-          });
-        }}
+        onBlur={save}
         accessibilityLabel="Exercise note"
         style={{ minHeight: 36, paddingVertical: 6, fontSize: 13 }}
         className="text-foreground"
@@ -84,10 +93,7 @@ export function ExerciseNoteField({ logId, exerciseId }: { logId: number; exerci
       <Pressable
         onPress={() => {
           setEditing(false);
-          setNote(draft.trim());
-          void saveSessionExerciseNote(logId, exerciseId, draft).catch((err) => {
-            console.warn('[notes] exercise note save failed', err);
-          });
+          save();
         }}
         accessibilityRole="button"
         accessibilityLabel="Done editing exercise note"
@@ -103,27 +109,19 @@ export function ExerciseNoteField({ logId, exerciseId }: { logId: number; exerci
  * One-line plate breakdown for the active working set on barbells.
  * Read-only hint — the full calculator stays in tools.
  */
+/**
+ * Plate breakdown for the active barbell set. Equipment comes from the
+ * session (one catalog read for every block, #173), never a per-row query.
+ */
 export function PlatesHint({
-  exerciseId,
+  equipment,
   weight,
   unit,
 }: {
-  exerciseId: number;
+  equipment: string | null | undefined;
   weight: number;
   unit: Unit;
 }) {
-  const [equipment, setEquipment] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void getExercise(exerciseId).then((ex) => {
-      if (active) setEquipment(ex?.equipment ?? null);
-    });
-    return () => {
-      active = false;
-    };
-  }, [exerciseId]);
-
   if (equipment !== 'barbell' || weight <= 0) return null;
   // `weight` is canonical kg; plates are loaded in the display unit.
   const shown = kgToInput(weight, unit);
@@ -135,12 +133,13 @@ export function PlatesHint({
     result.plates.length === 0
       ? 'Bar only'
       : `${result.plates.map((p) => `${p.count}×${p.weight}`).join(' + ')} /side`;
+  const short = result.remainderPerSide > 0 ? ` · ${result.remainderPerSide * 2} ${unit === 'metric' ? 'kg' : 'lb'} short` : '';
 
   return (
     <View className="flex-row items-center gap-1.5 px-1 py-0.5">
       <Icon icon={METRIC_ICONS.equipment} size={13} color="muted-foreground" />
       <Caption>
-        {bar} bar · {breakdown}
+        {bar} bar · {breakdown}{short}
       </Caption>
     </View>
   );

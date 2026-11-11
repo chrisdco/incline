@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import { listExercises } from '@/db/queries/exercises';
+import { getSessionExerciseNotes } from '@/db/queries/session-notes';
 import type { SessionWorkout } from '@/db/queries/helpers';
 import type { DbTable } from '@/db/write';
 
@@ -64,4 +65,17 @@ export function setCachedSession(session: SessionWorkout): void {
 
 export function dropCachedSession(logId: number): void {
   queryClient.removeQueries({ queryKey: workoutLogKey(logId), exact: true });
+}
+
+/* ---- per-exercise session notes ---- */
+
+/**
+ * All of a session's exercise notes in one query: every exercise block
+ * selects its own note from this shared entry instead of loading per row.
+ */
+export function sessionNotesQuery(logId: number) {
+  return queryOptions({
+    queryKey: dbKey(['session_exercise_notes'], 'sessionNotes', logId),
+    queryFn: () => getSessionExerciseNotes(logId),
+  });
 }

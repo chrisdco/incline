@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { Plus, GripVertical, Trash2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
@@ -100,6 +101,7 @@ export default function TemplateEditorScreen() {
   const navigation = useNavigation();
   const { toast } = useToast();
 
+  const keyboardOpen = useKeyboardVisible();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('intermediate');
@@ -259,7 +261,10 @@ export default function TemplateEditorScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
-      <NestableScrollContainer contentContainerStyle={SCREEN_CONTENT_CTA}>
+      <NestableScrollContainer
+        contentContainerStyle={SCREEN_CONTENT_CTA}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets>
         <View className="gap-3">
           <View className="gap-1">
             <Label>Name</Label>
@@ -345,6 +350,8 @@ export default function TemplateEditorScreen() {
         ) : null}
       </NestableScrollContainer>
 
+      {/* Hidden while typing so it never sits on the field being edited (#186). */}
+      {keyboardOpen ? null : (
       <View className="absolute inset-x-0 bottom-0 border-t border-border bg-background p-5 pb-8">
         <Button size="lg" onPress={save} disabled={saving}>
           {saving ? 'Saving...' : isNew ? 'Create routine' : 'Save changes'}
@@ -355,6 +362,7 @@ export default function TemplateEditorScreen() {
           </Button>
         )}
       </View>
+      )}
 
       <ExercisePickerSheet open={pickerOpen} onOpenChange={setPickerOpen} onPick={addExercise} />
 

@@ -20,6 +20,16 @@ export async function getSessionExerciseNote(
   return row?.notes ?? '';
 }
 
+/** Every exercise note in one log, one query (exerciseId → note). */
+export async function getSessionExerciseNotes(logId: number): Promise<Record<number, string>> {
+  const db = await openDatabase();
+  const rows = await db.getAllAsync<{ exercise_id: number; notes: string }>(
+    'SELECT exercise_id, notes FROM session_exercise_notes WHERE workout_log_id = ?',
+    logId,
+  );
+  return Object.fromEntries(rows.map((r) => [r.exercise_id, r.notes]));
+}
+
 export async function saveSessionExerciseNote(
   logId: number,
   exerciseId: number,

@@ -31,12 +31,13 @@ const LB_PLATES = [45, 35, 25, 10, 5, 2.5, 1.25];
  * `barWeight` is in the target unit; pass 0 to exclude the bar (target weight
  * is then the total plate load, split across both sides).
  * Returns null if the target weight is less than the bar weight.
+ * `remainderPerSide` is the load per side the plate set cannot make (0 when exact).
  */
 export function calculatePlates(
   targetWeight: number,
   unit: 'kg' | 'lb' = 'kg',
   barWeight = 20,
-): { plates: Plate[]; totalPerSide: number; barbell: number } | null {
+): { plates: Plate[]; totalPerSide: number; barbell: number; remainderPerSide: number } | null {
   const barbell = Math.max(0, barWeight);
   const availablePlates = unit === 'kg' ? KG_PLATES : LB_PLATES;
 
@@ -62,5 +63,7 @@ export function calculatePlates(
     plates,
     totalPerSide: perSide,
     barbell,
+    // What the plate set can't make, per side (#173: never drop it silently).
+    remainderPerSide: Math.round(Math.max(0, remaining) * 100) / 100,
   };
 }

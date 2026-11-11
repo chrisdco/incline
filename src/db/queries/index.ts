@@ -104,7 +104,7 @@ export {
   type WorkoutLogFilters,
 } from './sessions';
 
-export { getSessionExerciseNote, saveSessionExerciseNote } from './session-notes';
+export { getSessionExerciseNote, getSessionExerciseNotes, saveSessionExerciseNote } from './session-notes';
 
 export {
   getWorkoutPrCount,

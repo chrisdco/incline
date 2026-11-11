@@ -60,3 +60,19 @@ describe('weekInsightFromStats', () => {
     expect(insight?.line).toContain('3 sessions');
   });
 });
+
+describe('weekInsightFromStats mid-week (no fake drop)', () => {
+  const weeks = [
+    { weekStart: 'prev', volume: 2000, sessions: 4 },
+    { weekStart: 'curr', volume: 1200, sessions: 2 },
+  ];
+  it('hides a negative delta while the week is still running', () => {
+    const insight = weekInsightFromStats(stats({ totalSessions: 6, weeklyVolume: weeks }), 'metric');
+    expect(insight?.volumeDeltaPct).toBeNull();
+    expect(insight?.line).not.toContain('% vol');
+  });
+  it('still shows being ahead mid-week', () => {
+    const ahead = [weeks[0], { weekStart: 'curr', volume: 2400, sessions: 3 }];
+    expect(weekInsightFromStats(stats({ totalSessions: 7, weeklyVolume: ahead }), 'metric')?.volumeDeltaPct).toBe(20);
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { estimated1RM, isoDate, repsToBeat1RM, setVolume, startOfDay, startOfWeek } from '../calc';
+import { estimated1RM, formatClock, isoDate, repsToBeat1RM, setVolume, startOfDay, startOfWeek } from '../calc';
 
 describe('calc helpers', () => {
   it('estimated1RM uses Epley and handles edge cases', () => {
@@ -39,5 +39,14 @@ describe('calc helpers', () => {
     const monday = new Date(startOfWeek(wed));
     expect(monday.getDay()).toBe(1);
     expect(monday.getDate()).toBe(10);
+  });
+});
+
+describe('formatClock (#204)', () => {
+  it('ticks mm:ss under an hour and h:mm:ss past it', () => {
+    expect(formatClock(22)).toBe('00:22');
+    expect(formatClock(59 * 60 + 59)).toBe('59:59');
+    expect(formatClock(5400)).toBe('1:30:00');
+    expect(formatClock(-3)).toBe('00:00');
   });
 });

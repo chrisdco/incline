@@ -2,7 +2,7 @@ import { formatVolume, startOfWeek } from '@/db/calc';
 import type { ProgressStats, Unit } from '@/db/types';
 
 /** Compact Home recap derived from existing progress aggregates. */
-export function weekInsightFromStats(stats: ProgressStats | null | undefined, unit: Unit): {
+export function weekInsightFromStats(stats: ProgressStats | null | undefined, unit: Unit, now: number = Date.now()): {
   sessions: number;
   volumeLabel: string;
   volumeDeltaPct: number | null;
@@ -17,12 +17,17 @@ export function weekInsightFromStats(stats: ProgressStats | null | undefined, un
 
   const sessions = thisWeek?.sessions ?? 0;
   const volume = thisWeek?.volume ?? 0;
-  const weekStart = startOfWeek(Date.now());
+  const weekStart = startOfWeek(now);
   const prsThisWeek = (stats.prs ?? []).filter((p) => p.achievedAt >= weekStart).length;
 
   let volumeDeltaPct: number | null = null;
   if (prevWeek && prevWeek.volume > 0) {
     volumeDeltaPct = Math.round(((volume - prevWeek.volume) / prevWeek.volume) * 100);
+    // A week in progress against a finished one always looks "down"
+    // (Wednesday read -39%). Show the delta once it means something:
+    // already ahead, or the week is over.
+    const weekOver = now >= weekStart + 7 * 86_400_000;
+    if (volumeDeltaPct < 0 && !weekOver) volumeDeltaPct = null;
   }
 
   const volumeLabel = formatVolume(volume, unit);
