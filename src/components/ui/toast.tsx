@@ -166,7 +166,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 accessibilityLabel={`${current.title}${current.description ? `. ${current.description}` : ''}. Tap to dismiss.`}
                 className="flex-row items-center gap-2.5 rounded-2xl border border-border bg-card px-4 py-3 shadow-lg">
                 {IconGlyph ? <Icon icon={IconGlyph} size={18} color={variantIconColor[current.variant]} /> : null}
-                <View className="min-w-0 flex-1">
+                {/* shrink, not flex-1: the pill is shrink-wrapped (items-center), so flex-1 collapses the title to zero width. */}
+                <View className="min-w-0 shrink">
                   <Text className="text-sm font-semibold text-foreground">{current.title}</Text>
                   {current.description ? <Text className="mt-0.5 text-xs text-muted-foreground">{current.description}</Text> : null}
                 </View>
