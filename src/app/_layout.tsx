@@ -5,7 +5,7 @@ import { Text as RNText, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@expo/ui/community/bottom-sheet';
@@ -27,6 +27,7 @@ import { ToastProvider } from '@/components/ui/toast';
 import { UpdateBootstrap } from '@/features/updates';
 import { initMonitoring, withMonitoring } from '@/lib/monitoring';
 import { ErrorBoundary } from '@/components/common/error-boundary';
+import { resetUserData } from '@/db/reset';
 import { useDatabaseState } from '@/hooks/use-database';
 import { DatabaseErrorScreen } from '@/components/common/database-error-screen';
 import { useNotificationRouting } from '@/hooks/use-notification-routing';
@@ -63,6 +64,23 @@ function NotificationBootstrap() {
 function WidgetBootstrap() {
   useWidgetRefresh();
   return null;
+}
+
+/**
+ * Error-boundary escape hatch: the one reset path, staying signed in (owner
+ * kept), so the remounted gate re-pulls the backed-up data.
+ */
+function resetLocalDataForRecovery(): Promise<void> {
+  return resetUserData({ keepDeviceSettings: true });
+}
+
+/** After a reset, the gate re-binds, re-pulls and routes (onboarding or tabs). */
+function routeThroughGate(): void {
+  try {
+    router.replace('/');
+  } catch (err) {
+    console.warn('[layout] could not route to gate after reset', err);
+  }
 }
 
 function AppShell() {
@@ -123,6 +141,8 @@ function AppShell() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <BottomSheetModalProvider>
             <View className={cn('flex-1', isDark && 'dark', `theme-${accentTheme}`)}>
+              {/* Inner boundary: themed fallback with the local-reset escape hatch. */}
+              <ErrorBoundary onResetLocalData={resetLocalDataForRecovery} onAfterReset={routeThroughGate}>
                 <ToastProvider>
                   <NotificationBootstrap />
                   <WidgetBootstrap />
@@ -170,6 +190,7 @@ function AppShell() {
                   <Stack.Screen name="+not-found" options={{ title: 'Not Found' }} />
                 </Stack>
               </ToastProvider>
+              </ErrorBoundary>
             </View>
           </BottomSheetModalProvider>
         </GestureHandlerRootView>

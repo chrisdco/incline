@@ -1,9 +1,5 @@
 import { openDatabase } from './client';
-import { outboxCount } from '@/sync/outbox';
-import { resetUserData } from './queries/profile';
-import { useActiveWorkout } from '@/store/active-workout-store';
-
-const OWNER_KEY = 'owner_user_id';
+import { OWNER_KEY, resetUserData } from './reset';
 
 /**
  * Account ↔ local data binding.
@@ -13,6 +9,7 @@ const OWNER_KEY = 'owner_user_id';
  * DB. If a different account signs in, wipe user-owned data (logs, profile,
  * bodyweight, custom exercises, custom templates, sync outbox) so accounts do
  * not share history. The exercise catalog and bundled templates are kept.
+ * Explicit sign-out wipes too and releases the claim (`signOutLocalAccount`).
  *
  * Cloud sync keys rows by this same owner id (Clerk JWT `sub`).
  */
@@ -24,10 +21,24 @@ export async function bindLocalAccount(clerkUserId: string): Promise<{ switched:
 }
 
 /**
- * Phase 1 (no wipe): does this login switch accounts, and how many outbox
- * rows from the previous owner never uploaded? The gate uses `pending` to
- * ask before phase 2 destroys them — a switch with pending uploads is
- * otherwise silent permanent data loss.
+ * Local changes a wipe would destroy: outbox rows plus photo uploads and
+ * cloud deletes still queued (downloads are re-derivable from the cloud, so
+ * they don't count). Sign-out and account switch ask before losing these.
+ */
+export async function pendingLocalChanges(): Promise<number> {
+  const db = await openDatabase();
+  const row = await db.getFirstAsync<{ outbox: number; blobs: number }>(
+    `SELECT (SELECT COUNT(*) FROM sync_outbox) AS outbox,
+            (SELECT COUNT(*) FROM photo_blob_queue WHERE op <> 'download') AS blobs`,
+  );
+  return (row?.outbox ?? 0) + (row?.blobs ?? 0);
+}
+
+/**
+ * Phase 1 (no wipe): does this login switch accounts, and how many changes
+ * from the previous owner never uploaded? The gate uses `pending` to ask
+ * before phase 2 destroys them — a switch with pending uploads is otherwise
+ * silent permanent data loss.
  */
 export async function prepareAccountSwitch(
   clerkUserId: string,
@@ -51,41 +62,27 @@ export async function prepareAccountSwitch(
   }
   let pending = 0;
   try {
-    pending = await outboxCount();
+    pending = await pendingLocalChanges();
   } catch {
-    // Outbox unreadable — proceed; the wipe path reports failures itself.
+    // Unreadable — proceed; the wipe path reports failures itself.
   }
   return { switched: true, pending };
 }
 
 /** Phase 2: wipe previous-owner data and claim the DB. Only call after the gate clears it. */
 export async function completeAccountSwitch(clerkUserId: string): Promise<void> {
-  const db = await openDatabase();
-  await resetUserData();
-  useActiveWorkout.getState().clear();
-  try {
-    const { resetAiSettings } = await import('@/ai/byok');
-    await resetAiSettings();
-  } catch {
-    // Keystore unavailable — the kv half was already wiped with the data.
-  }
-  try {
-    const { resetAccountPreferences } = await import('@/store/settings-store');
-    resetAccountPreferences();
-  } catch {
-    // settings optional at bind time
-  }
-  await db.runAsync(
-    'INSERT INTO schema_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-    OWNER_KEY,
-    clerkUserId,
-  );
-  try {
-    const { clearAuthedSupabase } = await import('@/sync/supabase-auth');
-    clearAuthedSupabase();
-  } catch {
-    // sync module optional at bind time
-  }
+  // New account starts clean, device setup included.
+  await resetUserData({ owner: clerkUserId, keepDeviceSettings: false });
+}
+
+/**
+ * Explicit sign-out (#145): wipe this account's local data and release the
+ * claim, so history, bodyweight and photos don't sit on a shared or lost
+ * device. Device-only settings (haptics, reminders) stay. Call before the
+ * Clerk sign-out; the caller has already confirmed any pending changes.
+ */
+export async function signOutLocalAccount(): Promise<void> {
+  await resetUserData({ owner: null, keepDeviceSettings: true });
 }
 
 export async function getLocalAccountOwner(): Promise<string | null> {

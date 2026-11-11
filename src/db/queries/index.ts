@@ -156,9 +156,11 @@ export {
   getProfile,
   saveProfile,
   completeOnboarding,
-  resetUserData,
   seedSampleData,
 } from './profile';
+
+// The one local reset path (#146): every caller gets the full wipe.
+export { resetUserData } from '../reset';
 
 export {
   addBodyweightEntry,
