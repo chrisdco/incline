@@ -1,35 +1,42 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 
 import { useSettings } from '@/store/settings-store';
 
+/** Heavy taps at 0, 200 and 400 ms: the rest-complete "triple burst". */
+const BURST_MS = [200, 400] as const;
+
 /**
  * Plays a sound + haptic notification when the rest timer finishes.
  * Falls back to haptics-only if sound playback fails at runtime.
+ *
+ * The burst is three scheduled taps, all tracked, so a second `play()`, a
+ * `stop()` or unmount cancels whatever is still pending (#204: the old
+ * interval could outlive the screen).
  */
 export function useRestTimerSound() {
   const player = useAudioPlayer(require('../../assets/sounds/rest-complete.wav'));
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const hapticsEnabled = useSettings((s) => s.hapticsEnabled);
 
+  const clearBurst = useCallback(() => {
+    for (const t of timers.current) clearTimeout(t);
+    timers.current = [];
+  }, []);
+
+  useEffect(() => clearBurst, [clearBurst]);
+
   const play = useCallback(async () => {
+    clearBurst();
     if (hapticsEnabled) {
-      try {
-        // Haptic triple-burst — completion is Heavy, respected by setting
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        intervalRef.current = setInterval(async () => {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        }, 200);
-        setTimeout(() => {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-        }, 600);
-      } catch {
-        // Silent fail — haptics is enhancement
-      }
+      const tap = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {
+          // Haptics is an enhancement; ignore failures.
+        });
+      };
+      tap();
+      timers.current = BURST_MS.map((ms) => setTimeout(tap, ms));
     }
 
     // Try playing sound (non-blocking)
@@ -39,17 +46,14 @@ export function useRestTimerSound() {
     } catch {
       // Sound unavailable — continue with haptics only
     }
-  }, [player, hapticsEnabled]);
+  }, [player, hapticsEnabled, clearBurst]);
 
   const stop = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    clearBurst();
     try {
       player.pause();
     } catch { /* ignore */ }
-  }, [player]);
+  }, [player, clearBurst]);
 
   return { play, stop };
 }

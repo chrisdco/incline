@@ -67,6 +67,7 @@ function ExerciseBlockImpl({
   onAddSet,
   onAddWarmUp,
   onApplyLoad,
+  onApplySuggestion,
   onChangeRpe,
   onChangeSetType,
   onOpenExercise,
@@ -77,10 +78,13 @@ function ExerciseBlockImpl({
   showWarmUpSets = true,
   showRpe = true,
   loadSuggestion,
+  equipment,
   className,
 }: {
   name: string;
   exerciseId: number;
+  /** Catalog equipment, looked up once by the session (drives the plates hint). */
+  equipment?: string | null;
   sets: SetEntry[];
   unit: Unit;
   lastSets: SetEntry[];
@@ -95,6 +99,8 @@ function ExerciseBlockImpl({
   onAddWarmUp: (exerciseId: number) => void;
   /** Prefill the next incomplete set with a weight/reps suggestion. */
   onApplyLoad?: (exerciseId: number, weight: number, reps?: number) => void;
+  /** Fill every unfinished working set with the suggestion (Undo via snackbar). */
+  onApplySuggestion?: (exerciseId: number, weight: number, reps?: number) => void;
   onChangeRpe?: (setId: number, rpe: number | null) => void;
   onChangeSetType: (setId: number, setType: SetType) => void;
   /** Open exercise detail (history / charts). */
@@ -207,10 +213,14 @@ function ExerciseBlockImpl({
             ) : null}
             {loadSuggestion && loadSuggestion.weight > 0 ? (
               <Pressable
-                onPress={() => setAssistOpen(true)}
+                onPress={() =>
+                  onApplySuggestion
+                    ? onApplySuggestion(exerciseId, loadSuggestion.weight, loadSuggestion.reps)
+                    : setAssistOpen(true)
+                }
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Use suggested load">
+                accessibilityLabel={`Use suggested ${formatWeight(loadSuggestion.weight, unit)} times ${loadSuggestion.reps} on the remaining sets`}>
                 <Text className="text-xs font-medium text-primary-text">
                   Suggested {formatWeight(loadSuggestion.weight, unit)} × {loadSuggestion.reps}
                 </Text>
@@ -273,7 +283,7 @@ function ExerciseBlockImpl({
         </Pressable>
       </View>
       {activeSet && activeSet.weight > 0 ? (
-        <PlatesHint exerciseId={exerciseId} weight={activeSet.weight} unit={unit} />
+        <PlatesHint equipment={equipment} weight={activeSet.weight} unit={unit} />
       ) : null}
 
       {fatigue ? (
@@ -558,8 +568,14 @@ function ExerciseBlockImpl({
             <View className="gap-2">
               <SectionLabel>Fill next incomplete set</SectionLabel>
               {loadSuggestion && loadSuggestion.weight > 0 ? (
-                <Button onPress={() => applyAndClose(loadSuggestion.weight, loadSuggestion.reps)}>
-                  {`Use suggestion — ${formatWeight(loadSuggestion.weight, unit)} × ${loadSuggestion.reps}`}
+                <Button
+                  onPress={() => {
+                    if (onApplySuggestion) {
+                      onApplySuggestion(exerciseId, loadSuggestion.weight, loadSuggestion.reps);
+                      setAssistOpen(false);
+                    } else applyAndClose(loadSuggestion.weight, loadSuggestion.reps);
+                  }}>
+                  {`Use suggestion on remaining sets — ${formatWeight(loadSuggestion.weight, unit)} × ${loadSuggestion.reps}`}
                 </Button>
               ) : null}
               {lastTop && lastTop.weight > 0 ? (

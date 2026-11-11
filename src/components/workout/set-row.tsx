@@ -110,7 +110,7 @@ export function SetRow({
     completed
       ? 'border-success bg-success'
       : isNext
-        ? 'border-primary bg-primary/10'
+        ? 'border-primary' // ring only: a tinted fill read as already done
         : 'border-muted-foreground/40',
   );
   const toggleIconColor = completed ? 'success-foreground' : isNext ? 'primary' : 'muted-foreground';

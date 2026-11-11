@@ -12,7 +12,7 @@ import {
   shouldNudgeStreak,
 } from '@/lib/notifications/nudge-rules';
 import { reminderBodyForDay } from '@/lib/notifications/copy';
-import { pathForNotificationPayload } from '@/lib/notifications/routes';
+import { pathForNotificationPayload, resolveSessionPath } from '@/lib/notifications/routes';
 import {
   NOTIFICATION_IDS,
   isNotificationPayload,
@@ -153,5 +153,18 @@ describe('nudge caps', () => {
     ];
     expect(newlyUnlockedAchievementIds(['first_session'], statuses)).toEqual(['sessions_10']);
     expect(newlyUnlockedAchievementIds(['first_session', 'sessions_10'], statuses)).toEqual([]);
+  });
+});
+
+describe('resolveSessionPath (#152)', () => {
+  it('keeps the link while that session is the open one', () => {
+    expect(resolveSessionPath('/session/3', 3)).toBe('/session/3');
+  });
+  it('sends a finished or discarded session home', () => {
+    expect(resolveSessionPath('/session/3', null)).toBe('/(app)/(tabs)');
+    expect(resolveSessionPath('/session/3', 4)).toBe('/(app)/(tabs)');
+  });
+  it('leaves other paths alone', () => {
+    expect(resolveSessionPath('/(app)/report/week', null)).toBe('/(app)/report/week');
   });
 });

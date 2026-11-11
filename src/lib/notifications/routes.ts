@@ -21,3 +21,15 @@ export function pathForNotificationPayload(payload: NotificationPayload): string
       return null;
   }
 }
+
+/**
+ * A session deep link is only good while that session is still open. A rest
+ * alert tapped after Finish (or after a discard) used to land on "Workout
+ * not found" (#152). Resolved when the route actually runs, after the
+ * active-workout id has been restored, so a cold start sees the real state.
+ */
+export function resolveSessionPath(path: string, activeLogId: number | null): string {
+  const m = /^\/session\/(\d+)$/.exec(path);
+  if (!m) return path;
+  return Number(m[1]) === activeLogId ? path : '/(app)/(tabs)';
+}

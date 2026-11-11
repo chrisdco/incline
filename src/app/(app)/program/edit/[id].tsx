@@ -179,7 +179,11 @@ export default function ProgramEditScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
-      <ScrollView contentContainerStyle={SCREEN_CONTENT_CTA} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={SCREEN_CONTENT_CTA}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets>
         <View className="gap-4">
           <View>
             <Label>Name</Label>

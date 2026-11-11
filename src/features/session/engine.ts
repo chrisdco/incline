@@ -504,6 +504,36 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       await engine.writeSet(target.id, patch, 'Could not apply load');
     },
 
+    /**
+     * One-tap "use the suggestion": fills every unfinished working set of the
+     * exercise (warm-ups keep their lighter load) and offers Undo, which puts
+     * back exactly what each set held before.
+     */
+    async applyLoadToRemaining(exerciseId: number, weight: number, reps?: number): Promise<number> {
+      const targets = (get().session?.sets ?? []).filter(
+        (s) => s.exerciseId === exerciseId && !s.completed && (s.setType ?? 'working') === 'working',
+      );
+      if (targets.length === 0) return 0;
+      const before = targets.map((s) => ({ id: s.id, weight: s.weight, reps: s.reps }));
+      const patch = reps != null && reps > 0 ? { weight, reps } : { weight };
+      for (const s of targets) engine.patchSet(s.id, patch);
+      ui.toast({
+        title: `${targets.length} set${targets.length === 1 ? '' : 's'} set to ${formatWeight(weight, unitFor(targets[0].exerciseRefKey))}${reps ? ` × ${reps}` : ''}`,
+        action: {
+          label: 'Undo',
+          onPress: () => {
+            for (const b of before) {
+              const back = { weight: b.weight, reps: b.reps };
+              engine.patchSet(b.id, back);
+              void engine.writeSet(b.id, back, 'Could not undo');
+            }
+          },
+        },
+      });
+      await Promise.all(targets.map((s) => engine.writeSet(s.id, patch, 'Could not apply load')));
+      return targets.length;
+    },
+
     setRest(exerciseId: number, seconds: number) {
       set((s) => ({ restSeconds: { ...s.restSeconds, [exerciseId]: seconds } }));
       void persistVolatile();
