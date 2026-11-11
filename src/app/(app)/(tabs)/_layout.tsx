@@ -4,7 +4,7 @@ import { useRouter, type Href } from 'expo-router';
 import { NativeTabs } from 'expo-router/native-tabs';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Sparkles } from 'lucide-react-native';
+import { AiMark } from '@/components/ai/ai-mark';
 
 import { Icon } from '@/components/common/icon';
 import { Tappable } from '@/components/ui/tappable';
@@ -91,7 +91,8 @@ export default function TabsLayout() {
         tintColor={tint}
         iconColor={{ default: colors.mutedForeground, selected: tint }}
         indicatorColor={android ? `${colors.primary}33` : undefined}
-        backgroundColor={android ? colors.surface1 : undefined}
+        // surface2: the pre-native-tabs bar tone, which the floating session bar shares.
+        backgroundColor={android ? colors.surface2 : undefined}
         minimizeBehavior="onScrollDown"
         screenListeners={({ route }) => ({
           focus: () => {
@@ -160,7 +161,7 @@ export default function TabsLayout() {
             accessibilityLabel="Ask Incline"
             pressedOpacity={0.8}
             className="h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg">
-            <Icon icon={Sparkles} size={24} color="primary-foreground" />
+            <Icon icon={AiMark} size={24} color="primary-foreground" />
           </Tappable>
         </View>
       ) : null}

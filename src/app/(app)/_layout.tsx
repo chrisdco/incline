@@ -19,7 +19,8 @@ export default function AppLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="ai"
-          options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6, 1], sheetGrabberVisible: true }}
+          // Full page; a quick fade lets AskScreen's own entrance (mark out of the button) carry the motion.
+          options={{ animation: 'fade', animationDuration: 180 }}
         />
         <Stack.Screen name="exercises" options={{ headerShown: true, title: 'Exercises' }} />
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />

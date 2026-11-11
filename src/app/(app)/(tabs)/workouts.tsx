@@ -3,7 +3,8 @@ import { Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy, ArrowUpDown, Sparkles } from 'lucide-react-native';
+import { Dumbbell, Plus, Search, ClipboardList, Play, Pencil, Trash2, Copy, ArrowUpDown } from 'lucide-react-native';
+import { AiMark } from '@/components/ai/ai-mark';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
@@ -312,7 +313,7 @@ export default function WorkoutsScreen() {
               <Caption className="mb-2 px-1">Multi-week plans built from your routines. The active one drives Home.</Caption>
               <Card className="mb-2">
                 <ListRow
-                  icon={<Icon icon={Sparkles} size={18} color="primary" />}
+                  icon={<Icon icon={AiMark} size={18} color="primary" />}
                   title="Build a plan with AI"
                   subtitle="Pick a length and goal; get weeks, routines and deloads"
                   onPress={() => router.push('/plan-builder' as Href)}

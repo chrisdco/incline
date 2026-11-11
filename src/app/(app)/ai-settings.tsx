@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Bot, CheckCircle2, Cloud, KeyRound, ShieldCheck, Sparkles, XCircle } from 'lucide-react-native';
+import { ArrowLeft, Bot, CheckCircle2, Cloud, KeyRound, ShieldCheck, XCircle } from 'lucide-react-native';
+import { AiMark } from '@/components/ai/ai-mark';
 
 import { Icon } from '@/components/common/icon';
 import { Chip } from '@/components/common/chip';
@@ -172,7 +173,7 @@ export default function AiSettingsScreen() {
         contentContainerStyle={{ ...SCREEN_CONTENT, paddingBottom: 40 }}>
         <Card>
           <ListRow
-            icon={<Icon icon={Sparkles} size={18} color="muted-foreground" />}
+            icon={<Icon icon={AiMark} size={18} color="muted-foreground" />}
             title="AI coaching"
             subtitle="Plain-language explanations. Numbers always come from your data and our rules.">
             <Switch value={aiEnabled} onValueChange={setAiEnabled} accessibilityLabel="AI coaching" />

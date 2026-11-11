@@ -28,6 +28,7 @@ import { StatCard } from '@/components/common/stat-card';
 import { Card } from '@/components/ui/card';
 import { ListGroup, ListRow, Section } from '@/components/layout';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
+import { PhotoPeek } from '@/components/common/photo-peek';
 import { useProfile, useProgressStats } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
@@ -53,6 +54,7 @@ export default function ProfileScreen() {
   const { signOut, userId, getToken } = useAppAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [peek, setPeek] = useState(false);
 
   const pickAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -132,7 +134,14 @@ export default function ProfileScreen() {
         <Card className="mt-2">
             <View>
               <View className="flex-row items-start gap-4">
-                <Pressable onPress={pickAvatar} accessibilityRole="button" accessibilityLabel="Change profile photo" className="relative">
+                <Pressable
+                  onPress={pickAvatar}
+                  onLongPress={profile?.avatarUrl ? () => setPeek(true) : undefined}
+                  delayLongPress={300}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change profile photo"
+                  accessibilityHint={profile?.avatarUrl ? 'Long press to view it' : undefined}
+                  className="relative">
                   <InitialsAvatar name={profile?.name ?? ''} uri={profile?.avatarUrl} size={64} />
                   <View className="absolute bottom-0 right-0 h-6 w-6 items-center justify-center rounded-full border-2 border-surface1 bg-surface3">
                     <Icon icon={Camera} size={12} color="foreground" />
@@ -259,6 +268,7 @@ export default function ProfileScreen() {
           </>
         }
       />
+      <PhotoPeek uri={profile?.avatarUrl} open={peek} onClose={() => setPeek(false)} />
     </SafeAreaView>
   );
 }

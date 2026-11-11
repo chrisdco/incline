@@ -1,13 +1,16 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
-  ScrollView,
   TextInput,
   View,
   type ScrollViewInstance,
   type TextInputInstance,
   type ViewInstance,
 } from 'react-native';
+// Gesture-handler ScrollView: set rows are Swipeables with gesture-handler
+// inputs. Under a plain RN ScrollView their handlers could claim a touch that
+// started as a vertical drag, so scrolling stalled mid-gesture on Android.
+import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
-import { ArrowUp, Sparkles } from 'lucide-react-native';
+import { ArrowUp } from 'lucide-react-native';
+import { AiMark } from './ai-mark';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Text } from '@/components/common/text';
@@ -158,7 +159,7 @@ export function PlanAsk({ program, onChanged }: { program: Program; onChanged?: 
   return (
     <View className="gap-3">
       <View className="flex-row items-center gap-2">
-        <Icon icon={Sparkles} size={16} color="primary" />
+        <Icon icon={AiMark} size={16} color="primary" />
         <Body className="font-semibold text-foreground">Change it by asking</Body>
       </View>
 

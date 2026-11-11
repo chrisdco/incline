@@ -3,10 +3,9 @@ import { Alert, Platform, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette,
-  Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, Sparkles, History,
-  Film, FlaskConical, Info, Upload, Trash2,
+  Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2,
 } from 'lucide-react-native';
+import { AiMark } from '@/components/ai/ai-mark';
 import { useAiSettings } from '@/ai/byok';
 import { byokPreset, type ByokConfig } from '@/ai/byok-presets';
 import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
@@ -264,7 +263,7 @@ export default function SettingsScreen() {
               onPress={() => router.push('/(app)/notifications' as Href)}
             />
             <ListRow
-              icon={<Icon icon={Sparkles} size={18} color="muted-foreground" />}
+              icon={<Icon icon={AiMark} size={18} color="muted-foreground" />}
               title="AI coaching"
               subtitle={aiSummary(aiExplanationsEnabled, aiByok)}
               onPress={() => router.push('/(app)/ai-settings' as Href)}
