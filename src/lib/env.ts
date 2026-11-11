@@ -10,21 +10,33 @@ function optionalEnv(value: string | undefined, fallback = ''): string {
 
 /* ---- Clerk (required) ---- */
 
+/** The EAS Update channel baked into this binary, or null (dev server, tests). */
+function buildChannel(): string | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Updates = require('expo-updates') as { channel?: string | null };
+    return Updates.channel ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Dev-only Clerk bypass for UI iteration without signing in.
+ * Clerk bypass for UI iteration without signing in.
  *
- * Active ONLY when BOTH hold:
- * - running a dev bundle (`__DEV__` — false + dead-code-eliminated in release), and
- * - `EXPO_PUBLIC_DEV_BYPASS_AUTH=1` is set (inlined at build time).
+ * Active ONLY when `EXPO_PUBLIC_DEV_BYPASS_AUTH=1` is inlined AND one of:
+ * - a dev bundle (`__DEV__`), or
+ * - the binary's update channel is `emulator` (eas.json `emulator` profile:
+ *   a release APK used only on the test emulator).
  *
- * A production bundle can never activate this path, even if the var leaks in:
- * the `__DEV__` check returns false there. `typeof` guard keeps Node/vitest
- * imports (where `__DEV__` is undefined) safe.
+ * The channel is fixed in the native build, so alpha/beta/production
+ * binaries can never take this path, whatever JS update they receive.
+ * `typeof` guard keeps Node/vitest imports (no `__DEV__`) safe.
  */
 export function isDevAuthBypassEnabled(): boolean {
   const wantsBypass = process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === '1';
   if (!wantsBypass) return false;
-  if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+  if (typeof __DEV__ !== 'undefined' && !__DEV__ && buildChannel() !== 'emulator') {
     console.warn('[auth] EXPO_PUBLIC_DEV_BYPASS_AUTH is ignored in production builds.');
     return false;
   }
