@@ -1,3 +1,7 @@
+import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { glassBarInset } from '@/components/layout/glass-tab-bar';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { useActiveWorkout } from '@/store/active-workout-store';
 
@@ -7,9 +11,15 @@ import { useActiveWorkout } from '@/store/active-workout-store';
  */
 export const SESSION_BAR_HEIGHT = 90;
 
-/** Extra bottom padding a tab needs so its last row clears the session bar. */
+/**
+ * Extra bottom padding a tab needs so its last row clears the floating
+ * chrome: the session bar while a workout is open and, on Android, the glass
+ * tab bar (iOS's native tab bar insets the content itself).
+ */
 export function useSessionBarInset(): number {
-  return useActiveWorkout((s) => s.activeLogId != null) ? SESSION_BAR_HEIGHT : 0;
+  const session = useActiveWorkout((s) => s.activeLogId != null) ? SESSION_BAR_HEIGHT : 0;
+  const { bottom } = useSafeAreaInsets();
+  return session + (Platform.OS === 'android' ? glassBarInset(bottom) : 0);
 }
 
 /** `SCREEN_CONTENT` for a tab screen, bar-aware. */

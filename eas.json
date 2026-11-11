@@ -13,6 +13,19 @@
       },
       "environment": "development"
     },
+    "emulator": {
+      "distribution": "internal",
+      "channel": "emulator",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_RELEASE_STAGE": "development",
+        "EXPO_PUBLIC_DEV_BYPASS_AUTH": "1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      },
+      "environment": "preview"
+    },
     "alpha": {
       "distribution": "internal",
       "channel": "alpha",

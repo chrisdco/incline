@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { Tabs, useRouter, type Href } from 'expo-router';
 import { NativeTabs } from 'expo-router/native-tabs';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AiMark } from '@/components/ai/ai-mark';
 
-import { Icon } from '@/components/common/icon';
-import { Tappable } from '@/components/ui/tappable';
 import { resolveIconColor } from '@/lib/icon-color';
 import { themeHex } from '@/lib/theme';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { useSettings } from '@/store/settings-store';
 import { isAskContext, useAiEntry } from '@/store/ai-entry-store';
+import { GlassTabBar, glassBarInset } from '@/components/layout/glass-tab-bar';
 import { ActiveSessionBar } from '@/components/workout/active-session-bar';
 import { DiscardSessionDialog, ResumeSessionDialog } from '@/components/workout/discard-session-dialog';
 import { useActiveSession } from '@/hooks/use-active-session';
@@ -24,11 +21,6 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 // router.replace home after discarding), and the still-cached session then
 // re-triggered this prompt: discard asked twice.
 let coldStartPrompted = false;
-
-/** Material 3 navigation bar height (measured on device: 80dp + gesture inset). */
-const NAV_HEIGHT = 80;
-/** ActiveSessionBar: 56 circle + 24 padding + 8 margin + border. */
-const SESSION_BAR_HEIGHT = 90;
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -79,90 +71,95 @@ export default function TabsLayout() {
     }
   };
 
+  const sessionBar = session ? (
+    <ActiveSessionBar
+      logId={session.id}
+      name={session.name}
+      startedAt={session.startedAt}
+      nextExercise={nextExercise}
+      refetch={refetch}
+      onDiscard={() => setDiscardOpen(true)}
+    />
+  ) : null;
+
   return (
     <>
-      {/*
-        Native tab bar (iOS UITabBar / liquid glass, Android Material nav).
-        AI entry follows each platform: iOS gets the separate search-role tab
-        (its own pill on iOS 26.1+, `prominent` keeps it visible when the bar minimizes on iOS 27+); Android gets a
-        floating button that opens `/ai` as a sheet (its own route: `/ask` is the tab).
-      */}
-      <NativeTabs
-        tintColor={tint}
-        iconColor={{ default: colors.mutedForeground, selected: tint }}
-        indicatorColor={android ? `${colors.primary}33` : undefined}
-        // surface2: the pre-native-tabs bar tone, which the floating session bar shares.
-        backgroundColor={android ? colors.surface2 : undefined}
-        minimizeBehavior="onScrollDown"
-        screenListeners={({ route }) => ({
-          focus: () => {
-            if (isAskContext(route.name)) setFrom(route.name);
-          },
-        })}>
-        <NativeTabs.Trigger name="index">
-          <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="home" />} />
-          <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="workouts">
-          <NativeTabs.Trigger.Icon sf="dumbbell" src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="fitness-center" />} />
-          <NativeTabs.Trigger.Label>Workouts</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="progress">
-          <NativeTabs.Trigger.Icon sf={{ default: 'chart.bar', selected: 'chart.bar.fill' }} src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="bar-chart" />} />
-          <NativeTabs.Trigger.Label>Progress</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="profile">
-          <NativeTabs.Trigger.Icon sf={{ default: 'person', selected: 'person.fill' }} src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="person" />} />
-          <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="ask" role="search" prominent hidden={android}>
-          <NativeTabs.Trigger.Icon sf="sparkles" src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="auto-awesome" />} />
-          <NativeTabs.Trigger.Label>Ask</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-
-        {/* iOS only in expo-router 58.0.25; Android draws the floating bar below. */}
-        {session && !android ? (
-          <NativeTabs.BottomAccessory>
-            <SessionAccessory
-              logId={session.id}
-              name={session.name}
-              startedAt={session.startedAt}
-              nextExercise={nextExercise}
-              refetch={refetch}
-              onDiscard={() => setDiscardOpen(true)}
-            />
-          </NativeTabs.BottomAccessory>
-        ) : null}
-      </NativeTabs>
-
-      {android && session ? (
-        <View
-          pointerEvents="box-none"
-          style={{ position: 'absolute', left: 0, right: 0, bottom: NAV_HEIGHT + insets.bottom, zIndex: 50 }}>
-          <ActiveSessionBar
-            logId={session.id}
-            name={session.name}
-            startedAt={session.startedAt}
-            nextExercise={nextExercise}
-            refetch={refetch}
-            onDiscard={() => setDiscardOpen(true)}
-          />
-        </View>
-      ) : null}
-
       {android ? (
+        /*
+          Android: the glass tab bar (GlassTabBar) — the iOS 26 shape drawn in
+          JS, AI as the round button beside it. `ask` is the iOS-only tab.
+        */
+        <Tabs
+          screenOptions={{ headerShown: false }}
+          screenListeners={({ route }) => ({
+            focus: () => {
+              if (isAskContext(route.name)) setFrom(route.name);
+            },
+          })}
+          tabBar={(props) => <GlassTabBar {...props} onAi={() => router.push('/(app)/ai' as Href)} />}>
+          <Tabs.Screen name="index" options={{ title: 'Home' }} />
+          <Tabs.Screen name="workouts" options={{ title: 'Workouts' }} />
+          <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
+          <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+          <Tabs.Screen name="ask" options={{ href: null }} />
+        </Tabs>
+      ) : (
+        /*
+          iOS: the real UITabBar (liquid glass). AI is the separate search-role
+          tab (its own pill on iOS 26.1+; `prominent` keeps it visible when the
+          bar minimizes on iOS 27+). The session bar is the bottom accessory.
+        */
+        <NativeTabs
+          tintColor={tint}
+          iconColor={{ default: colors.mutedForeground, selected: tint }}
+          minimizeBehavior="onScrollDown"
+          screenListeners={({ route }) => ({
+            focus: () => {
+              if (isAskContext(route.name)) setFrom(route.name);
+            },
+          })}>
+          <NativeTabs.Trigger name="index">
+            <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />
+            <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+          </NativeTabs.Trigger>
+          <NativeTabs.Trigger name="workouts">
+            <NativeTabs.Trigger.Icon sf="dumbbell" />
+            <NativeTabs.Trigger.Label>Workouts</NativeTabs.Trigger.Label>
+          </NativeTabs.Trigger>
+          <NativeTabs.Trigger name="progress">
+            <NativeTabs.Trigger.Icon sf={{ default: 'chart.bar', selected: 'chart.bar.fill' }} />
+            <NativeTabs.Trigger.Label>Progress</NativeTabs.Trigger.Label>
+          </NativeTabs.Trigger>
+          <NativeTabs.Trigger name="profile">
+            <NativeTabs.Trigger.Icon sf={{ default: 'person', selected: 'person.fill' }} />
+            <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
+          </NativeTabs.Trigger>
+          <NativeTabs.Trigger name="ask" role="search" prominent>
+            <NativeTabs.Trigger.Icon sf="sparkles" />
+            <NativeTabs.Trigger.Label>Ask</NativeTabs.Trigger.Label>
+          </NativeTabs.Trigger>
+
+          {session ? (
+            <NativeTabs.BottomAccessory>
+              <SessionAccessory
+                logId={session.id}
+                name={session.name}
+                startedAt={session.startedAt}
+                nextExercise={nextExercise}
+                refetch={refetch}
+                onDiscard={() => setDiscardOpen(true)}
+              />
+            </NativeTabs.BottomAccessory>
+          ) : null}
+        </NativeTabs>
+      )}
+
+      {android && sessionBar ? (
+        // Above the glass bar, where iOS puts the bottom accessory.
         <View
           pointerEvents="box-none"
-          // Clear the nav bar (and the session bar above it) with a 16dp gap.
-          style={{ position: 'absolute', right: 16, bottom: NAV_HEIGHT + insets.bottom + (session ? SESSION_BAR_HEIGHT : 0) + 16 }}>
-          <Tappable
-            onPress={() => router.push('/(app)/ai' as Href)}
-            accessibilityRole="button"
-            accessibilityLabel="Ask Incline"
-            pressedOpacity={0.8}
-            className="h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg">
-            <Icon icon={AiMark} size={24} color="primary-foreground" />
-          </Tappable>
+          style={{ position: 'absolute', left: 0, right: 0, bottom: glassBarInset(insets.bottom), zIndex: 50 }}>
+          {sessionBar}
         </View>
       ) : null}
 
