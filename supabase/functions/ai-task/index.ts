@@ -149,10 +149,13 @@ Deno.serve(async (req) => {
     if (checked.ok) return json(200, { ok: true, cached: true, promptVersion: task.promptVersion, output: checked.value });
   }
 
+  // Testers/staff get a multiple of the normal allowance (ai_user_tiers, service-only).
+  const { data: tier } = await db.from('ai_user_tiers').select('multiplier').eq('user_id', userId).maybeSingle();
+  const multiplier = Math.max(1, Math.min(100, Number(tier?.multiplier) || 1));
   const { data: allowed, error: rateError } = await db.rpc('ai_task_consume', {
     p_user: userId,
     p_task: task.id,
-    p_limit: task.dailyLimit,
+    p_limit: task.dailyLimit * multiplier,
     p_window_seconds: DAY_SECONDS,
   });
   if (rateError) return json(500, { ok: false, error: 'quota_unavailable' });
