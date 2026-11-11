@@ -5,26 +5,25 @@ import { MonthDayGrid } from '@/components/report/month-day-grid';
 import { MuscleSetBars } from '@/components/report/muscle-set-bars';
 import { MuscleRadar } from '@/components/progress/muscle-radar';
 import { formatWeight } from '@/db/calc';
-import { useThemeHex } from '@/lib/theme';
+import { SHARE_BACKGROUNDS, SHARE_TEXT } from '@/lib/share-chrome';
 import type { MuscleDistribution, PR, TopExerciseStat, Unit, WeekStartsOn } from '@/db/types';
 
 type Chrome = { backgroundColor?: string; handle: string };
 
 function SlideShell({ children, chrome }: { children: React.ReactNode; chrome: Chrome }) {
-  const colors = useThemeHex();
   return (
     <View
       collapsable={false}
       className="w-full overflow-hidden rounded-3xl border border-border p-5"
       style={{
-        backgroundColor: chrome.backgroundColor ?? colors.surface1,
-        borderColor: colors.border,
+        backgroundColor: chrome.backgroundColor ?? SHARE_BACKGROUNDS[0].card,
+        borderColor: SHARE_TEXT.border,
         minHeight: 360,
       }}>
       {children}
       <View className="mt-auto flex-row items-end justify-between pt-8">
-        <Caption style={{ color: colors.mutedForeground }}>INCLINE</Caption>
-        <Caption style={{ color: colors.mutedForeground }}>{chrome.handle}</Caption>
+        <Caption style={{ color: SHARE_TEXT.muted }}>INCLINE</Caption>
+        <Caption style={{ color: SHARE_TEXT.muted }}>{chrome.handle}</Caption>
       </View>
     </View>
   );
@@ -41,17 +40,16 @@ export function MonthShareCoverSlide({
   insightLine: string;
   chrome: Chrome;
 }) {
-  const colors = useThemeHex();
   return (
     <SlideShell chrome={chrome}>
-      <Caption style={{ color: colors.mutedForeground }}>{monthLabel.toUpperCase()}</Caption>
-      <Body className="mt-3 text-2xl font-bold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>{monthLabel.toUpperCase()}</Caption>
+      <Body className="mt-3 text-2xl font-bold" style={{ color: SHARE_TEXT.foreground }}>
         Your month
       </Body>
-      <Caption className="mt-1" style={{ color: colors.mutedForeground }}>
+      <Caption className="mt-1" style={{ color: SHARE_TEXT.muted }}>
         {athleteName}
       </Caption>
-      <Body className="mt-8 text-base" style={{ color: colors.foreground }}>
+      <Body className="mt-8 text-base" style={{ color: SHARE_TEXT.foreground }}>
         {insightLine}
       </Body>
     </SlideShell>
@@ -71,11 +69,10 @@ export function MonthShareStatsSlide({
   sets: number;
   chrome: Chrome;
 }) {
-  const colors = useThemeHex();
   return (
     <SlideShell chrome={chrome}>
-      <Caption style={{ color: colors.mutedForeground }}>{chrome.handle}</Caption>
-      <Body className="mt-1 text-3xl font-extrabold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>{chrome.handle}</Caption>
+      <Body className="mt-1 text-3xl font-extrabold" style={{ color: SHARE_TEXT.foreground }}>
         Workouts
       </Body>
       <View className="mt-6 flex-row flex-wrap">
@@ -88,8 +85,8 @@ export function MonthShareStatsSlide({
           ] as const
         ).map(([label, value]) => (
           <View key={label} className="mb-5 w-1/2 pr-2">
-            <Caption style={{ color: colors.mutedForeground }}>{label}</Caption>
-            <Body className="mt-1 text-3xl font-extrabold" style={{ color: colors.foreground }}>
+            <Caption style={{ color: SHARE_TEXT.muted }}>{label}</Caption>
+            <Body className="mt-1 text-3xl font-extrabold" style={{ color: SHARE_TEXT.foreground }}>
               {value}
             </Body>
           </View>
@@ -100,25 +97,24 @@ export function MonthShareStatsSlide({
 }
 
 export function MonthSharePrsSlide({ prs, unit, chrome }: { prs: PR[]; unit: Unit; chrome: Chrome }) {
-  const colors = useThemeHex();
   return (
     <SlideShell chrome={chrome}>
-      <Caption style={{ color: colors.mutedForeground }}>PERSONAL RECORDS</Caption>
-      <Body className="mt-2 text-xl font-bold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>PERSONAL RECORDS</Caption>
+      <Body className="mt-2 text-xl font-bold" style={{ color: SHARE_TEXT.foreground }}>
         {prs.length} new PR{prs.length === 1 ? '' : 's'}
       </Body>
       {prs.length === 0 ? (
-        <Body className="mt-8" style={{ color: colors.mutedForeground }}>
+        <Body className="mt-8" style={{ color: SHARE_TEXT.muted }}>
           No new records this month.
         </Body>
       ) : (
         <View className="mt-6 gap-4">
           {prs.slice(0, 4).map((pr) => (
             <View key={pr.exerciseId}>
-              <Body className="font-medium" style={{ color: colors.foreground }} numberOfLines={1}>
+              <Body className="font-medium" style={{ color: SHARE_TEXT.foreground }} numberOfLines={1}>
                 {pr.exerciseName}
               </Body>
-              <Caption className="mt-0.5" style={{ color: colors.mutedForeground }}>
+              <Caption className="mt-0.5" style={{ color: SHARE_TEXT.muted }}>
                 1RM {formatWeight(pr.estimated1RM, unit)} · Vol {formatWeight(pr.bestSetVolume, unit)}
               </Caption>
             </View>
@@ -140,11 +136,10 @@ export function MonthShareDaysSlide({
   weekStartsOn: WeekStartsOn;
   chrome: Chrome;
 }) {
-  const colors = useThemeHex();
   return (
     <SlideShell chrome={chrome}>
-      <Caption style={{ color: colors.mutedForeground }}>WORKOUT DAYS LOG</Caption>
-      <Body className="mt-2 text-xl font-bold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>WORKOUT DAYS LOG</Caption>
+      <Body className="mt-2 text-xl font-bold" style={{ color: SHARE_TEXT.foreground }}>
         {trainedDayMs.length} day{trainedDayMs.length === 1 ? '' : 's'} trained
       </Body>
       <View className="mt-4">
@@ -195,11 +190,10 @@ export function MonthShareGroupsSlide({
   muscles: MuscleDistribution[];
   chrome: Chrome;
 }) {
-  const colors = useThemeHex();
   return (
     <SlideShell chrome={chrome}>
-      <Caption style={{ color: colors.mutedForeground }}>MAIN MUSCLE GROUPS</Caption>
-      <Body className="mt-2 mb-4 text-xl font-bold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>MAIN MUSCLE GROUPS</Caption>
+      <Body className="mt-2 mb-4 text-xl font-bold" style={{ color: SHARE_TEXT.foreground }}>
         Sets this month
       </Body>
       <MuscleSetBars muscles={muscles} />
@@ -218,20 +212,19 @@ export function MonthShareTopSlide({
   formatVolumeFn: (v: number, u: Unit) => string;
   chrome: Chrome;
 }) {
-  const colors = useThemeHex();
   return (
     <SlideShell chrome={chrome}>
-      <Caption style={{ color: colors.mutedForeground }}>TOP EXERCISES</Caption>
+      <Caption style={{ color: SHARE_TEXT.muted }}>TOP EXERCISES</Caption>
       <View className="mt-4 gap-3">
         {exercises.length === 0 ? (
-          <Body style={{ color: colors.mutedForeground }}>Nothing logged yet.</Body>
+          <Body style={{ color: SHARE_TEXT.muted }}>Nothing logged yet.</Body>
         ) : (
           exercises.map((ex) => (
             <View key={ex.exerciseId} className="flex-row items-center justify-between gap-3">
-              <Body className="flex-1 font-medium" style={{ color: colors.foreground }} numberOfLines={1}>
+              <Body className="flex-1 font-medium" style={{ color: SHARE_TEXT.foreground }} numberOfLines={1}>
                 {ex.exerciseName}
               </Body>
-              <Caption style={{ color: colors.mutedForeground }}>
+              <Caption style={{ color: SHARE_TEXT.muted }}>
                 {ex.sets} sets · {formatVolumeFn(ex.volume, unit)}
               </Caption>
             </View>

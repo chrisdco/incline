@@ -26,3 +26,14 @@ export function shareHandleFromName(name: string): string {
   const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   return slug ? `@${slug}` : '@incline';
 }
+
+/**
+ * Text on a share card. Every share background is dark whatever the app
+ * theme is, so the card can't borrow the theme's foreground (near-black in
+ * light mode, which made the card unreadable).
+ */
+export const SHARE_TEXT = {
+  foreground: '#f5f5f7',
+  muted: 'rgba(245, 245, 247, 0.62)',
+  border: 'rgba(255, 255, 255, 0.12)',
+} as const;

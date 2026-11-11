@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Body, Caption } from '@/components/common/text';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 import { formatWeight } from '@/db/calc';
-import { useThemeHex } from '@/lib/theme';
+import { SHARE_BACKGROUNDS, SHARE_TEXT } from '@/lib/share-chrome';
 import type { MuscleGroup, PR, Unit } from '@/db/types';
 
 type SlideShellProps = {
@@ -14,12 +14,11 @@ function SlideShell({
   children,
   backgroundColor,
 }: SlideShellProps & { backgroundColor?: string }) {
-  const colors = useThemeHex();
   return (
     <View
       collapsable={false}
       className="w-full overflow-hidden rounded-3xl border border-border p-5"
-      style={{ backgroundColor: backgroundColor ?? colors.surface1, borderColor: colors.border, minHeight: 360 }}>
+      style={{ backgroundColor: backgroundColor ?? SHARE_BACKGROUNDS[0].card, borderColor: SHARE_TEXT.border, minHeight: 360 }}>
       {children}
     </View>
   );
@@ -36,23 +35,22 @@ export function WeekShareCoverSlide({
   insightLine: string;
   backgroundColor?: string;
 }) {
-  const colors = useThemeHex();
   return (
     <SlideShell backgroundColor={backgroundColor}>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · WEEKLY</Caption>
-      <Body className="mt-3 text-2xl font-bold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>INCLINE · WEEKLY</Caption>
+      <Body className="mt-3 text-2xl font-bold" style={{ color: SHARE_TEXT.foreground }}>
         Your week
       </Body>
-      <Caption className="mt-1" style={{ color: colors.mutedForeground }}>
+      <Caption className="mt-1" style={{ color: SHARE_TEXT.muted }}>
         {rangeLabel}
       </Caption>
-      <Caption className="mt-1" style={{ color: colors.mutedForeground }}>
+      <Caption className="mt-1" style={{ color: SHARE_TEXT.muted }}>
         {athleteName}
       </Caption>
-      <Body className="mt-8 text-base" style={{ color: colors.foreground }}>
+      <Body className="mt-8 text-base" style={{ color: SHARE_TEXT.foreground }}>
         {insightLine}
       </Body>
-      <Caption className="mt-auto pt-10 text-center" style={{ color: colors.mutedForeground }}>
+      <Caption className="mt-auto pt-10 text-center" style={{ color: SHARE_TEXT.muted }}>
         Train with me on Incline
       </Caption>
     </SlideShell>
@@ -74,15 +72,14 @@ export function WeekShareStatsSlide({
   volumeDeltaPct: number | null;
   backgroundColor?: string;
 }) {
-  const colors = useThemeHex();
   const delta =
     volumeDeltaPct === null
       ? '—'
       : `${volumeDeltaPct > 0 ? '+' : ''}${volumeDeltaPct}% vs last week`;
   return (
     <SlideShell backgroundColor={backgroundColor}>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · STATS</Caption>
-      <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>INCLINE · STATS</Caption>
+      <Body className="mt-3 text-xl font-bold" style={{ color: SHARE_TEXT.foreground }}>
         Week at a glance
       </Body>
       <View className="mt-6 gap-4">
@@ -96,8 +93,8 @@ export function WeekShareStatsSlide({
           ] as const
         ).map(([label, value]) => (
           <View key={label} className="flex-row items-center justify-between">
-            <Caption style={{ color: colors.mutedForeground }}>{label}</Caption>
-            <Body className="font-semibold" style={{ color: colors.foreground }}>
+            <Caption style={{ color: SHARE_TEXT.muted }}>{label}</Caption>
+            <Body className="font-semibold" style={{ color: SHARE_TEXT.foreground }}>
               {value}
             </Body>
           </View>
@@ -116,25 +113,24 @@ export function WeekSharePrsSlide({
   unit: Unit;
   backgroundColor?: string;
 }) {
-  const colors = useThemeHex();
   return (
     <SlideShell backgroundColor={backgroundColor}>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · PRS</Caption>
-      <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>INCLINE · PRS</Caption>
+      <Body className="mt-3 text-xl font-bold" style={{ color: SHARE_TEXT.foreground }}>
         Records this week
       </Body>
       {prs.length === 0 ? (
-        <Body className="mt-8" style={{ color: colors.mutedForeground }}>
+        <Body className="mt-8" style={{ color: SHARE_TEXT.muted }}>
           No new records this week.
         </Body>
       ) : (
         <View className="mt-6 gap-3">
           {prs.slice(0, 5).map((pr) => (
             <View key={pr.exerciseId} className="flex-row items-center justify-between gap-3">
-              <Body className="flex-1 font-medium" style={{ color: colors.foreground }} numberOfLines={1}>
+              <Body className="flex-1 font-medium" style={{ color: SHARE_TEXT.foreground }} numberOfLines={1}>
                 {pr.exerciseName}
               </Body>
-              <Caption style={{ color: colors.mutedForeground }}>
+              <Caption style={{ color: SHARE_TEXT.muted }}>
                 {formatWeight(pr.maxWeight, unit)} · e1RM {formatWeight(pr.estimated1RM, unit)}
               </Caption>
             </View>
@@ -152,15 +148,14 @@ export function WeekShareMusclesSlide({
   muscles: MuscleGroup[];
   backgroundColor?: string;
 }) {
-  const colors = useThemeHex();
   return (
     <SlideShell backgroundColor={backgroundColor}>
-      <Caption style={{ color: colors.mutedForeground }}>INCLINE · MUSCLES</Caption>
-      <Body className="mt-3 text-xl font-bold" style={{ color: colors.foreground }}>
+      <Caption style={{ color: SHARE_TEXT.muted }}>INCLINE · MUSCLES</Caption>
+      <Body className="mt-3 text-xl font-bold" style={{ color: SHARE_TEXT.foreground }}>
         What you trained
       </Body>
       {muscles.length === 0 ? (
-        <Body className="mt-8" style={{ color: colors.mutedForeground }}>
+        <Body className="mt-8" style={{ color: SHARE_TEXT.muted }}>
           No completed sets this week yet.
         </Body>
       ) : (

@@ -18,9 +18,10 @@ import { cn } from '@/lib/cn';
  * selected tab, and the AI entry as its own round button beside it, where
  * iOS puts the search-role tab.
  *
- * "Glass" is a translucent surface with a hairline edge, not a live blur:
+ * "Glass" is a solid raised surface with a hairline edge, not a live blur:
  * blurring a scrolling list every frame costs more than it looks worth on
- * mid-range Android.
+ * mid-range Android. Keep it opaque: a translucent fill under an elevation
+ * shadow renders washed out on Android (the content bleeds through at ~50%).
  */
 
 export const GLASS_BAR_HEIGHT = 64;
@@ -68,7 +69,7 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab, onAi }
       <View
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
         style={{ height: GLASS_BAR_HEIGHT, borderRadius: GLASS_BAR_HEIGHT / 2, padding: PAD }}
-        className="flex-1 flex-row border border-divider bg-surface2/95 shadow-lg">
+        className="flex-1 flex-row border border-divider bg-surface2 shadow-lg">
         {slot > 0 ? (
           <Animated.View
             pointerEvents="none"
@@ -115,7 +116,7 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab, onAi }
         accessibilityRole="button"
         accessibilityLabel="Ask Incline"
         style={{ width: GLASS_BAR_HEIGHT, height: GLASS_BAR_HEIGHT, borderRadius: GLASS_BAR_HEIGHT / 2 }}
-        className="items-center justify-center border border-divider bg-surface2/95 shadow-lg">
+        className="items-center justify-center border border-divider bg-surface2 shadow-lg">
         <Icon icon={AiMark} size={26} color="primary" />
       </Tappable>
     </View>
