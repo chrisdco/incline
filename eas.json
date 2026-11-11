@@ -13,6 +13,18 @@
       },
       "environment": "development"
     },
+    "emulator": {
+      "distribution": "internal",
+      "channel": "development",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "env": {
+        "EXPO_PUBLIC_RELEASE_STAGE": "development"
+      },
+      "environment": "development"
+    },
     "alpha": {
       "distribution": "internal",
       "channel": "alpha",
