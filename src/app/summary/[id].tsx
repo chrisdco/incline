@@ -456,13 +456,13 @@ export default function SummaryScreen() {
                   <Caption>{b.sets.length} sets</Caption>
                 </Tappable>
                 <View className="mb-1 flex-row items-center gap-3 px-1">
-                  <Text className="w-10 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
-                  <Text className="flex-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Weight × reps</Text>
+                  <Text className="w-10 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
+                  <Text className="flex-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Weight × reps</Text>
                 </View>
                 {b.sets.map((s) => (
                   <View key={s.id} className="flex-row items-center gap-3 px-1 py-1.5">
-                    <Caption className="w-10 font-medium">{s.setIndex + 1}</Caption>
-                    <Body className="flex-1 text-sm tabular-nums text-foreground">
+                    <Body className="w-10 font-semibold tabular-nums text-muted-foreground">{s.setIndex + 1}</Body>
+                    <Body className="flex-1 text-base font-medium tabular-nums text-foreground">
                       {s.weight > 0 ? `${formatWeight(s.weight, resolveWeightUnit(exerciseWeightUnits, s.exerciseRefKey, unit))} × ${s.reps}` : `${s.reps} reps`}
                       {showRpe && s.rpe != null ? ` · RPE ${s.rpe}` : ''}
                     </Body>

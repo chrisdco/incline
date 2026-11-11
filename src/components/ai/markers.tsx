@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Sparkles } from 'lucide-react-native';
+import { AiMark } from './ai-mark';
 
 import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/common/text';
@@ -18,7 +18,7 @@ import { cn } from '@/lib/cn';
 export function SuggestedBadge({ className }: { className?: string }) {
   return (
     <View className={cn('flex-row items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5', className)}>
-      <Icon icon={Sparkles} size={12} color="primary" />
+      <Icon icon={AiMark} size={12} color="primary" />
       <Text className="text-2xs font-semibold text-primary-text">Suggested</Text>
     </View>
   );
@@ -29,7 +29,7 @@ export function AiAssistedTag({ className }: { className?: string }) {
     <View
       className={cn('flex-row items-center gap-1', className)}
       accessibilityLabel="Applied with AI assistance">
-      <Icon icon={Sparkles} size={11} color="muted-foreground" />
+      <Icon icon={AiMark} size={11} color="muted-foreground" />
       <Text className="text-2xs text-muted-foreground">AI-assisted</Text>
     </View>
   );

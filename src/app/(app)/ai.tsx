@@ -1,12 +1,14 @@
-import { View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AskScreen } from '@/components/ai';
 
-/** Android: opened by the floating AI button as a sheet. */
-export default function AskSheet() {
+/** Android: the floating AI button opens this full page (the mark animates out of the button). */
+export default function AskPage() {
+  const router = useRouter();
   return (
-    <View className="flex-1 bg-background">
-      <AskScreen />
-    </View>
+    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+      <AskScreen onClose={() => router.back()} />
+    </SafeAreaView>
   );
 }

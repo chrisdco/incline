@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react-native';
+import { AiMark } from './ai-mark';
 
 import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/common/text';
@@ -33,7 +33,7 @@ export function SuggestionChip({
         disabled && 'opacity-50',
         className,
       )}>
-      <Icon icon={Sparkles} size={14} color="primary" />
+      <Icon icon={AiMark} size={14} color="primary" />
       <Text className="text-sm font-medium text-foreground">{label}</Text>
     </Tappable>
   );

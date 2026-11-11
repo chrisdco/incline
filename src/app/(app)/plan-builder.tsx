@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Sparkles, TriangleAlert } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react-native';
 
 import { applyAiAction, recordAiFeedback, revertAiActivity } from '@/ai/activity';
 import { PROGRAM_CREATE_PLAN, registerPlanActions, type PlanCreateResult } from '@/ai/plan-actions';
@@ -10,6 +10,7 @@ import { requestPlanBuild, type PlanProposal } from '@/ai/plan-build-client';
 import type { AiFailure } from '@/ai/types';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { AiFallbackNotice } from '@/components/ai/ai-fallback-notice';
+import { AiMark } from '@/components/ai/ai-mark';
 import { AiThinking } from '@/components/ai/ai-thinking';
 import { ProposalCard } from '@/components/ai/proposal-card';
 import { SuggestionChip } from '@/components/ai/suggestion-chip';
@@ -19,6 +20,7 @@ import { Body, Caption, Text } from '@/components/common/text';
 import { SectionLabel } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tappable } from '@/components/ui/tappable';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { BEGINNER_MAX_DAYS, MAX_PLAN_INTENT, type PlanBuildInput, type PlanEquipment } from '@/contracts/plans/plan-build';
@@ -26,6 +28,7 @@ import { MAJOR_MUSCLES, PLAN_PRESETS, type PlanExperience, type PlanGoal } from 
 import { setActiveProgram } from '@/db/queries/programs';
 import type { Goal } from '@/db/types';
 import { useProfile } from '@/hooks/use-data';
+import { cn } from '@/lib/cn';
 import { captureError } from '@/lib/error-sink';
 import { SCREEN_CONTENT } from '@/lib/layout';
 
@@ -161,25 +164,58 @@ type State =
   | { kind: 'failed'; reason: AiFailure }
   | { kind: 'saved'; programId: number; name: string; started: boolean };
 
-function Choice<T extends string | number>({
+/**
+ * One line of the setup list: label left, current value right. Tapping opens
+ * that row's choices in place (one row at a time), so the form stays a short
+ * summary until the user wants to change something.
+ */
+function SetupRow<T extends string | number>({
   label,
   options,
   value,
   onChange,
+  open,
+  onToggle,
+  first,
 }: {
   label: string;
   options: { value: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
+  open: boolean;
+  onToggle: () => void;
+  first?: boolean;
 }) {
+  const current = options.find((o) => o.value === value)?.label ?? '';
   return (
-    <View className="gap-2">
-      <SectionLabel>{label}</SectionLabel>
-      <View className="flex-row flex-wrap gap-1.5">
-        {options.map((o) => (
-          <Chip key={String(o.value)} size="sm" label={o.label} selected={o.value === value} onPress={() => onChange(o.value)} />
-        ))}
-      </View>
+    <View className={cn(!first && 'border-t border-divider')}>
+      <Tappable
+        onPress={onToggle}
+        pressedOpacity={0.6}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${label}: ${current}`}
+        className="flex-row items-center gap-3 px-4 py-3.5">
+        <Body className="flex-1 text-foreground">{label}</Body>
+        <Body className={cn('tabular-nums', open ? 'text-primary-text' : 'text-muted-foreground')}>{current}</Body>
+        <Icon icon={open ? ChevronUp : ChevronDown} size={16} color="muted-foreground" />
+      </Tappable>
+      {open ? (
+        <View className="flex-row flex-wrap gap-1.5 px-4 pb-4">
+          {options.map((o) => (
+            <Chip
+              key={String(o.value)}
+              size="sm"
+              label={o.label}
+              selected={o.value === value}
+              onPress={() => {
+                onChange(o.value);
+                onToggle();
+              }}
+            />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -199,6 +235,8 @@ export default function PlanBuilderScreen() {
   const [variant, setVariant] = useState(0);
   const [state, setState] = useState<State>({ kind: 'form' });
   const [saving, setSaving] = useState(false);
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const toggle = (row: string) => setOpenRow((o) => (o === row ? null : row));
   const abort = useRef<AbortController | null>(null);
 
   const goal = goalPick ?? goalFromProfile(profile.data?.goal);
@@ -331,7 +369,7 @@ export default function PlanBuilderScreen() {
           <View className="gap-5">
             <View className="gap-2">
               <View className="flex-row items-center gap-2">
-                <Icon icon={Sparkles} size={16} color="primary" />
+                <Icon icon={AiMark} size={16} color="primary" />
                 <Body className="font-semibold text-foreground">What are you training for?</Body>
               </View>
               <Input
@@ -351,22 +389,24 @@ export default function PlanBuilderScreen() {
                 </View>
               ) : null}
             </View>
-            <Choice label="Length" options={PLAN_PRESETS.map((p) => ({ value: p.weeks, label: p.label }))} value={weeks} onChange={setWeeks} />
-            <Choice label="Days a week" options={dayOptions.map((d) => ({ value: d, label: `${d}` }))} value={dayCount} onChange={setDays} />
-            <Choice label="Goal" options={GOALS} value={goal} onChange={setGoal} />
-            <Choice label="Level" options={LEVELS} value={level} onChange={setLevel} />
-            <Choice label="Session" options={MINUTES.map((m) => ({ value: m, label: `${m} min` }))} value={minutes} onChange={setMinutes} />
-            <Choice label="Equipment" options={KITS.map((k, i) => ({ value: i, label: k.label }))} value={kit} onChange={setKit} />
+            <View className="gap-2">
+              <SectionLabel>Your setup</SectionLabel>
+              <Card className="p-0">
+                <SetupRow first label="Length" options={PLAN_PRESETS.map((p) => ({ value: p.weeks, label: p.label }))} value={weeks} onChange={setWeeks} open={openRow === 'weeks'} onToggle={() => toggle('weeks')} />
+                <SetupRow label="Days a week" options={dayOptions.map((d) => ({ value: d, label: `${d} days` }))} value={dayCount} onChange={setDays} open={openRow === 'days'} onToggle={() => toggle('days')} />
+                <SetupRow label="Goal" options={GOALS} value={goal} onChange={setGoal} open={openRow === 'goal'} onToggle={() => toggle('goal')} />
+                <SetupRow label="Level" options={LEVELS} value={level} onChange={setLevel} open={openRow === 'level'} onToggle={() => toggle('level')} />
+                <SetupRow label="Session" options={MINUTES.map((m) => ({ value: m, label: `${m} min` }))} value={minutes} onChange={setMinutes} open={openRow === 'minutes'} onToggle={() => toggle('minutes')} />
+                <SetupRow label="Equipment" options={KITS.map((k, i) => ({ value: i, label: k.label }))} value={kit} onChange={setKit} open={openRow === 'kit'} onToggle={() => toggle('kit')} />
+              </Card>
+            </View>
             {level === 'beginner' ? <Caption>Beginners grow fastest on 2–4 days with full recovery between sessions.</Caption> : null}
             {state.kind === 'declined' ? <Caption>{state.message}</Caption> : null}
             {state.kind === 'failed' ? <AiFallbackNotice reason={state.reason} onRetry={() => void build(intent, variant)} /> : null}
-            <Button onPress={() => start(intent)} leftIcon={<Icon icon={Sparkles} size={16} color="primary-foreground" />}>
+            <Button onPress={() => start(intent)} leftIcon={<Icon icon={AiMark} size={16} color="primary-foreground" />}>
               Build my plan
             </Button>
-            <Caption>
-              Sets, reps, rest and deload weeks follow training research (ACSM 2026, volume and frequency meta-analyses). The AI
-              picks the exercises; you review before anything is saved.
-            </Caption>
+            <Caption className="text-center">Based on training research. You review it before anything is saved.</Caption>
           </View>
         )}
       </ScrollView>
