@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { Clock, Weight, Medal, MoreHorizontal, Share2 } from 'lucide-react-native';
@@ -31,16 +30,13 @@ export function WorkoutFeedCard({
   className?: string;
 }) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
-
-  const visibleExercises = expanded
-    ? log.exercises
-    : log.exercises.slice(0, MAX_VISIBLE_EXERCISES);
+  const openDetail = () => router.push(`/summary/${log.id}`);
+  const visibleExercises = log.exercises.slice(0, MAX_VISIBLE_EXERCISES);
   const hiddenCount = log.exercises.length - MAX_VISIBLE_EXERCISES;
 
   return (
     <Tappable
-      onPress={() => router.push(`/summary/${log.id}`)}
+      onPress={openDetail}
       pressedOpacity={0.75}
       className={`bg-card p-4 ${className ?? ''}`}>
       {/* Header: avatar + name + share / more */}
@@ -121,12 +117,12 @@ export function WorkoutFeedCard({
         ))}
       </View>
 
-      {/* See more */}
-      {!expanded && hiddenCount > 0 ? (
+      {/* See more: the workout detail already lists every exercise with its sets. */}
+      {hiddenCount > 0 ? (
         <Tappable
           onPress={(e) => {
             e.stopPropagation?.();
-            setExpanded(true);
+            openDetail();
           }}
           pressedOpacity={0.6}
           className="mt-3 items-center py-1">
