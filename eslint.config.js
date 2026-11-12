@@ -34,6 +34,47 @@ module.exports = defineConfig([
     },
   },
   {
+    // AI layers (docs/decisions/AI-CHAT.md §3A.1): own the contracts, rent the
+    // libraries. Surfaces use runtime hooks + components only; capabilities
+    // never touch UI or a runtime library; only runtime adapters import one.
+    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            { regex: "^(ai|@ai-sdk/.*|@tanstack/ai.*)$", message: "Surfaces never import an AI runtime library; use src/ai/runtime hooks." },
+            { group: ["@/ai/runtime/adapters/*", "@/ai/providers/*"], message: "Surfaces never import a model adapter or provider; go through src/ai/runtime or the AI clients." },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/ai/capabilities/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            { regex: "^(ai|@ai-sdk/.*|@tanstack/ai.*|@/ai/runtime(/.*)?)$", message: "Capabilities are runtime-agnostic: contracts + domain queries only." },
+            { regex: "^(@/components/.*|@/app/.*|react-native.*|react)$", message: "Capabilities never import UI." },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/ai/runtime/adapters/**", "src/app/**", "src/components/**", "src/ai/capabilities/**", "src/contracts/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [{ regex: "^(ai|@ai-sdk/.*|@tanstack/ai.*)$", message: "Only src/ai/runtime/adapters imports an AI runtime library." }] },
+      ],
+    },
+  },
+  {
     // Design system guard (docs/design/SYSTEM.md): type, radius and spacing
     // come from tokens. Arbitrary values (`text-[13px]`, `p-[7px]`) and the
     // retired `rounded-lg` fail lint; a genuine one-off (micro-marks in a
