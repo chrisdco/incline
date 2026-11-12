@@ -15,6 +15,7 @@ import { chatThreadsQuery } from '@/lib/query-keys';
 import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
 import { motionDuration } from '@/styles/motion';
 import { PLACEHOLDER_HEX } from '@/styles/tokens';
+import { useThemeHex } from '@/lib/theme';
 
 type Tool = { title: string; href: Href; icon: LucideIcon };
 
@@ -90,6 +91,7 @@ export function AskDrawer({ open, onClose, onNewChat }: { open: boolean; onClose
   const { data: threads = [] } = useQuery(chatThreadsQuery);
   const [query, setQuery] = useState('');
   const [all, setAll] = useState(false);
+  const bg = useThemeHex().background;
   const q = query.trim().toLowerCase();
   const matches = q ? threads.filter((t) => (t.title || 'Chat').toLowerCase().includes(q)) : threads;
   const shown = q || all ? matches : matches.slice(0, RECENT);
@@ -171,7 +173,7 @@ export function AskDrawer({ open, onClose, onNewChat }: { open: boolean; onClose
                 accessibilityRole="button"
                 accessibilityLabel="New chat"
                 className="h-11 flex-row items-center gap-1.5 rounded-full bg-foreground px-4">
-                <Icon icon={Plus} size={16} color="background" />
+                <Icon icon={Plus} size={16} color={bg} />
                 <Text className="text-sm font-semibold text-background">New chat</Text>
               </Tappable>
             </View>

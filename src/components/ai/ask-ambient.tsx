@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
-import { View } from 'react-native';
-import Animated, { Easing, FadeIn } from 'react-native-reanimated';
+import Animated, { Easing, Extrapolation, FadeIn, interpolate, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -16,24 +15,34 @@ import { SCENE_VIEWBOX, hashSeed, sceneDots, weekKey } from './ask-scenes';
 
 /** Height of the ambient layer; it fades out well before the composer. */
 const AMBIENT_HEIGHT = 340;
+/** Scroll distance over which the ambient settles into its header band. */
+const SCROLL_RANGE = 240;
 
 /**
  * Ask's ambient header (ASK-UI.md): the brand gradient and a dither scene
  * bleeding in from the top edge and dissolving into the page. No box. The
  * scene follows the idle headline; the seed changes weekly. Decorative only.
  */
-export function AskAmbient({ scene }: { scene: SceneKind }) {
+export function AskAmbient({ scene, scrollY }: { scene: SceneKind; scrollY?: SharedValue<number> }) {
   const scheme = useAppColorScheme();
   const brand = brandTheme(scheme);
   const bg = useThemeHex().background;
   const dots = useMemo(() => sceneDots(scene, hashSeed(`${scene}:${weekKey()}`)), [scene]);
+  // Slides up (slower than the content) and dims as you scroll, leaving a band behind the header.
+  const follow = useAnimatedStyle(() => {
+    const y = scrollY?.value ?? 0;
+    return {
+      transform: [{ translateY: interpolate(y, [0, SCROLL_RANGE], [0, -SCROLL_RANGE * 0.6], Extrapolation.CLAMP) }],
+      opacity: interpolate(y, [0, SCROLL_RANGE], [1, 0.6], Extrapolation.CLAMP),
+    };
+  });
   return (
-    <View
+    <Animated.View
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       className="absolute inset-x-0 top-0"
-      style={{ height: AMBIENT_HEIGHT }}>
+      style={[{ height: AMBIENT_HEIGHT }, follow]}>
       <BrandGradient style={{ flex: 1, opacity: scheme === 'dark' ? 0.9 : 0.75 }} />
       <Animated.View
         key={scene}
@@ -50,7 +59,7 @@ export function AskAmbient({ scene }: { scene: SceneKind }) {
         locations={[0.1, 0.5, 0.85]}
         style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
       />
-    </View>
+    </Animated.View>
   );
 }
 

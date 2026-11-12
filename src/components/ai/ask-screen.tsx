@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import Animated, { Easing, FadeInDown, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { ChevronRight, Menu, SquarePen, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -84,7 +84,7 @@ function StatTile({ insight, onPress }: { insight: Insight; onPress: () => void 
       accessibilityRole="button"
       accessibilityLabel={`${stat.label} ${stat.value} ${stat.unit ?? ''}, ${stat.delta}. Ask: ${insight.question}`}
       className="min-h-28 flex-1 justify-between rounded-2xl border border-hairline bg-surface1 p-3.5">
-      <Caption numberOfLines={1}>{stat.label}</Caption>
+      <Caption numberOfLines={2}>{stat.label}</Caption>
       <View>
         <View className="mt-2 flex-row items-baseline gap-1">
           <Text className="text-2xl font-semibold tabular-nums text-foreground">{stat.value}</Text>
@@ -151,6 +151,10 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
   const [drawer, setDrawer] = useState(false);
   const [draft, setDraft] = useState('');
   const [now] = useState(stamp);
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
   const last = threads[0];
 
   const openChat = (q?: string) => {
@@ -181,7 +185,7 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
 
   return (
     <View className="flex-1 bg-background">
-      <AskAmbient scene={brief?.scene ?? 'mark'} />
+      <AskAmbient scene={brief?.scene ?? 'mark'} scrollY={scrollY} />
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="flex-row items-center px-2 pt-1" style={{ marginTop: insets.top }}>
           <HeaderButton icon={Menu} label="Chats and tools" onPress={() => setDrawer(true)} />
@@ -190,7 +194,12 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
           {onClose ? <HeaderButton icon={X} label="Close" onPress={onClose} /> : null}
         </View>
 
-        <ScrollView className="flex-1" contentContainerClassName="px-4 pb-6 pt-3" keyboardShouldPersistTaps="handled">
+        <Animated.ScrollView
+          className="flex-1"
+          contentContainerClassName="px-4 pb-6 pt-3"
+          keyboardShouldPersistTaps="handled"
+          onScroll={onScroll}
+          scrollEventThrottle={16}>
           <Animated.View entering={rise(0)}>
             <Caption>{now}</Caption>
             <Heading className="mt-1" accessibilityRole="header">
@@ -227,10 +236,15 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
                   accessibilityRole="button"
                   className="mt-2.5 flex-row items-center gap-2 rounded-2xl border border-hairline bg-surface1 px-3.5 py-3">
                   <View className="flex-1">
-                    <Caption>{cards[2].stat.label}</Caption>
-                    <Body className="font-medium">{cards[2].question}</Body>
+                    <View className="flex-row items-baseline justify-between gap-2">
+                      <Caption numberOfLines={1} className="flex-1">
+                        {cards[2].stat.label}
+                      </Caption>
+                      <Text className={cn('text-xs font-medium', TONE[cards[2].stat.tone])}>{cards[2].stat.delta}</Text>
+                    </View>
+                    <Body className="mt-0.5 font-medium">{cards[2].question}</Body>
                   </View>
-                  <Text className={cn('text-xs font-medium', TONE[cards[2].stat.tone])}>{cards[2].stat.delta}</Text>
+                  <Icon icon={ChevronRight} size={16} color="muted-foreground" />
                 </Tappable>
               ) : null}
             </Animated.View>
@@ -285,7 +299,7 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
               <Icon icon={ChevronRight} size={16} color="muted-foreground" />
             </Tappable>
           </Animated.View>
-        </ScrollView>
+        </Animated.ScrollView>
 
         <View className="px-4 pt-1" style={{ paddingBottom: insets.bottom + 6 }}>
           <AskComposer value={draft} onChangeText={setDraft} onSend={send} footnote="Answers use your logged data and can be wrong." />
