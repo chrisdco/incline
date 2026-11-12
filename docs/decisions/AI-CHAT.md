@@ -87,6 +87,8 @@ The cost is that the tool round-trips happen on the phone's network. With a step
 | Schemas | `zod` (already the norm for AI SDK tools) | We already have contract types in `src/contracts`, so we derive zod from them or define them next to them, with one source per tool. |
 | Agent framework (LangGraph, Mastra) | **No** | §5's rule still holds: under 10 tools and one loop. |
 
+**Decided at Phase 0.5 (2026-11-12): our own OpenAI-compatible adapter first, AI SDK optional.** Every provider we call (the `ai-chat` proxy, Groq, OpenRouter, Gemini, OpenAI, Ollama) speaks the same streaming chat-completions wire. Reading it is about 150 lines (`src/ai/runtime/adapters/openai-compat.ts`): server-sent events from `expo/fetch`, with no polyfills and nothing new on Hermes. The step loop (`src/ai/runtime/loop.ts`) is ours anyway, because the policies are: tool gating, fenced tool data, the step cap and the number gate. The AI SDK stays a drop-in **second adapter** behind `ModelPort` if we need its provider-specific extras (Anthropic or Gemini native APIs, structured-output helpers). The lint rules already allow it only under `src/ai/runtime/adapters`.
+
 **Version check before coding**: confirm the current major versions of `ai` and `@ai-sdk/react` (sources disagree, v5 docs vs `ai@7`) and that they run on Hermes with the polyfills. **Spike first**: one tool, streamed, on incline_pixel, before anything else.
 
 ### 3.3 The `ai-chat` edge function
@@ -211,7 +213,7 @@ Stored messages are **our** `ChatPart` JSON with a version, never a library's in
 ### 3A.8 Stack, now
 | Layer | Pick | Watch |
 |---|---|---|
-| Runtime | **AI SDK 7.x** (stable; official Expo guide) behind our adapter | **TanStack AI** (release candidate; React Native transport; would match our TanStack Query stack). Re-check at Phase 3. |
+| Runtime | **Own OpenAI-compatible `ModelPort` adapter + loop** (Phase 0.5); AI SDK 7.x available as a second adapter | **TanStack AI** (release candidate; React Native transport; would match our TanStack Query stack). Re-check at Phase 3. |
 | Providers | OpenAI-compatible everywhere: Groq primary, OpenRouter fallback, BYOK, Ollama; Cloudflare AI Gateway in front | `expo-ai` on-device at SDK 59 |
 | Tools | `ToolSpec` in `src/contracts`, zod at the edges | MCP spec revisions (tool output schemas, Apps) |
 | Stream events | `ChatEvent` named after AG-UI | AG-UI transport if we ever host the loop server-side for web |
