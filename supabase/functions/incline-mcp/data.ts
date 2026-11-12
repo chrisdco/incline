@@ -6,7 +6,6 @@ import {
   argText,
   catalogEquipment,
   catalogMuscle,
-  estimate1rm,
   estimateRoutineMinutes,
   matchExercise,
   parseCreateRoutine,
@@ -15,11 +14,18 @@ import {
   seedIdFromExternal,
   toUnit,
   unitLabel,
-  weeklyMuscleSets,
   type ExerciseCandidate,
   type ExerciseRef,
   type Unit,
 } from '../_shared/contracts/mcp/tools.ts';
+import {
+  clampWeeks,
+  shapeExerciseHistory,
+  shapePersonalRecords,
+  shapeTrainingSummary,
+  shapeWorkoutList,
+  type NormSet,
+} from '../_shared/contracts/mcp/shape.ts';
 
 /**
  * Tool handlers. Every query is scoped to the token's user and skips
@@ -362,17 +368,17 @@ async function listWorkouts(ctx: Ctx, args: Args): Promise<ToolResult> {
   }
   return {
     ok: true,
-    data: {
-      unit: unitLabel(unit),
-      workouts: (logs ?? []).map((l) => ({
+    data: shapeWorkoutList(
+      (logs ?? []).map((l) => ({
         id: l.id,
         name: l.name,
-        date: l.started_at,
-        minutes: Math.round((l.duration_seconds ?? 0) / 60),
-        completed_sets: sets.get(l.id) ?? 0,
-        volume: toUnit(l.total_volume ?? 0, unit),
+        startedAt: l.started_at,
+        durationSeconds: l.duration_seconds ?? 0,
+        volumeKg: l.total_volume ?? 0,
+        completedSets: sets.get(l.id) ?? 0,
       })),
-    },
+      unit,
+    ),
   };
 }
 
@@ -448,6 +454,28 @@ async function recentSets(ctx: Ctx, sinceIso?: string): Promise<{ sets: (SetRow 
   return { sets, meta: await metaFor(ctx, sets) };
 }
 
+/** Supabase rows → the shared shape input (contracts/mcp/shape.ts). */
+function normSets(sets: (SetRow & { startedAt: string })[], meta: Map<string, ExerciseCandidate>): NormSet[] {
+  const out: NormSet[] = [];
+  for (const s of sets) {
+    const ref = rowRef(s);
+    if (!ref) continue;
+    const key = refKey(ref);
+    const m = meta.get(key);
+    out.push({
+      logId: s.workout_log_id,
+      startedAt: s.startedAt,
+      exerciseKey: key,
+      exercise: m?.name ?? 'Unknown exercise',
+      weightKg: s.weight,
+      reps: s.reps,
+      primaryMuscle: m?.primaryMuscle ?? null,
+      secondaryMuscles: m?.secondaryMuscles ?? [],
+    });
+  }
+  return out;
+}
+
 async function exerciseHistory(ctx: Ctx, args: Args): Promise<ToolResult> {
   const query = argText(args, 'exercise', 80);
   if (!query) return { ok: false, error: 'exercise is required' };
@@ -459,98 +487,22 @@ async function exerciseHistory(ctx: Ctx, args: Args): Promise<ToolResult> {
     return { ok: false, error: `No logged sets match "${query}". Logged exercises include: ${logged.slice(0, 15).map((c) => c.name).join(', ') || 'none'}.` };
   }
   const key = refKey(hit.ref);
-  const byLog = new Map<string, { date: string; best: { weight: number; reps: number }; e1rm: number | null; sets: number }>();
-  for (const s of sets) {
-    const ref = rowRef(s);
-    if (!ref || refKey(ref) !== key) continue;
-    const cur = byLog.get(s.workout_log_id) ?? { date: s.startedAt, best: { weight: 0, reps: 0 }, e1rm: null, sets: 0 };
-    cur.sets++;
-    const e = estimate1rm(s.weight, s.reps);
-    if (e !== null && (cur.e1rm === null || e > cur.e1rm)) cur.e1rm = e;
-    if (s.weight > cur.best.weight || (s.weight === cur.best.weight && s.reps > cur.best.reps)) cur.best = { weight: s.weight, reps: s.reps };
-    byLog.set(s.workout_log_id, cur);
-  }
-  const sessions = [...byLog.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, argLimit(args, 10));
-  return {
-    ok: true,
-    data: {
-      exercise: hit.name,
-      unit: unitLabel(unit),
-      sessions: sessions.map((s) => ({
-        date: s.date,
-        sets: s.sets,
-        best_set: `${toUnit(s.best.weight, unit)} x ${s.best.reps}`,
-        estimated_1rm: s.e1rm === null ? null : toUnit(s.e1rm, unit),
-      })),
-    },
-  };
+  const mine = normSets(sets, meta).filter((s) => s.exerciseKey === key);
+  return { ok: true, data: shapeExerciseHistory(hit.name, mine, unit, argLimit(args, 10)) };
 }
 
 async function personalRecords(ctx: Ctx, args: Args): Promise<ToolResult> {
   const { unit } = await profile(ctx);
   const { sets, meta } = await recentSets(ctx);
-  const best = new Map<string, { name: string; e1rm: number; e1rmDate: string; heaviest: number; heaviestReps: number; heaviestDate: string }>();
-  for (const s of sets) {
-    const ref = rowRef(s);
-    if (!ref || !(s.weight > 0)) continue;
-    const key = refKey(ref);
-    const e = estimate1rm(s.weight, s.reps) ?? 0;
-    const cur = best.get(key) ?? { name: nameOf(meta, s), e1rm: 0, e1rmDate: s.startedAt, heaviest: 0, heaviestReps: 0, heaviestDate: s.startedAt };
-    if (e > cur.e1rm) Object.assign(cur, { e1rm: e, e1rmDate: s.startedAt });
-    if (s.weight > cur.heaviest) Object.assign(cur, { heaviest: s.weight, heaviestReps: s.reps, heaviestDate: s.startedAt });
-    best.set(key, cur);
-  }
-  const list = [...best.values()].sort((a, b) => b.e1rm - a.e1rm).slice(0, argLimit(args, 20));
-  return {
-    ok: true,
-    data: {
-      unit: unitLabel(unit),
-      records: list.map((r) => ({
-        exercise: r.name,
-        estimated_1rm: r.e1rm ? toUnit(r.e1rm, unit) : null,
-        estimated_1rm_date: r.e1rm ? r.e1rmDate : null,
-        heaviest_set: `${toUnit(r.heaviest, unit)} x ${r.heaviestReps}`,
-        heaviest_date: r.heaviestDate,
-      })),
-      note: 'Estimated 1RM uses the Epley formula on sets of 12 reps or fewer.',
-    },
-  };
+  return { ok: true, data: shapePersonalRecords(normSets(sets, meta), unit, argLimit(args, 20)) };
 }
 
 async function trainingSummary(ctx: Ctx, args: Args): Promise<ToolResult> {
-  const weeks = Math.min(12, Math.max(1, Math.round(Number(args.weeks ?? 4)) || 4));
+  const weeks = clampWeeks(args.weeks);
   const now = Date.now();
   const since = new Date(now - weeks * 7 * 86_400_000).toISOString();
   const { sets, meta } = await recentSets(ctx, since);
-  const sessionWeeks = Array.from({ length: weeks }, () => new Set<string>());
-  for (const s of sets) {
-    const w = Math.floor((now - Date.parse(s.startedAt)) / (7 * 86_400_000));
-    if (w >= 0 && w < weeks) sessionWeeks[w]!.add(s.workout_log_id);
-  }
-  const perMuscle = weeklyMuscleSets(
-    sets.map((s) => {
-      const ref = rowRef(s);
-      const m = ref ? meta.get(refKey(ref)) : undefined;
-      return { startedAt: s.startedAt, primaryMuscle: m?.primaryMuscle ?? null, secondaryMuscles: m?.secondaryMuscles ?? [] };
-    }),
-    weeks,
-    now,
-  );
-  const avg = (xs: number[]) => Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10;
-  return {
-    ok: true,
-    data: {
-      weeks,
-      week_order: 'index 0 = the last 7 days, 1 = the 7 days before, …',
-      sessions_per_week: sessionWeeks.map((s) => s.size),
-      sets_per_muscle_per_week: Object.fromEntries(
-        Object.entries(perMuscle)
-          .sort((a, b) => avg(b[1]) - avg(a[1]))
-          .map(([m, xs]) => [m, { weekly: xs.map((x) => Math.round(x * 10) / 10), average: avg(xs) }]),
-      ),
-      note: 'Completed sets only. Primary muscle counts 1, each secondary 0.5.',
-    },
-  };
+  return { ok: true, data: shapeTrainingSummary(normSets(sets, meta), weeks, now) };
 }
 
 async function searchExercises(ctx: Ctx, args: Args): Promise<ToolResult> {
