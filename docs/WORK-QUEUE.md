@@ -251,6 +251,12 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
   - [ ] Device test of the builder, check-ins and plan edits.
   - [ ] Community/marketplace plans (later).
 - [ ] **4. Smart surfaces + personalisation:**
+  - [ ] **Ask chat** — design in [AI-CHAT.md](decisions/AI-CHAT.md): device-side
+    agent loop (AI SDK), `ai-chat` streaming proxy, local threads, memory facts.
+    Phases 0 spike → 1 core → 2 cards → 3 memory → 4 in-session sheet.
+  - [ ] **Foundation review** — [FOUNDATION-REVIEW.md](decisions/FOUNDATION-REVIEW.md):
+    G1 AI data consent (iOS release blocker) now; canonical health/food model +
+    DB encryption before step 5; food sources/search/licence with step 6.
   - Context chips, the Ask sheet, and voice logging (gym loop: Hevy/Strong
     side-by-side check before PR).
   - `coach_memory` learning, the "What Incline knows about you" screen, and
