@@ -226,7 +226,7 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
             scrollEventThrottle={16}>
             <View>
               <Label>{now}</Label>
-              <Text className="mt-2 text-3xl font-bold tracking-tight text-foreground" accessibilityRole="header">
+              <Text className="mt-2 font-serif text-4xl text-foreground" accessibilityRole="header">
                 {headline}
               </Text>
             </View>
@@ -325,7 +325,7 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
 
         <EdgeBlur edge="bottom" height={insets.bottom + DOCK_H + 28} target={target} />
         <View className="absolute left-0 right-0 px-3" style={{ bottom: insets.bottom + 8 }}>
-          <AskComposer value={draft} onChangeText={setDraft} onSend={send} blurTarget={target} />
+          <AskComposer value={draft} onChangeText={setDraft} onSend={send} floating />
         </View>
       </KeyboardAvoidingView>
 

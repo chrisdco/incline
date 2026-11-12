@@ -89,6 +89,8 @@ function AppShell() {
     'Geist-Medium': Geist_500Medium,
     'Geist-SemiBold': Geist_600SemiBold,
     'Geist-Bold': Geist_700Bold,
+    // Geist Serif (Vercel, OFL; npm geist 1.9.2, woff2 converted to TTF). Display only: one weight, Ask's headlines.
+    GeistSerif: require('../../assets/fonts/GeistSerif-Regular.ttf'),
   });
   const db = useDatabaseState();
   const dbReady = db.status === 'ready';

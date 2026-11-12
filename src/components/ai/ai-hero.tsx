@@ -57,7 +57,9 @@ export function AiHero({
         </Svg>
       </Animated.View>
       <View className="absolute bottom-4 left-4 right-24" accessibilityRole="header">
-        <Heading style={{ color: brand.ink }}>{title}</Heading>
+        <Heading className="font-serif text-3xl font-normal tracking-normal" style={{ color: brand.ink }}>
+          {title}
+        </Heading>
         {subtitle ? (
           <Body className="mt-0.5" style={{ color: brand.inkMuted }}>
             {subtitle}

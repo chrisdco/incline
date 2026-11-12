@@ -78,6 +78,8 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Geist', 'system-ui', 'sans-serif'],
+        // Display serif for Ask's headline moments only (ASK-UI.md "Type in chat"); never body text.
+        serif: ['GeistSerif', 'serif'],
       },
       // Type scale (docs/design/SYSTEM.md): Tailwind xs–3xl plus the two
       // sizes screens kept hand-rolling — 2xs for table headers / badges,

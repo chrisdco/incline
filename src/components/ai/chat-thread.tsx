@@ -250,7 +250,7 @@ export function ChatThread({ threadUuid, initialQuestion }: { threadUuid: string
       <EdgeBlur edge="bottom" height={DOCK_H + 28} target={target} />
       <View className="absolute bottom-2 left-0 right-0 px-3">
         <AskComposer
-          blurTarget={target}
+          floating
           value={draft}
           onChangeText={setDraft}
           onSend={submit}
