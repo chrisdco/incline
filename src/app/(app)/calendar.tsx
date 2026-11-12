@@ -11,6 +11,9 @@ import { Sheet } from '@/components/ui/sheet';
 import { Chip } from '@/components/common/chip';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { getWorkoutDays, getDailyCalendarMetrics, getWeeklyConsistency, type DailyCalendarMetrics } from '@/db/queries';
+import { InlineError } from '@/components/common/states';
+import { useDbQuery } from '@/hooks/use-data';
+import { TABLES } from '@/lib/query-keys';
 import type { CalendarHeatMetric, WeekStartsOn } from '@/db/types';
 import { cn } from '@/lib/cn';
 import {
@@ -24,6 +27,8 @@ import type { IconColor } from '@/lib/icon-color';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { useSettings } from '@/store/settings-store';
+import { IconButton } from '@/components/ui/icon-button';
+import { motionControl } from '@/styles/motion';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -41,6 +46,7 @@ const MONTH_MARGIN = 16;
 const BOTTOM_PADDING = 40;
 const SPINNER_MIN_FLOOR_MS = 200;
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 10 };
+const HEADER_TARGET = { minWidth: motionControl.minHeight, minHeight: motionControl.minHeight };
 
 const HEAT_LEGEND_LABEL: Record<Exclude<CalendarHeatMetric, 'presence'>, string> = {
   volume: 'Volume',
@@ -76,6 +82,25 @@ function CalendarStat({
 }
 
 type CalendarMode = 'month' | 'year';
+
+const EMPTY_DAY_SET = new Set<string>();
+const EMPTY_METRICS: Record<string, DailyCalendarMetrics> = {};
+
+/** Everything the calendar header and grid read, in one query. */
+async function loadCalendarStats(weeklyWorkoutGoal: number) {
+  const [days, metricsByDate, consistency] = await Promise.all([
+    getWorkoutDays(),
+    getDailyCalendarMetrics(),
+    getWeeklyConsistency(weeklyWorkoutGoal),
+  ]);
+  return {
+    workoutDaySet: new Set(days.map((d) => toDateKey(new Date(d)))),
+    metricsByDate,
+    streak: consistency.currentWeeklyStreak,
+    bestStreak: consistency.bestWeeklyStreak,
+    weekGoalProgress: weekGoalLabel(consistency),
+  };
+}
 
 function heatLevel(value: number, maxValue: number): 0 | 1 | 2 | 3 | 4 {
   if (value <= 0 || maxValue <= 0) return 0;
@@ -333,11 +358,18 @@ export default function CalendarScreen() {
   const [now] = useState(() => Date.now());
   const [mode, setMode] = useState<CalendarMode>('month');
 
-  const [workoutDaySet, setWorkoutDaySet] = useState<Set<string>>(new Set());
-  const [metricsByDate, setMetricsByDate] = useState<Record<string, DailyCalendarMetrics>>({});
-  const [streak, setStreak] = useState(0);
-  const [bestStreak, setBestStreak] = useState(0);
-  const [weekGoalProgress, setWeekGoalProgress] = useState<string | null>(null);
+  // One cached read (§11): a failure is shown, never an empty calendar (#185).
+  const {
+    data: stats,
+    error: statsError,
+    fetching: statsFetching,
+    refetch: refetchStats,
+  } = useDbQuery(TABLES.logs, ['calendarStats', weeklyWorkoutGoal], () => loadCalendarStats(weeklyWorkoutGoal));
+  const workoutDaySet = stats?.workoutDaySet ?? EMPTY_DAY_SET;
+  const metricsByDate = stats?.metricsByDate ?? EMPTY_METRICS;
+  const streak = stats?.streak ?? 0;
+  const bestStreak = stats?.bestStreak ?? 0;
+  const weekGoalProgress = stats?.weekGoalProgress ?? null;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(today.getFullYear());
   const [yearViewYear, setYearViewYear] = useState(today.getFullYear());
@@ -375,25 +407,6 @@ export default function CalendarScreen() {
     const floor = setTimeout(() => setMinTimePassed(true), SPINNER_MIN_FLOOR_MS);
     return () => clearTimeout(floor);
   }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const [days, metrics, consistency] = await Promise.all([
-          getWorkoutDays(),
-          getDailyCalendarMetrics(),
-          getWeeklyConsistency(weeklyWorkoutGoal),
-        ]);
-        setWorkoutDaySet(new Set(days.map((d) => toDateKey(new Date(d)))));
-        setMetricsByDate(metrics);
-        setStreak(consistency.currentWeeklyStreak);
-        setBestStreak(consistency.bestWeeklyStreak);
-        setWeekGoalProgress(weekGoalLabel(consistency));
-      } catch {
-        // Leave the calendar usable even if stats fail to load.
-      }
-    })();
-  }, [now, weeklyWorkoutGoal]);
 
   const handleDayPress = useCallback((dayMs: number) => {
     router.push({ pathname: '/(app)/day/[ms]', params: { ms: String(dayMs) } });
@@ -527,31 +540,36 @@ export default function CalendarScreen() {
                 <Body className="text-lg font-semibold text-foreground">{visibleLabel}</Body>
                 <Icon icon={ChevronDown} size={16} color="muted-foreground" />
               </Pressable>
-              <Pressable onPress={goToToday} accessibilityRole="button" accessibilityLabel="Go to today" hitSlop={8}>
+              <Pressable
+                onPress={goToToday}
+                accessibilityRole="button"
+                accessibilityLabel="Go to today"
+                className="-my-3 items-end justify-center"
+                style={HEADER_TARGET}>
                 <Caption className="font-medium text-primary-text">Today</Caption>
               </Pressable>
             </>
           ) : (
             <>
-              <Pressable
+              <IconButton
+                icon={ChevronLeft}
+                size={22}
                 onPress={() => setYearViewYear((y) => Math.max(minYear, y - 1))}
                 disabled={yearViewYear <= minYear}
-                hitSlop={8}
-                accessibilityRole="button"
                 accessibilityLabel="Previous year"
-                className={cn(yearViewYear <= minYear && 'opacity-30')}>
-                <Icon icon={ChevronLeft} size={22} color="foreground" />
-              </Pressable>
+                accessibilityState={{ disabled: yearViewYear <= minYear }}
+                className={cn('-my-3 -ml-3', yearViewYear <= minYear && 'opacity-30')}
+              />
               <Body className="text-lg font-semibold text-foreground">{yearViewYear}</Body>
-              <Pressable
+              <IconButton
+                icon={ChevronRight}
+                size={22}
                 onPress={() => setYearViewYear((y) => Math.min(maxYear, y + 1))}
                 disabled={yearViewYear >= maxYear}
-                hitSlop={8}
-                accessibilityRole="button"
                 accessibilityLabel="Next year"
-                className={cn(yearViewYear >= maxYear && 'opacity-30')}>
-                <Icon icon={ChevronRight} size={22} color="foreground" />
-              </Pressable>
+                accessibilityState={{ disabled: yearViewYear >= maxYear }}
+                className={cn('-my-3 -mr-3', yearViewYear >= maxYear && 'opacity-30')}
+              />
             </>
           )}
         </View>
@@ -564,6 +582,15 @@ export default function CalendarScreen() {
           ]}
         />
       </View>
+
+      {statsError ? (
+        <InlineError
+          className="mx-4 mt-2"
+          message={stats ? 'Couldn’t refresh your training days.' : 'Couldn’t load your training days. The calendar may look empty.'}
+          retrying={statsFetching}
+          onRetry={refetchStats}
+        />
+      ) : null}
 
       <View className="mx-4 mt-2 gap-2">
         <View className="flex-row gap-3">
@@ -687,6 +714,9 @@ export default function CalendarScreen() {
                 key={label}
                 disabled={!available}
                 onPress={() => jumpToMonth(pickerYear, month)}
+                accessibilityRole="button"
+                accessibilityLabel={`${MONTH_NAMES[month]} ${pickerYear}${count > 0 ? `, ${count} training days` : ''}`}
+                accessibilityState={{ disabled: !available, selected: visible.year === pickerYear && visible.month === month }}
                 className={cn(
                   'min-w-[22%] flex-1 items-center rounded-2xl border px-2 py-3',
                   available ? 'border-transparent bg-surface2' : 'border-transparent opacity-35',

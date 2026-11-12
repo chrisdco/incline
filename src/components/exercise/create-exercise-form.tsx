@@ -108,6 +108,9 @@ export function CreateExerciseForm({
 
         <Pressable
           onPress={() => setIsCompound(!isCompound)}
+          accessibilityRole="checkbox"
+          accessibilityLabel="Compound movement"
+          accessibilityState={{ checked: isCompound }}
           className="flex-row items-center gap-2 rounded-xl bg-card px-4 py-3">
           <View className={cn('h-5 w-5 items-center justify-center rounded border-2', isCompound ? 'border-primary bg-primary' : 'border-border')}>
             {isCompound ? <Body className="text-2xs text-primary-foreground">✓</Body> : null}

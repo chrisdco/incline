@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
 
 import { Text } from '@/components/common/text';
 
@@ -20,6 +20,8 @@ export function Dialog({
 }) {
   return (
     <Modal transparent animationType="fade" visible={open} onRequestClose={() => onOpenChange(false)}>
+      {/* Dialogs with inputs (password reset) stay above the keyboard. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
       <Pressable className="flex-1 items-center justify-center bg-black/50 p-6" onPress={() => onOpenChange(false)}>
         <Pressable
           className="w-full max-w-sm rounded-3xl bg-card p-5 shadow-2xl"
@@ -30,6 +32,7 @@ export function Dialog({
           {footer ? <View className="mt-5 flex-row justify-end gap-3">{footer}</View> : null}
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

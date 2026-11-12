@@ -246,7 +246,7 @@ export interface Settings {
   streakNudgeEnabled: boolean;
   /** Opt-in congrats ping for newly unlocked milestones. Default off. */
   milestoneNudgeEnabled: boolean;
-  /** Which body metrics appear on the Measures screen (bodyweight always available). */
+  /** Which body metrics appear on the Measurements screen (bodyweight always available). */
   enabledBodyMetrics: BodyMetric[];
   /** Target finished sessions per week (consistency goal). 0 = off. */
   weeklyWorkoutGoal: number;
@@ -267,7 +267,7 @@ export interface Settings {
   devExerciseMediaOverride: DevExerciseMediaOverride;
 }
 
-/** Trackable body metrics on the Measures screen. */
+/** Trackable body metrics on the Measurements screen. */
 export type BodyMetric =
   | 'bodyweight'
   | 'arms'
@@ -333,6 +333,8 @@ export function isWeekStartsOn(v: unknown): v is WeekStartsOn {
 /* ---- Query result shapes ---- */
 
 export interface ExerciseHistoryRow {
+  /** set_entries.id — the stable list key (set_index repeats across sessions). */
+  setId: number;
   workoutLogId: number;
   workoutName: string;
   startedAt: number;

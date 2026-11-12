@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useLayoutEffect, useCallback } from 'react';
+import { useState, useMemo, useLayoutEffect } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
 import { Lightbulb, Minus, Trophy, Plus, Play } from 'lucide-react-native';
@@ -15,10 +15,9 @@ import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { SeriesAreaChart } from '@/components/progress/series-area-chart';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
-import { useExercise, useExerciseHistory, useExerciseStats } from '@/hooks/use-data';
+import { useExerciseByRouteId, useExerciseHistory, useExerciseStats } from '@/hooks/use-data';
 import {
   addExerciseToWorkout,
-  getExerciseByExternalId,
   startWorkout,
   type ExercisePRSummary,
   type RepRecord,
@@ -69,34 +68,8 @@ export default function ExerciseDetailScreen() {
   const [tab, setTab] = useState<Tab>('Summary');
   const [adding, setAdding] = useState(false);
 
-  const isSupabaseId = typeof id === 'string' && id.startsWith('supabase:');
-  const externalId = isSupabaseId ? id.replace('supabase:', '') : null;
-  const localId = !isSupabaseId ? Number(id) : 0;
-
-  const { data: localExercise, loading: localLoading, error: localError, refetch: localRefetch } = useExercise(localId);
-  const [supabaseExercise, setSupabaseExercise] = useState<Exercise | null>(null);
-  const [supabaseLoading, setSupabaseLoading] = useState(false);
-
-  // Real retry for linked catalog exercises (previously a no-op).
-  const fetchSupabaseExercise = useCallback(async () => {
-    if (!externalId) return;
-    setSupabaseLoading(true);
-    try {
-      setSupabaseExercise(await getExerciseByExternalId(externalId));
-    } catch {
-      setSupabaseExercise(null);
-    }
-    setSupabaseLoading(false);
-  }, [externalId]);
-
-  useEffect(() => {
-    if (externalId) void fetchSupabaseExercise();
-  }, [externalId, fetchSupabaseExercise]);
-
-  const exercise = isSupabaseId ? supabaseExercise : localExercise;
-  const loading = isSupabaseId ? supabaseLoading : localLoading;
-  const error = isSupabaseId ? !supabaseExercise && !supabaseLoading : localError;
-  const refetch = isSupabaseId ? fetchSupabaseExercise : localRefetch;
+  // One query for local and catalog (`supabase:`) ids, so Retry refetches on both (#174).
+  const { data: exercise, loading, error, refetch } = useExerciseByRouteId(typeof id === 'string' ? id : '');
   const exerciseId = exercise?.id ?? 0;
   // This exercise's own display unit (override or global, §15).
   const refKey = exercise && 'refKey' in exercise ? exercise.refKey : null;
@@ -167,7 +140,7 @@ export default function ExerciseDetailScreen() {
     }
   };
 
-  if (loading) return <ListSkeleton count={2} />;
+  if (loading && exercise == null) return <ListSkeleton count={2} />;
   if (error || !exercise)
     return <ErrorState onRetry={refetch} title="Exercise not found" description="It may have been removed." />;
 
@@ -440,7 +413,7 @@ function HistoryTab({
             const set1RM = estimated1RM(set.weight, set.reps);
             const is1RMPR = Math.abs(set1RM - max1RM) < 0.1 && set1RM > 0;
             return (
-              <View key={set.setIndex} className="flex-row items-center py-1.5">
+              <View key={set.setId} className="flex-row items-center py-1.5">
                 <Body style={{ width: 40 }} className="text-sm text-foreground">{set.setIndex + 1}</Body>
                 <Body className="text-sm text-foreground">
                   {formatWeight(set.weight, unit)} × {set.reps}

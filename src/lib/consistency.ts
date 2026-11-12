@@ -2,6 +2,22 @@ import { isoDate, startOfDay, startOfWeek } from '@/db/calc';
 
 const WEEK_MS = 7 * 86_400_000;
 
+/**
+ * Local calendar-day key (`YYYY-MM-DD` in the device time zone) for an epoch
+ * ms. Every per-day bucket (calendar, day counts, recaps) uses this, never
+ * `ms / 86_400_000`, which groups by UTC day (#150).
+ */
+export function localDayKey(ms: number): string {
+  return isoDate(ms);
+}
+
+/** Distinct local calendar days among `startedAts`. */
+export function countLocalDays(startedAts: Iterable<number>): number {
+  const days = new Set<string>();
+  for (const t of startedAts) days.add(localDayKey(t));
+  return days.size;
+}
+
 function toDaySet(dayKeys: Iterable<string>): Set<string> {
   return dayKeys instanceof Set ? dayKeys : new Set(dayKeys);
 }

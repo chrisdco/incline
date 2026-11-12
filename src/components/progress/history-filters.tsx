@@ -167,6 +167,7 @@ export function HistoryExerciseFilterSheet({
             <Pressable
               key={item.id}
               onPress={() => onPick(item)}
+              accessibilityRole="button"
               className="mb-2 rounded-2xl border border-border/60 bg-card px-4 py-3"
               android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
               <Body className="font-semibold text-foreground">{item.name}</Body>
@@ -216,6 +217,7 @@ export function HistoryTemplateFilterSheet({
               <Pressable
                 key={t.id}
                 onPress={() => onPick({ id: t.id, name: t.name })}
+                accessibilityRole="button"
                 className="mb-2 rounded-2xl border border-border/60 bg-card px-4 py-3"
                 android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
                 <Body className="font-semibold text-foreground">{t.name}</Body>

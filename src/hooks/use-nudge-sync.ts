@@ -75,7 +75,7 @@ async function evaluateNudges(
       const stats = await getProgressStats(8);
       if (!isCancelled()) {
         const fresh = useSettings.getState();
-        const statuses = evaluateAchievements(stats);
+        const statuses = evaluateAchievements(stats, unit);
         const ids = newlyUnlockedAchievementIds(fresh.seenAchievementIds, statuses);
         for (const id of ids) {
           const def = statuses.find((a) => a.id === id);

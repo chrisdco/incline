@@ -97,7 +97,7 @@ Short-lived alternatives log. Revisit only when a trigger below fires; otherwise
   - Native neutrals are pinned hex, not derived from the CSS channels. Native `muted` (`#e4e4e7` / `#3f3f46`) is closer to the CSS `border`/`input` grey than to CSS `muted`. Accent `hex` values are close to their HSL channels but not exact.
   - Aurora skins only swap the native dark `background`. Native `card`/`border`/`muted` and icon colors stay Classic under rose/electron, and light-mode aurora backgrounds aren't reflected natively at all.
   - `primaryForegroundChannels()` (icon `primary-foreground`) uses a lightness cut-off, so it disagrees with CSS `--primary-foreground` for some accents (e.g. indigo light gives dark ink in icons, white in CSS).
-  - Auth screens use `#6b7280` placeholders instead of `PLACEHOLDER_COLOR` (`#71717a`).
+  - ~~Auth screens use `#6b7280` placeholders~~ — fixed: sign-in/sign-up use `Input` / `PasswordInput` (#176).
 - **Primitives:** `Text` and `Skeleton` now live with their semantic wrappers/presets in `components/common/text.tsx` and `components/common/skeleton.tsx`. `components/ui/text` and `ui/skeleton` are gone.
 - **Revisit when:** the polish pass converges native hex onto the CSS channels. At that point derive `NATIVE_NEUTRALS` and accent `hex` from the channels (an hsl→hex helper already exists in the test) and drop the pinned tables.
 ## 13. Sync protocol: batched server-side LWW push, per-table pull cursors (2026-10-26)

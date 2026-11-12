@@ -3,7 +3,7 @@
  * file is written by the file-snapshot test (`pnpm tokens:css`), never at
  * runtime, so NativeWind keeps compiling static CSS with zero JS theme cost.
  */
-import { ACCENT_TOKENS, BASE_VARS, RADIUS, type AccentTheme } from '@/styles/tokens';
+import { ACCENT_TOKENS, BASE_VARS, DEFAULT_ACCENT, RADIUS, type AccentTheme } from '@/styles/tokens';
 
 const HEADER = `/*
  * GENERATED from src/styles/tokens.ts — do not edit by hand.
@@ -23,7 +23,7 @@ const HEADER = `/*
  * Neutrals + semantic colors live on :root / .dark.
  * Brand accent (primary / ring / chart-1) is set by theme-* classes on the root View
  * so Settings can swap accents without touching the rest of the palette.
- * Default accent: indigo (also applied via theme-indigo on the root View).
+ * Default accent: ${DEFAULT_ACCENT} (:root carries its values; theme-${DEFAULT_ACCENT} on the root View too).
  */
 `;
 

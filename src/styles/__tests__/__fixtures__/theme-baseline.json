@@ -3,7 +3,7 @@
     "indigo": {
       "id": "indigo",
       "label": "Indigo",
-      "description": "Electric indigo — default Incline brand",
+      "description": "Electric indigo, bright on both themes",
       "light": {
         "primary": "246 90% 66%",
         "foreground": "0 0% 100%",

@@ -6,6 +6,7 @@ import { ArrowLeft, Bot, CheckCircle2, Cloud, KeyRound, ShieldCheck, XCircle } f
 import { AiMark } from '@/components/ai/ai-mark';
 
 import { Icon } from '@/components/common/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { Chip } from '@/components/common/chip';
 import { Body, Caption } from '@/components/common/text';
 import { ListRow, SectionLabel } from '@/components/layout';
@@ -161,9 +162,7 @@ export default function AiSettingsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="flex-row items-center gap-3 px-4 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon icon={ArrowLeft} size={24} color="foreground" />
-        </Pressable>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Go back" onPress={() => router.back()} className="-my-1.5 -ml-2" />
         <Body className="text-base font-semibold text-foreground">AI</Body>
       </View>
 

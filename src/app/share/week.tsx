@@ -1,14 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, View, type ViewInstance } from 'react-native';
+import { View, type ViewInstance } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
 
-import { Icon } from '@/components/common/icon';
-import { Body } from '@/components/common/text';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { ErrorState } from '@/components/common/states';
 import { useToast } from '@/components/ui/toast';
+import { ShareHeader } from '@/components/share/share-header';
 import { ShareActionBar } from '@/components/share/share-action-bar';
 import { ShareCardPager } from '@/components/share/share-card-pager';
 import {
@@ -115,15 +113,7 @@ export default function ShareWeekScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <View className="flex-row items-center justify-between px-4 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon icon={ArrowLeft} size={24} color="foreground" />
-        </Pressable>
-        <Body className="text-base font-semibold text-foreground">Share</Body>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
-          <Body className="text-primary-text">Cancel</Body>
-        </Pressable>
-      </View>
+      <ShareHeader onClose={() => router.back()} />
 
       <View className="flex-1 justify-center">
         <ShareCardPager

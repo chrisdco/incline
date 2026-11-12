@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Camera, Trash2 } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { Body, Caption } from '@/components/common/text';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
@@ -142,9 +143,7 @@ export default function ProgressPhotosScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <View className="flex-row items-center justify-between px-4 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon icon={ArrowLeft} size={24} color="foreground" />
-        </Pressable>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Go back" onPress={() => router.back()} className="-my-1.5 -ml-2" />
         <Body className="text-base font-semibold text-foreground">Photos</Body>
         <View className="w-8" />
       </View>

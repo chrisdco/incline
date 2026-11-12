@@ -6,6 +6,7 @@ import { PrimaryActivityIndicator } from '@/components/common/primary-activity-i
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Medal, MoreHorizontal, PencilLine, Share2 } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { Tappable } from '@/components/ui/tappable';
 
 import { Body, Caption, Text } from '@/components/common/text';
@@ -293,20 +294,12 @@ export default function SummaryScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="flex-row items-center justify-between px-4 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon icon={ArrowLeft} size={24} color="foreground" />
-        </Pressable>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Go back" onPress={() => router.back()} className="-my-1.5 -ml-2" />
         <View className="items-center">
           <Body className="font-semibold text-foreground">{log.name}</Body>
           <Caption>{formatFullDateTime(log.startedAt)}</Caption>
         </View>
-        <Pressable
-          onPress={() => setMenuOpen(true)}
-          className="p-1"
-          accessibilityRole="button"
-          accessibilityLabel="Workout options">
-          <Icon icon={MoreHorizontal} size={22} color="foreground" />
-        </Pressable>
+        <IconButton icon={MoreHorizontal} size={22} accessibilityLabel="Workout options" onPress={() => setMenuOpen(true)} className="-my-1.5 -mr-2" />
       </View>
 
       <View className="px-4 pb-1">

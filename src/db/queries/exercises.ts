@@ -414,7 +414,7 @@ export async function getRecentTopSetsForExercises(
 export async function getExerciseHistory(exerciseId: number, limit = 10): Promise<ExerciseHistoryRow[]> {
   const db = await openDatabase();
   return db.getAllAsync<ExerciseHistoryRow>(
-    `SELECT w.id as workoutLogId, w.name as workoutName, w.started_at as startedAt, s.set_index as setIndex, s.weight, s.reps, s.completed as completed, s.rpe as rpe
+    `SELECT s.id as setId, w.id as workoutLogId, w.name as workoutName, w.started_at as startedAt, s.set_index as setIndex, s.weight, s.reps, s.completed as completed, s.rpe as rpe
      FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
      WHERE s.exercise_id = ? AND w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL AND s.completed = 1
        AND (s.set_type IS NULL OR s.set_type = 'working')
@@ -557,7 +557,7 @@ export async function getExerciseSeries(exerciseId: number): Promise<ExerciseSer
     e1rm: number;
     set_vol: number;
   }>(
-    `SELECT strftime('%Y-%m-%d', s.created_at / 1000, 'unixepoch') as w,
+    `SELECT strftime('%Y-%m-%d', s.created_at / 1000, 'unixepoch', 'localtime') as w,
             MAX(s.weight) as weight,
             MAX(CASE WHEN s.reps <= 1 THEN s.weight
                      ELSE s.weight * (1.0 + s.reps / 30.0) END) as e1rm,

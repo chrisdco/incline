@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { ArrowLeftRight, ImageOff, MoreHorizontal } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { Body, Caption } from '@/components/common/text';
 import { formatFullDate } from '@/db/calc';
 import type { ProgressPhoto, WeekStartsOn } from '@/db/types';
@@ -72,14 +73,7 @@ function PhotoPane({
           <Caption numberOfLines={1}>{dateLabel}</Caption>
           <Caption numberOfLines={1}>{weekLabel}</Caption>
         </View>
-        <Pressable
-          onPress={onOpenMenu}
-          hitSlop={8}
-          className="p-1"
-          accessibilityRole="button"
-          accessibilityLabel={`Photo options for ${sideLabel} photo`}>
-          <Icon icon={MoreHorizontal} size={18} color="muted-foreground" />
-        </Pressable>
+        <IconButton icon={MoreHorizontal} size={18} color="muted-foreground" accessibilityLabel={`Photo options for ${sideLabel} photo`} onPress={onOpenMenu} className="-my-1.5 -mr-2" />
       </View>
     </View>
   );

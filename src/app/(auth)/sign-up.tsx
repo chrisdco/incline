@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, View, TextInput, Pressable, Image, ScrollView } from 'react-native';
+import { Platform, View, Pressable, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSSO } from '@clerk/expo';
@@ -9,10 +9,10 @@ import * as Linking from 'expo-linking';
 
 import { Heading, Caption, Text } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
+import { Input, PasswordInput } from '@/components/ui/input';
+import { motionControl } from '@/styles/motion';
 
-// Off-token grey (Tailwind gray-500) kept as-is for zero visual change;
-// converge on PLACEHOLDER_COLOR in the UI polish pass.
-const AUTH_PLACEHOLDER = '#6b7280';
+const LINK_TARGET = { minHeight: motionControl.minHeight, justifyContent: 'center' } as const;
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -124,31 +124,28 @@ export default function SignUpScreen() {
 
             <View className="gap-1.5">
               <Caption>Email</Caption>
-              <TextInput
+              <Input
                 value={emailAddress}
                 onChangeText={setEmailAddress}
                 placeholder="you@example.com"
-                placeholderTextColor={AUTH_PLACEHOLDER}
+                accessibilityLabel="Email"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
                 returnKeyType="next"
-                className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
               />
             </View>
 
             <View className="gap-1.5">
               <Caption>Password</Caption>
-              <TextInput
+              <PasswordInput
                 value={password}
                 onChangeText={setPassword}
                 placeholder="At least 8 characters"
-                placeholderTextColor={AUTH_PLACEHOLDER}
-                secureTextEntry
+                accessibilityLabel="Password"
                 autoComplete="new-password"
                 returnKeyType="go"
                 onSubmitEditing={() => { void onSignUpPress(); }}
-                className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
               />
             </View>
 
@@ -161,7 +158,11 @@ export default function SignUpScreen() {
             </Button>
 
             <View className="items-center">
-              <Pressable onPress={() => router.push('/(auth)/sign-in')}>
+              <Pressable
+                onPress={() => router.push('/(auth)/sign-in')}
+                style={LINK_TARGET}
+                accessibilityRole="link"
+                accessibilityLabel="Already have an account? Sign in">
                 <Text className="text-sm text-muted-foreground">
                   Already have an account? <Text className="font-semibold text-primary-text">Sign in</Text>
                 </Text>
@@ -172,14 +173,13 @@ export default function SignUpScreen() {
           <View className="gap-4">
             <View className="gap-1.5">
               <Caption>Verification code</Caption>
-              <TextInput
+              <Input
                 value={code}
                 onChangeText={setCode}
                 placeholder="Enter the 6-digit code"
-                placeholderTextColor={AUTH_PLACEHOLDER}
+                accessibilityLabel="Verification code"
                 keyboardType="number-pad"
                 autoComplete="one-time-code"
-                className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
               />
             </View>
 

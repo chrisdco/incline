@@ -1,14 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, View, type ViewInstance } from 'react-native';
+import { View, type ViewInstance } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
 import ViewShot from 'react-native-view-shot';
 
-import { Icon } from '@/components/common/icon';
 import { Body } from '@/components/common/text';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
 import { Button } from '@/components/ui/button';
+import { ShareHeader } from '@/components/share/share-header';
 import { ShareActionBar } from '@/components/share/share-action-bar';
 import { ShareSummaryCard } from '@/components/workout/share-summary-card';
 import { getWorkoutLog, getWorkoutPrCount, getWorkoutMuscleSplit, type SessionWorkout } from '@/db/queries';
@@ -153,15 +152,7 @@ export default function ShareWorkoutScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <View className="flex-row items-center justify-between px-4 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon icon={ArrowLeft} size={24} color="foreground" />
-        </Pressable>
-        <Body className="text-base font-semibold text-foreground">Share</Body>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
-          <Body className="text-primary-text">Cancel</Body>
-        </Pressable>
-      </View>
+      <ShareHeader onClose={() => router.back()} />
 
       <View className="flex-1 px-4 pt-4">
         <ViewShot options={{ format: 'png', quality: 1, result: 'tmpfile' }}>
