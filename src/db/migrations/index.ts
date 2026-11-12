@@ -21,6 +21,7 @@ import { migration019 } from './019_exercise_search_text';
 import { migration020 } from './020_ai_activity';
 import { migration021 } from './021_ai_activity_actor';
 import { migration022 } from './022_gyms';
+import { migration023 } from './023_chat';
 import type { Migration } from './types';
 
 export type { Migration } from './types';
@@ -49,6 +50,7 @@ export const MIGRATIONS: Migration[] = [
   migration020,
   migration021,
   migration022,
+  migration023,
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 1;

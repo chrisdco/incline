@@ -8,6 +8,8 @@ export type DbTable =
   | 'ai_activity'
   | 'ai_feedback'
   | 'body_measurements'
+  | 'chat_messages'
+  | 'chat_threads'
   | 'bodyweight_entries'
   | 'exercise_aliases'
   | 'exercise_images'

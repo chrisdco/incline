@@ -10,8 +10,9 @@
  */
 import { AI_ACTIVITY_DDL } from './migrations/020_ai_activity';
 import { GYMS_DDL } from './migrations/022_gyms';
+import { CHAT_DDL } from './migrations/023_chat';
 
-export const SCHEMA_VERSION = 22;
+export const SCHEMA_VERSION = 23;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -267,6 +268,7 @@ export const SCHEMA_STATEMENTS: string[] = [
 
   // ---- gym profiles (synced, migration 022) ----
   ...GYMS_DDL,
+  ...CHAT_DDL,
 
   `CREATE TABLE IF NOT EXISTS schema_meta (
     key TEXT PRIMARY KEY,

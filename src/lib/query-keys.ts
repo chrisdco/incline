@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 
+import { getChatMessages, listChatThreads } from '@/db/queries/chat';
 import { listExercises } from '@/db/queries/exercises';
 import { getSessionExerciseNotes } from '@/db/queries/session-notes';
 import { getWorkoutGym } from '@/db/queries/gyms';
@@ -29,6 +30,8 @@ export const TABLES = {
   coaching: ['workout_templates', 'template_exercises', 'exercises', 'workout_logs', 'set_entries', 'kv', 'gyms'],
   /** Gym profiles + the current gym (kv). */
   gyms: ['gyms', 'kv'],
+  /** Ask chat threads (device-local). */
+  chat: ['chat_threads', 'chat_messages'],
 } as const satisfies Record<string, readonly DbTable[]>;
 
 /* ---- exercise catalog (was exercise-cache.ts) ---- */
@@ -93,5 +96,19 @@ export function workoutGymQuery(logId: number) {
   return queryOptions({
     queryKey: dbKey(['workout_logs', 'gyms'], 'workoutGym', logId),
     queryFn: () => getWorkoutGym(logId),
+  });
+}
+
+/* ---- Ask chat ---- */
+
+export const chatThreadsQuery = queryOptions({
+  queryKey: dbKey(TABLES.chat, 'threads'),
+  queryFn: () => listChatThreads(),
+});
+
+export function chatMessagesQuery(threadUuid: string) {
+  return queryOptions({
+    queryKey: dbKey(TABLES.chat, 'messages', threadUuid),
+    queryFn: () => getChatMessages(threadUuid),
   });
 }
