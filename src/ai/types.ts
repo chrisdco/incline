@@ -21,6 +21,8 @@ export interface ProviderCapabilities {
 /** Why a task fell back. Order of `FAILURE_PRIORITY` decides what the UI says. */
 export type AiFailure =
   | 'disabled'
+  /** No consent to send data to this provider (App Store 5.1.2(i)). */
+  | 'consent'
   | 'offline'
   | 'rate_limited'
   | 'timeout'

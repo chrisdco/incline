@@ -41,6 +41,8 @@ export async function clearByokKey(): Promise<void> {
  */
 export async function resetAiSettings(): Promise<void> {
   useAiSettings.getState().setByok(null);
+  const { useAiConsent } = await import('./consent');
+  useAiConsent.getState().clear();
   await clearByokKey();
 }
 

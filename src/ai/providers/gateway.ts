@@ -1,3 +1,5 @@
+import { AI_CONSENT_HEADER, AI_CONSENT_VERSION } from '@/contracts/ai/consent';
+
 import { AiError, type AiProvider } from '../types';
 import { aiErrorFromFetch, aiErrorFromStatus } from './http-errors';
 
@@ -40,6 +42,8 @@ export function createGatewayProvider(config: GatewayProviderConfig): AiProvider
             Authorization: `Bearer ${token}`,
             apikey: config.anonKey,
             'Content-Type': 'application/json',
+            // The chain only includes this provider with consent; the server can audit/enforce it.
+            [AI_CONSENT_HEADER]: String(AI_CONSENT_VERSION),
           },
           body: JSON.stringify(await spec.body(input)),
           signal: ctx.signal,

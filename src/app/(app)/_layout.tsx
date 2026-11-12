@@ -30,6 +30,7 @@ export default function AppLayout() {
         <Stack.Screen name="gym/[id]" options={{ headerShown: true, title: 'Gym' }} />
         <Stack.Screen name="export" options={{ headerShown: false }} />
         <Stack.Screen name="ai-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="ai-consent" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="import" options={{ headerShown: false }} />
         <Stack.Screen name="template/[id]" options={{ headerShown: true, title: 'Routine' }} />
         <Stack.Screen name="program/[id]" options={{ headerShown: true, title: 'Program' }} />

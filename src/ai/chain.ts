@@ -1,4 +1,5 @@
 import { byokPreset, type ByokConfig } from './byok-presets';
+import { hasConsent, type AiConsentState } from './consent';
 import { createChatProvider } from './providers/chat';
 import { createGatewayProvider } from './providers/gateway';
 import type { AiProvider } from './types';
@@ -13,12 +14,14 @@ export interface ChainInputs {
   getByokKey: () => Promise<string | null>;
   /** Present only when the sync backend is configured and signed in. */
   gateway: { supabaseUrl: string; anonKey: string; getToken: () => Promise<string | null> } | null;
+  /** Third-party AI consent (FOUNDATION-REVIEW G1). Providers without it are dropped. */
+  consent: AiConsentState;
   fetchImpl?: typeof fetch;
 }
 
 export function buildProviderChain(inputs: ChainInputs): AiProvider[] {
   const chain: AiProvider[] = [];
-  if (inputs.byok) {
+  if (inputs.byok && hasConsent(inputs.consent, { kind: 'byok', presetId: inputs.byok.presetId })) {
     const preset = byokPreset(inputs.byok.presetId);
     chain.push(
       createChatProvider({
@@ -32,8 +35,18 @@ export function buildProviderChain(inputs: ChainInputs): AiProvider[] {
       }),
     );
   }
-  if (inputs.gateway) {
+  if (inputs.gateway && hasConsent(inputs.consent, { kind: 'incline' })) {
     chain.push(createGatewayProvider({ ...inputs.gateway, fetchImpl: inputs.fetchImpl }));
   }
   return chain;
+}
+
+/**
+ * Why an empty chain is empty: a configured provider that lacks consent gets
+ * the consent prompt instead of a generic "can't reach AI".
+ */
+export function chainBlockedByConsent(inputs: ChainInputs): boolean {
+  const byokBlocked = Boolean(inputs.byok) && !hasConsent(inputs.consent, { kind: 'byok', presetId: inputs.byok!.presetId });
+  const gatewayBlocked = Boolean(inputs.gateway) && !hasConsent(inputs.consent, { kind: 'incline' });
+  return byokBlocked || gatewayBlocked;
 }

@@ -26,6 +26,7 @@ import {
 } from '@/ai/byok-presets';
 import { testAiConnection, type ConnectionTestResult } from '@/ai/connection-test';
 import { aiFailureCopy } from '@/ai/copy';
+import { hasAnyConsent, useAiConsent } from '@/ai/consent';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { useSettings } from '@/store/settings-store';
 
@@ -99,6 +100,13 @@ export default function AiSettingsScreen() {
   const setAiEnabled = useSettings((s) => s.setAiExplanationsEnabled);
   const saved = useAiSettings((s) => s.byok);
   const setByok = useAiSettings((s) => s.setByok);
+  const consent = useAiConsent();
+  const consented = hasAnyConsent(consent);
+  const onToggleAi = (on: boolean) => {
+    // Turning AI on goes through consent first (App Store 5.1.2(i)); the consent screen turns it on.
+    if (on && !consented) router.push('/(app)/ai-consent?enable=1' as Href);
+    else setAiEnabled(on);
+  };
 
   const [where, setWhere] = useState<Where>(saved ? 'byok' : 'cloud');
   const [presetId, setPresetId] = useState<ByokPresetId>(saved?.presetId ?? 'groq');
@@ -145,6 +153,8 @@ export default function AiSettingsScreen() {
       return;
     }
     setByok(config);
+    // Saving a provider under the disclosure line below is the user's permission for it.
+    consent.set({ kind: 'byok', presetId: config.presetId }, true);
     setStoredKey(keyDraft.trim() || storedKey);
     setKeyDraft('');
     toast({ title: `Using ${preset.label}`, description: 'Incline cloud stays as the backup.', variant: 'success' });
@@ -175,7 +185,7 @@ export default function AiSettingsScreen() {
             icon={<Icon icon={AiMark} size={18} color="muted-foreground" />}
             title="AI coaching"
             subtitle="Plain-language explanations. Numbers always come from your data and our rules.">
-            <Switch value={aiEnabled} onValueChange={setAiEnabled} accessibilityLabel="AI coaching" />
+            <Switch value={aiEnabled} onValueChange={onToggleAi} accessibilityLabel="AI coaching" />
           </ListRow>
         </Card>
 
@@ -271,6 +281,9 @@ export default function AiSettingsScreen() {
                     Save
                   </Button>
                 </View>
+                {presetId !== 'local' ? (
+                  <Caption>Saving lets Incline send the data each answer needs to {preset.label}.</Caption>
+                ) : null}
                 {testResult ? <TestResultLine result={testResult} /> : null}
                 {saved ? (
                   <Caption>
@@ -284,6 +297,12 @@ export default function AiSettingsScreen() {
 
         <SectionLabel className="mt-6">Privacy</SectionLabel>
         <Card>
+          <ListRow
+            icon={<Icon icon={ShieldCheck} size={18} color="muted-foreground" />}
+            title="Data sharing"
+            subtitle={consented ? 'Allowed for the providers you chose' : 'No AI provider allowed yet'}
+            onPress={() => router.push('/(app)/ai-consent' as Href)}
+          />
           <View className="gap-3 py-3">
             <View className="flex-row items-start gap-3">
               <Icon icon={ShieldCheck} size={18} color="muted-foreground" />
