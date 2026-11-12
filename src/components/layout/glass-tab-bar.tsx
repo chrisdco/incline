@@ -113,7 +113,10 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab, onAi }
               accessibilityLabel={options.tabBarAccessibilityLabel ?? tab.label}
               className="flex-1 items-center justify-center gap-0.5">
               <Icon icon={tab.icon} size={22} color={focused ? 'primary' : 'muted-foreground'} strokeWidth={focused ? 2.4 : 2} />
-              <Text className={cn('text-2xs', focused ? 'font-semibold text-primary-text' : 'text-muted-foreground')}>{tab.label}</Text>
+              {/* Same weight on and off, so labels don't shift width as you switch (ASK-UI.md "Tab labels"). */}
+              <Text numberOfLines={1} className={cn('text-2xs font-medium', focused ? 'text-primary-text' : 'text-muted-foreground')}>
+                {tab.label}
+              </Text>
             </Tappable>
           );
         })}

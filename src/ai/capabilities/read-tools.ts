@@ -302,6 +302,13 @@ const HANDLERS: Record<string, (db: Db, args: Args) => Promise<unknown>> = {
   },
 };
 
+/** Recent completed sets and the user's unit, for rules that read the same data as the tools (Ask's idle brief). */
+export async function readRecentSets(open: () => Promise<Db> = openDatabase): Promise<{ sets: NormSet[]; unit: Unit }> {
+  const db = await open();
+  const [sets, unit] = await Promise.all([recentSets(db), unitOf(db)]);
+  return { sets, unit };
+}
+
 export interface DeviceTool {
   spec: ToolSpec;
   run(args: Json, ctx: { signal?: AbortSignal }): Promise<Json>;
