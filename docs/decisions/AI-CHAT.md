@@ -254,6 +254,7 @@ The pattern most memory systems have settled on: **structured facts the user own
 - **Not adopted**: Mem0, Letta and Zep. They are server-side memory services with their own storage, and our facts are tens of rows in SQLite. Revisit if facts grow past a few hundred per user or we need semantic recall over old chats. Then the next step is local embeddings plus `sqlite-vec`, not an external service.
 
 ## 6. Safety and privacy
+- See [FOUNDATION-REVIEW.md](FOUNDATION-REVIEW.md) for consent (App Store 5.1.2(i)), app attestation, the model catalog and the AI data use record. All four land in Phase 1.
 - The guardrails in AI-ARCHITECTURE §1.3 / §3 apply unchanged: grounded-or-silent, the number gate, no medical claims, and alternatives offered for injury questions.
 - A data line sits under the composer on first use: "Ask sends only the data each answer needs to the AI provider." It links to AI settings, which show the provider in use (Incline-hosted or BYOK).
 - No secrets or tokens ever go into the prompt. Custom exercise names are sanitised (#153).
@@ -278,7 +279,7 @@ The pattern most memory systems have settled on: **structured facts the user own
 |---|---|---|
 | **0. Spike** | AI SDK + polyfills on Hermes; one streamed reply with one tool (`get_personal_records`) through a dev `ai-chat` | Streams on incline_pixel; Stop cancels; versions pinned |
 | **0.5 Contracts + boundaries** | `ChatPart`/`ChatEvent`/`ToolSpec`/`ModelPort`/`MemoryPort` in `src/contracts/ai`; `src/ai/runtime` + `capabilities` folders; eslint import rules; MCP ↔ device tool contract test | Lint fails if a surface imports `ai`; both tool implementations match on fixtures |
-| **1. Chat core** | `ai-chat` edge fn (auth, quota, flags, passthrough); chat screen (text, tool activity, stop); the 9 MCP read tools on SQLite; local threads (`023_chat`); thread list on Ask | Can ask "how's my bench going?" and get a grounded answer with a source chip, saved as a thread |
+| **1. Chat core** | AI data consent (FOUNDATION-REVIEW G1) + attestation (G2) + model catalog (G8) + AI data use record (G9); `ai-chat` edge fn (auth, quota, flags, passthrough); chat screen (text, tool activity, stop); the 9 MCP read tools on SQLite; local threads (`023_chat`); thread list on Ask | Can ask "how's my bench going?" and get a grounded answer with a source chip, saved as a thread |
 | **2. Cards + actions** | Data cards; `propose_*` tools rendering `ProposalCard`; follow-up chips; attach context; Ask-about-this entry from cards | A plan edit made from chat applies and undoes; it shows in the activity log |
 | **3. Memory** | `coach_memory`, `remember`, end-of-thread extraction, "What Incline knows" screen, temporary chat | The squat-avoidance verification from AI-ARCHITECTURE passes through chat |
 | **4. In-session sheet** | The chat sheet over the active workout, session tools, read-only defaults | The timer and logging never stall while chat streams |
