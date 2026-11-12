@@ -30,6 +30,7 @@ import { ListGroup, ListRow, Section } from '@/components/layout';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { PhotoPeek } from '@/components/common/photo-peek';
 import { useProfile, useProgressStats } from '@/hooks/use-data';
+import { tabBarScrollProps } from '@/hooks/use-tab-bar-scroll';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
 import { saveProfile, resetUserData } from '@/db/queries';
@@ -118,7 +119,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={screenContent}>
+      <ScrollView {...tabBarScrollProps()} showsVerticalScrollIndicator={false} contentContainerStyle={screenContent}>
         <View className={`${SCREEN_HEADER} flex-row items-center justify-between px-0`}>
           <Heading>Profile</Heading>
           <Pressable

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 import { Tabs, useRouter, type Href } from 'expo-router';
 import { NativeTabs } from 'expo-router/native-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,10 @@ import { themeHex } from '@/lib/theme';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { useSettings } from '@/store/settings-store';
 import { isAskContext, useAiEntry } from '@/store/ai-entry-store';
-import { GlassTabBar, glassBarInset } from '@/components/layout/glass-tab-bar';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+
+import { GlassTabBar, GLASS_BAR_HEIGHT, glassBarInset } from '@/components/layout/glass-tab-bar';
+import { tabBarHidden } from '@/hooks/use-tab-bar-scroll';
 import { ActiveSessionBar } from '@/components/workout/active-session-bar';
 import { DiscardSessionDialog, ResumeSessionDialog } from '@/components/workout/discard-session-dialog';
 import { useActiveSession } from '@/hooks/use-active-session';
@@ -37,6 +40,9 @@ export default function TabsLayout() {
   // Selected tab = accent as text on a neutral bar, so the readable text tone.
   const tint = resolveIconColor('primary', scheme === 'dark', accent);
   const android = Platform.OS === 'android';
+  // When the glass bar tucks away on scroll, the session bar drops into its
+  // slot (iOS docks its accessory the same way).
+  const sessionDrop = useAnimatedStyle(() => ({ transform: [{ translateY: tabBarHidden.value * GLASS_BAR_HEIGHT }] }));
 
   // On cold start with an unfinished session, prompt to resume or discard.
   // Only show for sessions older than 5s (not a fresh start that's still animating).
@@ -156,11 +162,11 @@ export default function TabsLayout() {
 
       {android && sessionBar ? (
         // Above the glass bar, where iOS puts the bottom accessory.
-        <View
+        <Animated.View
           pointerEvents="box-none"
-          style={{ position: 'absolute', left: 0, right: 0, bottom: glassBarInset(insets.bottom), zIndex: 50 }}>
+          style={[{ position: 'absolute', left: 0, right: 0, bottom: glassBarInset(insets.bottom), zIndex: 50 }, sessionDrop]}>
           {sessionBar}
-        </View>
+        </Animated.View>
       ) : null}
 
       <ResumeSessionDialog

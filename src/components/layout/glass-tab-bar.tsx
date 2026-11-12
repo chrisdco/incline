@@ -10,6 +10,7 @@ import { Icon } from '@/components/common/icon';
 import { Text } from '@/components/common/text';
 import { Tappable } from '@/components/ui/tappable';
 import { useHaptics } from '@/hooks/use-haptics';
+import { showTabBar, tabBarHidden } from '@/hooks/use-tab-bar-scroll';
 import { cn } from '@/lib/cn';
 
 /**
@@ -61,10 +62,21 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab, onAi }
   }, [index, slot, x]);
   const highlight = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 
+  // Hide-on-scroll (use-tab-bar-scroll): slide fully below the screen edge.
+  // A tab switch always brings it back.
+  useEffect(() => {
+    showTabBar();
+  }, [index]);
+  const offscreen = GLASS_BAR_HEIGHT + GLASS_BAR_GAP + insets.bottom + 16;
+  const slide = useAnimatedStyle(() => ({
+    transform: [{ translateY: tabBarHidden.value * offscreen }],
+    opacity: 1 - tabBarHidden.value * 0.4,
+  }));
+
   return (
-    <View
+    <Animated.View
       pointerEvents="box-none"
-      style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + GLASS_BAR_GAP }}
+      style={[{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + GLASS_BAR_GAP }, slide]}
       className="flex-row items-center gap-2 px-4">
       <View
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
@@ -119,6 +131,6 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab, onAi }
         className="items-center justify-center border border-divider bg-surface2 shadow-lg">
         <Icon icon={AiMark} size={26} color="primary" />
       </Tappable>
-    </View>
+    </Animated.View>
   );
 }

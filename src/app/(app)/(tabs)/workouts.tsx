@@ -22,6 +22,7 @@ import { ProgramCard } from '@/components/workout/program-card';
 import { HeroGlow } from '@/components/common/hero-glow';
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
 import { useTemplateSummaries, usePrograms } from '@/hooks/use-data';
+import { tabBarScrollProps } from '@/hooks/use-tab-bar-scroll';
 import { useActiveSession } from '@/hooks/use-active-session';
 import { useActiveWorkout } from '@/store/active-workout-store';
 import { useToast } from '@/components/ui/toast';
@@ -192,6 +193,7 @@ export default function WorkoutsScreen() {
 
       {tab === 'routines' ? (
         <FlashList
+          {...tabBarScrollProps()}
           data={visibleRoutines}
           renderItem={({ item }) => (
             <WorkoutCard
@@ -283,6 +285,7 @@ export default function WorkoutsScreen() {
 
       {tab === 'programs' ? (
         <FlashList
+          {...tabBarScrollProps()}
           data={programs.data ?? []}
           renderItem={({ item }) => (
             <Pressable
