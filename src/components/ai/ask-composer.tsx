@@ -1,41 +1,73 @@
-import { useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { ArrowUp, BarChart3, CalendarRange, Dumbbell, History, Plus, Square, Trophy } from 'lucide-react-native';
+import { Modal, Pressable, View, useWindowDimensions } from 'react-native';
+import Animated, { Easing, FadeOut, ZoomIn } from 'react-native-reanimated';
+import {
+  ArrowUp,
+  BarChart3,
+  CalendarRange,
+  Dumbbell,
+  Gauge,
+  History,
+  Plus,
+  SlidersHorizontal,
+  Square,
+  Trophy,
+  type LucideIcon,
+} from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
-import { Caption } from '@/components/common/text';
-import { ListGroup, ListRow, SectionLabel } from '@/components/layout';
+import { Body, Caption } from '@/components/common/text';
 import { Input } from '@/components/ui/input';
-import { Sheet } from '@/components/ui/sheet';
-import { BLUR_METHOD, blurTint, type BlurTarget } from '@/components/ui/edge-blur';
 import { Tappable } from '@/components/ui/tappable';
 import { cn } from '@/lib/cn';
-import { useAppColorScheme } from '@/lib/use-color-scheme';
+import { motionDuration } from '@/styles/motion';
 
-/** Quick questions the + sheet drops into the composer (attach a workout/exercise joins these in Phase 2). */
-const ABOUT = [
+type MenuItem = { label: string; icon: LucideIcon } & ({ text: string } | { href: Href });
+
+/** Quick questions drop into the input; tools open their screen. Attach (exercise, workout, routine) joins in Phase 2. */
+const ASK: MenuItem[] = [
   { label: 'My last workout', text: 'How did my last workout go?', icon: History },
   { label: 'My best lifts', text: 'What are my best lifts?', icon: Trophy },
   { label: 'This week', text: 'How is my training this week?', icon: BarChart3 },
   { label: 'Muscle balance', text: 'Which muscles am I undertraining?', icon: Dumbbell },
-] as const;
-
-const TOOLS: { title: string; href: Href }[] = [
-  { title: 'Build a plan', href: '/(app)/plan-builder' as Href },
-  { title: 'Adjust my program', href: '/(app)/program-adjust' as Href },
-  { title: 'Deload check', href: '/(app)/deload' as Href },
+];
+const TOOLS: MenuItem[] = [
+  { label: 'Build a plan', href: '/(app)/plan-builder' as Href, icon: CalendarRange },
+  { label: 'Adjust my program', href: '/(app)/program-adjust' as Href, icon: SlidersHorizontal },
+  { label: 'Deload check', href: '/(app)/deload' as Href, icon: Gauge },
 ];
 
+/** Gap between the composer and the menu above it. */
+const MENU_GAP = 8;
+const MENU_W = 248;
+
+/** Where the menu anchors: the composer's top-left, in window coordinates. */
+type Anchor = { x: number; y: number };
+
+function MenuRow({ item, onPress }: { item: MenuItem; onPress: () => void }) {
+  return (
+    <Tappable
+      onPress={onPress}
+      pressedOpacity={0.55}
+      accessibilityRole="menuitem"
+      accessibilityLabel={item.label}
+      className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+      <Icon icon={item.icon} size={18} color="muted-foreground" />
+      <Body className="flex-1">{item.label}</Body>
+    </Tappable>
+  );
+}
+
 /**
- * Ask's composer, shared by idle and threads: `+` (quick questions and
- * tools now; attachments in Phase 2), the input, and send/Stop. Voice joins
- * as hold-to-talk in Phase 5 (ASK-UI.md).
+ * Ask's composer, shared by idle and threads: `+`, the input, and send/Stop.
+ * `+` opens a small menu right above it (ChatGPT/Claude style), not a
+ * sheet: quick questions and tools now, attachments in Phase 2. Voice is
+ * hold-to-talk later (ASK-UI.md: it needs a native speech module).
  *
- * With `blurTarget` it floats: a frosted pill over the content (the
- * `BlurTargetView` it sits above), lifted by a shadow, not docked to the edge.
+ * `floating` makes it a solid pill with a shadow, for screens where content
+ * scrolls beneath it (EdgeBlur blurs what passes under it).
  */
 export function AskComposer({
   value,
@@ -45,7 +77,7 @@ export function AskComposer({
   onStop,
   placeholder = 'Ask about your training',
   footnote,
-  blurTarget,
+  floating,
 }: {
   value: string;
   onChangeText: (t: string) => void;
@@ -54,33 +86,41 @@ export function AskComposer({
   onStop?: () => void;
   placeholder?: string;
   footnote?: string;
-  blurTarget?: BlurTarget;
+  floating?: boolean;
 }) {
-  const scheme = useAppColorScheme();
   const router = useRouter();
-  const [plus, setPlus] = useState(false);
+  const { height } = useWindowDimensions();
+  const shell = useRef<ComponentRef<typeof View>>(null);
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
   const canSend = !!value.trim();
 
+  const openMenu = () => shell.current?.measureInWindow((x, y) => setAnchor({ x, y }));
+  const close = () => setAnchor(null);
+  const pick = (item: MenuItem) => {
+    close();
+    if ('text' in item) onChangeText(item.text);
+    else router.push(item.href);
+  };
+
   return (
-    <View className={blurTarget ? 'rounded-3xl shadow-lg' : undefined}>
+    <View>
       <View
+        ref={shell}
         className={cn(
-          'flex-row items-end gap-2 overflow-hidden rounded-3xl border p-1.5',
-          blurTarget ? 'border-hairline bg-surface1/70' : 'border-input bg-surface1',
+          'flex-row items-end gap-2 rounded-3xl border p-1.5',
+          floating ? 'border-divider bg-surface2 shadow-lg' : 'border-input bg-surface1',
         )}>
-        {blurTarget ? (
-          <BlurView intensity={40} tint={blurTint(scheme)} blurTarget={blurTarget} blurMethod={BLUR_METHOD} style={StyleSheet.absoluteFill} />
-        ) : null}
         <Tappable
-          onPress={() => setPlus(true)}
+          onPress={openMenu}
           pressedOpacity={0.55}
           accessibilityRole="button"
           accessibilityLabel="Add to your question"
-          className="h-10 w-10 items-center justify-center rounded-full">
-          <Icon icon={Plus} size={20} color="muted-foreground" />
+          accessibilityState={{ expanded: !!anchor }}
+          className="h-10 w-10 items-center justify-center rounded-full bg-surface3">
+          <Icon icon={Plus} size={20} color="foreground" />
         </Tappable>
         <Input
-          className="max-h-32 min-h-10 flex-1 border-0 bg-transparent px-0 py-2"
+          className="max-h-32 min-h-10 flex-1 border-0 bg-transparent px-1 py-2"
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -100,39 +140,29 @@ export function AskComposer({
       </View>
       {footnote ? <Caption className="mt-1.5 text-center">{footnote}</Caption> : null}
 
-      <Sheet open={plus} onOpenChange={setPlus} title="Ask about" mode="fit">
-        <View className="gap-5 pb-4">
-          <ListGroup>
-            {ABOUT.map((a) => (
-              <ListRow
-                key={a.label}
-                icon={<Icon icon={a.icon} size={18} color="muted-foreground" />}
-                title={a.label}
-                onPress={() => {
-                  setPlus(false);
-                  onChangeText(a.text);
-                }}
-              />
-            ))}
-          </ListGroup>
-          <View>
-            <SectionLabel>Tools</SectionLabel>
-            <ListGroup>
-              {TOOLS.map((t) => (
-                <ListRow
-                  key={t.title}
-                  icon={<Icon icon={CalendarRange} size={18} color="muted-foreground" />}
-                  title={t.title}
-                  onPress={() => {
-                    setPlus(false);
-                    router.push(t.href);
-                  }}
-                />
-              ))}
-            </ListGroup>
-          </View>
-        </View>
-      </Sheet>
+      <Modal visible={!!anchor} transparent animationType="none" statusBarTranslucent onRequestClose={close}>
+        <Pressable className="flex-1" onPress={close} accessibilityRole="button" accessibilityLabel="Close menu">
+          {anchor ? (
+            <Animated.View
+              entering={ZoomIn.duration(motionDuration.enter).easing(Easing.out(Easing.cubic))}
+              exiting={FadeOut.duration(motionDuration.exit)}
+              accessibilityRole="menu"
+              className="absolute rounded-2xl border border-divider bg-surface2 p-1.5 shadow-lg"
+              style={{ left: anchor.x, bottom: height - anchor.y + MENU_GAP, width: MENU_W, transformOrigin: 'bottom left' }}>
+              {/* Swallows taps so the backdrop doesn't close the menu under a row. */}
+              <Pressable>
+                {ASK.map((item) => (
+                  <MenuRow key={item.label} item={item} onPress={() => pick(item)} />
+                ))}
+                <View className="mx-3 my-1 h-px bg-divider" />
+                {TOOLS.map((item) => (
+                  <MenuRow key={item.label} item={item} onPress={() => pick(item)} />
+                ))}
+              </Pressable>
+            </Animated.View>
+          ) : null}
+        </Pressable>
+      </Modal>
     </View>
   );
 }
