@@ -2,15 +2,35 @@ import { useState } from 'react';
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
-import Animated, { Easing, FadeInDown, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
-import { ChevronRight, Menu, SquarePen, X } from 'lucide-react-native';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { BlurTargetView } from 'expo-blur';
+import {
+  BarChart3,
+  CalendarDays,
+  ChevronRight,
+  Gauge,
+  Menu,
+  MessageSquare,
+  Scale,
+  SlidersHorizontal,
+  SquarePen,
+  X,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
-import { Body, Caption, Heading, Subtitle, Text } from '@/components/common/text';
-import { ListGroup, ListRow, Section, SectionLabel } from '@/components/layout';
+import { Body, Caption, Label, Subtitle, Text } from '@/components/common/text';
+import { ListGroup, ListRow, SectionLabel } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { EdgeBlur, useBlurTarget } from '@/components/ui/edge-blur';
 import { Tappable } from '@/components/ui/tappable';
 import { hasAnyConsent, useAiConsent } from '@/ai/consent';
 import type { Insight } from '@/ai/ask-brief';
@@ -19,7 +39,6 @@ import { askBriefQuery, chatThreadsQuery } from '@/lib/query-keys';
 import { cn } from '@/lib/cn';
 import { newUuid } from '@/lib/uuid';
 import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
-import { motionDuration } from '@/styles/motion';
 import type { TemplateExercise } from '@/db/types';
 
 import { AiFallbackNotice } from './ai-fallback-notice';
@@ -32,12 +51,12 @@ import { SuggestionChip } from './suggestion-chip';
 /** Shown when there isn't enough data for insights (new users). */
 const STARTERS = ["How's my bench going?", 'What are my best lifts?', 'Am I training enough?'];
 
-type Door = { title: string; subtitle: string; href: Href };
-const ADJUST: Door = { title: 'Adjust my program', subtitle: 'Load and volume from recent sessions', href: '/(app)/program-adjust' as Href };
-const DELOAD: Door = { title: 'Do I need a deload?', subtitle: 'Fatigue and missed reps', href: '/(app)/deload' as Href };
-const BALANCE: Door = { title: 'Which muscles am I missing?', subtitle: 'Sets per muscle this period', href: '/(app)/muscle-distribution' as Href };
-const WEEK: Door = { title: 'Summarise my week', subtitle: 'Volume, records and streak', href: '/(app)/report/week' as Href };
-const MONTH: Door = { title: 'How did this month go?', subtitle: 'Month report', href: '/(app)/report/month' as Href };
+type Door = { title: string; icon: LucideIcon; href: Href };
+const ADJUST: Door = { title: 'Adjust my program', icon: SlidersHorizontal, href: '/(app)/program-adjust' as Href };
+const DELOAD: Door = { title: 'Do I need a deload?', icon: Gauge, href: '/(app)/deload' as Href };
+const BALANCE: Door = { title: 'Which muscles am I missing?', icon: Scale, href: '/(app)/muscle-distribution' as Href };
+const WEEK: Door = { title: 'Summarise my week', icon: BarChart3, href: '/(app)/report/week' as Href };
+const MONTH: Door = { title: 'How did this month go?', icon: CalendarDays, href: '/(app)/report/month' as Href };
 
 /** Doors lead with the screen the user came from. */
 const DOORS: Record<AskContext, Door[]> = {
@@ -47,12 +66,13 @@ const DOORS: Record<AskContext, Door[]> = {
   profile: [MONTH, WEEK, ADJUST],
 };
 
+/** Header row height below the status bar; content starts under it and scrolls beneath. */
+const HEADER_H = 52;
+/** Floating composer: pill height plus its gap above the home indicator. */
+const DOCK_H = 64;
+
 const TONE = { up: 'text-success', warn: 'text-warning', neutral: 'text-muted-foreground' } as const;
 
-const rise = (i: number) =>
-  FadeInDown.duration(motionDuration.enter)
-    .delay(80 + i * 50)
-    .easing(Easing.out(Easing.cubic));
 
 function stamp(now = new Date()): string {
   const day = now.toLocaleDateString(undefined, { weekday: 'short' });
@@ -105,29 +125,29 @@ function exerciseLine(te: TemplateExercise): string | null {
   return `${name} ${te.targetSets}×${reps}`;
 }
 
-/** What's next, compact: name, time, the first two lifts, one action. Starting runs through the workout screen (conflict handling lives there). */
-function NextCard({ id, name, minutes, exercises }: { id: number; name: string; minutes?: number; exercises: TemplateExercise[] }) {
+/**
+ * What's next, compact: the heading above already names it, so the card is
+ * the plan (first lifts, time) and the one primary action on the screen.
+ * Starting runs through the workout screen (conflict handling lives there).
+ */
+function NextCard({ id, minutes, exercises }: { id: number; minutes?: number; exercises: TemplateExercise[] }) {
   const router = useRouter();
   const lines = exercises.map(exerciseLine).filter((l): l is string => !!l);
+  const meta = [`${exercises.length} exercises`, minutes ? `~${minutes} min` : null].filter(Boolean).join(' · ');
   return (
     <View className="rounded-2xl border border-hairline bg-surface1 p-4">
-      <View className="flex-row items-baseline justify-between">
-        <Subtitle numberOfLines={1} className="flex-1">
-          {name}
-        </Subtitle>
-        {minutes ? <Caption>{minutes} min</Caption> : null}
-      </View>
+      <Label>{meta}</Label>
       {lines.length ? (
-        <View className="mt-1.5 gap-0.5">
-          {lines.slice(0, 2).map((l) => (
-            <Body key={l} className="text-muted-foreground" numberOfLines={1}>
+        <View className="mt-2 gap-1">
+          {lines.slice(0, 3).map((l) => (
+            <Body key={l} numberOfLines={1}>
               {l}
             </Body>
           ))}
-          {lines.length > 2 ? <Caption>+{lines.length - 2} more</Caption> : null}
+          {lines.length > 3 ? <Caption>+{lines.length - 3} more</Caption> : null}
         </View>
       ) : null}
-      <Button className="mt-3" onPress={() => router.push(`/workout/${id}` as Href)}>
+      <Button className="mt-4" onPress={() => router.push(`/workout/${id}` as Href)}>
         Start workout
       </Button>
     </View>
@@ -137,7 +157,12 @@ function NextCard({ id, name, minutes, exercises }: { id: number; name: string; 
 /**
  * Ask (ASK-UI.md "The shell"): ambient dither header, what's next, the
  * rules-built "Worth a look" tiles, the doors into Ask's tools, and the
- * composer pinned at the bottom. History lives in the drawer.
+ * floating composer. History lives in the drawer.
+ *
+ * Hierarchy, top to bottom: the headline (largest), one primary action
+ * (Start workout), numbers worth a look, then quieter ways in (rows), then
+ * the brand card. Content scrolls under the header and the composer and
+ * dissolves there (EdgeBlur) instead of being cut.
  */
 export function AskScreen({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
@@ -151,10 +176,13 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
   const [drawer, setDrawer] = useState(false);
   const [draft, setDraft] = useState('');
   const [now] = useState(stamp);
+  const target = useBlurTarget();
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
+  // The top edge only frosts once something has scrolled under the header.
+  const topFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, 32], [0, 1], Extrapolation.CLAMP) }));
   const last = threads[0];
 
   const openChat = (q?: string) => {
@@ -182,127 +210,122 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
   const cards = brief?.cards ?? [];
   const headline = slot?.isRestDay ? 'Rest day today' : next ? `${next.name} is next` : (brief?.headline ?? 'Ask about your training');
   const tiles = cards.slice(0, 2);
+  const third = cards[2];
 
   return (
     <View className="flex-1 bg-background">
       <AskAmbient scene={brief?.scene ?? 'mark'} scrollY={scrollY} />
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View className="flex-row items-center px-2 pt-1" style={{ marginTop: insets.top }}>
+        <BlurTargetView ref={target} style={{ flex: 1 }}>
+          <Animated.ScrollView
+            className="flex-1"
+            contentContainerClassName="px-4"
+            contentContainerStyle={{ paddingTop: insets.top + HEADER_H + 12, paddingBottom: insets.bottom + DOCK_H + 32 }}
+            keyboardShouldPersistTaps="handled"
+            onScroll={onScroll}
+            scrollEventThrottle={16}>
+            <View>
+              <Label>{now}</Label>
+              <Text className="mt-2 text-3xl font-bold tracking-tight text-foreground" accessibilityRole="header">
+                {headline}
+              </Text>
+            </View>
+
+            {consented ? null : (
+              <View className="mt-5">
+                <AiFallbackNotice reason="consent" />
+              </View>
+            )}
+
+            {next ? (
+              <View className="mt-5">
+                <NextCard id={next.id} minutes={next.minutes} exercises={next.exercises} />
+              </View>
+            ) : null}
+
+            {tiles.length ? (
+              <View className="mt-8">
+                <SectionLabel>Worth a look</SectionLabel>
+                <View className="flex-row gap-2.5">
+                  {tiles.map((c) => (
+                    <StatTile key={c.question} insight={c} onPress={() => openChat(c.question)} />
+                  ))}
+                  {tiles.length === 1 ? <View className="flex-1" /> : null}
+                </View>
+                {third ? (
+                  <Tappable
+                    onPress={() => openChat(third.question)}
+                    pressedOpacity={0.6}
+                    accessibilityRole="button"
+                    className="mt-2.5 flex-row items-center gap-3 rounded-2xl border border-hairline bg-surface1 px-3.5 py-3">
+                    <View className="flex-1">
+                      <Caption numberOfLines={1}>
+                        {third.stat.label} · <Text className={cn('text-sm font-medium', TONE[third.stat.tone])}>{third.stat.delta}</Text>
+                      </Caption>
+                      <Subtitle className="mt-0.5">{third.question}</Subtitle>
+                    </View>
+                    <Icon icon={ChevronRight} size={16} color="muted-foreground" />
+                  </Tappable>
+                ) : null}
+              </View>
+            ) : brief ? (
+              <View className="mt-8">
+                <SectionLabel>Try asking</SectionLabel>
+                <View className="flex-row flex-wrap gap-2">
+                  {STARTERS.map((q) => (
+                    <SuggestionChip key={q} label={q} onPress={() => openChat(q)} />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            <View className="mt-8">
+              <SectionLabel>Jump in</SectionLabel>
+              <ListGroup>
+                {last ? (
+                  <ListRow
+                    icon={<Icon icon={MessageSquare} size={18} color="muted-foreground" />}
+                    title={last.title || 'Chat'}
+                    subtitle="Continue chat"
+                    onPress={() => router.push(`/(app)/chat/${last.uuid}` as Href)}
+                  />
+                ) : null}
+                {DOORS[from].map((d) => (
+                  <ListRow
+                    key={d.title}
+                    icon={<Icon icon={d.icon} size={18} color="muted-foreground" />}
+                    title={d.title}
+                    onPress={() => router.push(d.href)}
+                  />
+                ))}
+              </ListGroup>
+            </View>
+
+            <View className="mt-8">
+              <AiHero
+                compact
+                title="Build a plan"
+                subtitle="A few weeks of training, made for you"
+                onPress={() => router.push('/(app)/plan-builder' as Href)}
+              />
+              <Caption className="mt-6 text-center">Answers use your logged data and can be wrong.</Caption>
+            </View>
+          </Animated.ScrollView>
+        </BlurTargetView>
+
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0 }, topFade]}>
+          <EdgeBlur edge="top" height={insets.top + HEADER_H + 16} target={target} veil={0.96} style={{ position: 'relative' }} />
+        </Animated.View>
+        <View className="absolute left-0 right-0 flex-row items-center px-2" style={{ top: insets.top, height: HEADER_H }}>
           <HeaderButton icon={Menu} label="Chats and tools" onPress={() => setDrawer(true)} />
           <Subtitle className="flex-1 text-center">Ask</Subtitle>
           <HeaderButton icon={SquarePen} label="New chat" onPress={() => openChat()} />
           {onClose ? <HeaderButton icon={X} label="Close" onPress={onClose} /> : null}
         </View>
 
-        <Animated.ScrollView
-          className="flex-1"
-          contentContainerClassName="px-4 pb-6 pt-3"
-          keyboardShouldPersistTaps="handled"
-          onScroll={onScroll}
-          scrollEventThrottle={16}>
-          <Animated.View entering={rise(0)}>
-            <Caption>{now}</Caption>
-            <Heading className="mt-1" accessibilityRole="header">
-              {headline}
-            </Heading>
-            {next && brief?.cards.length ? <Body className="mt-1 text-muted-foreground">{brief.headline}</Body> : null}
-          </Animated.View>
-
-          {consented ? null : (
-            <Animated.View entering={rise(1)} className="mt-4">
-              <AiFallbackNotice reason="consent" />
-            </Animated.View>
-          )}
-
-          {next ? (
-            <Animated.View entering={rise(1)} className="mt-4">
-              <NextCard {...next} />
-            </Animated.View>
-          ) : null}
-
-          {tiles.length ? (
-            <Animated.View entering={rise(2)} className="mt-6">
-              <SectionLabel>Worth a look</SectionLabel>
-              <View className="flex-row gap-2.5">
-                {tiles.map((c) => (
-                  <StatTile key={c.question} insight={c} onPress={() => openChat(c.question)} />
-                ))}
-                {tiles.length === 1 ? <View className="flex-1" /> : null}
-              </View>
-              {cards[2] ? (
-                <Tappable
-                  onPress={() => openChat(cards[2]!.question)}
-                  pressedOpacity={0.6}
-                  accessibilityRole="button"
-                  className="mt-2.5 flex-row items-center gap-2 rounded-2xl border border-hairline bg-surface1 px-3.5 py-3">
-                  <View className="flex-1">
-                    <View className="flex-row items-baseline justify-between gap-2">
-                      <Caption numberOfLines={1} className="flex-1">
-                        {cards[2].stat.label}
-                      </Caption>
-                      <Text className={cn('text-xs font-medium', TONE[cards[2].stat.tone])}>{cards[2].stat.delta}</Text>
-                    </View>
-                    <Body className="mt-0.5 font-medium">{cards[2].question}</Body>
-                  </View>
-                  <Icon icon={ChevronRight} size={16} color="muted-foreground" />
-                </Tappable>
-              ) : null}
-            </Animated.View>
-          ) : brief ? (
-            <Animated.View entering={rise(2)} className="mt-6 flex-row flex-wrap gap-2">
-              {STARTERS.map((q) => (
-                <SuggestionChip key={q} label={q} onPress={() => openChat(q)} />
-              ))}
-            </Animated.View>
-          ) : null}
-
-          {last ? (
-            <Animated.View entering={rise(3)} className="mt-3">
-              <Tappable
-                onPress={() => router.push(`/(app)/chat/${last.uuid}` as Href)}
-                pressedOpacity={0.6}
-                accessibilityRole="button"
-                accessibilityLabel={`Continue: ${last.title || 'Chat'}`}
-                className="flex-row items-center gap-2 px-1 py-2">
-                <Caption>Continue</Caption>
-                <Body numberOfLines={1} className="flex-1 text-muted-foreground">
-                  {last.title || 'Chat'}
-                </Body>
-                <Icon icon={ChevronRight} size={16} color="muted-foreground" />
-              </Tappable>
-            </Animated.View>
-          ) : null}
-
-          <Animated.View entering={rise(3)}>
-            <Section title="Suggested">
-              <ListGroup>
-                {DOORS[from].map((d) => (
-                  <ListRow key={d.title} title={d.title} subtitle={d.subtitle} onPress={() => router.push(d.href)} />
-                ))}
-              </ListGroup>
-            </Section>
-          </Animated.View>
-
-          <Animated.View entering={rise(4)} className="mt-6">
-            <AiHero
-              compact
-              title="Build a plan"
-              subtitle="A few weeks of training, made for you"
-              onPress={() => router.push('/(app)/plan-builder' as Href)}
-            />
-            <Tappable
-              onPress={() => router.push('/(app)/(tabs)/workouts' as Href)}
-              pressedOpacity={0.6}
-              accessibilityRole="button"
-              className="mt-2 flex-row items-center gap-2 px-1 py-2">
-              <Body className="flex-1 text-muted-foreground">Change a plan or routine by asking: open it from Workouts</Body>
-              <Icon icon={ChevronRight} size={16} color="muted-foreground" />
-            </Tappable>
-          </Animated.View>
-        </Animated.ScrollView>
-
-        <View className="px-4 pt-1" style={{ paddingBottom: insets.bottom + 6 }}>
-          <AskComposer value={draft} onChangeText={setDraft} onSend={send} footnote="Answers use your logged data and can be wrong." />
+        <EdgeBlur edge="bottom" height={insets.bottom + DOCK_H + 28} target={target} />
+        <View className="absolute left-0 right-0 px-3" style={{ bottom: insets.bottom + 8 }}>
+          <AskComposer value={draft} onChangeText={setDraft} onSend={send} blurTarget={target} />
         </View>
       </KeyboardAvoidingView>
 

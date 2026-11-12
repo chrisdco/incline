@@ -15,7 +15,7 @@ import { SCENE_VIEWBOX, hashSeed, sceneDots, weekKey } from './ask-scenes';
 
 /** Height of the ambient layer; it fades out well before the composer. */
 const AMBIENT_HEIGHT = 340;
-/** Scroll distance over which the ambient settles into its header band. */
+/** Scroll distance over which the ambient slides away and fades out. */
 const SCROLL_RANGE = 240;
 
 /**
@@ -28,12 +28,12 @@ export function AskAmbient({ scene, scrollY }: { scene: SceneKind; scrollY?: Sha
   const brand = brandTheme(scheme);
   const bg = useThemeHex().background;
   const dots = useMemo(() => sceneDots(scene, hashSeed(`${scene}:${weekKey()}`)), [scene]);
-  // Slides up (slower than the content) and dims as you scroll, leaving a band behind the header.
+  // Slides up (slower than the content) and fades out as you scroll; the frosted header (EdgeBlur) takes over.
   const follow = useAnimatedStyle(() => {
     const y = scrollY?.value ?? 0;
     return {
       transform: [{ translateY: interpolate(y, [0, SCROLL_RANGE], [0, -SCROLL_RANGE * 0.6], Extrapolation.CLAMP) }],
-      opacity: interpolate(y, [0, SCROLL_RANGE], [1, 0.6], Extrapolation.CLAMP),
+      opacity: interpolate(y, [0, SCROLL_RANGE], [1, 0], Extrapolation.CLAMP),
     };
   });
   return (

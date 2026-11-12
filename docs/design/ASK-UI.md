@@ -56,7 +56,7 @@ questions you can open with one tap. The one action on it is *asking*.
 │  └───────────────────────────┘   │
 │  Continue: "Squat stalled…"  ›   │   last thread, if any
 │                                  │
-│ ┌ + │ Ask about your training  ↑┐│   composer, always at the bottom
+│ ┌ + │ Ask about your training  ↑┐│   composer: floating frosted pill
 │ └──────────────────────────────┘ │
 │  Answers use your logged data.   │
 └──────────────────────────────────┘
@@ -93,6 +93,28 @@ questions you can open with one tap. The one action on it is *asking*.
   Phase 5. It needs on-device speech recognition (a native module, so a new
   build) or a transcription call with its own consent line; no dead mic
   button before then.
+- **Floating, frosted** (2026-11-12): the composer is a pill that floats
+  8 pt above the home indicator with a blur behind it (`blurTarget`), not a
+  bar docked to the edge. Content scrolls under it and under the idle
+  header, and dissolves there through `EdgeBlur` (`components/ui`): stacked
+  blur bands that get stronger toward the edge plus a fade to the page
+  colour, so there's no hard cut. The top edge only frosts once something
+  has scrolled under it, as the ambient slides away and fades out. Android
+  blurs what's inside a `BlurTargetView` (expo-blur, SDK 58), using
+  RenderNode on Android 12+ and a plain veil below that. `BlurTargetView`
+  reparents its children natively, so no Reanimated `entering` animations
+  inside it: their frames went stale when data loaded and cards overlapped.
+- **Idle hierarchy**: one thing per level. The headline is the largest
+  (text-3xl); Start workout is the only primary button; "Worth a look" is
+  numbers; "Jump in" is quiet rows (Continue first, then doors, icon and
+  one line each); the gradient card closes the page. The next-workout card
+  doesn't repeat the name the headline already says. Section labels all
+  use `SectionLabel` with the same 32 pt gap.
+- **Type in chat**: Geist stays the one family. Answers are read, not
+  scanned, so assistant prose uses a 28 pt line on 16 pt text with wider
+  paragraph gaps; numbers stay tabular. A second family for answers (a
+  serif, as Claude uses) is an option to trial behind one token, not a
+  default.
 - **Thread extras, by rules from tool results** (never the model's text):
   a "✓ Looked at 6 Bench Press sessions" line, an e1RM trend card with a
   sparkline from `get_exercise_history`, and two follow-up chips on the

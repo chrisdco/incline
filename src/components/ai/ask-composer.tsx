@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { ArrowUp, BarChart3, CalendarRange, Dumbbell, History, Plus, Square, Trophy } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
@@ -9,8 +10,10 @@ import { Caption } from '@/components/common/text';
 import { ListGroup, ListRow, SectionLabel } from '@/components/layout';
 import { Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
+import { BLUR_METHOD, blurTint, type BlurTarget } from '@/components/ui/edge-blur';
 import { Tappable } from '@/components/ui/tappable';
 import { cn } from '@/lib/cn';
+import { useAppColorScheme } from '@/lib/use-color-scheme';
 
 /** Quick questions the + sheet drops into the composer (attach a workout/exercise joins these in Phase 2). */
 const ABOUT = [
@@ -30,6 +33,9 @@ const TOOLS: { title: string; href: Href }[] = [
  * Ask's composer, shared by idle and threads: `+` (quick questions and
  * tools now; attachments in Phase 2), the input, and send/Stop. Voice joins
  * as hold-to-talk in Phase 5 (ASK-UI.md).
+ *
+ * With `blurTarget` it floats: a frosted pill over the content (the
+ * `BlurTargetView` it sits above), lifted by a shadow, not docked to the edge.
  */
 export function AskComposer({
   value,
@@ -39,6 +45,7 @@ export function AskComposer({
   onStop,
   placeholder = 'Ask about your training',
   footnote,
+  blurTarget,
 }: {
   value: string;
   onChangeText: (t: string) => void;
@@ -47,14 +54,23 @@ export function AskComposer({
   onStop?: () => void;
   placeholder?: string;
   footnote?: string;
+  blurTarget?: BlurTarget;
 }) {
+  const scheme = useAppColorScheme();
   const router = useRouter();
   const [plus, setPlus] = useState(false);
   const canSend = !!value.trim();
 
   return (
-    <View>
-      <View className="flex-row items-end gap-2 rounded-3xl border border-input bg-surface1 py-1.5 pl-1.5 pr-1.5">
+    <View className={blurTarget ? 'rounded-3xl shadow-lg' : undefined}>
+      <View
+        className={cn(
+          'flex-row items-end gap-2 overflow-hidden rounded-3xl border p-1.5',
+          blurTarget ? 'border-hairline bg-surface1/70' : 'border-input bg-surface1',
+        )}>
+        {blurTarget ? (
+          <BlurView intensity={40} tint={blurTint(scheme)} blurTarget={blurTarget} blurMethod={BLUR_METHOD} style={StyleSheet.absoluteFill} />
+        ) : null}
         <Tappable
           onPress={() => setPlus(true)}
           pressedOpacity={0.55}
