@@ -34,7 +34,7 @@ import {
 } from '../_shared/contracts/plans/plan-edit.ts';
 import { PLAN_EDIT_SYSTEM, buildPlanEditMessage } from '../_shared/contracts/plans/edit-prompt.ts';
 import { canonicalHash, hashJson } from './hash.ts';
-import type { ChatMessage } from './upstream.ts';
+import type { ChatMessage } from '../_shared/edge/upstream.ts';
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 

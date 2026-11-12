@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { aiTaskFlag, isFlagDisabled } from '../_shared/contracts/ai/flags.ts';
 import { verifyBearerSub } from '../_shared/edge/auth.ts';
 import { TASKS } from './tasks.ts';
-import { completeJson, NotJsonError, upstreams, UpstreamError, type ChatMessage, type UpstreamUsage } from './upstream.ts';
+import { completeJson, NotJsonError, upstreams, UpstreamError, type ChatMessage, type UpstreamUsage } from '../_shared/edge/upstream.ts';
 
 /**
  * Generic AI gateway (AI-PLATFORM §1, §10 step 4). POST
