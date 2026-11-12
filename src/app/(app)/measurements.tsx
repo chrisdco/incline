@@ -94,7 +94,9 @@ function MiniChart({
     return (
       <View className="mt-4 items-center justify-center rounded-2xl border border-border/60 bg-card px-4 py-10">
         <Icon icon={BarChart3} size={36} color="muted-foreground" />
-        <Body className="mt-3 text-muted-foreground">No data in time period</Body>
+        <Body className="mt-3 text-muted-foreground">
+          {data.length === 1 ? 'One entry so far — log another to see a trend' : 'No data in time period'}
+        </Body>
       </View>
     );
   }
