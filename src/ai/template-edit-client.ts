@@ -191,12 +191,18 @@ export async function requestTemplateEdit(input: {
       const env = await import('@/lib/env');
       gateway = { supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY, getToken: supabaseToken(input.getToken) };
     }
-    const providers = buildProviderChain({
+    const { readAiConsent } = await import('./consent');
+    const chainInputs = {
       byok: byokMod.useAiSettings.getState().byok,
       getByokKey: byokMod.getByokKey,
       gateway,
-    });
-    if (providers.length === 0) return { status: 'unavailable', reason: 'unavailable' };
+      consent: readAiConsent(),
+    };
+    const providers = buildProviderChain(chainInputs);
+    if (providers.length === 0) {
+      const { chainBlockedByConsent } = await import('./chain');
+      return { status: 'unavailable', reason: chainBlockedByConsent(chainInputs) ? 'consent' : 'unavailable' };
+    }
 
     const { listExerciseNamesForAi } = await import('@/db/queries/exercises');
     const taskInput = templateEditInput(input.template, input.intent, { catalog: await listExerciseNamesForAi() });

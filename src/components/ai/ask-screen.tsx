@@ -8,9 +8,11 @@ import { Icon } from '@/components/common/icon';
 import { Caption } from '@/components/common/text';
 import { ListGroup, ListRow, Section } from '@/components/layout';
 import { Tappable } from '@/components/ui/tappable';
+import { hasAnyConsent, useAiConsent } from '@/ai/consent';
 import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
 import { motionDuration } from '@/styles/motion';
 
+import { AiFallbackNotice } from './ai-fallback-notice';
 import { AiHero } from './ai-hero';
 import { AiMark } from './ai-mark';
 
@@ -44,6 +46,7 @@ const rise = (i: number) =>
 export function AskScreen({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const from = useAiEntry((s) => s.from);
+  const consented = useAiConsent(hasAnyConsent);
 
   return (
     <View className="flex-1">
@@ -67,6 +70,11 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
           <Animated.View entering={rise(0)}>
             <Caption className="mt-3 px-1">Built from your logged training. Nothing changes until you approve it.</Caption>
           </Animated.View>
+          {consented ? null : (
+            <Animated.View entering={rise(0)} className="mt-4">
+              <AiFallbackNotice reason="consent" />
+            </Animated.View>
+          )}
         </View>
 
         <Animated.View entering={rise(1)}>

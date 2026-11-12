@@ -38,6 +38,8 @@ export interface RequestCoachNarrationInput {
 export interface NarrateClientOverrides {
   aiExplanationsEnabled?: boolean;
   /** Remote kill switch for the narrate task; undefined = read the cached flags. */
+  /** Third-party AI consent; undefined = read the stored consent. */
+  consent?: import('@/ai/consent').AiConsentState;
   taskEnabled?: boolean;
   backendReady?: boolean;
   kv?: KvLike;
@@ -135,7 +137,8 @@ export async function requestCoachNarration(
       };
     }
 
-    const providers = buildProviderChain({ byok, getByokKey, gateway, fetchImpl: overrides?.fetchImpl });
+    const consent = overrides?.consent ?? (await import('@/ai/consent')).readAiConsent();
+    const providers = buildProviderChain({ byok, getByokKey, gateway, consent, fetchImpl: overrides?.fetchImpl });
     if (providers.length === 0) return null;
 
     const result = await runAiTask(

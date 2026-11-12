@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 import { CloudOff } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
@@ -23,9 +24,11 @@ export function AiFallbackNotice({
   manualLabel?: string;
   onManual?: () => void;
 }) {
+  const router = useRouter();
   if (reason === 'cancelled') return null;
   const copy = aiFailureCopy(reason);
-  const canRetry = onRetry && reason !== 'disabled';
+  const canRetry = onRetry && reason !== 'disabled' && reason !== 'consent';
+  const review = reason === 'consent' ? () => router.push('/(app)/ai-consent' as Href) : undefined;
   return (
     <View className="gap-3 rounded-2xl bg-muted/60 p-3" accessibilityRole="alert">
       <View className="flex-row items-start gap-2">
@@ -35,8 +38,13 @@ export function AiFallbackNotice({
           {copy.body ? <Caption className="mt-0.5">{copy.body}</Caption> : null}
         </View>
       </View>
-      {canRetry || onManual ? (
+      {canRetry || onManual || review ? (
         <View className="flex-row gap-2">
+          {review ? (
+            <Button size="sm" className="flex-1" onPress={review}>
+              Choose a provider
+            </Button>
+          ) : null}
           {canRetry ? (
             <Button variant="outline" size="sm" className="flex-1" onPress={onRetry}>
               Try again

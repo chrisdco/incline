@@ -28,6 +28,7 @@ export interface RunAiTaskOptions {
 /** When several providers fail differently, tell the user the most actionable one. */
 const FAILURE_PRIORITY: AiFailure[] = [
   'cancelled',
+  'consent',
   'offline',
   'rate_limited',
   'timeout',

@@ -6,6 +6,7 @@ import type { AiFailure } from './types';
  */
 export const AI_FAILURE_COPY: Record<AiFailure, { title: string; body: string }> = {
   disabled: { title: 'AI is off', body: 'Turn it on in Settings → AI to get coaching in plain words.' },
+  consent: { title: 'Allow AI to use your data', body: 'Choose which AI provider may receive the training data an answer needs.' },
   offline: { title: "You're offline", body: 'Everything else still works. AI will be back when you reconnect.' },
   rate_limited: { title: 'AI is resting for now', body: 'The free limit was reached. Try again in a minute, or add your own key.' },
   timeout: { title: 'That took too long', body: 'The AI service is slow right now. Try again in a moment.' },
