@@ -21,6 +21,16 @@ export interface Insight {
   metric: string;
   /** What tapping the card asks. */
   question: string;
+  /** The same number as a tile: `up` is progress (accent/success), `warn` needs a look. */
+  stat: InsightStat;
+}
+
+export interface InsightStat {
+  label: string;
+  value: string;
+  unit?: string;
+  delta: string;
+  tone: 'up' | 'warn' | 'neutral';
 }
 
 export interface AskBrief {
@@ -99,6 +109,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
           headline: `New best on ${name}`,
           metric: `${name} e1RM ${w(prev)} → ${w(last.e1rm)}`,
           question: `What got my ${name} to a new best?`,
+          stat: { label: `${name} e1RM`, value: String(toUnit(last.e1rm, unit)), unit: u, delta: `+${toUnit(last.e1rm - prev, unit)} new best`, tone: 'up' },
           gain: last.e1rm / prev - 1,
         });
         continue;
@@ -117,6 +128,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
         headline: `${name} is up ${w(to - from)} over ${recent.length} sessions`,
         metric: `${name} e1RM ${w(from)} → ${w(to)}`,
         question: `How do I keep my ${name} climbing?`,
+        stat: { label: `${name} e1RM`, value: String(toUnit(to, unit)), unit: u, delta: `+${toUnit(to - from, unit)} in ${recent.length} sessions`, tone: 'up' },
         gain,
       });
     } else if (Math.abs(gain) < FLAT) {
@@ -125,6 +137,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
         headline: `${name} has held at ${w(to)} for ${recent.length} sessions`,
         metric: `${name} e1RM flat at ${w(to)}`,
         question: `Why has my ${name} stalled?`,
+        stat: { label: `${name} e1RM`, value: String(toUnit(to, unit)), unit: u, delta: `flat ${recent.length} sessions`, tone: 'warn' },
         gain: -1,
       });
     }
@@ -155,6 +168,7 @@ function balanceInsight(sets: readonly NormSet[], now: number): Insight | null {
     headline: `${label(low.m)} gets ${sets1} sets a week`,
     metric: `${label(low.m)} ${sets1} sets/wk (aim ${MUSCLE_FLOOR})`,
     question: `Am I training ${low.m.replace('_', ' ')} enough?`,
+    stat: { label: `${label(low.m)} sets`, value: String(sets1), unit: '/wk', delta: `below ${MUSCLE_FLOOR}`, tone: 'warn' },
   };
 }
 
@@ -167,6 +181,7 @@ function rhythmInsight(starts: number[], now: number): Insight | null {
       headline: `${days} days since your last workout`,
       metric: `Last session ${days} days ago`,
       question: 'How should I ease back in after a break?',
+      stat: { label: 'Last session', value: String(days), unit: 'days ago', delta: 'time to get back in', tone: 'warn' },
     };
   }
   const week = starts.filter((t) => now - t < 7 * DAY).length;
@@ -176,6 +191,7 @@ function rhythmInsight(starts: number[], now: number): Insight | null {
       headline: `${week} sessions in the last 7 days`,
       metric: `${week} sessions this week`,
       question: 'How is my week going?',
+      stat: { label: 'This week', value: String(week), unit: 'sessions', delta: 'on a roll', tone: 'up' },
     };
   }
   return null;

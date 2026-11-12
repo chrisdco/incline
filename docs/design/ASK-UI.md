@@ -26,6 +26,17 @@ colour.
 
 ## The shell
 
+**Revised 2026-11-12 (user review of the v2 idle):** idle keeps the mockup's
+density and v1's doors. Order: date line → headline ("Push A is next", or
+the brief's observation) → **What's next** card (first lifts + Start
+workout, which opens the workout screen so session-conflict handling stays
+in one place) → **Worth a look** tiles (number, unit, change in colour:
+success = progress, warning = needs a look; tap asks about it) → Continue →
+**Suggested** doors by entry tab → the **gradient dither card** (the v1
+hero, now a reusable `AiHero` door: "Build a plan"). The ambient dither
+stays behind the header. This supersedes "no Start workout in Ask" below:
+one compact next-workout card is a door, not a second Home.
+
 **Home is for doing; Ask is for understanding.** Home already has the Today
 card (next workout + Start), coaching suggestions, PR nudges and the weekly
 goal. If Ask's idle opened with "Start workout", that would be a second
@@ -76,8 +87,16 @@ questions you can open with one tap. The one action on it is *asking*.
 - **In a thread**: the idle content goes, the header shows the thread title
   and the composer stays put. Anatomy as in AI-CHAT §2.2. The keyboard
   opening on idle also hides the cards, so the composer has room.
-- **Composer**: `+` (attach an exercise, workout or routine; Phase 2), the
-  input, and send/Stop. Mic arrives in Phase 5 as Claude-style hold-to-talk.
+- **Composer** (`AskComposer`, idle and threads): `+` opens a sheet of quick
+  questions and tools today, and becomes attach (exercise, workout,
+  routine) in Phase 2; the input; send/Stop. **Voice**: hold-to-talk in
+  Phase 5. It needs on-device speech recognition (a native module, so a new
+  build) or a transcription call with its own consent line; no dead mic
+  button before then.
+- **Thread extras, by rules from tool results** (never the model's text):
+  a "✓ Looked at 6 Bench Press sessions" line, an e1RM trend card with a
+  sparkline from `get_exercise_history`, and two follow-up chips on the
+  last answer. ⋯ in the header deletes the chat.
 
 ## The dither mark (Ask's visual signature)
 
@@ -247,8 +266,9 @@ shell first gives Phase 2's cards a home on day one, and Ask stops being
 an empty box for users who never type.
 
 ## Not doing
-- A second Home inside Ask: Start workout and the Today card stay on Home.
-  Home cards get "Ask about this" in Phase 2 instead.
+- A second Home inside Ask: one compact What's next card is the limit
+  (no readiness, feed or weekly goal here). Home cards get "Ask about
+  this" in Phase 2.
 - Model-written headlines. Rules are instant, free, offline and never wrong
   about numbers; a model can rephrase later if it earns its cost.
 - Photo or gradient cards. Our cards are numbers and one chart language.

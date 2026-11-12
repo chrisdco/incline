@@ -22,7 +22,7 @@ vi.mock('@/db/client', () => ({
 import type { ChatMessageRecord, ChatPart } from '@/contracts/ai/chat';
 import { appendChatMessages, deleteChatThread, getChatMessages, listChatThreads, threadTitleFrom } from '@/db/queries/chat';
 
-import { buildChatSystem, categoriesFor, historyFor, outcomeOf, sourcesFor } from '../chat-turn';
+import { buildChatSystem, categoriesFor, followUpsFor, historyFor, outcomeOf, readLines, sourcesFor, trendCardsFor } from '../chat-turn';
 
 const text = (t: string): ChatPart => ({ type: 'text', text: t });
 
@@ -113,5 +113,34 @@ describe('chat turn helpers', () => {
     const sys = buildChatSystem({ today: '2026-11-12', unit: 'kg', goal: 'strength' });
     expect(sys).toContain('Today is 2026-11-12');
     expect(sys).toContain('goal: strength');
+  });
+});
+
+describe('thread extras from tool results', () => {
+  const hist: ChatPart = {
+    type: 'tool_result',
+    callId: '1',
+    name: 'get_exercise_history',
+    result: {
+      exercise: 'Bench Press',
+      unit: 'kg',
+      sessions: [
+        { date: 'c', estimated_1rm: 97 },
+        { date: 'b', estimated_1rm: 95 },
+        { date: 'a', estimated_1rm: 92 },
+      ],
+    },
+  };
+
+  it('says what it read, draws the trend oldest-first from our numbers, offers follow-ups', () => {
+    expect(readLines([hist])).toEqual(['Looked at 3 Bench Press sessions']);
+    expect(trendCardsFor([hist])).toEqual([{ exercise: 'Bench Press', unit: 'kg', points: [92, 95, 97] }]);
+    expect(followUpsFor([hist])).toEqual(['What should I aim for next on Bench Press?', 'When should I deload?']);
+  });
+
+  it('ignores errored reads', () => {
+    const err: ChatPart = { ...hist, isError: true } as ChatPart;
+    expect(readLines([err])).toEqual([]);
+    expect(trendCardsFor([err])).toEqual([]);
   });
 });
