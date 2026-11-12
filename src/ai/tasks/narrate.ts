@@ -33,6 +33,7 @@ export const narrateTask: AiTask<NarrateInput, CoachNarration> = {
   id: 'narrate',
   promptVersion: COACH_NARRATE_PROMPT_VERSION,
   tier: 'small',
+  dataCategories: ['summaries', 'records'],
   needs: { structuredOutput: true },
   timeoutMs: 12_000,
   buildMessages(input) {

@@ -9,7 +9,8 @@ import type { WorkoutTemplate } from '@/db/types';
 import type { GetToken } from '@/sync/supabase-auth';
 
 import type { TemplateApplyPayload } from './template-actions';
-import type { AiEvent, AiFailure } from './types';
+import { reportAiEvent } from './report';
+import type { AiFailure } from './types';
 
 /** A proposed row, resolved against the catalog. `exerciseId` null = no catalog match. */
 export interface ProposalRow extends DraftRow {
@@ -155,16 +156,6 @@ function supabaseToken(getToken: GetToken): () => Promise<string | null> {
   };
 }
 
-async function reportEvent(event: AiEvent): Promise<void> {
-  if (event.status === 'ok' || (event.reason !== 'invalid_output' && event.reason !== 'error')) return;
-  // Metadata only — never the routine or the request text.
-  const { captureError } = await import('@/lib/error-sink');
-  captureError(new Error(`ai.${event.taskId} fallback: ${event.reason}`), {
-    where: `ai.${event.taskId}`,
-    attempts: event.attempts.map((a) => `${a.providerId}:${a.outcome}`).join(','),
-  });
-}
-
 /** Ask the AI for an edit to `template`. Never throws; nothing is written here. */
 export async function requestTemplateEdit(input: {
   template: WorkoutTemplate;
@@ -210,7 +201,7 @@ export async function requestTemplateEdit(input: {
       providers,
       enabled: await isAiTaskEnabled(templateEditTask.id),
       signal: input.signal,
-      onEvent: (e) => void reportEvent(e).catch(() => undefined),
+      onEvent: (e) => void reportAiEvent(e).catch(() => undefined),
     });
     if (result.status !== 'ok') return { status: 'unavailable', reason: result.reason };
     const diff = result.output;

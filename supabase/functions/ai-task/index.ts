@@ -3,12 +3,14 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { aiTaskFlag, isFlagDisabled } from '../_shared/contracts/ai/flags.ts';
 import { verifyBearerSub } from '../_shared/edge/auth.ts';
 import { TASKS } from './tasks.ts';
-import { completeJson, NotJsonError, upstreams, UpstreamError, type ChatMessage } from './upstream.ts';
+import { completeJson, NotJsonError, upstreams, UpstreamError, type ChatMessage, type UpstreamUsage } from './upstream.ts';
 
 /**
  * Generic AI gateway (AI-PLATFORM §1, §10 step 4). POST
  *   { task, promptVersion, input }
- * → { ok: true, cached, promptVersion, output } | { ok: false, error }.
+ * → { ok: true, cached, promptVersion, output, meta? } | { ok: false, error }.
+ * `meta` is { model, usage: { prompt_tokens, completion_tokens } } summed over
+ * retries — the app's "AI data use" record (FOUNDATION-REVIEW G9).
  *
  * Per request: Clerk auth → known task + prompt version → input validated by
  * the shared contract → remote kill switch → per-user cache → per-user daily
@@ -57,7 +59,8 @@ function useStub(): boolean {
   return Deno.env.get('AI_TASK_STUB') === '1' || upstreams().length === 0;
 }
 
-type RunResult = { ok: true; output: unknown } | { ok: false; status: number; error: string };
+type Meta = { model: string; usage: { prompt_tokens: number; completion_tokens: number } };
+type RunResult = { ok: true; output: unknown; meta: Meta | null } | { ok: false; status: number; error: string };
 
 /** Below an attempt's useful minimum, stop rather than start a call that can't finish. */
 const MIN_ATTEMPT_MS = 1_500;
@@ -75,6 +78,16 @@ async function generate(
   const deadline = Date.now() + budgetMs;
   let rateLimited = false;
   let modelReplied = false;
+  let meta: Meta | null = null;
+  const onUsage = (u: UpstreamUsage) => {
+    meta = {
+      model: u.model,
+      usage: {
+        prompt_tokens: (meta?.usage.prompt_tokens ?? 0) + u.prompt_tokens,
+        completion_tokens: (meta?.usage.completion_tokens ?? 0) + u.completion_tokens,
+      },
+    };
+  };
   for (const up of upstreams()) {
     let hint: string | null = null;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -84,9 +97,9 @@ async function generate(
         ? [...messages, { role: 'user', content: `Your last reply was rejected: ${hint}. Reply again with valid JSON only.` }]
         : messages;
       try {
-        const checked = parse(await completeJson(up, turn, remaining));
+        const checked = parse(await completeJson(up, turn, remaining, onUsage));
         modelReplied = true;
-        if (checked.ok) return { ok: true, output: checked.value };
+        if (checked.ok) return { ok: true, output: checked.value, meta };
         hint = checked.error;
       } catch (err) {
         if (err instanceof NotJsonError) {
@@ -162,6 +175,7 @@ Deno.serve(async (req) => {
   if (allowed !== true) return json(429, { ok: false, error: 'rate_limited' });
 
   let output: unknown;
+  let meta: Meta | null = null;
   const stub = useStub();
   if (stub) {
     const checked = task.parseOutput(task.stub(input.value), input.value);
@@ -175,6 +189,7 @@ Deno.serve(async (req) => {
       return json(result.status, { ok: false, error: result.error });
     }
     output = result.output;
+    meta = result.meta;
   }
 
   // Stub output is never cached, so real wording replaces it once a key is set.
@@ -190,5 +205,5 @@ Deno.serve(async (req) => {
   // Bounded cache without a cron: roughly one request in a hundred prunes old rows.
   if (Math.random() < 0.01) void db.rpc('ai_task_cache_prune');
 
-  return json(200, { ok: true, cached: false, promptVersion: task.promptVersion, output });
+  return json(200, { ok: true, cached: false, promptVersion: task.promptVersion, output, ...(meta ? { meta } : {}) });
 });

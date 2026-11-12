@@ -10,6 +10,7 @@ function task(overrides: Partial<AiTask<string, Out>> = {}): AiTask<string, Out>
     id: 't',
     promptVersion: 'v1',
     tier: 'small',
+    dataCategories: ['summaries'],
     timeoutMs: 200,
     buildMessages: (input) => [{ role: 'user', content: input }],
     parse: (raw) =>

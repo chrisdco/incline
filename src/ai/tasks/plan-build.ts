@@ -11,6 +11,7 @@ export const planBuildTask: AiTask<PlanBuildInput, PlanDraft> = {
   id: 'plan_build',
   promptVersion: PLAN_BUILD_PROMPT_VERSION,
   tier: 'medium',
+  dataCategories: ['profile', 'exercises', 'memory', 'message'],
   needs: { structuredOutput: true },
   timeoutMs: 35_000,
   buildMessages(input) {

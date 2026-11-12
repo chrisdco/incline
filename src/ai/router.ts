@@ -1,3 +1,5 @@
+import { addUsage, type AiUsage } from '@/contracts/ai/data-use';
+
 import {
   AiError,
   type AiAttempt,
@@ -78,14 +80,24 @@ async function attemptProvider<I, O>(
   for (let i = 0; i < tries; i++) {
     const started = Date.now();
     const t = timeoutSignal(task.timeoutMs, outer);
+    let usage: AiUsage | undefined;
+    const reportUsage = (u: AiUsage) => {
+      usage = addUsage(usage, u);
+    };
     try {
-      const raw = await provider.run(task as AiTask<I, unknown>, input, { signal: t.signal, repairHint });
+      const raw = await provider.run(task as AiTask<I, unknown>, input, { signal: t.signal, repairHint, reportUsage });
       const parsed = task.parse(raw, input);
       if (parsed.ok) {
-        attempts.push({ providerId: provider.id, outcome: 'ok', latencyMs: Date.now() - started });
+        attempts.push({ providerId: provider.id, outcome: 'ok', latencyMs: Date.now() - started, ...usage });
         return parsed.output;
       }
-      attempts.push({ providerId: provider.id, outcome: 'invalid_output', latencyMs: Date.now() - started, detail: parsed.error });
+      attempts.push({
+        providerId: provider.id,
+        outcome: 'invalid_output',
+        latencyMs: Date.now() - started,
+        detail: parsed.error,
+        ...usage,
+      });
       repairHint = parsed.error;
     } catch (err) {
       let kind: AiFailure = err instanceof AiError ? err.kind : 'error';
@@ -96,6 +108,7 @@ async function attemptProvider<I, O>(
         outcome: kind,
         latencyMs: Date.now() - started,
         detail: err instanceof Error ? err.message.slice(0, 200) : undefined,
+        ...usage,
       });
       // A transport failure won't be fixed by a repair prompt.
       if (kind !== 'invalid_output') return null;
@@ -216,6 +229,7 @@ export async function runAiTask<I, O>(task: AiTask<I, O>, input: I, opts: RunAiT
       providerId: result.status === 'ok' ? result.providerId : undefined,
       cached: result.status === 'ok' && result.cached,
       attempts: result.attempts,
+      dataCategories: task.dataCategories,
     });
   } catch {
     // Telemetry must never break a task.

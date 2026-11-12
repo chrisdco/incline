@@ -6,6 +6,8 @@
  * propose / apply through `mutate()`.
  */
 
+import type { AiDataCategory, AiUsage } from '@/contracts/ai/data-use';
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -57,6 +59,8 @@ export interface AiTask<I, O> {
   promptVersion: string;
   /** Model size this needs; the router skips providers below it once tiers exist. */
   tier: 'small' | 'medium' | 'large';
+  /** Kinds of personal data the request carries — recorded per call for "AI data use" (G9). */
+  dataCategories: readonly AiDataCategory[];
   needs?: Partial<Pick<ProviderCapabilities, 'structuredOutput' | 'toolCalling'>>;
   /** Per provider attempt. Keep the gym loop's budget in mind. */
   timeoutMs: number;
@@ -83,6 +87,8 @@ export interface RunContext {
   signal?: AbortSignal;
   /** Set on the second attempt after `parse` rejected the first. */
   repairHint?: string;
+  /** Providers report model + tokens here once a reply arrives (may be called per retry). */
+  reportUsage?(usage: AiUsage): void;
 }
 
 export interface AiProvider {
@@ -103,6 +109,10 @@ export interface AiAttempt {
   outcome: 'ok' | AiFailure;
   latencyMs: number;
   detail?: string;
+  /** Set when the provider reported it. */
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
 export type AiResult<O> =
@@ -118,6 +128,7 @@ export interface AiEvent {
   providerId?: string;
   cached: boolean;
   attempts: AiAttempt[];
+  dataCategories: readonly AiDataCategory[];
 }
 
 export interface KvLike {

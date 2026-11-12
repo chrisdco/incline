@@ -43,6 +43,8 @@ export async function resetAiSettings(): Promise<void> {
   useAiSettings.getState().setByok(null);
   const { useAiConsent } = await import('./consent');
   useAiConsent.getState().clear();
+  const { useAiDataUse } = await import('./data-use');
+  useAiDataUse.getState().clear();
   await clearByokKey();
 }
 

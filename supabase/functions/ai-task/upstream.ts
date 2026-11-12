@@ -55,8 +55,24 @@ export function upstreams(): Upstream[] {
   return out;
 }
 
-/** One JSON-mode completion. Throws UpstreamError on HTTP errors, Error otherwise. */
-export async function completeJson(up: Upstream, messages: ChatMessage[], timeoutMs: number): Promise<unknown> {
+/** Model + token counts as the upstream reported them (OpenAI `usage` names). */
+export interface UpstreamUsage {
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+}
+
+/**
+ * One JSON-mode completion. Throws UpstreamError on HTTP errors, Error
+ * otherwise. `onUsage` fires once the model replied, even if the reply is
+ * then rejected, so retries are counted too.
+ */
+export async function completeJson(
+  up: Upstream,
+  messages: ChatMessage[],
+  timeoutMs: number,
+  onUsage?: (usage: UpstreamUsage) => void,
+): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const headers: Record<string, string> = {
@@ -80,6 +96,12 @@ export async function completeJson(up: Upstream, messages: ChatMessage[], timeou
     });
     if (!res.ok) throw new UpstreamError(res.status, `${up.id} HTTP ${res.status}`);
     const data = await res.json();
+    const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+    onUsage?.({
+      model: typeof data?.model === 'string' && data.model ? data.model : up.model,
+      prompt_tokens: n(data?.usage?.prompt_tokens),
+      completion_tokens: n(data?.usage?.completion_tokens),
+    });
     const content = data?.choices?.[0]?.message?.content;
     if (typeof content !== 'string') throw new Error(`${up.id} empty completion`);
     try {

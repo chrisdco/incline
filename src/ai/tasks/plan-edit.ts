@@ -11,6 +11,7 @@ export const planEditTask: AiTask<PlanEditInput, PlanEdit> = {
   id: 'plan_edit',
   promptVersion: PLAN_EDIT_PROMPT_VERSION,
   tier: 'medium',
+  dataCategories: ['routines', 'exercises', 'memory', 'message'],
   needs: { structuredOutput: true },
   timeoutMs: 20_000,
   buildMessages(input) {

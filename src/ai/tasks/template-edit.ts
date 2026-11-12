@@ -17,6 +17,7 @@ export const templateEditTask: AiTask<TemplateEditInput, TemplateDiff> = {
   id: 'template_edit',
   promptVersion: TEMPLATE_EDIT_PROMPT_VERSION,
   tier: 'medium',
+  dataCategories: ['routines', 'exercises', 'memory', 'message'],
   needs: { structuredOutput: true },
   timeoutMs: 20_000,
   buildMessages(input) {
