@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { BlurTargetView } from 'expo-blur';
 import { Check } from 'lucide-react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Text } from '@/components/common/text';
+import { EdgeBlur, useBlurTarget } from '@/components/ui/edge-blur';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { useChatRun } from '@/ai/use-chat-run';
 import type { ChatMessageRecord, ChatPart, SourcePart } from '@/contracts/ai/chat';
@@ -19,6 +21,9 @@ import { followUpsFor, readLines, trendCardsFor, type TrendCard } from '@/ai/cha
 import { AskComposer } from './ask-composer';
 import { SourceChip } from './markers';
 import { SuggestionChip } from './suggestion-chip';
+
+/** Floating composer height plus its gap; the list pads by this so the last answer clears it. */
+const DOCK_H = 64;
 
 /**
  * One Ask thread (AI-CHAT Phase 1). Anatomy, after the assistant-chat
@@ -57,11 +62,15 @@ function rowsFor(messages: readonly ChatMessageRecord[], pendingUser: string | n
   return rows;
 }
 
-/** `**bold**` and `- ` bullets, the only markdown models reliably use in short answers. */
+/**
+ * `**bold**` and `- ` bullets, the only markdown models reliably use in short
+ * answers. Answers are read, not scanned: Geist at 16 on a 28 line, wider
+ * paragraph gaps (ASK-UI.md "Type in chat").
+ */
 function RichText({ text }: { text: string }) {
   const lines = text.trim().split('\n');
   return (
-    <View className="gap-1.5">
+    <View className="gap-2.5">
       {lines.map((line, i) => {
         const bullet = /^\s*[-*•]\s+/.test(line);
         const body = line.replace(/^\s*[-*•]\s+/, '').replace(/^#+\s*/, '');
@@ -78,11 +87,11 @@ function RichText({ text }: { text: string }) {
         );
         return bullet ? (
           <View key={i} className="flex-row gap-2 pl-1">
-            <Body className="text-muted-foreground">•</Body>
-            <Body className="flex-1 text-foreground">{inline}</Body>
+            <Body className="leading-7 text-muted-foreground">•</Body>
+            <Body className="flex-1 leading-7 text-foreground">{inline}</Body>
           </View>
         ) : (
-          <Body key={i} className="text-foreground">
+          <Body key={i} className="leading-7 text-foreground">
             {inline}
           </Body>
         );
@@ -188,6 +197,7 @@ export function ChatThread({ threadUuid, initialQuestion }: { threadUuid: string
   const run = useChatRun({ threadUuid, messages, getToken, userId });
   const [draft, setDraft] = useState('');
   const asked = useRef(false);
+  const target = useBlurTarget();
   const { send } = run;
 
   // A starter from the Ask screen is sent once, on open.
@@ -208,8 +218,9 @@ export function ChatThread({ threadUuid, initialQuestion }: { threadUuid: string
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 0} className="flex-1">
+      <BlurTargetView ref={target} style={{ flex: 1 }}>
       {empty ? (
-        <View className="flex-1 justify-end gap-3 px-4 pb-4">
+        <View className="flex-1 justify-end gap-3 px-4" style={{ paddingBottom: DOCK_H + 16 }}>
           <Caption className="px-1">Ask about your training. Answers come from your logged workouts, and nothing changes in the app.</Caption>
           <View className="flex-row flex-wrap gap-2">
             {STARTERS.map((s) => (
@@ -229,14 +240,17 @@ export function ChatThread({ threadUuid, initialQuestion }: { threadUuid: string
               <AssistantRow parts={item.parts} live={item.live} onFollowUp={index === rows.length - 1 && !run.running ? submit : undefined} />
             )
           }
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: DOCK_H + 24 }}
           maintainVisibleContentPosition={{ startRenderingFromBottom: true, autoscrollToBottomThreshold: 0.2 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
         />
       )}
-      <View className="bg-background px-4 pb-3 pt-2">
+      </BlurTargetView>
+      <EdgeBlur edge="bottom" height={DOCK_H + 28} target={target} />
+      <View className="absolute bottom-2 left-0 right-0 px-3">
         <AskComposer
+          blurTarget={target}
           value={draft}
           onChangeText={setDraft}
           onSend={submit}
