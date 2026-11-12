@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
-import { Body, Caption, Label, Title } from '@/components/common/text';
+import { Body, Caption, Title } from '@/components/common/text';
 import { Input } from '@/components/ui/input';
 import { Tappable } from '@/components/ui/tappable';
 import { hasAnyConsent, useAiConsent } from '@/ai/consent';
@@ -55,9 +55,7 @@ function InsightCard({ insight, onPress }: { insight: Insight; onPress: () => vo
       accessibilityLabel={`${insight.metric}. ${insight.question}`}
       className="flex-row items-center gap-3 rounded-2xl border border-hairline bg-surface1 px-4 py-3.5">
       <View className="min-w-0 flex-1">
-        <Label className="text-muted-foreground" numberOfLines={1}>
-          {insight.metric}
-        </Label>
+        <Caption numberOfLines={1}>{insight.metric}</Caption>
         <Body className="mt-0.5 font-medium">{insight.question}</Body>
       </View>
       <Icon icon={ChevronRight} size={18} color="muted-foreground" />
@@ -165,7 +163,7 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
           ) : null}
         </ScrollView>
 
-        <View className="px-4 pb-2 pt-1">
+        <View className="px-4 pt-1" style={{ paddingBottom: insets.bottom + 8 }}>
           <View className="flex-row items-end gap-2">
             <Input
               className="max-h-32 min-h-12 flex-1 bg-surface1 py-3"

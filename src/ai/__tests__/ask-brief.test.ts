@@ -34,7 +34,7 @@ describe('Ask idle brief', () => {
     expect(b.headline).toBe('New best on Bench');
     expect(b.cards[0]).toMatchObject({
       kind: 'pr',
-      question: "What's driving my bench progress?",
+      question: 'What got my Bench to a new best?',
     });
     expect(b.cards[0]!.metric).toMatch(/^Bench e1RM [\d.]+ kg → [\d.]+ kg$/);
   });
@@ -43,7 +43,7 @@ describe('Ask idle brief', () => {
     const flat = [set(30, 'Squat', 120), set(22, 'Squat', 120), set(15, 'Squat', 120), set(8, 'Squat', 120), set(2, 'Squat', 120)];
     const b = buildAskBrief(flat, 'metric', NOW);
     expect(b.cards.map((c) => c.kind)).toContain('stalled');
-    expect(b.cards.find((c) => c.kind === 'stalled')!.question).toBe('Why has my squat stalled?');
+    expect(b.cards.find((c) => c.kind === 'stalled')!.question).toBe('Why has my Squat stalled?');
   });
 
   it('flags a break after 7+ days and converts to lb', () => {
@@ -76,5 +76,17 @@ describe('dither scenes', () => {
     expect(weekKey(new Date('2026-11-10T08:00:00'))).toBe(weekKey(new Date('2026-11-12T20:00:00')));
     expect(weekKey(new Date('2026-11-12'))).not.toBe(weekKey(new Date('2026-11-20')));
     expect(hashSeed('rise:2026-W46')).toBe(hashSeed('rise:2026-W46'));
+  });
+});
+
+describe('brief variety', () => {
+  it('shows one card per kind', () => {
+    const sets: NormSet[] = [];
+    for (const ex of ['Bench', 'Squat', 'Row']) {
+      [20, 14, 8].forEach((d) => sets.push(set(d, ex, 100, 5, 'chest', `l${d}`)));
+      sets.push(set(1, ex, 110, 5, 'chest', 'l1'));
+    }
+    const kinds = buildAskBrief(sets, 'metric', NOW).cards.map((c) => c.kind);
+    expect(kinds.filter((k) => k === 'pr')).toHaveLength(1);
   });
 });

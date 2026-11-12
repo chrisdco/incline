@@ -56,7 +56,6 @@ const SCENE: Record<InsightKind, SceneKind> = {
 };
 
 const label = (m: string) => m.charAt(0).toUpperCase() + m.slice(1).replace('_', ' ');
-const lower = (s: string) => s.toLowerCase();
 
 interface Session {
   at: number;
@@ -99,7 +98,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
           kind: 'pr',
           headline: `New best on ${name}`,
           metric: `${name} e1RM ${w(prev)} → ${w(last.e1rm)}`,
-          question: `What's driving my ${lower(name)} progress?`,
+          question: `What got my ${name} to a new best?`,
           gain: last.e1rm / prev - 1,
         });
         continue;
@@ -117,7 +116,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
         kind: 'rising',
         headline: `${name} is up ${w(to - from)} over ${recent.length} sessions`,
         metric: `${name} e1RM ${w(from)} → ${w(to)}`,
-        question: `What's driving my ${lower(name)} progress?`,
+        question: `How do I keep my ${name} climbing?`,
         gain,
       });
     } else if (Math.abs(gain) < FLAT) {
@@ -125,7 +124,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
         kind: 'stalled',
         headline: `${name} has held at ${w(to)} for ${recent.length} sessions`,
         metric: `${name} e1RM flat at ${w(to)}`,
-        question: `Why has my ${lower(name)} stalled?`,
+        question: `Why has my ${name} stalled?`,
         gain: -1,
       });
     }
@@ -199,9 +198,9 @@ export function buildAskBrief(sets: readonly NormSet[], unit: Unit, now = Date.n
   );
   // Stable priority order; within a kind, the order the rule produced.
   all.sort((a, b) => PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind));
-  // One card per question, so two lifts can't produce the same tap.
-  const seen = new Set<string>();
-  const cards = all.filter((i) => !seen.has(i.question) && seen.add(i.question)).slice(0, 3);
+  // One card per kind, so the brief covers different things instead of three PRs.
+  const seen = new Set<InsightKind>();
+  const cards = all.filter((i) => !seen.has(i.kind) && seen.add(i.kind)).slice(0, 3);
   const top = cards[0];
   return top
     ? { headline: top.headline, scene: SCENE[top.kind], cards, sessions }

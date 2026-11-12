@@ -9,11 +9,11 @@ import type { SceneKind } from '@/ai/ask-brief';
  * Scenes are mood, never data: the number lives in the headline.
  */
 
-export const SCENE_COLS = 44;
-export const SCENE_ROWS = 26;
+export const SCENE_COLS = 64;
+export const SCENE_ROWS = 40;
 export const SCENE_VIEWBOX = `0 0 ${SCENE_COLS} ${SCENE_ROWS}`;
 const BANDS = 4;
-const R = 0.3;
+const R = 0.24;
 
 /** mulberry32: tiny, fast, good enough for dither. */
 function rng(seed: number) {
@@ -95,6 +95,6 @@ export function sceneDots(kind: SceneKind, seed: number): SceneDots {
     }
   }
   return {
-    bands: paths.map((d, k) => ({ d, opacity: fmt(0.12 + (k / (BANDS - 1)) * 0.4) })).filter((b) => b.d),
+    bands: paths.map((d, k) => ({ d, opacity: fmt(0.08 + (k / (BANDS - 1)) * 0.3) })).filter((b) => b.d),
   };
 }

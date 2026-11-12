@@ -15,7 +15,7 @@ import { HERO_DOTS } from './ai-hero-dots';
 import { SCENE_VIEWBOX, hashSeed, sceneDots, weekKey } from './ask-scenes';
 
 /** Height of the ambient layer; it fades out well before the composer. */
-const AMBIENT_HEIGHT = 360;
+const AMBIENT_HEIGHT = 340;
 
 /**
  * Ask's ambient header (ASK-UI.md): the brand gradient and a dither scene
@@ -47,7 +47,7 @@ export function AskAmbient({ scene }: { scene: SceneKind }) {
       </Animated.View>
       <LinearGradient
         colors={[hexToRgba(bg, 0), hexToRgba(bg, 0.55), bg]}
-        locations={[0.15, 0.6, 1]}
+        locations={[0.1, 0.5, 0.85]}
         style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
       />
     </View>
