@@ -4,7 +4,7 @@ Status: proposed (2026-11-12). Extends [AI-ARCHITECTURE.md](AI-ARCHITECTURE.md) 
 
 ## Decision in one paragraph
 
-Ask becomes a real conversation. The agent loop runs **on the device**: tools read the local SQLite database directly (the source of truth), and the model is reached through a thin streaming proxy (`ai-chat` edge function) or the user's own key (BYOK). Answers are streamed text plus **typed parts**: tool activity, data cards, and the same proposal cards we already use (preview → Apply → Undo). Chats are saved locally per thread. Long-term memory is a small set of **structured facts** the user can see, edit and delete, not a transcript dump. Built on the Vercel AI SDK core (`ai`), with our own UI on the design system.
+Ask becomes a real conversation. The agent loop runs **on the device**: tools read the local SQLite database directly (the source of truth), and the model is reached through a thin streaming proxy (`ai-chat` edge function) or the user's own key (BYOK). Answers are streamed text plus **typed parts**: tool activity, data cards, and the same proposal cards we already use (preview → Apply → Undo). Chats are saved locally per thread. Long-term memory is a small set of **structured facts** the user can see, edit and delete, not a transcript dump. Built on the Vercel AI SDK core (`ai`), with our own UI on the design system. **Every library sits behind contracts we own** (§3A), so the model, runtime library, transport, memory store and loop location can each be swapped without touching the surfaces.
 
 ---
 
@@ -82,7 +82,7 @@ The cost is that the tool round-trips happen on the phone's network. With a step
 ### 3.2 Library choice
 | Need | Choice | Why |
 |---|---|---|
-| Streaming, tool calls, multi-step loop, message parts | **Vercel AI SDK core (`ai`) + `@ai-sdk/openai-compatible`** | Has an official Expo guide (streams with `expo/fetch` plus a few polyfills). Typed tool parts (`tool-{name}`). `stopWhen` gives a step cap without writing our own loop. It works with any OpenAI-compatible endpoint, which our proxy, BYOK and Ollama all are. Replaces the hand-rolled loop the architecture doc planned. |
+| Streaming, tool calls, multi-step loop, message parts | **Vercel AI SDK core (`ai`) + `@ai-sdk/openai-compatible`**, behind `src/ai/runtime/adapters` (§3A) | Has an official Expo guide (streams with `expo/fetch` plus a few polyfills). Typed tool parts (`tool-{name}`). `stopWhen` gives a step cap without writing our own loop. It works with any OpenAI-compatible endpoint, which our proxy, BYOK and Ollama all are. Replaces the hand-rolled loop the architecture doc planned. |
 | Chat UI | **Our own components** on SYSTEM.md tokens | The React Native primitives in `assistant-ui` are unstyled. Our cards (`ProposalCard`, `SourceChip`, `StatBlock`) already exist, and the design system lint applies to us anyway. Revisit `@assistant-ui/react-native` if branching or editing messages becomes a need. |
 | Schemas | `zod` (already the norm for AI SDK tools) | We already have contract types in `src/contracts`, so we derive zod from them or define them next to them, with one source per tool. |
 | Agent framework (LangGraph, Mastra) | **No** | §5's rule still holds: under 10 tools and one loop. |
@@ -121,13 +121,111 @@ Rules:
 4. Thread history: the last N turns in full plus a **running summary** of older turns. The summary is made by a cheap call when the thread passes about 20 turns.
 5. Tool schemas: only the tools that fit the context. During a session there are no plan-edit tools.
 
+## 3A. Layers, seams and longevity
+
+The AI field changes every few months: SDK majors, protocols (MCP, MCP Apps, AG-UI, A2A), models, on-device runtimes. The rule that keeps us safe is **own the contracts, rent the libraries**. Every library sits behind one of our types, so replacing it is one adapter, not a rewrite.
+
+### 3A.1 The layers
+```mermaid
+flowchart TB
+  subgraph S[Surfaces · replaceable]
+    CHAT[Ask chat] --- CHIPS[In-place chips] --- BUILDER[Plan / template builders] --- SHEET[In-session sheet] --- EXT[MCP clients · later widgets, voice]
+  end
+  subgraph R[Agent runtime · src/ai/runtime]
+    LOOP[Loop + policies<br/>step cap · tool gating · number gate]
+    CTX[Context builder<br/>one for every surface]
+  end
+  subgraph C[Capabilities · src/ai/capabilities]
+    TOOLS[Tool registry] --- ACTIONS[Action registry<br/>Proposal · apply · undo] --- MEMORY[Memory facts] --- ACT[ai_activity log]
+  end
+  subgraph D[Domain + data]
+    Q[Batched queries · src/db/queries] --- W["mutate() + outbox"] --- DB[(SQLite)] --- SYNC[Supabase sync]
+  end
+  subgraph P[Adapters · swappable]
+    PROV[Model providers<br/>Incline proxy · BYOK · on-device] --- RT[Runtime lib<br/>AI SDK today] --- WIRE[Wire formats<br/>OpenAI-compat · MCP · AG-UI]
+  end
+  S --> R --> C --> D
+  R --> P
+  C -.same definitions.-> EXT
+```
+
+Import rules, enforced by eslint `no-restricted-imports` the same way `src/contracts` is today:
+- **Surfaces** import only `src/ai/runtime` hooks and `src/components/ai`. They never import `ai`, `@ai-sdk/*`, or a provider.
+- **Only `src/ai/runtime/adapters/*`** imports the runtime library.
+- **Capabilities** import domain queries and contracts, never UI and never the runtime library.
+- **Contracts** (`src/contracts/ai/*`) stay pure TS and are shared with Deno (the edge function and `incline-mcp`).
+
+### 3A.2 Contracts we own (versioned)
+| Contract | Shape | Translated to |
+|---|---|---|
+| `ChatMessage` / `ChatPart` (`v: 1`) | `text` · `tool_call` · `tool_result` · `data_card` · `proposal` · `source` · `actions` · `notice` | AI SDK `UIMessage` parts (adapter); AG-UI events (later) |
+| `ToolSpec` | name, description, JSON Schema in/out, `kind: read \| propose`, `surfaces`, `version` | AI SDK `tool()`, MCP `tools/list`, OpenAI `tools` |
+| `Proposal` / `Action` | existing typed diffs + `apply` / `undo` | ProposalCard; later MCP Apps `ui://` view |
+| `MemoryFact` | kind, text, source, confidence, expiry | prompt section; later a vector store |
+| `ModelPort` | `stream({messages, tools, signal}) → AsyncIterable<ChatEvent>` | OpenAI-compatible HTTP (proxy, BYOK, Ollama); `expo-ai` |
+| `ChatEvent` | `text_delta`, `tool_call_start/args/end`, `tool_result`, `part`, `step_end`, `run_end`, `error` | Named after the AG-UI event set, so an AG-UI transport is a mapping, not a redesign |
+
+Stored messages are **our** `ChatPart` JSON with a version, never a library's internal format. Reading an old `v` upgrades it lazily. Each saved reply also records `model`, `provider` and `prompt_version`, so old answers can be explained and evals can be compared.
+
+### 3A.3 How the pieces talk to each other
+- **One tool registry and one action registry for every surface.** Chat, chips, builders, MCP and the in-session sheet call the same tools and produce the same proposals. A tool added once shows up everywhere it's allowed (`surfaces`).
+- **One context builder.** A chip on the session screen and a chat opened from it get the same context, so answers don't contradict each other.
+- **Writes go only through `mutate()`.** A proposal applied from chat fires the same table-change event as a manual edit, which invalidates TanStack Query, so every open screen updates. Chat sees edits made elsewhere because its tools read SQLite live.
+- **One activity log and one memory.** `ai_activity` records every AI change from any surface (with `actor`: chat / chip / mcp / voice), and Undo works from anywhere. Memory facts learned in chat shape the plan builder's drafts, and the other way round.
+- **External agents use the same capabilities.** `incline-mcp` exposes the same `ToolSpec`s. A contract test runs the device implementation and the MCP implementation of each tool on the same fixture data and requires matching output.
+
+### 3A.4 What can be swapped, and where
+| Swap | Seam | Cost |
+|---|---|---|
+| Model or provider (Groq → OpenRouter → Claude/Gemini → on-device) | `ModelPort` + Cloudflare AI Gateway + `ai_flags` | Config only; re-run `evals/chat` |
+| Runtime library (AI SDK → TanStack AI → our own loop) | `src/ai/runtime/adapters` | One adapter; contracts and UI unchanged |
+| Where the loop runs (device ↔ server) | Tools are `ToolSpec` with two implementations (SQLite, Supabase) | A server runner already exists in `incline-mcp`; pick per task |
+| Transport (SSE passthrough → AG-UI) | `ChatEvent` | A mapping layer |
+| UI kit (ours → assistant-ui primitives) | `ChatPart` renderer registry | Per-part renderers |
+| Memory store (SQLite facts → local vectors with `sqlite-vec` → a service) | `MemoryPort` (`recall`, `propose`, `apply`, `forget`) | One adapter |
+| Chat storage (local → synced) | outbox tables | A sync flag; the schema already has uuids |
+| External UI (text → MCP Apps `ui://` views) | `Proposal` | Add a view per proposal type; text fallback stays |
+
+### 3A.5 Scaling
+- **Per-user data**: tools return summaries and the top N with paging (`cursor`), never whole tables. History of 10+ years stays fast because queries are batched and indexed. AGENTS.md list-projection rules apply to tool results too.
+- **Long threads**: running summary + last N turns (§3.5); messages paginate in FlashList; old threads lazy-load.
+- **Users / server**: `ai-chat` is stateless passthrough, so it scales horizontally on Supabase Edge. Quota is one Postgres row per user per day. The AI Gateway gives provider fallback, rate limits, caching and logs. Heavy or long jobs (a 12-week plan, a monthly review) move to queued background tasks, not chat turns, so they don't hit the 150 s limit.
+- **Cost**: a **model router** picks a tier per turn. Small talk and lookups go to the cheap model; plan and template proposals go to the stronger one; extraction and summaries go to the cheapest. Stable prompt prefixes (system prompt + tool schemas) are cached by the provider where it supports prompt caching. A per-turn token budget is enforced on the device before sending.
+- **Tool count**: once there are more than about 15 tools, tool gating by surface and intent keeps each prompt to the relevant subset. Revisit an agent framework only past AI-ARCHITECTURE §5's threshold.
+
+### 3A.6 Observability
+- Every turn is logged locally (and to `ai_activity` when it changes data) with model, provider, steps, tools, latency, tokens, cost, outcome and `prompt_version`.
+- The same fields are emitted as traces through a thin logger that uses the **OpenTelemetry GenAI** names (`gen_ai.*`). Those conventions are still marked Development, so they stay behind our logger and can be renamed in one place.
+- The `evals/chat` pass rate is a CI gate for prompt, model and tool changes. A dashboard (later) shows the fallback rate, the ungrounded-number drop rate and Apply/Undo ratios per surface.
+
+### 3A.7 What survives the next wave
+| Coming | How it plugs in |
+|---|---|
+| On-device models (`expo-ai`, SDK 59) | A `ModelPort` adapter. The router sends private or offline turns to it. |
+| Voice and photo input ("log 3×8 at 80", a photo of a whiteboard workout) | New input parts in `ChatMessage`. They produce the same `LogSet` and `TemplateDiff` proposals. |
+| Health Connect, nutrition, wearables | New read tools and new proposal types. Chat needs no changes. |
+| Proactive / background agents (weekly check-in, deload watch) | The same runtime run headless on a schedule. Results land as chat threads or chips, not pushes full of text. |
+| MCP Apps in Claude / ChatGPT | `Proposal` → `ui://` view on `incline-mcp`, with the text fallback kept. |
+| Agent-to-agent (A2A) | Only if an outside agent needs to delegate whole tasks (AI-ARCHITECTURE §5); MCP covers tool use. |
+
+### 3A.8 Stack, now
+| Layer | Pick | Watch |
+|---|---|---|
+| Runtime | **AI SDK 7.x** (stable; official Expo guide) behind our adapter | **TanStack AI** (release candidate; React Native transport; would match our TanStack Query stack). Re-check at Phase 3. |
+| Providers | OpenAI-compatible everywhere: Groq primary, OpenRouter fallback, BYOK, Ollama; Cloudflare AI Gateway in front | `expo-ai` on-device at SDK 59 |
+| Tools | `ToolSpec` in `src/contracts`, zod at the edges | MCP spec revisions (tool output schemas, Apps) |
+| Stream events | `ChatEvent` named after AG-UI | AG-UI transport if we ever host the loop server-side for web |
+| Storage | SQLite + outbox (existing) | `sqlite-vec` if semantic recall is needed |
+| UI | Our components on SYSTEM.md | `@assistant-ui/react-native` primitives |
+| Telemetry | Own logger with `gen_ai.*` names | OTel GenAI conventions reaching Stable |
+
 ## 4. Storage: threads and history
 
 New SQLite migration `023_chat.ts`:
 
 ```text
 chat_threads   (uuid, title, context_kind, context_id, memory_off, created_at, updated_at, deleted_at)
-chat_messages  (uuid, thread_uuid, role, parts_json, created_at)  -- parts = AI SDK UIMessage parts
+chat_messages  (uuid, thread_uuid, role, parts_json, v, model, provider, prompt_version, created_at)  -- parts = our ChatPart v1 (§3A.2), not a library format
 ```
 
 - Reads go through TanStack Query; writes go through `mutate()` (AGENTS.md data rules).
@@ -179,6 +277,7 @@ The pattern most memory systems have settled on: **structured facts the user own
 | Phase | Ships | Done when |
 |---|---|---|
 | **0. Spike** | AI SDK + polyfills on Hermes; one streamed reply with one tool (`get_personal_records`) through a dev `ai-chat` | Streams on incline_pixel; Stop cancels; versions pinned |
+| **0.5 Contracts + boundaries** | `ChatPart`/`ChatEvent`/`ToolSpec`/`ModelPort`/`MemoryPort` in `src/contracts/ai`; `src/ai/runtime` + `capabilities` folders; eslint import rules; MCP ↔ device tool contract test | Lint fails if a surface imports `ai`; both tool implementations match on fixtures |
 | **1. Chat core** | `ai-chat` edge fn (auth, quota, flags, passthrough); chat screen (text, tool activity, stop); the 9 MCP read tools on SQLite; local threads (`023_chat`); thread list on Ask | Can ask "how's my bench going?" and get a grounded answer with a source chip, saved as a thread |
 | **2. Cards + actions** | Data cards; `propose_*` tools rendering `ProposalCard`; follow-up chips; attach context; Ask-about-this entry from cards | A plan edit made from chat applies and undoes; it shows in the activity log |
 | **3. Memory** | `coach_memory`, `remember`, end-of-thread extraction, "What Incline knows" screen, temporary chat | The squat-avoidance verification from AI-ARCHITECTURE passes through chat |
@@ -200,4 +299,7 @@ The pattern most memory systems have settled on: **structured facts the user own
 - [MCP Apps overview](https://modelcontextprotocol.io/extensions/apps/overview.md) and [SEP-1865](https://modelcontextprotocol.io/seps/1865-mcp-apps-interactive-user-interfaces-for-mcp) — `ui://` resources with a text fallback.
 - [Agentic UX patterns 2026](https://zylos.ai/research/2026-05-28-agentic-ux-frontend-design-patterns-ai-agents/), [AI agent UI patterns: plans, approvals, undo](https://www.setproduct.com/blog/ai-agent-ui-design-patterns), [Generative UI in 2026](https://daily.dev/posts/generative-ui-in-2026-a-developer-guide-that-ships-didpe5oji)
 - [Mem0 vs Letta](https://vectorize.io/articles/mem0-vs-letta), [Agent memory 2026: episodic, semantic, procedural](https://dev.to/dublecc/how-ai-agent-memory-works-in-2026-context-episodic-semantic-and-procedural-l3f), [Mem0 paper](https://arxiv.org/html/2504.19413v1)
+- [AG-UI protocol](https://github.com/ag-ui-protocol/ag-ui) — event vocabulary for agent ↔ UI streams; [assistant-ui AG-UI runtime](https://www.assistant-ui.com/docs/runtimes/ag-ui).
+- [TanStack AI vs Vercel AI SDK](https://tanstack.com/ai/latest/docs/comparison/vercel-ai-sdk), [Vercel's comparison](https://vercel.com/kb/guide/vercel-ai-sdk-vs-tanstack-ai) — AI SDK 7.x stable; TanStack AI RC with a React Native transport.
+- [OTel GenAI conventions are not stable yet](https://dev.to/azena-ai/opentelemetrys-genai-semantic-conventions-are-not-stable-yet-heres-what-actually-shipped-in-2026-3mke), [GenAI semconv explained](https://www.dash0.com/knowledge/opentelemetry-genai-semantic-conventions-explained).
 - [Supabase Edge Functions for AI workloads](https://automationatlas.io/answers/how-to-set-up-supabase-edge-functions-for-ai/) — the 150 s wall-clock limit.
