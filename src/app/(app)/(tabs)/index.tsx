@@ -21,6 +21,7 @@ import { TodayCard } from '@/components/home/today-card';
 import { HomeContextCard } from '@/components/home/home-context-card';
 import { MonthlyReportPromo } from '@/components/home/monthly-report-promo';
 import { useProfile, useSuggestedTemplate, useProgressStats, useWorkoutFeedLogs, useTodayProgramSlot, useActivePlanProgress } from '@/hooks/use-data';
+import { tabBarScrollProps } from '@/hooks/use-tab-bar-scroll';
 import { useActiveSession } from '@/hooks/use-active-session';
 import { useHomeCoachingContext } from '@/hooks/use-home-coaching-context';
 import { useSettings } from '@/store/settings-store';
@@ -389,6 +390,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <FlatList
+        {...tabBarScrollProps()}
         data={feed.items}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

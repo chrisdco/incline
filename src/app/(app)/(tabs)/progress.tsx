@@ -28,6 +28,7 @@ import {
   type HistoryFilterSelection,
 } from '@/components/progress/history-filters';
 import { usePeriodStats, useStalledLifts, useWorkoutLogs } from '@/hooks/use-data';
+import { tabBarScrollProps } from '@/hooks/use-tab-bar-scroll';
 import { useSettings } from '@/store/settings-store';
 import { useShallow } from 'zustand/react/shallow';
 import { usePrimaryHex } from '@/lib/theme';
@@ -123,6 +124,7 @@ export default function ProgressScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <FlashList
+        {...tabBarScrollProps()}
         data={history.items}
         renderItem={({ item }) => <HistoryRow log={item} unit={unit} />}
         keyExtractor={(item) => String(item.id)}
