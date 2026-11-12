@@ -113,7 +113,7 @@ export default function ProfileScreen() {
     router.replace('/(auth)/sign-in' as Href);
   };
 
-  const achievements = evaluateAchievements(stats);
+  const achievements = evaluateAchievements(stats, unit);
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
   return (
@@ -191,7 +191,7 @@ export default function ProfileScreen() {
             <ListRow
               icon={<Icon icon={Ruler} size={18} color="muted-foreground" />}
               title="Measurements"
-              onPress={() => router.push('/(app)/bodyweight' as Href)}
+              onPress={() => router.push('/(app)/measurements' as Href)}
             />
             <ListRow
               icon={<Icon icon={Calendar} size={18} color="muted-foreground" />}
@@ -202,7 +202,7 @@ export default function ProfileScreen() {
               icon={<Icon icon={Calculator} size={18} color="muted-foreground" />}
               title="Calculators"
               subtitle="1RM and plates"
-              onPress={() => router.push('/(app)/calculator' as Href)}
+              onPress={() => router.push('/(app)/calculators' as Href)}
             />
           </ListGroup>
         </Section>

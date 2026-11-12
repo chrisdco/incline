@@ -248,5 +248,5 @@ boxes. Accent stays on the suggestion, the next-set tick and supersets.
 - **Tabs clear the session bar:** tab screens use `useTabScreenContent()` /
   `useSessionBarInset()` (`src/hooks/use-tab-content-inset.ts`) so the last
   row is never under the floating workout bar.
-- Calculators are one screen with a segment (`/(app)/calculator`,
+- Calculators are one screen with a segment (`/(app)/calculators`,
   `?tab=plates` opens plates).

@@ -35,3 +35,29 @@ export function sanitizeEnabledBodyMetrics(value: unknown): BodyMetric[] {
   if (!cleaned.includes('bodyweight')) cleaned.unshift('bodyweight');
   return cleaned.length > 0 ? cleaned : ['bodyweight', 'waist', 'arms', 'chest'];
 }
+
+/** A stored body entry, already canonical (kg for bodyweight, cm otherwise). */
+export interface CanonicalBodyEntry {
+  id: number;
+  value: number;
+  recordedAt: number;
+}
+
+export interface DisplayBodyEntry extends CanonicalBodyEntry {
+  /** Display label: kg / lb / cm / in. */
+  unit: string;
+}
+
+/**
+ * Canonical rows → the user's display unit (#144, §15). Storage never
+ * changes with the unit setting, so a kg↔lb switch rescales the whole
+ * series at once instead of leaving a 2.2x jump between old and new entries.
+ */
+export function bodyEntriesForDisplay(
+  rows: readonly CanonicalBodyEntry[],
+  metric: BodyMetric,
+  unit: Unit,
+): DisplayBodyEntry[] {
+  const label = bodyMetricUnit(metric, unit);
+  return rows.map((r) => ({ ...r, value: bodyMetricToDisplay(metric, r.value, unit), unit: label }));
+}

@@ -13,10 +13,11 @@ import { SCREEN_CONTENT } from '@/lib/layout';
 import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { cn } from '@/lib/cn';
 import { NATIVE_NEUTRALS } from '@/styles/tokens';
+import { motionControl } from '@/styles/motion';
 
 /** Mode, skin and accent, split out of Settings. */
 export default function AppearanceScreen() {
-  const { themeMode, accentTheme, setThemeMode, setAccentTheme, applyThemePreset } = useSettings();
+  const { themeMode, accentTheme, lastClassicAccent, setThemeMode, setAccentTheme, applyThemePreset } = useSettings();
   const scheme = useAppColorScheme();
   const selectedAccent = ACCENT_THEME_LIST.find((t) => t.id === accentTheme) ?? ACCENT_THEME_LIST[0];
   const auroraActive = isAuroraAccent(accentTheme);
@@ -78,10 +79,13 @@ export default function AppearanceScreen() {
 
         <Section title="Accent">
           <Card>
-            <Caption>{auroraActive ? 'Accents apply to the Classic theme' : selectedAccent.description}</Caption>
-            <View className={cn('mt-3 flex-row flex-wrap gap-3', auroraActive && 'opacity-60')}>
+            {/* #182: under an aurora skin the dots used to dim but stay live, so a
+                tap looked broken. They stay full strength; a tap switches back to
+                Classic with that accent, and the ring marks Classic's current one. */}
+            <Caption>{auroraActive ? 'Pick an accent to switch back to Classic' : selectedAccent.description}</Caption>
+            <View className="mt-3 flex-row flex-wrap gap-3">
               {CLASSIC_ACCENTS.map((theme) => {
-                const selected = accentTheme === theme.id;
+                const selected = auroraActive ? lastClassicAccent === theme.id : accentTheme === theme.id;
                 const swatch = scheme === 'dark' ? theme.hex.dark : theme.hex.light;
                 return (
                   <Pressable
@@ -90,12 +94,13 @@ export default function AppearanceScreen() {
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                     accessibilityLabel={`${theme.label} accent`}
+                    accessibilityHint={auroraActive ? 'Switches to the Classic theme' : undefined}
                     className="items-center gap-1.5"
-                    style={{ width: 56 }}>
+                    style={{ width: 56, minHeight: motionControl.minHeight }}>
                     <View
                       className={cn(
                         'h-10 w-10 items-center justify-center rounded-full border-2',
-                        selected ? 'border-foreground' : 'border-transparent',
+                        selected ? (auroraActive ? 'border-muted-foreground' : 'border-foreground') : 'border-transparent',
                       )}>
                       <View className="h-8 w-8 rounded-full" style={{ backgroundColor: swatch }} />
                     </View>

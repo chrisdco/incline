@@ -1,7 +1,7 @@
 import { openDatabase } from '../client';
 import { getPeriodPrs, getProgressPrStats } from './coaching/prs';
 import { estimated1RM, isoDate, startOfWeek } from '../calc';
-import { computeBestWeeklyStreak, computeWeeklyStreak } from '@/lib/consistency';
+import { computeBestWeeklyStreak, computeWeeklyStreak, countLocalDays, localDayKey } from '@/lib/consistency';
 import { ghostWorkingSql } from '@/lib/session-ghost';
 import type {
   MonthlyVolume,
@@ -343,8 +343,7 @@ export async function getDailyCalendarMetrics(): Promise<Record<string, DailyCal
   const map: Record<string, DailyCalendarMetrics & { _logIds: Set<number> }> = {};
 
   for (const log of logs) {
-    const d = new Date(log.started_at);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const key = localDayKey(log.started_at);
     let bucket = map[key];
     if (!bucket) {
       bucket = { volume: 0, intensity: 0, reps: 0, sessions: 0, _logIds: new Set() };
@@ -365,8 +364,7 @@ export async function getDailyCalendarMetrics(): Promise<Record<string, DailyCal
        AND s.deleted_at IS NULL AND s.completed = 1`,
   );
   for (const s of sets) {
-    const d = new Date(s.started_at);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const key = localDayKey(s.started_at);
     let bucket = map[key];
     if (!bucket) {
       bucket = { volume: 0, intensity: 0, reps: 0, sessions: 0, _logIds: new Set() };
@@ -410,14 +408,18 @@ export async function getWorkoutsForDay(dayMs: number): Promise<WorkoutLog[]> {
   return rows.map(mapLog);
 }
 
-/** Returns the number of completed workout days in a date range. */
+/**
+ * Number of distinct *local* calendar days with a completed workout in a
+ * range (#150: `started_at / 86400000` bucketed by UTC day, so a session
+ * near midnight counted on the wrong day for non-UTC users).
+ */
 export async function getWorkoutCountInRange(startMs: number, endMs: number): Promise<number> {
   const db = await openDatabase();
-  const row = await db.getFirstAsync<{ c: number }>(
-    `SELECT COUNT(DISTINCT (started_at / 86400000) * 86400000) as c FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL AND started_at >= ? AND started_at < ?`,
+  const rows = await db.getAllAsync<{ started_at: number }>(
+    'SELECT started_at FROM workout_logs WHERE ended_at IS NOT NULL AND deleted_at IS NULL AND started_at >= ? AND started_at < ?',
     startMs, endMs,
   );
-  return row?.c ?? 0;
+  return countLocalDays(rows.map((r) => r.started_at));
 }
 
 export interface WidgetWeekStats {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -9,6 +9,7 @@ import { readAsStringAsync } from 'expo-file-system/legacy';
 import { ArrowLeft, FileUp } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { Body, Caption } from '@/components/common/text';
 import { Chip } from '@/components/common/chip';
 import { ListRow, Section, SectionLabel, StatBlock } from '@/components/layout';
@@ -224,9 +225,7 @@ export default function ImportScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="flex-row items-center gap-3 px-4 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon icon={ArrowLeft} size={24} color="foreground" />
-        </Pressable>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Go back" onPress={() => router.back()} className="-my-1.5 -ml-2" />
         <Body className="text-base font-semibold text-foreground">Import from Strong / Hevy</Body>
       </View>
 

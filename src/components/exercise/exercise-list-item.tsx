@@ -19,6 +19,8 @@ export function ExerciseListItem({ exercise, className }: { exercise: Exercise; 
     <Tappable
       className={cn('flex-row items-center gap-3 py-3', className)}
       onPress={() => router.push(`/exercise/${exercise.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={exercise.name}
       pressedOpacity={0.55}
       android_ripple={{ color: 'rgba(0,0,0,0.06)' }}>
       <ExerciseThumb name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} size={44} />

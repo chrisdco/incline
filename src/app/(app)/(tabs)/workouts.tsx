@@ -285,7 +285,10 @@ export default function WorkoutsScreen() {
         <FlashList
           data={programs.data ?? []}
           renderItem={({ item }) => (
-            <Pressable onPress={() => router.push({ pathname: '/(app)/program/[id]', params: { id: String(item.id) } } as Href)}>
+            <Pressable
+              onPress={() => router.push({ pathname: '/(app)/program/[id]', params: { id: String(item.id) } } as Href)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open program ${item.name}`}>
               <ProgramCard program={item} />
             </Pressable>
           )}
@@ -350,6 +353,7 @@ export default function WorkoutsScreen() {
               setMenuTarget(null);
             }}
             className="flex-row items-center gap-3 rounded-xl p-3"
+            accessibilityRole="button"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Play} size={18} color="primary" />
             <Body className="text-foreground">Start routine</Body>
@@ -360,6 +364,7 @@ export default function WorkoutsScreen() {
               setMenuTarget(null);
             }}
             className="flex-row items-center gap-3 rounded-xl p-3"
+            accessibilityRole="button"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Pencil} size={18} color="muted-foreground" />
             <Body className="text-foreground">Edit routine</Body>
@@ -367,6 +372,7 @@ export default function WorkoutsScreen() {
           <Pressable
             onPress={handleDuplicate}
             className="flex-row items-center gap-3 rounded-xl p-3"
+            accessibilityRole="button"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Copy} size={18} color="muted-foreground" />
             <Body className="text-foreground">Duplicate routine</Body>
@@ -377,6 +383,7 @@ export default function WorkoutsScreen() {
               setMenuTarget(null);
             }}
             className="flex-row items-center gap-3 rounded-xl p-3"
+            accessibilityRole="button"
             android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
             <Icon icon={Trash2} size={18} color="destructive" />
             <Body className="text-destructive">Delete routine</Body>

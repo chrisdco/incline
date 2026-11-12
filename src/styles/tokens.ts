@@ -146,7 +146,7 @@ export interface AccentToken {
 export const ACCENT_TOKENS: Record<AccentTheme, AccentToken> = {
   indigo: {
     label: 'Indigo',
-    description: 'Electric indigo — default Incline brand',
+    description: 'Electric indigo, bright on both themes',
     aurora: false,
     vars: {
       light: classicVars('246 90% 66%', WHITE, '246 80% 60%', '246 90% 64%'),

@@ -8,6 +8,7 @@ import { ArrowLeft, Bot, Eye, PencilOff, Plus, Share2, Trash2 } from 'lucide-rea
 import { useAppAuth } from '@/auth/use-app-auth';
 import { Chip } from '@/components/common/chip';
 import { Icon } from '@/components/common/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { Body, Caption } from '@/components/common/text';
 import { ListRow, SectionLabel } from '@/components/layout';
 import { Button } from '@/components/ui/button';
@@ -91,9 +92,7 @@ export default function ConnectAiScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <View className="flex-row items-center gap-3 px-4 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon icon={ArrowLeft} size={24} color="foreground" />
-        </Pressable>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Go back" onPress={() => router.back()} className="-my-1.5 -ml-2" />
         <Body className="text-base font-semibold text-foreground">Connect AI apps</Body>
       </View>
 

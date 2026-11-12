@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, View, TextInput, Pressable, Image, ScrollView, Modal } from 'react-native';
+import { Platform, View, Pressable, Image, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSSO } from '@clerk/expo';
@@ -9,10 +9,11 @@ import * as Linking from 'expo-linking';
 
 import { Heading, Caption, Text } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
+import { Input, PasswordInput } from '@/components/ui/input';
+import { motionControl } from '@/styles/motion';
 
-// Off-token grey (Tailwind gray-500) kept as-is for zero visual change;
-// converge on PLACEHOLDER_COLOR in the UI polish pass.
-const AUTH_PLACEHOLDER = '#6b7280';
+const LINK_TARGET = { minHeight: motionControl.minHeight, justifyContent: 'center' } as const;
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -126,165 +127,163 @@ export default function SignInScreen() {
     }
   };
 
+  const verifying = resetStep === 'verify' || resetStep === 'resetting';
+
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* Scrolls with the keyboard so the primary button is never hidden. */}
-      <ScrollView
-        contentContainerClassName="flex-grow justify-center px-6 py-8"
-        keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets>
-        <View className="mb-8 items-center">
-          <Image
-            source={require('../../../assets/images/icon.png')}
-            style={{ width: 80, height: 80, borderRadius: 16 }}
-            resizeMode="contain"
-          />
-          <Heading className="mt-4 text-center">Incline</Heading>
-          <Caption className="mt-2 text-center">
-            Sign in to continue your training.
-          </Caption>
-        </View>
+      {/* Same keyboard handling as onboarding: the primary button stays visible. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
+        <ScrollView contentContainerClassName="flex-grow justify-center px-6 py-8" keyboardShouldPersistTaps="handled">
+          <View className="mb-8 items-center">
+            <Image
+              source={require('../../../assets/images/icon.png')}
+              style={{ width: 80, height: 80, borderRadius: 16 }}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+              accessible={false}
+            />
+            <Heading className="mt-4 text-center">Incline</Heading>
+            <Caption className="mt-2 text-center">Sign in to continue your training.</Caption>
+          </View>
 
+          <View className="gap-4">
+            <Button size="lg" variant="outline" onPress={onGooglePress} disabled={googleLoading}>
+              {googleLoading ? 'Opening Google…' : 'Continue with Google'}
+            </Button>
+
+            <View className="flex-row items-center gap-3">
+              <View className="h-px flex-1 bg-border" />
+              <Caption>or</Caption>
+              <View className="h-px flex-1 bg-border" />
+            </View>
+
+            <View className="gap-1.5">
+              <Caption>Email</Caption>
+              <Input
+                value={emailAddress}
+                onChangeText={setEmailAddress}
+                placeholder="you@example.com"
+                accessibilityLabel="Email"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                textContentType="emailAddress"
+                returnKeyType="next"
+              />
+            </View>
+
+            <View className="gap-1.5">
+              <Caption>Password</Caption>
+              <PasswordInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Your password"
+                accessibilityLabel="Password"
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={() => { void onSignInPress(); }}
+              />
+            </View>
+
+            <Pressable
+              onPress={openReset}
+              className="self-end"
+              style={LINK_TARGET}
+              accessibilityRole="button"
+              accessibilityLabel="Forgot password?">
+              <Caption className="text-primary-text">Forgot password?</Caption>
+            </Pressable>
+
+            {error ? (
+              <Caption className="text-destructive" accessibilityLiveRegion="polite">{error}</Caption>
+            ) : null}
+
+            <Button size="lg" onPress={onSignInPress} disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign in'}
+            </Button>
+
+            <View className="items-center">
+              <Pressable
+                onPress={() => router.push('/(auth)/sign-up')}
+                style={LINK_TARGET}
+                accessibilityRole="link"
+                accessibilityLabel="Don't have an account? Sign up">
+                <Text className="text-sm text-muted-foreground">
+                  Don&apos;t have an account? <Text className="font-semibold text-primary-text">Sign up</Text>
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Password reset: the app Dialog, not a hand-rolled Modal (#176). */}
+      <Dialog
+        open={resetVisible}
+        onOpenChange={setResetVisible}
+        title={verifying ? 'Enter code' : 'Reset password'}
+        description={verifying ? `Enter the code sent to ${resetEmail}` : 'Enter your email to receive a reset code.'}
+        footer={
+          <Button variant="ghost" onPress={() => setResetVisible(false)}>
+            Cancel
+          </Button>
+        }>
         <View className="gap-4">
-          <Button
-            size="lg"
-            variant="outline"
-            onPress={onGooglePress}
-            disabled={googleLoading}>
-            {googleLoading ? 'Opening Google…' : 'Continue with Google'}
-          </Button>
-
-          <View className="flex-row items-center gap-3">
-            <View className="h-px flex-1 bg-border" />
-            <Caption>or</Caption>
-            <View className="h-px flex-1 bg-border" />
-          </View>
-
-          <View className="gap-1.5">
-            <Caption>Email</Caption>
-            <TextInput
-              value={emailAddress}
-              onChangeText={setEmailAddress}
-              placeholder="you@example.com"
-              placeholderTextColor={AUTH_PLACEHOLDER}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              returnKeyType="next"
-              className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
-            />
-          </View>
-
-          <View className="gap-1.5">
-            <Caption>Password</Caption>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Your password"
-              placeholderTextColor={AUTH_PLACEHOLDER}
-              secureTextEntry
-              autoComplete="password"
-              returnKeyType="go"
-              onSubmitEditing={() => { void onSignInPress(); }}
-              className="rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground"
-            />
-          </View>
-
-          <Pressable onPress={openReset} className="self-end">
-            <Caption className="text-primary-text">Forgot password?</Caption>
-          </Pressable>
-
-          {error ? (
-            <Caption className="text-destructive">{error}</Caption>
-          ) : null}
-
-          <Button size="lg" onPress={onSignInPress} disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in'}
-          </Button>
-
-          <View className="items-center">
-            <Pressable onPress={() => router.push('/(auth)/sign-up')}>
-              <Text className="text-sm text-muted-foreground">
-                Don&apos;t have an account? <Text className="font-semibold text-primary-text">Sign up</Text>
-              </Text>
-            </Pressable>
-          </View>
+          {!verifying ? (
+            <>
+              <View className="gap-1.5">
+                <Caption>Email</Caption>
+                <Input
+                  value={resetEmail}
+                  onChangeText={setResetEmail}
+                  placeholder="you@example.com"
+                  accessibilityLabel="Email"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                />
+              </View>
+              {resetError ? <Caption className="text-destructive" accessibilityLiveRegion="polite">{resetError}</Caption> : null}
+              <Button size="lg" onPress={sendResetCode} disabled={resetStep === 'sending'}>
+                {resetStep === 'sending' ? 'Sending…' : 'Send code'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <View className="gap-1.5">
+                <Caption>Verification code</Caption>
+                <Input
+                  value={resetCode}
+                  onChangeText={setResetCode}
+                  placeholder="123456"
+                  accessibilityLabel="Verification code"
+                  autoCapitalize="none"
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
+                />
+              </View>
+              <View className="gap-1.5">
+                <Caption>New password</Caption>
+                <PasswordInput
+                  value={resetNewPassword}
+                  onChangeText={setResetNewPassword}
+                  placeholder="Min 8 characters"
+                  accessibilityLabel="New password"
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                />
+              </View>
+              {resetError ? <Caption className="text-destructive" accessibilityLiveRegion="polite">{resetError}</Caption> : null}
+              <Button size="lg" onPress={submitResetCode} disabled={resetStep === 'resetting'}>
+                {resetStep === 'resetting' ? 'Resetting…' : 'Reset password'}
+              </Button>
+            </>
+          )}
         </View>
-      </ScrollView>
-
-      {/* Password Reset Modal */}
-      <Modal visible={resetVisible} transparent animationType="fade" onRequestClose={() => setResetVisible(false)}>
-        <View className="flex-1 items-center justify-center bg-black/50 px-6">
-          <View className="w-full max-w-sm gap-4 rounded-3xl bg-surface3 p-6">
-            <Heading>
-              {resetStep === 'verify' || resetStep === 'resetting' ? 'Enter Code' : 'Reset Password'}
-            </Heading>
-            <Caption className="-mt-2">
-              {resetStep === 'verify' || resetStep === 'resetting'
-                ? `Enter the code sent to ${resetEmail}`
-                : 'Enter your email to receive a reset code.'}
-            </Caption>
-
-            {resetStep === 'idle' || resetStep === 'sending' ? (
-              <>
-                <View className="gap-1.5">
-                  <Caption>Email</Caption>
-                  <TextInput
-                    value={resetEmail}
-                    onChangeText={setResetEmail}
-                    placeholder="you@example.com"
-                    placeholderTextColor={AUTH_PLACEHOLDER}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    autoComplete="email"
-                    className="rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground"
-                  />
-                </View>
-                {resetError ? <Caption className="text-destructive">{resetError}</Caption> : null}
-                <Button size="lg" onPress={sendResetCode} disabled={resetStep === 'sending'}>
-                  {resetStep === 'sending' ? 'Sending…' : 'Send Code'}
-                </Button>
-              </>
-            ) : (
-              <>
-                <View className="gap-1.5">
-                  <Caption>Verification Code</Caption>
-                  <TextInput
-                    value={resetCode}
-                    onChangeText={setResetCode}
-                    placeholder="123456"
-                    placeholderTextColor={AUTH_PLACEHOLDER}
-                    autoCapitalize="none"
-                    keyboardType="number-pad"
-                    autoComplete="one-time-code"
-                    className="rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground"
-                  />
-                </View>
-                <View className="gap-1.5">
-                  <Caption>New Password</Caption>
-                  <TextInput
-                    value={resetNewPassword}
-                    onChangeText={setResetNewPassword}
-                    placeholder="Min 8 characters"
-                    placeholderTextColor={AUTH_PLACEHOLDER}
-                    secureTextEntry
-                    autoComplete="new-password"
-                    className="rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground"
-                  />
-                </View>
-                {resetError ? <Caption className="text-destructive">{resetError}</Caption> : null}
-                <Button size="lg" onPress={submitResetCode} disabled={resetStep === 'resetting'}>
-                  {resetStep === 'resetting' ? 'Resetting…' : 'Reset Password'}
-                </Button>
-              </>
-            )}
-
-            <Pressable onPress={() => setResetVisible(false)} className="items-center py-1">
-              <Caption className="text-muted-foreground">Cancel</Caption>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </Dialog>
     </SafeAreaView>
   );
 }

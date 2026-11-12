@@ -182,6 +182,8 @@ export default function OnboardingScreen() {
                     <Pressable
                       key={g}
                       onPress={() => setGoal(g)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: goal === g }}
                       className={`flex-row items-center gap-3 rounded-2xl border-2 px-4 py-4 ${
                         goal === g ? 'border-primary bg-primary/15' : 'border-transparent bg-surface1'
                       }`}>
@@ -208,6 +210,8 @@ export default function OnboardingScreen() {
                   <Pressable
                     key={l}
                     onPress={() => setExperienceLevel(l)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: experienceLevel === l }}
                     className={`rounded-2xl border-2 px-4 py-4 ${
                       experienceLevel === l ? 'border-primary bg-primary/15' : 'border-transparent bg-surface1'
                     }`}>

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
-import { Icon } from '@/components/common/icon';
+import { IconButton } from '@/components/ui/icon-button';
 
 import { Body, Caption } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
@@ -20,12 +20,14 @@ import { useSettings } from '@/store/settings-store';
 import { useProfile } from '@/hooks/use-data';
 import { useToast } from '@/components/ui/toast';
 import { SCREEN_CONTENT, SCREEN_HEADER } from '@/lib/layout';
+import { parseDayParam } from '@/lib/route-params';
 import type { FeedWorkoutLog } from '@/db/types';
 
 /** Day detail: every completed workout for a calendar date, styled like the home feed. */
 export default function DayScreen() {
   const { ms } = useLocalSearchParams<{ ms: string }>();
-  const dayMs = Number(ms);
+  // NaN / junk params fall back to today instead of "Invalid Date" (#207).
+  const dayMs = parseDayParam(ms);
   const router = useRouter();
   const { toast } = useToast();
   const unit = useSettings((s) => s.unit);
@@ -82,9 +84,7 @@ export default function DayScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <View className={`${SCREEN_HEADER} flex-row items-center gap-2`}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" hitSlop={8} className="p-1">
-          <Icon icon={ChevronLeft} size={24} color="muted-foreground" />
-        </Pressable>
+        <IconButton icon={ChevronLeft} color="muted-foreground" accessibilityLabel="Go back" onPress={() => router.back()} className="-my-1.5 -ml-2" />
         <View className="flex-1">
           <Body className="text-lg font-semibold text-foreground">{dateLabel}</Body>
           {items ? (

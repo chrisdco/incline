@@ -4,6 +4,7 @@ import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-qu
 
 import {
   getExercise,
+  getExerciseByExternalId,
   getExerciseHistory,
   getExercisePRSummary,
   getExerciseRepRecords,
@@ -37,6 +38,7 @@ import type { DbTable } from '@/db/write';
 import { dbKey } from '@/lib/query-client';
 import { TABLES } from '@/lib/query-keys';
 import { useSettings } from '@/store/settings-store';
+import { parseCatalogRouteId } from '@/lib/route-params';
 
 /**
  * A SQLite read as a query: keyed by the tables it reads (so writes to them
@@ -74,6 +76,16 @@ export function useDbQuery<T>(tables: readonly DbTable[], key: unknown[], fn: ()
 /* ---- catalog ---- */
 export function useExercise(id: number) {
   return useDbQuery<Exercise | null>(TABLES.catalog, ['exercise', id], () => getExercise(id));
+}
+/**
+ * Exercise by route param: a local id, or `supabase:<external id>` for a
+ * catalog link. One query either way, so Retry refetches on both paths (#174).
+ */
+export function useExerciseByRouteId(routeId: string) {
+  const externalId = parseCatalogRouteId(routeId);
+  return useDbQuery<Exercise | null>(TABLES.catalog, ['exerciseByRoute', routeId], () =>
+    externalId != null ? getExerciseByExternalId(externalId) : getExercise(Number(routeId)),
+  );
 }
 export function useSearchExercises(query: string, filters?: ExerciseFilters) {
   return useDbQuery<SearchHit[]>(

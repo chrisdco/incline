@@ -1,28 +1,28 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 
-import { Icon } from '@/components/common/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { Body, Caption } from '@/components/common/text';
 import { EmptyState } from '@/components/common/states';
 import { AchievementTile } from '@/components/profile/achievement-tile';
 import { useProgressStats } from '@/hooks/use-data';
 import { evaluateAchievements } from '@/lib/achievements';
 import { SCREEN_CONTENT } from '@/lib/layout';
+import { useSettings } from '@/store/settings-store';
 
 export default function MilestonesScreen() {
   const router = useRouter();
   const { data: stats } = useProgressStats();
-  const achievements = evaluateAchievements(stats);
+  const unit = useSettings((s) => s.unit);
+  const achievements = evaluateAchievements(stats, unit);
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <View className="flex-row items-center justify-between px-4 pb-2 pt-3">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon icon={ArrowLeft} size={24} color="foreground" />
-        </Pressable>
+        <IconButton icon={ArrowLeft} accessibilityLabel="Go back" onPress={() => router.back()} className="-my-1.5 -ml-2" />
         <Body className="text-base font-semibold text-foreground">Milestones</Body>
         <View className="w-8" />
       </View>

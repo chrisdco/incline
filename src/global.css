@@ -16,7 +16,7 @@
  * Neutrals + semantic colors live on :root / .dark.
  * Brand accent (primary / ring / chart-1) is set by theme-* classes on the root View
  * so Settings can swap accents without touching the rest of the palette.
- * Default accent: indigo (also applied via theme-indigo on the root View).
+ * Default accent: teal (:root carries its values; theme-teal on the root View too).
  */
 :root {
   --background: 240 11% 96.5%;
