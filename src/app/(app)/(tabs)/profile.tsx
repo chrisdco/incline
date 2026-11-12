@@ -12,13 +12,13 @@ import {
   Dumbbell,
   Ruler,
   Calendar,
-  LogOut,
   Camera,
   Calculator,
   Trophy,
   UserX,
   FlaskConical,
 } from 'lucide-react-native';
+import { SignOutRow } from '@/components/account/sign-out-row';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
@@ -221,14 +221,7 @@ export default function ProfileScreen() {
                   onPress={() => setDeleteOpen(true)}
                 />
               ) : null}
-              <ListRow
-                icon={<Icon icon={LogOut} size={18} color="muted-foreground" />}
-                title="Sign out"
-                onPress={async () => {
-                  await signOut();
-                  router.replace('/(auth)/sign-in' as Href);
-                }}
-              />
+              <SignOutRow />
             </ListGroup>
           </Section>
         ) : null}

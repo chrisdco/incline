@@ -1,6 +1,5 @@
 import { openDatabase } from '../client';
 import { newUuid } from '@/lib/uuid';
-import { queryClient } from '@/lib/query-client';
 import { clearOutbox, enqueueSync } from '@/sync/outbox';
 import { resetSyncState } from '@/sync/state';
 import type { ExperienceLevel, Goal, Unit, UserProfile } from '../types';
@@ -10,11 +9,13 @@ import {
   type ProfileRow,
 } from './helpers';
 import { ACTIVE_PROGRAM_KEY } from './programs';
+import { STORAGE_KEYS } from '@/constants/config';
+import { ACCOUNT_PREFS_UPDATED_AT_KEY } from '@/sync/account-prefs';
 
 const PROFILE_TABLES = ['user_profile'] as const;
 
-/** Every table resetUserData wipes (kv: coach narration + active program). */
-const RESET_TABLES = [
+/** Every table wipeUserTables touches (kv: account-scoped keys only). */
+export const RESET_TABLES = [
   'set_entries',
   'workout_photos',
   'photo_blob_queue',
@@ -133,77 +134,71 @@ export async function completeOnboarding(patch: { name: string; goal: Goal; unit
 }
 
 /**
- * Clear all user-owned local data (logs, bodyweight, profile, custom exercises,
- * custom templates, custom programs, active program, outbox, sync cursors).
- * Keeps catalog exercises and seed templates. All row deletes are one
- * mutate() transaction, so a failure leaves the previous data intact; photo
- * files are removed only after the wipe commits.
+ * The table half of the one reset path (`resetUserData` in `src/db/reset.ts`).
+ * Runs inside the caller's mutate() so every delete commits or none does.
+ * Clears logs, bodyweight, measurements, profile, photos + their transfer
+ * queue, custom exercises/templates/programs, account-scoped kv (coach
+ * narration, AI cache, active program, coaching snoozes, prefs timestamp,
+ * active workout id), the outbox and sync cursors. Keeps catalog exercises,
+ * seed templates and device-only kv (settings blob, device id).
  */
-export async function resetUserData(): Promise<void> {
-  // Drop every cached query first: ids restart after a full wipe, so a stale
-  // entry could otherwise resurrect another account's session or exercises.
-  queryClient.clear();
-  await mutate(RESET_TABLES, async (tx) => {
-    await tx.execAsync('DELETE FROM set_entries');
-    await tx.execAsync('DELETE FROM workout_photos');
-    await tx.execAsync('DELETE FROM photo_blob_queue');
-    await tx.execAsync('DELETE FROM workout_logs');
-    await tx.execAsync('DELETE FROM session_exercise_notes');
-    await tx.execAsync('DELETE FROM ai_activity');
-    await tx.execAsync('DELETE FROM ai_feedback');
-    await tx.execAsync('DELETE FROM bodyweight_entries');
-    await tx.execAsync('DELETE FROM body_measurements');
-    await tx.execAsync('DELETE FROM user_profile');
+export async function wipeUserTables(tx: Tx): Promise<void> {
+  await tx.execAsync('DELETE FROM set_entries');
+  await tx.execAsync('DELETE FROM workout_photos');
+  await tx.execAsync('DELETE FROM photo_blob_queue');
+  await tx.execAsync('DELETE FROM workout_logs');
+  await tx.execAsync('DELETE FROM session_exercise_notes');
+  await tx.execAsync('DELETE FROM ai_activity');
+  await tx.execAsync('DELETE FROM ai_feedback');
+  await tx.execAsync('DELETE FROM bodyweight_entries');
+  await tx.execAsync('DELETE FROM body_measurements');
+  await tx.execAsync('DELETE FROM user_profile');
 
-    // Soft-deleted or live custom template exercises → remove custom templates
-    await tx.execAsync(`
-      DELETE FROM template_exercises WHERE template_id IN (
-        SELECT id FROM workout_templates WHERE is_custom = 1
-      )
-    `);
-    await tx.execAsync('DELETE FROM workout_templates WHERE is_custom = 1');
+  // Soft-deleted or live custom template exercises → remove custom templates
+  await tx.execAsync(`
+    DELETE FROM template_exercises WHERE template_id IN (
+      SELECT id FROM workout_templates WHERE is_custom = 1
+    )
+  `);
+  await tx.execAsync('DELETE FROM workout_templates WHERE is_custom = 1');
 
-    // Custom exercises + children (CASCADE may not fire with plain DELETE if FKs off mid-wipe)
-    await tx.execAsync(`
-      DELETE FROM exercise_aliases WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
-    `);
-    await tx.execAsync(`
-      DELETE FROM exercise_secondary_muscles WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
-    `);
-    await tx.execAsync(`
-      DELETE FROM exercise_instructions WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
-    `);
-    await tx.execAsync(`
-      DELETE FROM exercise_images WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
-    `);
-    await tx.execAsync('DELETE FROM exercises WHERE is_custom = 1');
+  // Custom exercises + children (CASCADE may not fire with plain DELETE if FKs off mid-wipe)
+  await tx.execAsync(`
+    DELETE FROM exercise_aliases WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
+  `);
+  await tx.execAsync(`
+    DELETE FROM exercise_secondary_muscles WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
+  `);
+  await tx.execAsync(`
+    DELETE FROM exercise_instructions WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
+  `);
+  await tx.execAsync(`
+    DELETE FROM exercise_images WHERE exercise_id IN (SELECT id FROM exercises WHERE is_custom = 1)
+  `);
+  await tx.execAsync('DELETE FROM exercises WHERE is_custom = 1');
 
-    // Custom programs
-    await tx.execAsync(`
-      DELETE FROM program_workouts WHERE program_id IN (
-        SELECT id FROM programs WHERE is_custom = 1
-      )
-    `);
-    await tx.execAsync('DELETE FROM programs WHERE is_custom = 1');
+  // Custom programs
+  await tx.execAsync(`
+    DELETE FROM program_workouts WHERE program_id IN (
+      SELECT id FROM programs WHERE is_custom = 1
+    )
+  `);
+  await tx.execAsync('DELETE FROM programs WHERE is_custom = 1');
 
-    await tx.runAsync("DELETE FROM kv WHERE key LIKE 'coach.narrate.%'");
-    // AI reply cache + own-key settings (the key itself: resetAiSettings).
-    await tx.runAsync("DELETE FROM kv WHERE key LIKE 'ai.%'");
-    // Local only: the outbox is wiped below, so no active-program delete is queued.
-    await tx.runAsync('DELETE FROM kv WHERE key = ?', ACTIVE_PROGRAM_KEY);
+  await tx.runAsync("DELETE FROM kv WHERE key LIKE 'coach.narrate.%'");
+  // AI reply cache + own-key settings (the key itself: resetAiSettings).
+  await tx.runAsync("DELETE FROM kv WHERE key LIKE 'ai.%'");
+  // Local only: the outbox is wiped below, so no active-program delete is queued.
+  await tx.runAsync('DELETE FROM kv WHERE key = ?', ACTIVE_PROGRAM_KEY);
 
-    await clearOutbox(tx);
-    await resetSyncState(tx);
-  });
+  // Coaching snoozes + readiness, the account-prefs LWW stamp (#146: a stale
+  // stamp makes the next pull discard the cloud prefs), the active session id.
+  await tx.runAsync("DELETE FROM kv WHERE key LIKE 'coaching.%'");
+  await tx.runAsync('DELETE FROM kv WHERE key = ?', ACCOUNT_PREFS_UPDATED_AT_KEY);
+  await tx.runAsync('DELETE FROM kv WHERE key = ?', STORAGE_KEYS.activeWorkout);
 
-  try {
-    const { deleteAsync, documentDirectory } = await import('expo-file-system/legacy');
-    if (documentDirectory) {
-      await deleteAsync(`${documentDirectory}workout-photos`, { idempotent: true });
-    }
-  } catch {
-    // files optional
-  }
+  await clearOutbox(tx);
+  await resetSyncState(tx);
 }
 
 /**

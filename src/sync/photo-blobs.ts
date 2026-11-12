@@ -38,12 +38,19 @@ export async function enqueuePhotoBlob(
   );
 }
 
+/** A job that failed this many times is parked (dead-lettered), never dropped. */
+export const PHOTO_BLOB_MAX_ATTEMPTS = MAX_ATTEMPTS;
+
+const QUEUE_TABLES = ['photo_blob_queue'] as const;
+
 export async function drainPhotoBlobs(opts: {
   userId: string;
   getToken: GetToken;
 }): Promise<void> {
   const db = await openDatabase();
   const now = Date.now();
+  // Parked jobs (attempts >= MAX) wait for a manual retry
+  // (retryStuckPhotoTransfers) instead of being deleted (#147).
   const jobs = await db.getAllAsync<{
     id: number;
     photo_uuid: string;
@@ -52,10 +59,15 @@ export async function drainPhotoBlobs(opts: {
     attempts: number;
   }>(
     `SELECT id, photo_uuid, op, storage_path, attempts FROM photo_blob_queue
-     WHERE next_attempt_at <= ? ORDER BY id ASC LIMIT 8`,
+     WHERE next_attempt_at <= ? AND attempts < ? ORDER BY id ASC LIMIT 8`,
     now,
+    MAX_ATTEMPTS,
   );
-  if (jobs.length === 0) return;
+  if (jobs.length === 0) {
+    // Queue idle: safe moment to sweep files no live row points at.
+    void cleanupOrphanPhotoFilesOnce();
+    return;
+  }
 
   const client = await getAuthedSupabase(opts.getToken);
   if (!client) return;
@@ -66,26 +78,42 @@ export async function drainPhotoBlobs(opts: {
       try {
         if (job.op === 'upload') await uploadPhoto(client, opts.userId, job.photo_uuid);
         else if (job.op === 'download') await downloadPhoto(client, job.photo_uuid, job.storage_path);
-        else if (job.op === 'delete') await deleteCloudPhoto(client, job.storage_path);
-        await db.runAsync('DELETE FROM photo_blob_queue WHERE id = ?', job.id);
+        else if (job.op === 'delete') await deleteCloudPhoto(client, job.photo_uuid, job.storage_path);
+        await mutate(QUEUE_TABLES, async (tx) => {
+          await tx.runAsync('DELETE FROM photo_blob_queue WHERE id = ?', job.id);
+        });
       } catch (err) {
         const attempts = job.attempts + 1;
         if (attempts >= MAX_ATTEMPTS) {
-          captureError(err, { where: 'photos.blob', op: job.op, attempts });
-          await db.runAsync('DELETE FROM photo_blob_queue WHERE id = ?', job.id);
-          continue;
+          captureError(err, { where: 'photos.blob', op: job.op, attempts, parked: true });
         }
         const delay = Math.min(30 * 60 * 1000, 2000 * 2 ** attempts);
-        await db.runAsync(
-          'UPDATE photo_blob_queue SET attempts = ?, next_attempt_at = ? WHERE id = ?',
-          attempts,
-          Date.now() + delay,
-          job.id,
-        );
+        await mutate(QUEUE_TABLES, async (tx) => {
+          await tx.runAsync(
+            'UPDATE photo_blob_queue SET attempts = ?, next_attempt_at = ? WHERE id = ?',
+            attempts,
+            Date.now() + delay,
+            job.id,
+          );
+        });
       }
     }
   });
   await Promise.all(workers);
+}
+
+let orphanSweepDone = false;
+
+/** Once per app run, best-effort: never blocks or fails the drain. */
+async function cleanupOrphanPhotoFilesOnce(): Promise<void> {
+  if (orphanSweepDone) return;
+  orphanSweepDone = true;
+  try {
+    const { cleanupOrphanPhotoFiles } = await import('./photo-orphans');
+    await cleanupOrphanPhotoFiles();
+  } catch (err) {
+    captureError(err, { where: 'photos.orphans' });
+  }
 }
 
 export async function compressPhotoToJpeg(sourceUri: string): Promise<string> {
@@ -131,6 +159,9 @@ async function uploadPhoto(
     photoUuid,
   );
   if (!row?.uri || !row.log_uuid) return;
+  // Deleted before its upload ran: nothing to send (the delete job covers
+  // any blob an earlier attempt left behind).
+  if (row.deleted_at) return;
   const owner = (await getLocalAccountOwner()) ?? userId;
   const path = row.storage_path ?? `${owner}/${row.log_uuid}/${photoUuid}.jpg`;
   const file = new File(row.uri);
@@ -144,14 +175,22 @@ async function uploadPhoto(
   const now = Date.now();
   // One transaction: a bumped updated_at with no outbox row would never push
   // (pull LWW sees local as newer), so the two commit together (#137).
-  await mutate(['workout_photos'], async (tx) => {
+  await mutate(['workout_photos', 'photo_blob_queue'], async (tx) => {
+    // Re-read inside the tx: a delete may have committed mid-upload, and its
+    // cloud-delete job could already have run with no path to remove.
+    const current = await tx.getFirstAsync<{ deleted_at: number | null }>(
+      'SELECT deleted_at FROM workout_photos WHERE uuid = ?',
+      photoUuid,
+    );
+    const deletedAt = current?.deleted_at ?? null;
     await tx.runAsync(
       'UPDATE workout_photos SET storage_path = ?, updated_at = ? WHERE uuid = ?',
       path,
       now,
       photoUuid,
     );
-    await enqueueSync('workout_photos', photoUuid, row.deleted_at ? 'delete' : 'upsert', {
+    if (deletedAt) await enqueuePhotoBlob(photoUuid, 'delete', path, tx);
+    await enqueueSync('workout_photos', photoUuid, deletedAt ? 'delete' : 'upsert', {
       workout_log_uuid: row.log_uuid,
       storage_path: path,
       content_type: row.content_type ?? 'image/jpeg',
@@ -160,7 +199,7 @@ async function uploadPhoto(
       sort_order: row.sort_order,
       created_at: row.created_at,
       updated_at: now,
-      deleted_at: row.deleted_at,
+      deleted_at: deletedAt,
     }, tx);
   });
 }
@@ -175,13 +214,14 @@ async function downloadPhoto(
     uri: string;
     storage_path: string | null;
     log_id: number;
+    deleted_at: number | null;
   }>(
-    `SELECT p.uri, p.storage_path, p.workout_log_id as log_id
+    `SELECT p.uri, p.storage_path, p.workout_log_id as log_id, p.deleted_at
      FROM workout_photos p WHERE p.uuid = ?`,
     photoUuid,
   );
   const path = storagePath ?? row?.storage_path;
-  if (!path || !row) return;
+  if (!path || !row || row.deleted_at) return;
   const { data, error } = await client.storage.from(BUCKET).download(path);
   if (error) throw error;
   const dest = localPhotoPath(row.log_id, photoUuid);
@@ -192,12 +232,34 @@ async function downloadPhoto(
   // SDK 58 makes File.write async; await so the row below never points at
   // a file whose bytes have not landed.
   await file.write(new Uint8Array(buf));
-  await db.runAsync('UPDATE workout_photos SET uri = ? WHERE uuid = ?', dest, photoUuid);
+  // Local-only column (never synced), but still one declared write so the
+  // photo grids and storage readout invalidate.
+  await mutate(['workout_photos'], async (tx) => {
+    await tx.runAsync('UPDATE workout_photos SET uri = ? WHERE uuid = ?', dest, photoUuid);
+  });
 }
 
-async function deleteCloudPhoto(client: SupabaseClient, storagePath: string | null): Promise<void> {
-  if (!storagePath) return;
-  const { error } = await client.storage.from(BUCKET).remove([storagePath]);
+/**
+ * Remove the cloud blob. The job's path may be null when the photo was
+ * deleted before its first upload finished, so fall back to the row's
+ * current path (an in-flight upload records it there).
+ */
+async function deleteCloudPhoto(
+  client: SupabaseClient,
+  photoUuid: string,
+  storagePath: string | null,
+): Promise<void> {
+  let path = storagePath;
+  if (!path) {
+    const db = await openDatabase();
+    const row = await db.getFirstAsync<{ storage_path: string | null }>(
+      'SELECT storage_path FROM workout_photos WHERE uuid = ?',
+      photoUuid,
+    );
+    path = row?.storage_path ?? null;
+  }
+  if (!path) return;
+  const { error } = await client.storage.from(BUCKET).remove([path]);
   if (error) throw error;
 }
 

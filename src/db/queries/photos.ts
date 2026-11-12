@@ -168,10 +168,28 @@ export async function deleteWorkoutPhoto(photoId: number): Promise<void> {
       photoId,
     );
     await enqueuePhotoMetadata(tx, photoId);
-    if (r?.uuid) await enqueuePhotoBlob(r.uuid, 'delete', r.storage_path, tx);
+    if (r?.uuid) {
+      await cancelPendingTransfers(tx, [r.uuid]);
+      await enqueuePhotoBlob(r.uuid, 'delete', r.storage_path, tx);
+    }
     return r;
   });
   if (row) await deleteLocalPhotoFile(row.uri);
+}
+
+/**
+ * A deleted photo's queued upload/download would only fail (file gone) and
+ * park forever; drop them in the delete's own transaction. The cloud-delete
+ * job resolves any path an in-flight upload records (#147).
+ */
+async function cancelPendingTransfers(tx: Tx, uuids: readonly string[]): Promise<void> {
+  for (let i = 0; i < uuids.length; i += 500) {
+    const chunk = uuids.slice(i, i + 500);
+    await tx.runAsync(
+      `DELETE FROM photo_blob_queue WHERE op <> 'delete' AND photo_uuid IN (${chunk.map(() => '?').join(',')})`,
+      ...chunk,
+    );
+  }
 }
 
 export async function deletePhotosForWorkout(logId: number): Promise<void> {
@@ -200,6 +218,10 @@ export async function deletePhotosForWorkouts(logIds: number[]): Promise<void> {
         ...chunk,
       );
     }
+    await cancelPendingTransfers(
+      tx,
+      live.flatMap((r) => (r.uuid ? [r.uuid] : [])),
+    );
     for (const r of live) {
       if (!r.uuid) continue;
       await enqueuePhotoMetadata(tx, r.id);

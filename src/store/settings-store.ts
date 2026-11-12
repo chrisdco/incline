@@ -405,11 +405,35 @@ useSettings.subscribe((state, prev) => {
  * defaults; local-only keys (reminders, nudges, media, behavior flags) go
  * to app defaults so the new account never inherits the old owner's setup.
  * Only device taste survives: classic-accent memory + seen announcements.
+ *
+ * `keepDeviceSettings` (sign-out, recovery): the phone's own setup — haptics,
+ * rest alerts, screen-awake, reminders and nudges, media taste — stays; only
+ * account-derived values reset.
  */
-export function resetAccountPreferences(): void {
+export function resetAccountPreferences(options: { keepDeviceSettings?: boolean } = {}): void {
+  const deviceDefaults = {
+    hapticsEnabled: true,
+    restSoundEnabled: true,
+    keepScreenAwake: true,
+    workoutRemindersEnabled: false,
+    workoutReminderDays: [...DEFAULT_WORKOUT_REMINDER_DAYS],
+    workoutReminderHour: 18,
+    workoutReminderMinute: 0,
+    weeklyDigestEnabled: false,
+    weeklyDigestHour: 18,
+    weeklyDigestMinute: 0,
+    monthlyRecapEnabled: false,
+    abandonedNudgeEnabled: false,
+    streakNudgeEnabled: false,
+    milestoneNudgeEnabled: false,
+    exerciseMediaStyle: 'auto' as const,
+    exerciseMediaAnimation: 'cycle' as const,
+    devExerciseMediaOverride: 'off' as const,
+  };
   suppressPrefSync = true;
   try {
     useSettings.setState({
+      ...(options.keepDeviceSettings ? {} : deviceDefaults),
       themeMode: ACCOUNT_PREF_DEFAULTS.themeMode as Settings['themeMode'],
       accentTheme: isAccentTheme(ACCOUNT_PREF_DEFAULTS.accentTheme)
         ? ACCOUNT_PREF_DEFAULTS.accentTheme
@@ -426,29 +450,13 @@ export function resetAccountPreferences(): void {
       exerciseWeightUnits: {},
       // Local-only prefs never sync, so a new account would otherwise inherit
       // the previous owner's reminders, nudges, media taste, and behavior
-      // flags. Reset them; only device taste (classic-accent memory, seen
-      // announcements) survives the switch.
+      // flags (deviceDefaults above, on a switch). Account-derived local
+      // state always resets; only device taste (classic-accent memory, seen
+      // announcements) survives.
       unit: 'metric',
-      hapticsEnabled: true,
-      restSoundEnabled: true,
-      keepScreenAwake: true,
-      workoutRemindersEnabled: false,
-      workoutReminderDays: [...DEFAULT_WORKOUT_REMINDER_DAYS],
-      workoutReminderHour: 18,
-      workoutReminderMinute: 0,
-      weeklyDigestEnabled: false,
-      weeklyDigestHour: 18,
-      weeklyDigestMinute: 0,
-      monthlyRecapEnabled: false,
-      abandonedNudgeEnabled: false,
-      streakNudgeEnabled: false,
-      milestoneNudgeEnabled: false,
       lastAbandonedNudgeLogId: null,
       lastStreakNudgeWeekKey: null,
       seenAchievementIds: [],
-      exerciseMediaStyle: 'auto',
-      exerciseMediaAnimation: 'cycle',
-      devExerciseMediaOverride: 'off',
     });
   } finally {
     suppressPrefSync = false;

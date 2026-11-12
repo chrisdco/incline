@@ -41,6 +41,13 @@ vi.mock('@/lib/query-client', () => ({
   queryClient: { clear: () => clearQueries() },
 }));
 
+vi.mock('@/store/active-workout-store', () => ({
+  useActiveWorkout: { getState: () => ({ clear: () => {} }) },
+}));
+vi.mock('@/ai/byok', () => ({ resetAiSettings: async () => {} }));
+vi.mock('@/store/settings-store', () => ({ resetAccountPreferences: () => {} }));
+vi.mock('@/sync/supabase-auth', () => ({ clearAuthedSupabase: () => {} }));
+
 let currentDb: TestDbHandle | null = null;
 
 vi.mock('../client', () => ({
@@ -58,7 +65,8 @@ vi.mock('../client', () => ({
 }));
 
 import { addWorkoutPhotos } from '../queries/photos';
-import { completeOnboarding, resetUserData } from '../queries/profile';
+import { completeOnboarding } from '../queries/profile';
+import { resetUserData } from '../reset';
 import {
   ACTIVE_PROGRAM_KEY,
   createProgram,

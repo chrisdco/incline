@@ -6,6 +6,7 @@ import {
   Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2,
 } from 'lucide-react-native';
 import { AiMark } from '@/components/ai/ai-mark';
+import { PhotoStorageRow } from '@/components/account/photo-storage-row';
 import { useAiSettings } from '@/ai/byok';
 import { byokPreset, type ByokConfig } from '@/ai/byok-presets';
 import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
@@ -356,6 +357,7 @@ export default function SettingsScreen() {
               subtitle="Bring your workout history from a CSV export"
               onPress={() => router.push('/(app)/import' as Href)}
             />
+            <PhotoStorageRow />
             <ListRow
               icon={<Icon icon={Trash2} size={18} color="destructive" />}
               title="Clear workout history"

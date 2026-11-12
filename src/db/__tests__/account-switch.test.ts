@@ -32,13 +32,17 @@ vi.mock('../client', () => ({
   __resetDatabaseCacheForTests: () => {},
 }));
 
-vi.mock('../queries/profile', () => ({
-  resetUserData: async () => {},
+vi.mock('@/lib/query-client', () => ({ queryClient: { clear: () => {} } }));
+vi.mock('expo-file-system/legacy', () => ({
+  documentDirectory: 'file:///tmp/',
+  deleteAsync: async () => {},
 }));
-
 vi.mock('@/store/active-workout-store', () => ({
   useActiveWorkout: { getState: () => ({ clear: () => {} }) },
 }));
+vi.mock('@/ai/byok', () => ({ resetAiSettings: async () => {} }));
+vi.mock('@/store/settings-store', () => ({ resetAccountPreferences: () => {} }));
+vi.mock('@/sync/supabase-auth', () => ({ clearAuthedSupabase: () => {} }));
 
 import { completeAccountSwitch, prepareAccountSwitch } from '../account';
 
@@ -90,6 +94,18 @@ describe('prepareAccountSwitch', () => {
        VALUES ('workout_logs', 'u1', 'upsert', '{}', 1, 0)`,
     );
     expect(await prepareAccountSwitch('user-b')).toEqual({ switched: true, pending: 1 });
+  });
+
+  it('counts queued photo uploads and deletes, not re-derivable downloads', async () => {
+    await claim('user-a');
+    for (const op of ['upload', 'delete', 'download']) {
+      await db().runAsync(
+        `INSERT INTO photo_blob_queue (photo_uuid, op, attempts, next_attempt_at, created_at)
+         VALUES ('p1', ?, 0, 0, 1)`,
+        op,
+      );
+    }
+    expect(await prepareAccountSwitch('user-b')).toEqual({ switched: true, pending: 2 });
   });
 
   it('completing claims the new owner', async () => {
