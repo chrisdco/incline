@@ -86,6 +86,7 @@ export {
   replaceExerciseInWorkout,
   reorderWorkoutExercises,
   updateWorkoutNotes,
+  setWorkoutGym,
   updateWorkoutLogStartedAt,
   updateWorkoutDuration,
   finishWorkout,
@@ -168,6 +169,24 @@ export {
   getLatestBodyweight,
   deleteBodyweightEntry,
 } from './bodyweight';
+
+export {
+  listGyms,
+  getGymsState,
+  getGymByUuid,
+  getWorkoutGym,
+  createGym,
+  updateGym,
+  deleteGym,
+  restoreGym,
+  setCurrentGym,
+  getExerciseGymUuids,
+  defaultGymEquipment,
+  plateUnitOf,
+  CURRENT_GYM_KEY,
+  type GymInput,
+  type GymsState,
+} from './gyms';
 
 export {
   addBodyMeasurement,

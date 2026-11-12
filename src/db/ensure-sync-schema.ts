@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { hasColumn, hasTable } from './migrations/helpers';
+import { WORKOUT_LOGS_GYM_INDEX } from './migrations/022_gyms';
 
 const UUID_TABLES = [
   'exercises',
@@ -123,5 +124,10 @@ export async function ensureSyncSchema(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_workout_photos_uuid ON workout_photos(uuid)',
     );
+  }
+  // Fresh installs get the column from schema.ts but not the index (schema
+  // statements run before migrations, so they can't index a 022 column).
+  if (await hasColumn(db, 'workout_logs', 'gym_uuid')) {
+    await db.execAsync(WORKOUT_LOGS_GYM_INDEX);
   }
 }

@@ -15,6 +15,7 @@ import type {
 import { getCelebrationPrCounts } from './coaching/prs';
 import { deletePhotosForWorkout, deletePhotosForWorkouts } from './photos';
 import { getLastSetsForExercise, getLastSetsForExercises } from './exercises';
+import { readCurrentGymUuid, writeCurrentGymTx } from './gyms';
 import {
   getSessionSets,
   getWorkingVolumes,
@@ -59,6 +60,7 @@ export async function enqueueLogUpserts(tx: Tx, logIds: number[]): Promise<void>
       log.deleted_at ? 'delete' : 'upsert',
       {
         template_uuid: log.template_uuid,
+        gym_uuid: log.gym_uuid ?? null,
         name: log.name,
         started_at: log.started_at,
         ended_at: log.ended_at,
@@ -255,9 +257,11 @@ async function startWorkoutInner(templateId: number | null, name: string): Promi
   }
 
   return mutate(['workout_logs', 'set_entries'], async (tx) => {
+    // New workouts are tagged with the current gym (#243); none = untagged.
+    const gymUuid = await readCurrentGymUuid(tx);
     const res = await tx.runAsync(
-      `INSERT INTO workout_logs (template_id, name, started_at, ended_at, duration_seconds, total_volume, unit, notes, uuid, created_at, updated_at) VALUES (?, ?, ?, NULL, 0, 0, 'metric', '', ?, ?, ?)`,
-      templateId, name, now, logUuid, now, now,
+      `INSERT INTO workout_logs (template_id, name, started_at, ended_at, duration_seconds, total_volume, unit, notes, gym_uuid, uuid, created_at, updated_at) VALUES (?, ?, ?, NULL, 0, 0, 'metric', '', ?, ?, ?, ?)`,
+      templateId, name, now, gymUuid, logUuid, now, now,
     );
     const logId = res.lastInsertRowId;
     const setIds: number[] = [];
@@ -521,6 +525,18 @@ export async function reorderWorkoutExercises(
         i, logId, exerciseIdsInOrder[i],
       );
     }
+  });
+}
+
+/**
+ * Re-tag a workout's gym (session chip). The pick also becomes the current
+ * gym, so the next workout starts there too. One transaction, one outbox row.
+ */
+export async function setWorkoutGym(logId: number, gymUuid: string | null): Promise<void> {
+  await mutate(['workout_logs', 'kv'], async (tx) => {
+    await tx.runAsync('UPDATE workout_logs SET gym_uuid = ?, updated_at = ? WHERE id = ?', gymUuid, Date.now(), logId);
+    await enqueueLogUpsert(tx, logId);
+    await writeCurrentGymTx(tx, gymUuid);
   });
 }
 

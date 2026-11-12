@@ -9,8 +9,9 @@
  * migration version.
  */
 import { AI_ACTIVITY_DDL } from './migrations/020_ai_activity';
+import { GYMS_DDL } from './migrations/022_gyms';
 
-export const SCHEMA_VERSION = 21;
+export const SCHEMA_VERSION = 22;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -138,6 +139,7 @@ export const SCHEMA_STATEMENTS: string[] = [
     total_volume REAL NOT NULL DEFAULT 0,
     unit TEXT NOT NULL DEFAULT 'metric',
     notes TEXT NOT NULL DEFAULT '',
+    gym_uuid TEXT,
     uuid TEXT,
     deleted_at INTEGER,
     created_at INTEGER NOT NULL,
@@ -262,6 +264,9 @@ export const SCHEMA_STATEMENTS: string[] = [
 
   // ---- AI activity log + feedback (local-only, migrations 020–021) ----
   ...AI_ACTIVITY_DDL,
+
+  // ---- gym profiles (synced, migration 022) ----
+  ...GYMS_DDL,
 
   `CREATE TABLE IF NOT EXISTS schema_meta (
     key TEXT PRIMARY KEY,

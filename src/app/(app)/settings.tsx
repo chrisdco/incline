@@ -7,6 +7,7 @@ import {
 } from 'lucide-react-native';
 import { AiMark } from '@/components/ai/ai-mark';
 import { PhotoStorageRow } from '@/components/account/photo-storage-row';
+import { GymsSettingsRow } from '@/components/gyms/gyms-settings-row';
 import { useAiSettings } from '@/ai/byok';
 import { byokPreset, type ByokConfig } from '@/ai/byok-presets';
 import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
@@ -246,6 +247,7 @@ export default function SettingsScreen() {
                 <Chip label="lb" selected={unit === 'imperial'} onPress={() => changeUnit('imperial')} />
               </View>
             </ListRow>
+            <GymsSettingsRow />
           </ListGroup>
         </Section>
 

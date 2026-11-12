@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
 import { ExerciseBlock } from '@/components/workout/exercise-block';
+import { SessionGymChip, SessionGymSheet } from '@/components/gyms/gym-session';
 import { DiscardSessionDialog } from '@/components/workout/discard-session-dialog';
 import { RestTimerBar } from '@/components/workout/rest-timer';
 import { RestPresetBar } from '@/components/workout/rest-preset-bar';
@@ -148,6 +149,7 @@ export default function SessionScreen() {
   const [finishOpen, setFinishOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [gymSheetOpen, setGymSheetOpen] = useState(false);
   const notesRef = useRef<TextInputInstance>(null);
   const [timerSheetOpen, setTimerSheetOpen] = useState(false);
 
@@ -386,6 +388,7 @@ export default function SessionScreen() {
         <View className="items-center">
           <Body className="font-semibold text-foreground">{session.name}</Body>
           {pausedAt ? <Caption className="text-amber-500">Paused</Caption> : null}
+          <SessionGymChip logId={logId} onPress={() => setGymSheetOpen(true)} />
         </View>
         <Button size="sm" variant="success" leftIcon={<Icon icon={Check} size={16} color="success-foreground" />} onPress={() => setFinishOpen(true)} disabled={finishing || discarding} loading={finishing}>
           Finish
@@ -602,6 +605,7 @@ export default function SessionScreen() {
       />
       <DiscardSessionDialog open={discardOpen} onOpenChange={(open) => { if (!discarding) setDiscardOpen(open); }} onConfirm={() => { void discard(); }} pending={discarding} />
 
+      <SessionGymSheet logId={logId} open={gymSheetOpen} onOpenChange={setGymSheetOpen} />
       <Sheet open={timerSheetOpen} onOpenChange={setTimerSheetOpen} title="Workout Timer" mode="fit">
         <View className="items-center gap-3 py-2">
           <Body className="text-sm text-muted-foreground">Elapsed time</Body>

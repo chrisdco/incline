@@ -17,6 +17,8 @@ export function applyReadinessToSuggestion(
   readiness: ReadinessLevel | null | undefined,
   unit: Unit,
   lastWorkingWeight?: number,
+  /** Gym plate step in the display unit (#243); omitted = standard. */
+  increment?: number,
 ): TrainingSuggestion {
   if (!readiness || readiness === 'fresh' || readiness === 'ok') return suggestion;
 
@@ -29,7 +31,7 @@ export function applyReadinessToSuggestion(
     suggestion.reasonCode === 'all_sets_maxed' ||
     suggestion.reasonCode === 'hold_weight_add_reps'
   ) {
-    const soft = decreaseLoad(base, unit);
+    const soft = decreaseLoad(base, unit, increment);
     return {
       ...suggestion,
       weight: soft > 0 ? soft : base,

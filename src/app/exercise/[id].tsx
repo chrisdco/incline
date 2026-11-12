@@ -1,4 +1,4 @@
-import { useState, useMemo, useLayoutEffect } from 'react';
+import { useState, useMemo, useLayoutEffect, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
 import { Lightbulb, Minus, Trophy, Plus, Play } from 'lucide-react-native';
@@ -15,7 +15,8 @@ import { EmptyState, ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { SeriesAreaChart } from '@/components/progress/series-area-chart';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
-import { useExerciseByRouteId, useExerciseHistory, useExerciseStats } from '@/hooks/use-data';
+import { useExerciseByRouteId, useExerciseGymRecords, useExerciseGymSplit, useExerciseHistory, useExerciseStats } from '@/hooks/use-data';
+import { GymPrScopeToggle, type PrScope } from '@/components/gyms/gym-pr-scope';
 import {
   addExerciseToWorkout,
   startWorkout,
@@ -81,6 +82,12 @@ export default function ExerciseDetailScreen() {
   const repRecords = stats?.repRecords ?? NO_RECORDS;
   const series = stats?.series ?? NO_SERIES;
   const plateau = stats?.plateau ?? null;
+  // Opt-in per-gym records (#243): offered only when this lift has sets at 2+ gyms.
+  const { data: splitGym } = useExerciseGymSplit(exerciseId);
+  const [prScope, setPrScope] = useState<PrScope>('all');
+  const scopedGymUuid = splitGym && prScope === 'gym' ? splitGym.uuid : null;
+  const { data: gymRecords } = useExerciseGymRecords(exerciseId, scopedGymUuid);
+  const shownRecords = scopedGymUuid ? gymRecords : null;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: true, title: '' });
@@ -205,10 +212,13 @@ export default function ExerciseDetailScreen() {
         {tab === 'Summary' && (
           <SummaryTab
             exercise={exercise}
-            prSummary={prSummary}
-            repRecords={repRecords}
+            prSummary={shownRecords?.prSummary ?? prSummary}
+            repRecords={shownRecords?.repRecords ?? repRecords}
             plateau={plateau}
             unit={unit}
+            prScopeControl={
+              splitGym ? <GymPrScopeToggle gymName={splitGym.name} value={prScope} onChange={setPrScope} /> : null
+            }
           />
         )}
         {tab === 'Progress' && (
@@ -236,13 +246,15 @@ function chartDateLabel(iso: string): string {
 }
 
 function SummaryTab({
-  exercise, prSummary, repRecords, plateau, unit,
+  exercise, prSummary, repRecords, plateau, unit, prScopeControl,
 }: {
   exercise: Exercise;
   prSummary: ExercisePRSummary | null;
   repRecords: RepRecord[];
   plateau: CoachingSignal | null;
   unit: Unit;
+  /** "All gyms / This gym" (#243); null when the lift isn't split across gyms. */
+  prScopeControl?: ReactNode;
 }) {
   return (
     <View>
@@ -250,6 +262,7 @@ function SummaryTab({
       <ExerciseMedia name={exercise.name} aliases={exercise.aliases} imageUrl={exercise.imageUrl} height={200} />
 
       {/* Records lead: opening an exercise mid-workout is usually "what's my best?". */}
+      {prScopeControl ? <View className="mt-4">{prScopeControl}</View> : null}
       {prSummary && prSummary.heaviestWeight > 0 ? (
         <Section title="Personal records" first className="mb-6">
           <Card>

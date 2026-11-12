@@ -26,6 +26,8 @@ export default function AppLayout() {
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
         <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notifications' }} />
         <Stack.Screen name="appearance" options={{ headerShown: true, title: 'Appearance' }} />
+        <Stack.Screen name="gyms" options={{ headerShown: true, title: 'Gyms' }} />
+        <Stack.Screen name="gym/[id]" options={{ headerShown: true, title: 'Gym' }} />
         <Stack.Screen name="export" options={{ headerShown: false }} />
         <Stack.Screen name="ai-settings" options={{ headerShown: false }} />
         <Stack.Screen name="import" options={{ headerShown: false }} />

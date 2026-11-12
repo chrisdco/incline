@@ -13,6 +13,7 @@ import { migration018 } from '../migrations/018_set_sort_order';
 import { migration019 } from '../migrations/019_exercise_search_text';
 import { migration020 } from '../migrations/020_ai_activity';
 import { migration021 } from '../migrations/021_ai_activity_actor';
+import { migration022 } from '../migrations/022_gyms';
 import { createTestDatabase } from './sqlite-adapter';
 
 function createV1Db() {
@@ -320,5 +321,36 @@ describe('schema migrations (better-sqlite3)', () => {
     const cols = await fresh.db.getAllAsync<{ name: string }>('PRAGMA table_info(ai_activity)');
     expect(cols.map((c) => c.name)).toEqual(expect.arrayContaining(['actor', 'device_id']));
     fresh.close();
+  });
+
+  it('creates gyms and tags workout_logs with gym_uuid, idempotent (022, real up)', async () => {
+    const t = createTestDatabase({ ddl: [] });
+    await t.db.execAsync(`CREATE TABLE workout_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, started_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`);
+    await t.db.runAsync(`INSERT INTO workout_logs (name, started_at, created_at, updated_at) VALUES ('Old', 1, 1, 1)`);
+    await migration022.up(t.db as unknown as SQLiteDatabase);
+    await migration022.up(t.db as unknown as SQLiteDatabase);
+
+    // Existing workouts stay untagged: zero gyms behaves exactly as before.
+    expect(await t.db.getFirstAsync('SELECT name, gym_uuid FROM workout_logs')).toEqual({ name: 'Old', gym_uuid: null });
+    const cols = await t.db.getAllAsync<{ name: string }>('PRAGMA table_info(gyms)');
+    expect(cols.map((c) => c.name)).toEqual(
+      expect.arrayContaining(['uuid', 'name', 'unit', 'bar_weight', 'plates', 'sort_order', 'deleted_at', 'updated_at']),
+    );
+    await t.db.runAsync(
+      `INSERT INTO gyms (uuid, name, bar_weight, plates, created_at) VALUES ('g-1', 'Home', 20, '[20,10]', 1)`,
+    );
+    expect(await t.db.getFirstAsync('SELECT unit, sort_order, updated_at FROM gyms')).toEqual({
+      unit: 'metric',
+      sort_order: 0,
+      updated_at: 0,
+    });
+    await expect(
+      t.db.runAsync(`INSERT INTO gyms (uuid, name, bar_weight, plates, created_at) VALUES ('g-1', 'Dup', 20, '[]', 1)`),
+    ).rejects.toThrow();
+    const idx = await t.db.getAllAsync<{ name: string }>('PRAGMA index_list(workout_logs)');
+    expect(idx.map((i) => i.name)).toContain('idx_workout_logs_gym');
+    t.close();
   });
 });

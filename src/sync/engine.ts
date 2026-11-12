@@ -292,10 +292,15 @@ export async function applyRemoteRow(
     }
     const startedAt = isoToMs(asStr(remote.started_at)) ?? updatedAt;
     const endedAt = isoToMs(remote.ended_at as string | null);
+    // A cloud without the 022 column sends no key: keep the local tag.
+    const hasGym = 'gym_uuid' in remote;
+    const gymUuid = remote.gym_uuid ? asStr(remote.gym_uuid) : null;
     if (local) {
       await db.runAsync(
-        `UPDATE workout_logs SET template_id = ?, name = ?, started_at = ?, ended_at = ?, duration_seconds = ?, total_volume = ?, unit = ?, notes = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
+        `UPDATE workout_logs SET template_id = ?, gym_uuid = CASE WHEN ? THEN ? ELSE gym_uuid END, name = ?, started_at = ?, ended_at = ?, duration_seconds = ?, total_volume = ?, unit = ?, notes = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
         templateId,
+        hasGym ? 1 : 0,
+        gymUuid,
         asStr(remote.name),
         startedAt,
         endedAt,
@@ -310,9 +315,10 @@ export async function applyRemoteRow(
     } else if (!deletedAt) {
       const created = isoToMs(asStr(remote.created_at)) ?? updatedAt;
       await db.runAsync(
-        `INSERT INTO workout_logs (template_id, name, started_at, ended_at, duration_seconds, total_volume, unit, notes, uuid, created_at, updated_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO workout_logs (template_id, gym_uuid, name, started_at, ended_at, duration_seconds, total_volume, unit, notes, uuid, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         templateId,
+        gymUuid,
         asStr(remote.name),
         startedAt,
         endedAt,
@@ -408,6 +414,46 @@ export async function applyRemoteRow(
         asStr(remote.unit, 'kg'),
         recordedAt,
         id,
+        created,
+        updatedAt,
+        deletedAt,
+      );
+    }
+    return 'ok';
+  }
+
+  if (table === 'gyms') {
+    const local = await db.getFirstAsync<{ id: number; updated_at: number }>(
+      'SELECT id, updated_at FROM gyms WHERE uuid = ?',
+      id,
+    );
+    if (local && local.updated_at > updatedAt) return 'ok';
+    // Cloud `plates` is jsonb (an array); local keeps the JSON text.
+    const plates = JSON.stringify(Array.isArray(remote.plates) ? remote.plates : []);
+    const unit = asStr(remote.unit, 'metric');
+    if (local) {
+      await db.runAsync(
+        `UPDATE gyms SET name = ?, unit = ?, bar_weight = ?, plates = ?, sort_order = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
+        asStr(remote.name, 'Gym'),
+        unit,
+        asNum(remote.bar_weight),
+        plates,
+        asNum(remote.sort_order),
+        updatedAt,
+        deletedAt,
+        local.id,
+      );
+    } else if (!deletedAt) {
+      const created = isoToMs(asStr(remote.created_at)) ?? updatedAt;
+      await db.runAsync(
+        `INSERT INTO gyms (uuid, name, unit, bar_weight, plates, sort_order, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        asStr(remote.name, 'Gym'),
+        unit,
+        asNum(remote.bar_weight),
+        plates,
+        asNum(remote.sort_order),
         created,
         updatedAt,
         deletedAt,

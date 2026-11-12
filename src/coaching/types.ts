@@ -67,4 +67,6 @@ export interface OverloadInput {
   unit: Unit;
   /** Optional daily check-in. Only `tired` softens load suggestions. */
   readiness?: ReadinessLevel | null;
+  /** Load step in the display unit from the workout's gym (#243); omitted = standard plates. */
+  increment?: number;
 }

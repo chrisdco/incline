@@ -2,6 +2,8 @@ import { openDatabase } from '../../client';
 import { getLastSetsForExercises, getRecentTopSetsForExercises, listExercises, getExercise } from '../exercises';
 import { getTemplate } from '../templates';
 import { suggestNextLoad } from '@/coaching/overload';
+import { gymIncrement } from '@/coaching/plates';
+import { getGymByUuid, readCurrentGymUuid } from '../gyms';
 import { explainSuggestion, REASON_HISTORY_SESSIONS } from '@/coaching/reason';
 import { getTodayReadiness } from '@/coaching/readiness-store';
 import { collectStalledLifts, STALLED_RECENT_DAYS, type StalledLift } from '@/coaching/stalled';
@@ -20,20 +22,24 @@ function workingSets(sets: SetEntry[]): { weight: number; reps: number; rpe: num
 /**
  * `unit` is the global display unit; `unitOverrides` (settings
  * `exerciseWeightUnits`) lets an exercise progress in its own unit's plates.
+ * `opts.gymUuid` picks the gym whose plates set the load step (#243): a
+ * workout passes its own tag (null = none); omitted = the current gym.
  */
 export async function getTemplateSuggestions(
   templateId: number,
   unit: Unit,
   unitOverrides: Readonly<Record<string, Unit>> = {},
+  opts: { gymUuid?: string | null } = {},
 ): Promise<TrainingSuggestion[]> {
   const template = await getTemplate(templateId);
   if (!template?.exercises?.length) return [];
 
   const exerciseIds = template.exercises.map((te) => te.exerciseId);
-  const [lastMap, historyMap, readiness] = await Promise.all([
+  const [lastMap, historyMap, readiness, gym] = await Promise.all([
     getLastSetsForExercises(exerciseIds),
     getRecentTopSetsForExercises(exerciseIds, REASON_HISTORY_SESSIONS),
     getTodayReadiness(),
+    resolveGym(opts.gymUuid),
   ]);
   const now = Date.now();
   const out: TrainingSuggestion[] = [];
@@ -41,6 +47,7 @@ export async function getTemplateSuggestions(
   for (const te of template.exercises) {
     const last = workingSets(lastMap[te.exerciseId] ?? []);
     const exUnit = resolveWeightUnit(unitOverrides, te.exercise?.refKey, unit);
+    const increment = gymIncrement(gym, exUnit);
     const suggestion = suggestNextLoad({
       exerciseId: te.exerciseId,
       exerciseName: te.exercise?.name ?? 'Exercise',
@@ -50,6 +57,7 @@ export async function getTemplateSuggestions(
       targetSets: te.targetSets,
       unit: exUnit,
       readiness,
+      increment,
     });
     if (!suggestion) continue;
     // Numbers above are final; the reason only explains them.
@@ -62,10 +70,18 @@ export async function getTemplateSuggestions(
       unitSource: exUnit === unit ? 'global' : 'exercise',
       readiness,
       now,
+      increment,
     });
     out.push(suggestion);
   }
   return out;
+}
+
+/** The gym whose plates drive increments: explicit tag, or the current gym when omitted. */
+async function resolveGym(gymUuid: string | null | undefined) {
+  if (gymUuid === null) return null;
+  const uuid = gymUuid ?? (await readCurrentGymUuid(await openDatabase()));
+  return uuid ? getGymByUuid(uuid) : null;
 }
 
 /** Single-exercise suggestion (active session assist). */
