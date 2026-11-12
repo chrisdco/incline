@@ -2,6 +2,7 @@ import type { FeaturePackV1, NarrateSurface } from './feature-pack';
 import type { CoachNarration } from './narrate-validate';
 import type { CoachingInsightKind } from './types';
 import type { ByokConfig } from '@/ai/byok-presets';
+import { reportAiEvent } from '@/ai/report';
 import type { AiEvent, KvLike } from '@/ai/types';
 import type { GetToken } from '@/sync/supabase-auth';
 
@@ -95,17 +96,6 @@ function supabaseToken(getToken: GetToken): () => Promise<string | null> {
   };
 }
 
-/** Report fallbacks worth fixing (bad output, bugs) — not offline / quota / signed-out. */
-async function reportEvent(event: AiEvent): Promise<void> {
-  if (event.status === 'ok' || (event.reason !== 'invalid_output' && event.reason !== 'error')) return;
-  // Metadata only (task, reason, providers) — never pack or wording.
-  const { captureError } = await import('@/lib/error-sink');
-  captureError(new Error(`ai.${event.taskId} fallback: ${event.reason}`), {
-    where: `ai.${event.taskId}`,
-    attempts: event.attempts.map((a) => `${a.providerId}:${a.outcome}`).join(','),
-  });
-}
-
 /**
  * Optional AI wording for a FeaturePack via the AI router (BYOK first, then
  * the Incline gateway). Never throws — callers keep rule copy on null.
@@ -148,7 +138,7 @@ export async function requestCoachNarration(
         providers,
         enabled: taskEnabled,
         cache: await readKv(overrides?.kv),
-        onEvent: overrides?.onEvent ?? ((e) => void reportEvent(e).catch(() => undefined)),
+        onEvent: overrides?.onEvent ?? ((e) => void reportAiEvent(e).catch(() => undefined)),
       },
     );
     return result.status === 'ok' ? result.output : null;

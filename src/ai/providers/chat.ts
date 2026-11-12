@@ -1,3 +1,5 @@
+import { usageFromCompletion } from '@/contracts/ai/data-use';
+
 import { parseJsonLoose } from '../json';
 import { AiError, type AiProvider, type ChatMessage, type ProviderCapabilities } from '../types';
 import { aiErrorFromFetch, aiErrorFromStatus } from './http-errors';
@@ -81,6 +83,7 @@ export function createChatProvider(config: ChatProviderConfig): AiProvider {
       const data = (await res.json().catch(() => null)) as {
         choices?: { message?: { content?: string | null } }[];
       } | null;
+      ctx.reportUsage?.(usageFromCompletion(data, config.model));
       const text = data?.choices?.[0]?.message?.content ?? '';
       const parsed = parseJsonLoose(text);
       if (parsed === undefined) throw new AiError('invalid_output', 'reply was not JSON');

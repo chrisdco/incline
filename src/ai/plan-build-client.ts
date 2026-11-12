@@ -14,7 +14,8 @@ import type { PlanInsertInput } from '@/db/queries/programs';
 import type { Exercise } from '@/db/types';
 import type { GetToken } from '@/sync/supabase-auth';
 
-import type { AiEvent, AiFailure } from './types';
+import { reportAiEvent } from './report';
+import type { AiFailure } from './types';
 
 export interface ProposalPlanRow extends PlanRow {
   exerciseId: number;
@@ -214,16 +215,6 @@ function supabaseToken(getToken: GetToken): () => Promise<string | null> {
   };
 }
 
-async function reportEvent(event: AiEvent): Promise<void> {
-  if (event.status === 'ok' || (event.reason !== 'invalid_output' && event.reason !== 'error')) return;
-  // Metadata only — never the request text.
-  const { captureError } = await import('@/lib/error-sink');
-  captureError(new Error(`ai.${event.taskId} fallback: ${event.reason}`), {
-    where: `ai.${event.taskId}`,
-    attempts: event.attempts.map((a) => `${a.providerId}:${a.outcome}`).join(','),
-  });
-}
-
 /** Ask the AI for a plan. Never throws; nothing is written here. */
 export async function requestPlanBuild(input: {
   plan: Omit<PlanBuildInput, 'catalog'>;
@@ -268,7 +259,7 @@ export async function requestPlanBuild(input: {
       providers,
       enabled: await isAiTaskEnabled(planBuildTask.id),
       signal: input.signal,
-      onEvent: (e) => void reportEvent(e).catch(() => undefined),
+      onEvent: (e) => void reportAiEvent(e).catch(() => undefined),
     });
     if (result.status !== 'ok') return { status: 'unavailable', reason: result.reason };
     const draft = result.output;

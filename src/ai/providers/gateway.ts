@@ -1,4 +1,5 @@
 import { AI_CONSENT_HEADER, AI_CONSENT_VERSION } from '@/contracts/ai/consent';
+import { usageFromCompletion } from '@/contracts/ai/data-use';
 
 import { AiError, type AiProvider } from '../types';
 import { aiErrorFromFetch, aiErrorFromStatus } from './http-errors';
@@ -53,6 +54,8 @@ export function createGatewayProvider(config: GatewayProviderConfig): AiProvider
       }
       if (!res.ok) throw aiErrorFromStatus(res.status, await res.text().catch(() => ''));
       const json: unknown = await res.json().catch(() => null);
+      // `meta` mirrors the OpenAI `{ model, usage }` shape (ai-task ≥ G9); older servers omit it.
+      ctx.reportUsage?.(usageFromCompletion((json as { meta?: unknown } | null)?.meta));
       const picked = spec.pick(json);
       if (picked == null) throw new AiError('invalid_output', 'gateway returned no output');
       return picked;

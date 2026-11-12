@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Bot, CheckCircle2, Cloud, KeyRound, ShieldCheck, XCircle } from 'lucide-react-native';
+import { ArrowLeft, Bot, CheckCircle2, Cloud, History, KeyRound, ShieldCheck, XCircle } from 'lucide-react-native';
 import { AiMark } from '@/components/ai/ai-mark';
 
 import { Icon } from '@/components/common/icon';
@@ -27,6 +27,7 @@ import {
 import { testAiConnection, type ConnectionTestResult } from '@/ai/connection-test';
 import { aiFailureCopy } from '@/ai/copy';
 import { hasAnyConsent, useAiConsent } from '@/ai/consent';
+import { useAiDataUse } from '@/ai/data-use';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { useSettings } from '@/store/settings-store';
 
@@ -102,6 +103,7 @@ export default function AiSettingsScreen() {
   const setByok = useAiSettings((s) => s.setByok);
   const consent = useAiConsent();
   const consented = hasAnyConsent(consent);
+  const dataUseCount = useAiDataUse((s) => s.entries.length);
   const onToggleAi = (on: boolean) => {
     // Turning AI on goes through consent first (App Store 5.1.2(i)); the consent screen turns it on.
     if (on && !consented) router.push('/(app)/ai-consent?enable=1' as Href);
@@ -302,6 +304,12 @@ export default function AiSettingsScreen() {
             title="Data sharing"
             subtitle={consented ? 'Allowed for the providers you chose' : 'No AI provider allowed yet'}
             onPress={() => router.push('/(app)/ai-consent' as Href)}
+          />
+          <ListRow
+            icon={<Icon icon={History} size={18} color="muted-foreground" />}
+            title="AI data use"
+            subtitle={dataUseCount ? `${dataUseCount} recent requests — what was sent, to whom` : 'What was sent, to whom and when'}
+            onPress={() => router.push('/(app)/ai-data-use' as Href)}
           />
           <View className="gap-3 py-3">
             <View className="flex-row items-start gap-3">

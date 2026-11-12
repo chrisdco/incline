@@ -13,7 +13,8 @@ import type { PlanEditPayload, PlanRoutineRow } from '@/db/queries/programs';
 import type { Program } from '@/db/types';
 import type { GetToken } from '@/sync/supabase-auth';
 
-import type { AiEvent, AiFailure } from './types';
+import { reportAiEvent } from './report';
+import type { AiFailure } from './types';
 
 export interface ScheduleLine {
   label: string;
@@ -184,16 +185,6 @@ function supabaseToken(getToken: GetToken): () => Promise<string | null> {
   };
 }
 
-async function reportEvent(event: AiEvent): Promise<void> {
-  if (event.status === 'ok' || (event.reason !== 'invalid_output' && event.reason !== 'error')) return;
-  // Metadata only — never the plan or the request text.
-  const { captureError } = await import('@/lib/error-sink');
-  captureError(new Error(`ai.${event.taskId} fallback: ${event.reason}`), {
-    where: `ai.${event.taskId}`,
-    attempts: event.attempts.map((a) => `${a.providerId}:${a.outcome}`).join(','),
-  });
-}
-
 /** Ask the AI for a change to `program` (custom plans only). Never throws; nothing is written here. */
 export async function requestPlanEdit(input: {
   program: Program;
@@ -250,7 +241,7 @@ export async function requestPlanEdit(input: {
       providers,
       enabled: await isAiTaskEnabled(planEditTask.id),
       signal: input.signal,
-      onEvent: (e) => void reportEvent(e).catch(() => undefined),
+      onEvent: (e) => void reportAiEvent(e).catch(() => undefined),
     });
     if (result.status !== 'ok') return { status: 'unavailable', reason: result.reason };
     const edit = result.output;
