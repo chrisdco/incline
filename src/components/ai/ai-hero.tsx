@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import Animated, { Easing, FadeIn, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, withTiming } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
 import { BrandGradient } from '@/components/brand/brand-gradient';
@@ -10,18 +10,15 @@ import { brandTheme } from '@/styles/tokens';
 
 import { HERO_DOTS, HERO_DOTS_VIEWBOX } from './ai-hero-dots';
 
-/** The dot mark drifts in from the bottom-right (where the Android AI button sits) and settles. */
+/** The dot mark eases in from the bottom-right (toward the Android AI button). No spring: one clean move, no overshoot. */
+const SETTLE = { duration: motionDuration.enter, easing: Easing.out(Easing.cubic) };
 function dotsEntering() {
   'worklet';
   return {
-    initialValues: { opacity: 0, transform: [{ translateX: 40 }, { translateY: 60 }, { scale: 0.85 }] },
+    initialValues: { opacity: 0, transform: [{ translateX: 16 }, { translateY: 24 }] },
     animations: {
-      opacity: withTiming(1, { duration: motionDuration.enter }),
-      transform: [
-        { translateX: withSpring(0, { damping: 20, stiffness: 160 }) },
-        { translateY: withSpring(0, { damping: 20, stiffness: 160 }) },
-        { scale: withSpring(1, { damping: 16, stiffness: 160 }) },
-      ],
+      opacity: withTiming(1, SETTLE),
+      transform: [{ translateX: withTiming(0, SETTLE) }, { translateY: withTiming(0, SETTLE) }],
     },
   };
 }
