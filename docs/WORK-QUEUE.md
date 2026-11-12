@@ -252,11 +252,19 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
   - [ ] Community/marketplace plans (later).
 - [ ] **4. Smart surfaces + personalisation:**
   - [ ] **Ask chat** — design in [AI-CHAT.md](decisions/AI-CHAT.md): device-side
-    agent loop (AI SDK), `ai-chat` streaming proxy, local threads, memory facts.
-    Phases 0 spike → 1 core → 2 cards → 3 memory → 4 in-session sheet.
+    agent loop (own OpenAI-compatible adapter), `ai-chat` streaming proxy,
+    local threads, memory facts.
+    - [x] Phase 0.5 contracts + runtime (#355), `ai-chat` gateway + model
+      catalog G8 (#356), the 9 read tools on SQLite shared with incline-mcp (#357).
+    - [x] Phase 1 core: threads (`023_chat`), Ask composer + recent chats,
+      thread screen with streaming, tool activity line, source chips, stop;
+      each turn recorded in AI data use.
+    - [ ] Phase 1 device test against the live gateway (signed in, real key).
+    - [ ] Phase 2 data cards → 3 memory → 4 in-session sheet.
   - [ ] **Foundation review** — [FOUNDATION-REVIEW.md](decisions/FOUNDATION-REVIEW.md):
-    G1 AI data consent (iOS release blocker) now; canonical health/food model +
-    DB encryption before step 5; food sources/search/licence with step 6.
+    [x] G1 consent (#353), [x] G9 data use (#354), [x] G8 catalog (#356).
+    G2 attestation with the next native build; G3/G7 before Health Connect;
+    G5/G6/G11 with nutrition; G10 with MCP OAuth.
   - Context chips, the Ask sheet, and voice logging (gym loop: Hevy/Strong
     side-by-side check before PR).
   - `coach_memory` learning, the "What Incline knows about you" screen, and

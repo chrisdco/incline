@@ -24,6 +24,8 @@ export const RESET_TABLES = [
   'session_exercise_notes',
   'ai_activity',
   'ai_feedback',
+  'chat_messages',
+  'chat_threads',
   'bodyweight_entries',
   'body_measurements',
   'gyms',
@@ -152,6 +154,8 @@ export async function wipeUserTables(tx: Tx): Promise<void> {
   await tx.execAsync('DELETE FROM session_exercise_notes');
   await tx.execAsync('DELETE FROM ai_activity');
   await tx.execAsync('DELETE FROM ai_feedback');
+  await tx.execAsync('DELETE FROM chat_messages');
+  await tx.execAsync('DELETE FROM chat_threads');
   await tx.execAsync('DELETE FROM bodyweight_entries');
   await tx.execAsync('DELETE FROM body_measurements');
   await tx.execAsync('DELETE FROM gyms');

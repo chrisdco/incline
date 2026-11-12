@@ -2,19 +2,23 @@ import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
-import { CalendarRange, SlidersHorizontal, X } from 'lucide-react-native';
+import { CalendarRange, MessageCircle, SlidersHorizontal, X } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
-import { Caption } from '@/components/common/text';
+import { Body, Caption } from '@/components/common/text';
 import { ListGroup, ListRow, Section } from '@/components/layout';
 import { Tappable } from '@/components/ui/tappable';
 import { hasAnyConsent, useAiConsent } from '@/ai/consent';
 import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
 import { motionDuration } from '@/styles/motion';
+import { chatThreadsQuery } from '@/lib/query-keys';
+import { newUuid } from '@/lib/uuid';
 
 import { AiFallbackNotice } from './ai-fallback-notice';
 import { AiHero } from './ai-hero';
 import { AiMark } from './ai-mark';
+import { SuggestionChip } from './suggestion-chip';
 
 type Suggestion = { title: string; subtitle: string; href: Href };
 
@@ -32,6 +36,18 @@ const BY_CONTEXT: Record<AskContext, Suggestion[]> = {
   profile: [MONTH, WEEK, ADJUST],
 };
 
+const STARTERS = ["How's my bench going?", 'What are my best lifts?'];
+/** Recent chats shown here; older ones are a scroll away in a later list. */
+const RECENT = 5;
+
+function ago(ms: number, now = Date.now()): string {
+  const days = Math.floor((now - ms) / 86_400_000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 /** Staggered rise for the blocks below the header. */
 const rise = (i: number) =>
   FadeInDown.duration(motionDuration.enter)
@@ -47,6 +63,9 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const from = useAiEntry((s) => s.from);
   const consented = useAiConsent(hasAnyConsent);
+  const { data: threads = [] } = useQuery(chatThreadsQuery);
+  const openChat = (q?: string) =>
+    router.push(`/(app)/chat/${newUuid()}${q ? `?q=${encodeURIComponent(q)}` : ''}` as Href);
 
   return (
     <View className="flex-1">
@@ -76,6 +95,41 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
             </Animated.View>
           )}
         </View>
+
+        <Animated.View entering={rise(1)} className="mt-5 gap-3">
+          <Tappable
+            onPress={() => openChat()}
+            pressedOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Ask about your training"
+            className="h-12 flex-row items-center gap-3 rounded-2xl border border-input bg-surface1 px-4">
+            <Icon icon={AiMark} size={18} color="muted-foreground" />
+            <Body className="flex-1 text-muted-foreground">Ask about your training</Body>
+          </Tappable>
+          <View className="flex-row flex-wrap gap-2">
+            {STARTERS.map((q) => (
+              <SuggestionChip key={q} label={q} onPress={() => openChat(q)} />
+            ))}
+          </View>
+        </Animated.View>
+
+        {threads.length ? (
+          <Animated.View entering={rise(1)}>
+            <Section title="Recent chats">
+              <ListGroup>
+                {threads.slice(0, RECENT).map((t) => (
+                  <ListRow
+                    key={t.uuid}
+                    icon={<Icon icon={MessageCircle} size={18} color="muted-foreground" />}
+                    title={t.title || 'Chat'}
+                    subtitle={ago(t.updatedAt)}
+                    onPress={() => router.push(`/(app)/chat/${t.uuid}` as Href)}
+                  />
+                ))}
+              </ListGroup>
+            </Section>
+          </Animated.View>
+        ) : null}
 
         <Animated.View entering={rise(1)}>
           <Section title="Suggested">
