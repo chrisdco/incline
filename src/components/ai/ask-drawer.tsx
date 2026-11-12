@@ -1,83 +1,98 @@
+import { useState } from 'react';
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { Alert, Modal, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import Animated, { Easing, FadeIn, FadeOut, SlideInLeft, SlideOutLeft } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MessageCircle, ShieldCheck, SlidersHorizontal, SquarePen } from 'lucide-react-native';
+import { BarChart3, CalendarRange, Gauge, Plus, Scale, Search, SlidersHorizontal, type LucideIcon } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
-import { Body, Caption } from '@/components/common/text';
-import { ListGroup, ListRow, SectionLabel } from '@/components/layout';
+import { Body, Caption, Text } from '@/components/common/text';
 import { Tappable } from '@/components/ui/tappable';
 import { deleteChatThread } from '@/db/queries/chat';
 import { chatThreadsQuery } from '@/lib/query-keys';
 import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
 import { motionDuration } from '@/styles/motion';
+import { PLACEHOLDER_HEX } from '@/styles/tokens';
 
-type Tool = { title: string; href: Href };
+type Tool = { title: string; href: Href; icon: LucideIcon };
 
-const PLAN: Tool = {
-  title: 'Build a plan',
-  href: '/(app)/plan-builder' as Href,
-};
-const ADJUST: Tool = {
-  title: 'Adjust my program',
-  href: '/(app)/program-adjust' as Href,
-};
-const DELOAD: Tool = { title: 'Deload check', href: '/(app)/deload' as Href };
-const BALANCE: Tool = {
-  title: 'Muscle balance',
-  href: '/(app)/muscle-distribution' as Href,
-};
-const WEEK: Tool = { title: 'Week report', href: '/(app)/report/week' as Href };
-const MONTH: Tool = {
-  title: 'Month report',
-  href: '/(app)/report/month' as Href,
-};
+const PLAN: Tool = { title: 'Build a plan', href: '/(app)/plan-builder' as Href, icon: CalendarRange };
+const ADJUST: Tool = { title: 'Adjust my program', href: '/(app)/program-adjust' as Href, icon: SlidersHorizontal };
+const DELOAD: Tool = { title: 'Deload check', href: '/(app)/deload' as Href, icon: Gauge };
+const BALANCE: Tool = { title: 'Muscle balance', href: '/(app)/muscle-distribution' as Href, icon: Scale };
+const REPORTS: Tool = { title: 'Week and month reports', href: '/(app)/report/week' as Href, icon: BarChart3 };
 
 /** Tools lead with the screen Ask was opened from. */
 const TOOLS: Record<AskContext, Tool[]> = {
-  index: [WEEK, PLAN, DELOAD, ADJUST],
+  index: [PLAN, ADJUST, DELOAD, REPORTS],
   workouts: [ADJUST, PLAN, DELOAD, BALANCE],
-  progress: [BALANCE, WEEK, MONTH, PLAN],
-  profile: [MONTH, WEEK, PLAN, ADJUST],
+  progress: [BALANCE, REPORTS, PLAN, DELOAD],
+  profile: [REPORTS, PLAN, ADJUST, DELOAD],
 };
 
+/** Recents shown before "View all". */
+const RECENT = 6;
 const EASE = Easing.out(Easing.cubic);
-
-export function ago(ms: number, now = Date.now()): string {
-  const days = Math.floor((now - ms) / 86_400_000);
-  if (days <= 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  return new Date(ms).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 function confirmDelete(uuid: string, title: string) {
   Alert.alert('Delete chat?', `"${title}" will be removed from this device.`, [
     { text: 'Cancel', style: 'cancel' },
-    {
-      text: 'Delete',
-      style: 'destructive',
-      onPress: () => void deleteChatThread(uuid),
-    },
+    { text: 'Delete', style: 'destructive', onPress: () => void deleteChatThread(uuid) },
   ]);
 }
 
+function GroupLabel({ children }: { children: string }) {
+  return <Caption className="mb-1 mt-6 px-3">{children}</Caption>;
+}
+
+function Row({
+  label,
+  icon,
+  onPress,
+  onLongPress,
+  hint,
+}: {
+  label: string;
+  icon?: LucideIcon;
+  onPress: () => void;
+  onLongPress?: () => void;
+  hint?: string;
+}) {
+  return (
+    <Tappable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      pressedOpacity={0.55}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+      {icon ? <Icon icon={icon} size={18} color="foreground" /> : null}
+      <Body numberOfLines={1} className="flex-1 font-medium">
+        {label}
+      </Body>
+    </Tappable>
+  );
+}
+
 /**
- * Ask's history drawer (ASK-UI.md): New chat, Tools, Recents, then privacy
- * and settings. Opens from ☰ only (no edge swipe; that would fight Android's
- * back gesture). Long-press a chat to delete it.
+ * Ask's drawer (ASK-UI.md): search, Tools, Recents, then privacy and
+ * settings, with New chat floating bottom-right (Claude's layout). Opens from
+ * ☰ only (no edge swipe; that would fight Android's back gesture).
+ * Long-press a chat to delete it.
  */
 export function AskDrawer({ open, onClose, onNewChat }: { open: boolean; onClose: () => void; onNewChat: () => void }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const from = useAiEntry((s) => s.from);
   const { data: threads = [] } = useQuery(chatThreadsQuery);
+  const [query, setQuery] = useState('');
+  const [all, setAll] = useState(false);
+  const q = query.trim().toLowerCase();
+  const matches = q ? threads.filter((t) => (t.title || 'Chat').toLowerCase().includes(q)) : threads;
+  const shown = q || all ? matches : matches.slice(0, RECENT);
   const go = (href: Href) => {
     onClose();
     router.push(href);
@@ -91,74 +106,75 @@ export function AskDrawer({ open, onClose, onNewChat }: { open: boolean; onClose
             entering={SlideInLeft.duration(motionDuration.enter).easing(EASE)}
             exiting={SlideOutLeft.duration(motionDuration.exit)}
             className="w-4/5 max-w-sm bg-background"
-            style={{
-              paddingTop: insets.top + 8,
-              paddingBottom: insets.bottom + 8,
-            }}>
-            <View className="px-4 pb-3">
+            style={{ paddingTop: insets.top + 12 }}>
+            <View className="mx-4 h-11 flex-row items-center gap-2 rounded-full border border-input bg-surface1 px-4">
+              <Icon icon={Search} size={16} color="muted-foreground" />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search chats"
+                placeholderTextColor={PLACEHOLDER_HEX}
+                accessibilityLabel="Search chats"
+                className="flex-1 text-base text-foreground"
+                returnKeyType="search"
+              />
+            </View>
+
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: insets.bottom + 88 }} keyboardShouldPersistTaps="handled">
+              {q ? null : (
+                <>
+                  <GroupLabel>Tools</GroupLabel>
+                  {TOOLS[from].map((t) => (
+                    <Row key={t.title} label={t.title} icon={t.icon} onPress={() => go(t.href)} />
+                  ))}
+                </>
+              )}
+
+              <GroupLabel>{q ? 'Matching chats' : 'Recents'}</GroupLabel>
+              {shown.length ? (
+                shown.map((t) => (
+                  <Row
+                    key={t.uuid}
+                    label={t.title || 'Chat'}
+                    onPress={() => go(`/(app)/chat/${t.uuid}` as Href)}
+                    onLongPress={() => confirmDelete(t.uuid, t.title || 'Chat')}
+                    hint="Long press to delete"
+                  />
+                ))
+              ) : (
+                <Caption className="px-3 py-2">{q ? 'No chats match.' : 'Your chats stay on this device.'}</Caption>
+              )}
+              {!q && !all && matches.length > RECENT ? (
+                <Tappable onPress={() => setAll(true)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
+                  <Text className="text-sm font-medium text-muted-foreground">View all ›</Text>
+                </Tappable>
+              ) : null}
+
+              <View className="mx-3 mt-5 h-px bg-hairline" />
+              <View className="mt-3">
+                <Tappable onPress={() => go('/(app)/ai-data-use' as Href)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
+                  <Body className="text-muted-foreground">AI data use</Body>
+                </Tappable>
+                <Tappable onPress={() => go('/(app)/ai-settings' as Href)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
+                  <Body className="text-muted-foreground">AI settings</Body>
+                </Tappable>
+              </View>
+            </ScrollView>
+
+            <View className="absolute right-4" style={{ bottom: insets.bottom + 16 }}>
               <Tappable
                 onPress={() => {
                   onClose();
                   onNewChat();
                 }}
-                pressedOpacity={0.7}
+                pressedOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="New chat"
-                className="h-12 flex-row items-center gap-3 rounded-2xl bg-surface2 px-4">
-                <Icon icon={SquarePen} size={18} color="foreground" />
-                <Body className="font-medium">New chat</Body>
+                className="h-11 flex-row items-center gap-1.5 rounded-full bg-foreground px-4">
+                <Icon icon={Plus} size={16} color="background" />
+                <Text className="text-sm font-semibold text-background">New chat</Text>
               </Tappable>
             </View>
-            <ScrollView contentContainerClassName="px-4 pb-6 gap-6">
-              <View>
-                <SectionLabel>Tools</SectionLabel>
-                <ListGroup>
-                  {TOOLS[from].map((t) => (
-                    <ListRow key={t.title} title={t.title} onPress={() => go(t.href)} />
-                  ))}
-                </ListGroup>
-              </View>
-
-              <View>
-                <SectionLabel>Recents</SectionLabel>
-                {threads.length ? (
-                  <View className="gap-1">
-                    {threads.map((t) => (
-                      <Tappable
-                        key={t.uuid}
-                        onPress={() => go(`/(app)/chat/${t.uuid}` as Href)}
-                        onLongPress={() => confirmDelete(t.uuid, t.title || 'Chat')}
-                        pressedOpacity={0.6}
-                        accessibilityRole="button"
-                        accessibilityLabel={t.title || 'Chat'}
-                        accessibilityHint="Long press to delete"
-                        className="flex-row items-center gap-3 rounded-xl px-2 py-2.5">
-                        <Icon icon={MessageCircle} size={16} color="muted-foreground" />
-                        <Body numberOfLines={1} className="flex-1">
-                          {t.title || 'Chat'}
-                        </Body>
-                        <Caption>{ago(t.updatedAt)}</Caption>
-                      </Tappable>
-                    ))}
-                  </View>
-                ) : (
-                  <Caption className="px-1">Your chats stay on this device.</Caption>
-                )}
-              </View>
-
-              <ListGroup>
-                <ListRow
-                  icon={<Icon icon={ShieldCheck} size={18} color="muted-foreground" />}
-                  title="AI data use"
-                  onPress={() => go('/(app)/ai-data-use' as Href)}
-                />
-                <ListRow
-                  icon={<Icon icon={SlidersHorizontal} size={18} color="muted-foreground" />}
-                  title="AI settings"
-                  onPress={() => go('/(app)/ai-settings' as Href)}
-                />
-              </ListGroup>
-            </ScrollView>
           </Animated.View>
           <Animated.View entering={FadeIn.duration(motionDuration.enter)} exiting={FadeOut} className="flex-1 bg-black/40">
             <Pressable className="flex-1" onPress={onClose} accessibilityRole="button" accessibilityLabel="Close menu" />

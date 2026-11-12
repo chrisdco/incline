@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { ArrowUp, Square } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
+import Svg, { Circle, Polyline } from 'react-native-svg';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Text } from '@/components/common/text';
-import { Input } from '@/components/ui/input';
-import { Tappable } from '@/components/ui/tappable';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { useChatRun } from '@/ai/use-chat-run';
 import type { ChatMessageRecord, ChatPart, SourcePart } from '@/contracts/ai/chat';
 import { textOf } from '@/contracts/ai/chat';
 import { chatMessagesQuery } from '@/lib/query-keys';
 import { cn } from '@/lib/cn';
+import { hexToRgba, useThemeHex } from '@/lib/theme';
+import { followUpsFor, readLines, trendCardsFor, type TrendCard } from '@/ai/chat-turn';
 
+import { AskComposer } from './ask-composer';
 import { SourceChip } from './markers';
 import { SuggestionChip } from './suggestion-chip';
 
@@ -89,7 +91,7 @@ function RichText({ text }: { text: string }) {
   );
 }
 
-function AssistantRow({ parts, live }: { parts: readonly ChatPart[]; live: boolean }) {
+function AssistantRow({ parts, live, onFollowUp }: { parts: readonly ChatPart[]; live: boolean; onFollowUp?: (q: string) => void }) {
   const text = textOf(parts);
   const sources = parts.filter((p): p is SourcePart => p.type === 'source');
   const notices = parts.filter((p) => p.type === 'notice');
@@ -98,8 +100,17 @@ function AssistantRow({ parts, live }: { parts: readonly ChatPart[]; live: boole
   const workingLine = live ? (working.length ? (WORKING[working[0]!] ?? 'Reading your data…') : text ? null : 'Thinking…') : null;
 
   return (
-    <View className="gap-2 py-2">
+    <View className="gap-2.5 py-2">
+      {live
+        ? null
+        : readLines(parts).map((l) => (
+            <View key={l} className="flex-row items-center gap-1.5">
+              <Icon icon={Check} size={13} color="muted-foreground" />
+              <Caption>{l}</Caption>
+            </View>
+          ))}
       {text ? <RichText text={text} /> : null}
+      {live ? null : trendCardsFor(parts).map((c) => <TrendCardView key={c.exercise} card={c} />)}
       {workingLine ? (
         <Caption className="italic" accessibilityLiveRegion="polite">
           {workingLine}
@@ -119,6 +130,44 @@ function AssistantRow({ parts, live }: { parts: readonly ChatPart[]; live: boole
           ))}
         </View>
       ) : null}
+      {onFollowUp ? (
+        <View className="flex-row flex-wrap gap-2 pt-1">
+          {followUpsFor(parts).map((q) => (
+            <SuggestionChip key={q} label={q} onPress={() => onFollowUp(q)} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** e1RM over the sessions the answer read: numbers from the tool result, drawn by us. */
+function TrendCardView({ card }: { card: TrendCard }) {
+  const W = 260;
+  const H = 56;
+  const min = Math.min(...card.points);
+  const max = Math.max(...card.points);
+  const span = max - min || 1;
+  const xy = card.points.map((v, i) => [(i / (card.points.length - 1)) * (W - 8) + 4, H - 6 - ((v - min) / span) * (H - 12)] as const);
+  const lastPt = xy[xy.length - 1]!;
+  const up = card.points[card.points.length - 1]! >= card.points[0]!;
+  const primary = useThemeHex().primary;
+  return (
+    <View
+      className="rounded-2xl border border-hairline bg-surface1 px-4 py-3"
+      accessibilityLabel={`${card.exercise} estimated max over ${card.points.length} sessions, from ${card.points[0]} to ${card.points.at(-1)} ${card.unit}`}>
+      <View className="flex-row items-baseline justify-between">
+        <Caption>
+          {card.exercise} e1RM · {card.points.length} sessions
+        </Caption>
+        <Text className={cn('text-xs font-semibold tabular-nums', up ? 'text-success' : 'text-muted-foreground')}>
+          {card.points[0]} → {card.points.at(-1)} {card.unit}
+        </Text>
+      </View>
+      <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-2">
+        <Polyline points={xy.map(([x, y]) => `${x},${y}`).join(' ')} fill="none" stroke={hexToRgba(primary, 0.55)} strokeWidth={2} strokeLinejoin="round" />
+        <Circle cx={lastPt[0]} cy={lastPt[1]} r={3.5} fill={primary} />
+      </Svg>
     </View>
   );
 }
@@ -173,32 +222,28 @@ export function ChatThread({ threadUuid, initialQuestion }: { threadUuid: string
           data={rows}
           keyExtractor={(r) => r.key}
           getItemType={(r) => r.kind}
-          renderItem={({ item }) => (item.kind === 'user' ? <UserRow text={item.text} /> : <AssistantRow parts={item.parts} live={item.live} />)}
+          renderItem={({ item, index }) =>
+            item.kind === 'user' ? (
+              <UserRow text={item.text} />
+            ) : (
+              <AssistantRow parts={item.parts} live={item.live} onFollowUp={index === rows.length - 1 && !run.running ? submit : undefined} />
+            )
+          }
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
           maintainVisibleContentPosition={{ startRenderingFromBottom: true, autoscrollToBottomThreshold: 0.2 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
         />
       )}
-      <View className="flex-row items-end gap-2 border-t border-border/60 bg-background px-4 pb-3 pt-2">
-        <Input
-          className="max-h-32 min-h-12 flex-1 bg-surface1 py-3"
+      <View className="bg-background px-4 pb-3 pt-2">
+        <AskComposer
           value={draft}
           onChangeText={setDraft}
-          placeholder="Ask about your training"
-          multiline
-          maxLength={1000}
-          accessibilityLabel="Your question"
+          onSend={submit}
+          running={run.running}
+          onStop={run.stop}
+          placeholder={empty ? 'Ask about your training' : 'Ask a follow-up'}
         />
-        <Tappable
-          onPress={() => (run.running ? run.stop() : submit(draft))}
-          disabled={!run.running && !draft.trim()}
-          pressedOpacity={0.55}
-          accessibilityRole="button"
-          accessibilityLabel={run.running ? 'Stop answering' : 'Send'}
-          className={cn('h-12 w-12 items-center justify-center rounded-full bg-primary', !run.running && !draft.trim() && 'opacity-40')}>
-          <Icon icon={run.running ? Square : ArrowUp} size={run.running ? 16 : 20} color="primary-foreground" />
-        </Tappable>
       </View>
     </KeyboardAvoidingView>
   );

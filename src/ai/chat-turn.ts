@@ -142,3 +142,78 @@ export function chatErrorText(code: ChatErrorCode | 'consent' | 'unavailable' | 
       return "Couldn't get an answer. Try again.";
   }
 }
+
+const obj = (v: Json): Record<string, Json> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, Json>) : {});
+const arr = (v: Json): Json[] => (Array.isArray(v) ? v : []);
+
+/** "Looked at 6 Bench Press sessions": what the answer read, said once, after the fact. */
+export function readLines(parts: readonly ChatPart[]): string[] {
+  const seen = new Set<string>();
+  for (const p of parts) {
+    if (p.type !== 'tool_result' || p.isError) continue;
+    const r = obj(p.result);
+    let line: string;
+    switch (p.name) {
+      case 'get_exercise_history':
+        line = `Looked at ${arr(r.sessions).length} ${str(r.exercise) ?? 'exercise'} sessions`;
+        break;
+      case 'get_personal_records':
+        line = `Looked at your records`;
+        break;
+      case 'get_training_summary':
+        line = `Looked at ${typeof r.weeks === 'number' ? r.weeks : 'recent'} weeks of sets`;
+        break;
+      case 'list_workouts':
+        line = `Looked at ${arr(r.workouts).length} workouts`;
+        break;
+      default:
+        line = `Looked at ${sourceLabel(p.name, p.result).toLowerCase()}`;
+    }
+    seen.add(line);
+  }
+  return [...seen];
+}
+
+/**
+ * The e1RM trend from an exercise-history read, oldest first: the numbers
+ * come from our tool result, never from the model's text (ASK-UI.md T1).
+ */
+export interface TrendCard {
+  exercise: string;
+  unit: string;
+  points: number[];
+}
+
+export function trendCardsFor(parts: readonly ChatPart[]): TrendCard[] {
+  const out = new Map<string, TrendCard>();
+  for (const p of parts) {
+    if (p.type !== 'tool_result' || p.isError || p.name !== 'get_exercise_history') continue;
+    const r = obj(p.result);
+    const exercise = str(r.exercise);
+    const points = arr(r.sessions)
+      .map((s) => obj(s).estimated_1rm)
+      .filter((v): v is number => typeof v === 'number')
+      .reverse();
+    if (exercise && points.length >= 2) out.set(exercise, { exercise, unit: str(r.unit) ?? '', points });
+  }
+  return [...out.values()];
+}
+
+/** Two follow-ups from what the answer read: tappable next questions, by rules. */
+export function followUpsFor(parts: readonly ChatPart[]): string[] {
+  const out: string[] = [];
+  for (const p of parts) {
+    if (p.type !== 'tool_result' || p.isError) continue;
+    const r = obj(p.result);
+    if (p.name === 'get_exercise_history' && str(r.exercise)) {
+      out.push(`What should I aim for next on ${str(r.exercise)}?`, 'When should I deload?');
+    } else if (p.name === 'get_personal_records') {
+      out.push('Which lift is improving fastest?');
+    } else if (p.name === 'get_training_summary') {
+      out.push('Which muscles am I undertraining?', 'How should I split my week?');
+    } else if (p.name === 'list_workouts') {
+      out.push('How consistent have I been?');
+    }
+  }
+  return [...new Set(out)].slice(0, 2);
+}
