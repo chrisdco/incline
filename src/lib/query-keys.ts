@@ -1,5 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
+import { buildAskBrief } from '@/ai/ask-brief';
+import { readRecentSets } from '@/ai/capabilities/read-tools';
 import { getChatMessages, listChatThreads } from '@/db/queries/chat';
 import { listExercises } from '@/db/queries/exercises';
 import { getSessionExerciseNotes } from '@/db/queries/session-notes';
@@ -32,6 +34,8 @@ export const TABLES = {
   gyms: ['gyms', 'kv'],
   /** Ask chat threads (device-local). */
   chat: ['chat_threads', 'chat_messages'],
+  /** Ask's idle brief: the read tools' recent sets + unit. */
+  askBrief: ['workout_logs', 'set_entries', 'exercises', 'exercise_secondary_muscles', 'user_profile'],
 } as const satisfies Record<string, readonly DbTable[]>;
 
 /* ---- exercise catalog (was exercise-cache.ts) ---- */
@@ -112,3 +116,12 @@ export function chatMessagesQuery(threadUuid: string) {
     queryFn: () => getChatMessages(threadUuid),
   });
 }
+
+/** Ask's idle brief: rules over recent sets, no model call (ASK-UI.md). */
+export const askBriefQuery = queryOptions({
+  queryKey: dbKey(TABLES.askBrief, 'askBrief'),
+  queryFn: async () => {
+    const { sets, unit } = await readRecentSets();
+    return buildAskBrief(sets, unit);
+  },
+});

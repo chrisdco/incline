@@ -1,177 +1,196 @@
+import { useState } from 'react';
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { ScrollView, View } from 'react-native';
-import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
-import { CalendarRange, MessageCircle, SlidersHorizontal, X } from 'lucide-react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
+import { ArrowUp, ChevronRight, Menu, SquarePen, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
-import { Body, Caption } from '@/components/common/text';
-import { ListGroup, ListRow, Section } from '@/components/layout';
+import { Body, Caption, Label, Title } from '@/components/common/text';
+import { Input } from '@/components/ui/input';
 import { Tappable } from '@/components/ui/tappable';
 import { hasAnyConsent, useAiConsent } from '@/ai/consent';
-import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
-import { motionDuration } from '@/styles/motion';
-import { chatThreadsQuery } from '@/lib/query-keys';
+import type { Insight } from '@/ai/ask-brief';
+import { askBriefQuery, chatThreadsQuery } from '@/lib/query-keys';
+import { cn } from '@/lib/cn';
 import { newUuid } from '@/lib/uuid';
+import { motionDuration } from '@/styles/motion';
 
 import { AiFallbackNotice } from './ai-fallback-notice';
-import { AiHero } from './ai-hero';
-import { AiMark } from './ai-mark';
+import { AskAmbient, AskMark } from './ask-ambient';
+import { AskDrawer } from './ask-drawer';
 import { SuggestionChip } from './suggestion-chip';
 
-type Suggestion = { title: string; subtitle: string; href: Href };
+/** Shown when there isn't enough data for insights (new users), or under them. */
+const STARTERS = ["How's my bench going?", 'What are my best lifts?', 'Am I training enough?'];
 
-const ADJUST: Suggestion = { title: 'Adjust my program', subtitle: 'Load and volume from recent sessions', href: '/(app)/program-adjust' as Href };
-const DELOAD: Suggestion = { title: 'Do I need a deload?', subtitle: 'Fatigue and missed reps', href: '/(app)/deload' as Href };
-const BALANCE: Suggestion = { title: 'Which muscles am I missing?', subtitle: 'Sets per muscle this period', href: '/(app)/muscle-distribution' as Href };
-const WEEK: Suggestion = { title: 'Summarise my week', subtitle: 'Volume, records and streak', href: '/(app)/report/week' as Href };
-const MONTH: Suggestion = { title: 'How did this month go?', subtitle: 'Month report', href: '/(app)/report/month' as Href };
-
-/** Suggestions lead with the screen the user came from. */
-const BY_CONTEXT: Record<AskContext, Suggestion[]> = {
-  index: [WEEK, DELOAD, ADJUST],
-  workouts: [ADJUST, DELOAD, BALANCE],
-  progress: [BALANCE, WEEK, MONTH],
-  profile: [MONTH, WEEK, ADJUST],
-};
-
-const STARTERS = ["How's my bench going?", 'What are my best lifts?'];
-/** Recent chats shown here; older ones are a scroll away in a later list. */
-const RECENT = 5;
-
-function ago(ms: number, now = Date.now()): string {
-  const days = Math.floor((now - ms) / 86_400_000);
-  if (days <= 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-/** Staggered rise for the blocks below the header. */
 const rise = (i: number) =>
   FadeInDown.duration(motionDuration.enter)
     .delay(120 + i * 60)
     .easing(Easing.out(Easing.cubic));
 
+function HeaderButton({ icon, label, onPress }: { icon: typeof Menu; label: string; onPress: () => void }) {
+  return (
+    <Tappable
+      onPress={onPress}
+      pressedOpacity={0.55}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={8}
+      className="h-10 w-10 items-center justify-center rounded-full">
+      <Icon icon={icon} size={22} color="foreground" />
+    </Tappable>
+  );
+}
+
+/** An insight: the number (from our calc) over the question it asks. */
+function InsightCard({ insight, onPress }: { insight: Insight; onPress: () => void }) {
+  return (
+    <Tappable
+      onPress={onPress}
+      pressedOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${insight.metric}. ${insight.question}`}
+      className="flex-row items-center gap-3 rounded-2xl border border-hairline bg-surface1 px-4 py-3.5">
+      <View className="min-w-0 flex-1">
+        <Label className="text-muted-foreground" numberOfLines={1}>
+          {insight.metric}
+        </Label>
+        <Body className="mt-0.5 font-medium">{insight.question}</Body>
+      </View>
+      <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+    </Tappable>
+  );
+}
+
 /**
- * The one AI entry point: the separate tab on iOS, a full page from the
- * floating button on Android. Today it routes to the AI features that exist;
- * every change they make is a proposal the user approves.
+ * Ask (ASK-UI.md "The shell"): an ambient dither header, a rules-built idle
+ * brief (headline, insight cards, continue), and the composer pinned at the
+ * bottom. History and tools live in the drawer. Home is for doing; this is
+ * for understanding, so the one action here is asking.
  */
 export function AskScreen({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
-  const from = useAiEntry((s) => s.from);
   const consented = useAiConsent(hasAnyConsent);
+  const { data: brief } = useQuery(askBriefQuery);
   const { data: threads = [] } = useQuery(chatThreadsQuery);
-  const openChat = (q?: string) =>
-    router.push(`/(app)/chat/${newUuid()}${q ? `?q=${encodeURIComponent(q)}` : ''}` as Href);
+  const insets = useSafeAreaInsets();
+  const [drawer, setDrawer] = useState(false);
+  const [draft, setDraft] = useState('');
+  const last = threads[0];
+
+  const openChat = (q?: string) => {
+    const text = q?.trim();
+    router.push(`/(app)/chat/${newUuid()}${text ? `?q=${encodeURIComponent(text)}` : ''}` as Href);
+  };
+  const send = () => {
+    if (!draft.trim()) return;
+    openChat(draft);
+    setDraft('');
+  };
+
+  const cards = brief?.cards ?? [];
+  const starters = cards.length ? [] : STARTERS;
 
   return (
-    <View className="flex-1">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerClassName="px-4 pb-10">
-        {onClose ? (
-          <View className="flex-row justify-end pt-2">
-            <Tappable
-              onPress={onClose}
-              pressedOpacity={0.55}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              hitSlop={8}
-              className="h-10 w-10 items-center justify-center rounded-full bg-surface2">
-              <Icon icon={X} size={20} color="foreground" />
-            </Tappable>
+    <View className="flex-1 bg-background">
+      <AskAmbient scene={brief?.scene ?? 'mark'} />
+      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View className="flex-row items-center justify-between px-2 pt-1" style={{ marginTop: insets.top }}>
+          <HeaderButton icon={Menu} label="Chats and tools" onPress={() => setDrawer(true)} />
+          <View className="flex-row">
+            <HeaderButton icon={SquarePen} label="New chat" onPress={() => openChat()} />
+            {onClose ? <HeaderButton icon={X} label="Close" onPress={onClose} /> : null}
           </View>
-        ) : null}
+        </View>
 
-        <View className="mt-4">
-          <AiHero />
-          <Animated.View entering={rise(0)}>
-            <Caption className="mt-3 px-1">Built from your logged training. Nothing changes until you approve it.</Caption>
-          </Animated.View>
+        <ScrollView className="flex-1" contentContainerClassName="px-4 pb-6" keyboardShouldPersistTaps="handled">
+          <View className="items-center pt-6">
+            <AskMark />
+            <Animated.View entering={rise(0)}>
+              <Title className="mt-4 text-center" accessibilityRole="header">
+                {brief?.headline ?? 'Ask about your training'}
+              </Title>
+            </Animated.View>
+            {brief && !cards.length ? (
+              <Animated.View entering={rise(0)}>
+                <Caption className="mt-2 text-center">
+                  {brief.sessions
+                    ? 'Log a few more workouts and Ask will point out what changed.'
+                    : 'Answers come from your logged workouts.'}
+                </Caption>
+              </Animated.View>
+            ) : null}
+          </View>
+
           {consented ? null : (
-            <Animated.View entering={rise(0)} className="mt-4">
+            <Animated.View entering={rise(1)} className="mt-6">
               <AiFallbackNotice reason="consent" />
             </Animated.View>
           )}
-        </View>
 
-        <Animated.View entering={rise(1)} className="mt-5 gap-3">
-          <Tappable
-            onPress={() => openChat()}
-            pressedOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Ask about your training"
-            className="h-12 flex-row items-center gap-3 rounded-2xl border border-input bg-surface1 px-4">
-            <Icon icon={AiMark} size={18} color="muted-foreground" />
-            <Body className="flex-1 text-muted-foreground">Ask about your training</Body>
-          </Tappable>
-          <View className="flex-row flex-wrap gap-2">
-            {STARTERS.map((q) => (
-              <SuggestionChip key={q} label={q} onPress={() => openChat(q)} />
-            ))}
-          </View>
-        </Animated.View>
-
-        {threads.length ? (
-          <Animated.View entering={rise(1)}>
-            <Section title="Recent chats">
-              <ListGroup>
-                {threads.slice(0, RECENT).map((t) => (
-                  <ListRow
-                    key={t.uuid}
-                    icon={<Icon icon={MessageCircle} size={18} color="muted-foreground" />}
-                    title={t.title || 'Chat'}
-                    subtitle={ago(t.updatedAt)}
-                    onPress={() => router.push(`/(app)/chat/${t.uuid}` as Href)}
-                  />
-                ))}
-              </ListGroup>
-            </Section>
-          </Animated.View>
-        ) : null}
-
-        <Animated.View entering={rise(1)}>
-          <Section title="Suggested">
-            <ListGroup>
-              {BY_CONTEXT[from].map((s) => (
-                <ListRow key={s.title} title={s.title} subtitle={s.subtitle} onPress={() => router.push(s.href)} />
+          {cards.length ? (
+            <Animated.View entering={rise(1)} className="mt-8 gap-2.5">
+              {cards.map((c) => (
+                <InsightCard key={c.question} insight={c} onPress={() => openChat(c.question)} />
               ))}
-            </ListGroup>
-          </Section>
-        </Animated.View>
+            </Animated.View>
+          ) : null}
 
-        <Animated.View entering={rise(2)}>
-          <Section title="Plans and routines">
-            <ListGroup>
-              <ListRow
-                icon={<Icon icon={CalendarRange} size={18} color="muted-foreground" />}
-                title="Build a plan"
-                subtitle="A few weeks of training, made for you"
-                onPress={() => router.push('/(app)/plan-builder' as Href)}
-              />
-              <ListRow
-                icon={<Icon icon={AiMark} size={18} color="muted-foreground" />}
-                title="Change a plan or routine by asking"
-                subtitle="Open it from Workouts and ask"
-                onPress={() => router.push('/(app)/(tabs)/workouts' as Href)}
-              />
-            </ListGroup>
-          </Section>
-        </Animated.View>
+          {starters.length ? (
+            <Animated.View entering={rise(1)} className="mt-8 flex-row flex-wrap justify-center gap-2">
+              {starters.map((q) => (
+                <SuggestionChip key={q} label={q} onPress={() => openChat(q)} />
+              ))}
+            </Animated.View>
+          ) : null}
 
-        <Animated.View entering={rise(3)}>
-          <Section>
-            <ListGroup>
-              <ListRow
-                icon={<Icon icon={SlidersHorizontal} size={18} color="muted-foreground" />}
-                title="AI settings"
-                onPress={() => router.push('/(app)/ai-settings' as Href)}
-              />
-            </ListGroup>
-          </Section>
-        </Animated.View>
-      </ScrollView>
+          {last ? (
+            <Animated.View entering={rise(2)} className="mt-4">
+              <Tappable
+                onPress={() => router.push(`/(app)/chat/${last.uuid}` as Href)}
+                pressedOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel={`Continue: ${last.title || 'Chat'}`}
+                className="flex-row items-center gap-2 px-1 py-2">
+                <Caption>Continue</Caption>
+                <Body numberOfLines={1} className="flex-1 text-muted-foreground">
+                  {last.title || 'Chat'}
+                </Body>
+                <Icon icon={ChevronRight} size={16} color="muted-foreground" />
+              </Tappable>
+            </Animated.View>
+          ) : null}
+        </ScrollView>
+
+        <View className="px-4 pb-2 pt-1">
+          <View className="flex-row items-end gap-2">
+            <Input
+              className="max-h-32 min-h-12 flex-1 bg-surface1 py-3"
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="Ask about your training"
+              multiline
+              maxLength={1000}
+              accessibilityLabel="Your question"
+            />
+            <Tappable
+              onPress={send}
+              disabled={!draft.trim()}
+              pressedOpacity={0.55}
+              accessibilityRole="button"
+              accessibilityLabel="Send"
+              className={cn('h-12 w-12 items-center justify-center rounded-full bg-primary', !draft.trim() && 'opacity-40')}>
+              <Icon icon={ArrowUp} size={20} color="primary-foreground" />
+            </Tappable>
+          </View>
+          <Caption className="mt-1.5 text-center">Answers use your logged data and can be wrong.</Caption>
+        </View>
+      </KeyboardAvoidingView>
+
+      <AskDrawer open={drawer} onClose={() => setDrawer(false)} onNewChat={() => openChat()} />
     </View>
   );
 }
