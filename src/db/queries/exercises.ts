@@ -439,8 +439,17 @@ const EMPTY_PR_SUMMARY: ExercisePRSummary = {
   heaviestWeightAt: 0,
 };
 
-export async function getExercisePRSummary(exerciseId: number): Promise<ExercisePRSummary> {
-  return (await getExercisePRSummaries([exerciseId]))[exerciseId] ?? { ...EMPTY_PR_SUMMARY };
+/** Optional scope for PR reads: one gym's workouts only (#243). Omitted = every gym. */
+export interface PrScope {
+  gymUuid?: string | null;
+}
+
+function gymScope(scope: PrScope | undefined): { sql: string; args: string[] } {
+  return scope?.gymUuid ? { sql: ' AND w.gym_uuid = ?', args: [scope.gymUuid] } : { sql: '', args: [] };
+}
+
+export async function getExercisePRSummary(exerciseId: number, scope?: PrScope): Promise<ExercisePRSummary> {
+  return (await getExercisePRSummaries([exerciseId], scope))[exerciseId] ?? { ...EMPTY_PR_SUMMARY };
 }
 
 /**
@@ -450,7 +459,9 @@ export async function getExercisePRSummary(exerciseId: number): Promise<Exercise
  */
 export async function getExercisePRSummaries(
   exerciseIds: number[],
+  scope?: PrScope,
 ): Promise<Record<number, ExercisePRSummary>> {
+  const gym = gymScope(scope);
   const ids = [...new Set(exerciseIds)];
   const out: Record<number, ExercisePRSummary> = {};
   if (ids.length === 0) return out;
@@ -470,9 +481,10 @@ export async function getExercisePRSummaries(
                      ELSE s.weight * (1.0 + s.reps / 30.0) END) as best_1rm,
             MAX(s.weight * s.reps) as best_set_vol
      FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
-     WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}
+     WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}${gym.sql}
      GROUP BY s.exercise_id`,
     ...ids,
+    ...gym.args,
   );
   for (const r of base) {
     out[r.exercise_id] = {
@@ -488,10 +500,11 @@ export async function getExercisePRSummaries(
     `SELECT exercise_id, MAX(vol) as vol FROM (
        SELECT s.exercise_id, SUM(s.weight * s.reps) as vol
        FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
-       WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}
+       WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}${gym.sql}
        GROUP BY s.exercise_id, w.id
      ) GROUP BY exercise_id`,
     ...ids,
+    ...gym.args,
   );
   for (const r of sessionVol) out[r.exercise_id].bestSessionVolume = r.vol ?? 0;
 
@@ -502,12 +515,14 @@ export async function getExercisePRSummaries(
      JOIN (
        SELECT s.exercise_id as eid, MAX(s.weight) as mw
        FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
-       WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}
+       WHERE s.exercise_id IN (${placeholders}) AND ${WORKING_PR_PREDICATE}${gym.sql}
        GROUP BY s.exercise_id
      ) m ON m.eid = s.exercise_id AND s.weight = m.mw
-     WHERE ${WORKING_PR_PREDICATE}
+     WHERE ${WORKING_PR_PREDICATE}${gym.sql}
      GROUP BY s.exercise_id`,
     ...ids,
+    ...gym.args,
+    ...gym.args,
   );
   for (const r of atMax) out[r.exercise_id].heaviestWeightAt = r.at ?? 0;
 
@@ -519,14 +534,16 @@ export interface RepRecord {
   weight: number;
 }
 
-export async function getExerciseRepRecords(exerciseId: number): Promise<RepRecord[]> {
+export async function getExerciseRepRecords(exerciseId: number, scope?: PrScope): Promise<RepRecord[]> {
   const db = await openDatabase();
+  const gym = gymScope(scope);
   const rows = await db.getAllAsync<{ reps: number; weight: number }>(
     `SELECT s.reps, MAX(s.weight) as weight
      FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id
-     WHERE s.exercise_id = ? AND ${WORKING_PR_PREDICATE}
+     WHERE s.exercise_id = ? AND ${WORKING_PR_PREDICATE}${gym.sql}
      GROUP BY s.reps ORDER BY s.reps`,
     exerciseId,
+    ...gym.args,
   );
   return rows;
 }

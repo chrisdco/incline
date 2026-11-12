@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query';
 
 import { listExercises } from '@/db/queries/exercises';
 import { getSessionExerciseNotes } from '@/db/queries/session-notes';
+import { getWorkoutGym } from '@/db/queries/gyms';
 import type { SessionWorkout } from '@/db/queries/helpers';
 import type { DbTable } from '@/db/write';
 
@@ -24,8 +25,10 @@ export const TABLES = {
   programs: ['programs', 'program_workouts', 'workout_templates', 'template_exercises', 'workout_logs', 'kv'],
   progress: ['workout_logs', 'set_entries', 'exercises', 'bodyweight_entries', 'body_measurements'],
   profile: ['user_profile'],
-  /** Load suggestions + ghosts: template shape, last sets, readiness (kv). */
-  coaching: ['workout_templates', 'template_exercises', 'exercises', 'workout_logs', 'set_entries', 'kv'],
+  /** Load suggestions + ghosts: template shape, last sets, readiness (kv), gym plates. */
+  coaching: ['workout_templates', 'template_exercises', 'exercises', 'workout_logs', 'set_entries', 'kv', 'gyms'],
+  /** Gym profiles + the current gym (kv). */
+  gyms: ['gyms', 'kv'],
 } as const satisfies Record<string, readonly DbTable[]>;
 
 /* ---- exercise catalog (was exercise-cache.ts) ---- */
@@ -77,5 +80,18 @@ export function sessionNotesQuery(logId: number) {
   return queryOptions({
     queryKey: dbKey(['session_exercise_notes'], 'sessionNotes', logId),
     queryFn: () => getSessionExerciseNotes(logId),
+  });
+}
+
+/* ---- gym profiles (#243) ---- */
+
+/**
+ * The gym a workout is tagged with: one shared entry per session, read by
+ * every plates hint (never per row). Keyed on the tag + gym tables only.
+ */
+export function workoutGymQuery(logId: number) {
+  return queryOptions({
+    queryKey: dbKey(['workout_logs', 'gyms'], 'workoutGym', logId),
+    queryFn: () => getWorkoutGym(logId),
   });
 }

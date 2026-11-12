@@ -166,8 +166,26 @@ export interface WorkoutLog {
   updatedAt: number;
   /** Derived: true when endedAt is set. */
   isComplete: boolean;
+  /** Gym this workout was logged at (gyms.uuid); null = untagged. */
+  gymUuid?: string | null;
   /** Joined sets (populated when requested). */
   sets?: SetEntry[];
+}
+
+/**
+ * A place the user trains (#243). Bar and plates are in the gym's own unit
+ * (`metric` → kg, `imperial` → lb): they describe real iron, not stored loads,
+ * so they are not canonicalised to kg (§15 covers logged loads only).
+ */
+export interface Gym {
+  id: number;
+  uuid: string;
+  name: string;
+  unit: Unit;
+  barWeight: number;
+  /** Plate sizes this gym has, heaviest first, in the gym's unit. */
+  plates: number[];
+  sortOrder: number;
 }
 
 export interface WorkoutPhoto {

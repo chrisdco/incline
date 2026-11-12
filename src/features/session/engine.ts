@@ -82,6 +82,7 @@ export interface SessionEngineDeps {
     templateId: number,
     unit: Unit,
     unitOverrides?: Readonly<Record<string, Unit>>,
+    opts?: { gymUuid?: string | null },
   ) => Promise<TrainingSuggestion[]>;
   getSessionGhost: (opts: {
     templateId: number | null;
@@ -274,7 +275,10 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     const loaded = await Promise.all([
       deps.getLastSetsForExercises(ids),
       deps.getExercisePRSummaries(ids),
-      s.templateId ? deps.getTemplateSuggestions(s.templateId, unit, exerciseWeightUnits) : Promise.resolve([]),
+      // The workout's own gym sets the load step (#243); untagged = standard plates.
+      s.templateId
+        ? deps.getTemplateSuggestions(s.templateId, unit, exerciseWeightUnits, { gymUuid: s.gymUuid ?? null })
+        : Promise.resolve([]),
       showSessionGhost
         ? deps.getSessionGhost({
             templateId: s.templateId,
@@ -394,6 +398,18 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       if (!s) return;
       const unseen = [...new Set(s.sets.map((x) => x.exerciseId))].filter((id) => !assistKnown.has(id));
       await loadAssistFor(gen, logId, unseen);
+    },
+
+    /**
+     * The workout's gym changed (session chip): reload the row and recompute
+     * assist, since suggestions step by the gym's plates (#243).
+     */
+    async refreshAssist(): Promise<void> {
+      const { logId } = get();
+      if (logId == null) return;
+      const gen = generation;
+      const s = await loadRows(gen, logId);
+      if (s && isCurrent(gen, logId)) await loadAssistFull(gen, s);
     },
 
     /** #164: serialize writes per set; failure toasts and reloads truth. */

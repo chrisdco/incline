@@ -7,9 +7,9 @@ import { MessageSquarePlus } from 'lucide-react-native';
 import { Caption, Text } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
 import { saveSessionExerciseNote } from '@/db/queries';
-import { sessionNotesQuery } from '@/lib/query-keys';
+import { sessionNotesQuery, workoutGymQuery } from '@/lib/query-keys';
 import { useToast } from '@/components/ui/toast';
-import { calculatePlates } from '@/lib/plate-calculator';
+import { calculatePlates, standardBar } from '@/lib/plate-calculator';
 import { kgToInput } from '@/lib/units';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
@@ -114,20 +114,28 @@ export function ExerciseNoteField({ logId, exerciseId }: { logId: number; exerci
  * session (one catalog read for every block, #173), never a per-row query.
  */
 export function PlatesHint({
+  logId,
   equipment,
   weight,
   unit,
 }: {
+  /** The session: its gym (one shared query, #243) sets bar and plates. */
+  logId: number;
   equipment: string | null | undefined;
   weight: number;
   unit: Unit;
 }) {
+  const { data: gym } = useQuery(workoutGymQuery(logId));
   if (equipment !== 'barbell' || weight <= 0) return null;
-  // `weight` is canonical kg; plates are loaded in the display unit.
+  // `weight` is canonical kg; plates are loaded in the display unit. A gym
+  // in the other unit can't load this number exactly, so it falls back to
+  // the standard set rather than mixing units.
   const shown = kgToInput(weight, unit);
-  const bar = unit === 'metric' ? 20 : 45;
+  const plateUnit = unit === 'metric' ? 'kg' : 'lb';
+  const useGym = gym != null && gym.unit === unit;
+  const bar = useGym ? gym.barWeight : standardBar(plateUnit);
   if (shown <= bar) return null;
-  const result = calculatePlates(shown, unit === 'metric' ? 'kg' : 'lb', bar);
+  const result = calculatePlates(shown, plateUnit, bar, useGym ? gym.plates : null);
   if (!result) return null;
   const breakdown =
     result.plates.length === 0

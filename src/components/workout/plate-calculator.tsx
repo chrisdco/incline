@@ -5,9 +5,14 @@ import { Body, Caption } from '@/components/common/text';
 import { Card } from '@/components/ui/card';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { Switch } from '@/components/ui/switch';
+import { Chip } from '@/components/common/chip';
+import { formatPlate } from '@/components/gyms/gym-format';
 import { calculatePlates, BAR_OPTIONS, type BarKind, type Plate } from '@/lib/plate-calculator';
+import { useGymsState } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
+
+const STANDARD = 'standard';
 
 interface PlateCalculatorProps {
   /** Target total weight on the bar */
@@ -17,20 +22,39 @@ interface PlateCalculatorProps {
 
 export function PlateCalculator({ targetWeight: initialTarget, className }: PlateCalculatorProps) {
   const settingsUnit = useSettings((s) => s.unit);
-  const unit = settingsUnit === 'metric' ? 'kg' : 'lb';
   const [input, setInput] = React.useState(initialTarget?.toString() ?? '');
   const [includeBar, setIncludeBar] = React.useState(true);
   const [barKind, setBarKind] = React.useState<BarKind>('barbell');
+  // Gyms (#243): defaults to the current gym; "Standard" = the full plate set.
+  const { data: gymsState } = useGymsState();
+  const gyms = gymsState?.gyms ?? [];
+  const [picked, setPicked] = React.useState<string | null>(null);
+  const gymKey = picked ?? gymsState?.current?.uuid ?? STANDARD;
+  const gym = gyms.find((g) => g.uuid === gymKey) ?? null;
 
+  const unit = gym ? (gym.unit === 'metric' ? 'kg' : 'lb') : settingsUnit === 'metric' ? 'kg' : 'lb';
   const barOption = BAR_OPTIONS.find((b) => b.kind === barKind) ?? BAR_OPTIONS[0];
-  const barWeight = includeBar ? (unit === 'kg' ? barOption.kg : barOption.lb) : 0;
-  const result = calculatePlates(Number(input) || 0, unit, barWeight);
+  const standardBarWeight = unit === 'kg' ? barOption.kg : barOption.lb;
+  const barWeight = includeBar ? (gym ? gym.barWeight : standardBarWeight) : 0;
+  const result = calculatePlates(Number(input) || 0, unit, barWeight, gym?.plates);
 
   return (
     // The host screen's tab names it ("Plates"), so no heading of its own.
     <Card className={className}>
 
       <View className="gap-3">
+        {gyms.length > 0 ? (
+          <View className="gap-1.5">
+            <Caption>Gym</Caption>
+            <View className="flex-row flex-wrap gap-2">
+              {gyms.map((g) => (
+                <Chip key={g.uuid} label={g.name} selected={gym?.uuid === g.uuid} onPress={() => setPicked(g.uuid)} />
+              ))}
+              <Chip label="Standard" selected={gym == null} onPress={() => setPicked(STANDARD)} />
+            </View>
+          </View>
+        ) : null}
+
         <View className="gap-1.5">
           <Caption>Target weight ({unit})</Caption>
           <TextInput
@@ -55,7 +79,13 @@ export function PlateCalculator({ targetWeight: initialTarget, className }: Plat
           />
         </View>
 
-        {includeBar ? (
+        {includeBar && gym ? (
+          <Caption className="text-muted-foreground">
+            {formatPlate(gym.barWeight)}{unit} bar · {gym.name}
+          </Caption>
+        ) : null}
+
+        {includeBar && !gym ? (
           <View className="gap-1.5">
             <Caption>Bar type</Caption>
             <SegmentedControl<BarKind>
@@ -85,6 +115,11 @@ export function PlateCalculator({ targetWeight: initialTarget, className }: Plat
                 ))}
               </View>
             )}
+            {result.remainderPerSide > 0 ? (
+              <Caption className="text-warning">
+                {formatPlate(result.remainderPerSide * 2)}{unit} short — {gym ? `${gym.name}’s plates` : 'these plates'} can’t make it exactly
+              </Caption>
+            ) : null}
           </View>
         ) : null}
 

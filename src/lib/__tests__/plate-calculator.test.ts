@@ -22,3 +22,24 @@ describe('calculatePlates remainder (#173)', () => {
     expect(calculatePlates(15, 'kg', 20)).toBeNull();
   });
 });
+
+describe('calculatePlates with a gym inventory (#243)', () => {
+  it('uses only the plates the gym has; missing 1.25s leave a remainder', () => {
+    const r = calculatePlates(102.5, 'kg', 20, [25, 20, 15, 10, 5, 2.5])!;
+    expect(r.plates).toEqual([
+      { weight: 25, count: 1 },
+      { weight: 15, count: 1 },
+    ]);
+    expect(r.remainderPerSide).toBe(1.25);
+  });
+
+  it('honours a non-standard bar and unsorted, duplicate inventory', () => {
+    const r = calculatePlates(55, 'kg', 15, [5, 20, 20, 0])!;
+    expect(r.plates).toEqual([{ weight: 20, count: 1 }]);
+    expect(r.remainderPerSide).toBe(0);
+  });
+
+  it('falls back to the standard set for an empty inventory', () => {
+    expect(calculatePlates(102.5, 'kg', 20, [])).toEqual(calculatePlates(102.5, 'kg', 20));
+  });
+});

@@ -2,6 +2,7 @@ import type { SyncTable } from './types';
 
 /** Parent-before-child push order. Profiles last so placeholders cannot clobber a named cloud row mid-batch. */
 export const PUSH_ORDER: SyncTable[] = [
+  'gyms',
   'user_exercises',
   'user_templates',
   'user_template_exercises',
@@ -22,6 +23,7 @@ export const PULL_TABLES: { table: SyncTable; cloud: string; idCol: string }[] =
   { table: 'user_exercises', cloud: 'user_exercises', idCol: 'id' },
   { table: 'user_templates', cloud: 'user_templates', idCol: 'id' },
   { table: 'user_template_exercises', cloud: 'user_template_exercises', idCol: 'id' },
+  { table: 'gyms', cloud: 'gyms', idCol: 'id' },
   { table: 'user_programs', cloud: 'user_programs', idCol: 'id' },
   { table: 'user_program_workouts', cloud: 'user_program_workouts', idCol: 'id' },
   { table: 'workout_logs', cloud: 'workout_logs', idCol: 'id' },

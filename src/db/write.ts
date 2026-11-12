@@ -14,6 +14,7 @@ export type DbTable =
   | 'exercise_instructions'
   | 'exercise_secondary_muscles'
   | 'exercises'
+  | 'gyms'
   | 'kv'
   | 'photo_blob_queue'
   | 'program_workouts'

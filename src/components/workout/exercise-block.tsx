@@ -283,7 +283,7 @@ function ExerciseBlockImpl({
         </Pressable>
       </View>
       {activeSet && activeSet.weight > 0 ? (
-        <PlatesHint equipment={equipment} weight={activeSet.weight} unit={unit} />
+        <PlatesHint logId={logId} equipment={equipment} weight={activeSet.weight} unit={unit} />
       ) : null}
 
       {fatigue ? (

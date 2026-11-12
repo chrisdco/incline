@@ -144,6 +144,24 @@ CREATE TABLE IF NOT EXISTS body_measurements (
 CREATE INDEX IF NOT EXISTS idx_body_measurements_user_updated
   ON body_measurements (user_id, updated_at);
 
+-- Gym profiles (#243; docs/migrations/gyms.sql)
+CREATE TABLE IF NOT EXISTS gyms (
+  id UUID PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'metric',
+  bar_weight DOUBLE PRECISION NOT NULL,
+  plates JSONB NOT NULL DEFAULT '[]'::jsonb,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_gyms_user_updated
+  ON gyms (user_id, updated_at);
+
+ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS gym_uuid TEXT;
+
 -- Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_exercises ENABLE ROW LEVEL SECURITY;
@@ -153,6 +171,7 @@ ALTER TABLE workout_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE set_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bodyweight_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE body_measurements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gyms ENABLE ROW LEVEL SECURITY;
 
 -- Clerk JWT sub == user_id
 DROP POLICY IF EXISTS "profiles_own" ON profiles;
@@ -199,6 +218,12 @@ CREATE POLICY "bodyweight_entries_own" ON bodyweight_entries
 
 DROP POLICY IF EXISTS "body_measurements_own" ON body_measurements;
 CREATE POLICY "body_measurements_own" ON body_measurements
+  FOR ALL TO authenticated
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
+
+DROP POLICY IF EXISTS "gyms_own" ON gyms;
+CREATE POLICY "gyms_own" ON gyms
   FOR ALL TO authenticated
   USING (user_id = (select auth.jwt() ->> 'sub'))
   WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
@@ -374,6 +399,7 @@ BEGIN
     WHEN 'workout_photos' THEN 'id'
     WHEN 'bodyweight_entries' THEN 'id'
     WHEN 'body_measurements' THEN 'id'
+    WHEN 'gyms' THEN 'id'
   END;
   IF v_pk IS NULL THEN
     RAISE EXCEPTION 'sync_push: unknown table %', p_table USING ERRCODE = '22023';

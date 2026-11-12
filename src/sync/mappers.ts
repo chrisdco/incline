@@ -165,6 +165,9 @@ export function buildCloudUpsertRow(
     return {
       ...row,
       template_id: payload.template_uuid ?? null,
+      // Plain uuid text, no FK: a gym tombstone never blocks its history.
+      // Payloads queued before 022 carry no key: leave the cloud value alone.
+      ...('gym_uuid' in payload ? { gym_uuid: payload.gym_uuid ?? null } : {}),
       name: payload.name,
       started_at: msToIso(payload.started_at as number),
       ended_at: msToIso(payload.ended_at as number | null),
@@ -200,6 +203,18 @@ export function buildCloudUpsertRow(
       weight: payload.weight,
       unit: payload.unit ?? 'kg',
       recorded_at: msToIso(payload.recorded_at as number),
+      created_at: msToIso(payload.created_at as number) ?? msToIso(updatedAt),
+    };
+  }
+
+  if (cloudTable === 'gyms') {
+    return {
+      ...row,
+      name: payload.name,
+      unit: payload.unit ?? 'metric',
+      bar_weight: payload.bar_weight ?? 0,
+      plates: Array.isArray(payload.plates) ? payload.plates : [],
+      sort_order: payload.sort_order ?? 0,
       created_at: msToIso(payload.created_at as number) ?? msToIso(updatedAt),
     };
   }

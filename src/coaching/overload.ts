@@ -1,16 +1,16 @@
 import { COACHING_RULE_VERSION, type LastWorkingSet, type OverloadInput, type ReasonCode, type TrainingSuggestion } from './types';
-import { increaseLoad } from './plates';
+import { increaseLoad, smallestIncrement } from './plates';
 import { lastSetRpe, HIGH_RPE_HOLD_THRESHOLD } from './rpe';
 import { applyReadinessToSuggestion } from './readiness';
 
-function reasonText(code: ReasonCode, ctx: { repsMax: number; repsMin: number; nextWeight?: number; unitLabel: string }): string {
+function reasonText(code: ReasonCode, ctx: { repsMax: number; repsMin: number; nextWeight?: number; unitLabel: string; step?: number }): string {
   switch (code) {
     case 'no_history':
       return 'No recent working sets — start at your template targets.';
     case 'hold_weight_add_reps':
       return `Hit your reps last time — try adding 1 rep before increasing load.`;
     case 'hit_rep_range_increase_load':
-      return `You hit ${ctx.repsMax} reps on all sets — try +${ctx.unitLabel === 'kg' ? '2.5 kg' : '5 lb'}.`;
+      return `You hit ${ctx.repsMax} reps on all sets — try +${ctx.step ?? (ctx.unitLabel === 'kg' ? 2.5 : 5)} ${ctx.unitLabel}.`;
     case 'partial_miss_hold':
       return `Some sets missed ${ctx.repsMin} reps — hold weight and aim for the bottom of your range.`;
     case 'all_sets_maxed':
@@ -46,7 +46,8 @@ export function suggestNextLoad(input: OverloadInput): TrainingSuggestion | null
   const workingWeight = sets[0].weight;
   const allSameWeight = sets.every((s) => Math.abs(s.weight - workingWeight) < 0.01);
   const unitLabel = input.unit === 'metric' ? 'kg' : 'lb';
-  const ctx = { repsMin: input.targetRepsMin, repsMax: input.targetRepsMax, unitLabel };
+  const step = input.increment ?? smallestIncrement(input.unit);
+  const ctx = { repsMin: input.targetRepsMin, repsMax: input.targetRepsMax, unitLabel, step };
 
   let suggestion: TrainingSuggestion;
 
@@ -68,7 +69,7 @@ export function suggestNextLoad(input: OverloadInput): TrainingSuggestion | null
     const anyBelowMin = sets.some((s) => s.reps < input.targetRepsMin);
 
     if (allHitMax) {
-      const nextWeight = increaseLoad(workingWeight, input.unit);
+      const nextWeight = increaseLoad(workingWeight, input.unit, input.increment);
       suggestion = applyHighRpeHold({
         exerciseId: input.exerciseId,
         exerciseName: input.exerciseName,
@@ -94,7 +95,7 @@ export function suggestNextLoad(input: OverloadInput): TrainingSuggestion | null
       const minReps = Math.min(...sets.map((s) => s.reps));
       const nextReps = Math.min(input.targetRepsMax, minReps + 1);
       if (nextReps >= input.targetRepsMax) {
-        const nextWeight = increaseLoad(workingWeight, input.unit);
+        const nextWeight = increaseLoad(workingWeight, input.unit, input.increment);
         suggestion = applyHighRpeHold({
           exerciseId: input.exerciseId,
           exerciseName: input.exerciseName,
@@ -131,7 +132,7 @@ export function suggestNextLoad(input: OverloadInput): TrainingSuggestion | null
     }
   }
 
-  return applyReadinessToSuggestion(suggestion, input.readiness, input.unit, workingWeight);
+  return applyReadinessToSuggestion(suggestion, input.readiness, input.unit, workingWeight, input.increment);
 }
 
 /** If the last working set was already very hard, do not add load. Unrated last set is ignored. */

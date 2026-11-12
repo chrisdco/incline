@@ -106,6 +106,8 @@ export interface LogRow {
   total_volume: number;
   unit: string;
   notes: string;
+  /** 022: gyms.uuid; absent on rows read before the migration. */
+  gym_uuid?: string | null;
   uuid: string | null;
   deleted_at: number | null;
   created_at: number;
@@ -283,6 +285,7 @@ export function mapLog(r: LogRow): WorkoutLog {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     isComplete: r.ended_at != null,
+    gymUuid: r.gym_uuid ?? null,
   };
 }
 

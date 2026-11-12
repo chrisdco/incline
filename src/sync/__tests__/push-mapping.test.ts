@@ -244,6 +244,48 @@ describe('push → pull round trip', () => {
       await db.getFirstAsync('SELECT metric, value, unit, recorded_at FROM body_measurements WHERE uuid = ?', 'm-1'),
     ).toEqual({ metric: 'waist', value: 82, unit: 'cm', recorded_at: 6_000 });
   });
+
+  it('gyms and the workout gym tag land with the same fields (#243)', async () => {
+    const db = currentDb!;
+    const gym = {
+      name: 'Home',
+      unit: 'imperial',
+      bar_weight: 35,
+      plates: [45, 25, 10, 5],
+      sort_order: 1,
+      created_at: 7_000,
+      updated_at: 7_001,
+      deleted_at: null,
+    };
+    const { row } = buildPushOp('gyms', item('upsert', 'gym-1', gym), 'user-1');
+    expect(row).toMatchObject({ id: 'gym-1', user_id: 'user-1', name: 'Home', bar_weight: 35, plates: [45, 25, 10, 5] });
+    expect(await roundTrip('gyms', 'gym-1', gym)).toBe('ok');
+    const local = await db.getFirstAsync<Record<string, unknown>>(
+      'SELECT name, unit, bar_weight, plates, sort_order, updated_at, deleted_at FROM gyms WHERE uuid = ?',
+      'gym-1',
+    );
+    expect({ ...local, plates: JSON.parse(String(local?.plates)) }).toEqual({
+      name: 'Home',
+      unit: 'imperial',
+      bar_weight: 35,
+      plates: [45, 25, 10, 5],
+      sort_order: 1,
+      updated_at: 7_001,
+      deleted_at: null,
+    });
+
+    const log = { name: 'Push', started_at: 1_000, unit: 'imperial', created_at: 1_000, updated_at: 1_100 };
+    expect(await roundTrip('workout_logs', 'log-g', { ...log, gym_uuid: 'gym-1' })).toBe('ok');
+    expect(await db.getFirstAsync('SELECT gym_uuid FROM workout_logs WHERE uuid = ?', 'log-g')).toEqual({ gym_uuid: 'gym-1' });
+    // A cloud row without the column (SQL not applied yet) keeps the local tag.
+    const { row: legacy } = buildPushOp('workout_logs', item('upsert', 'log-g', { ...log, updated_at: 1_200 }), 'user-1');
+    expect('gym_uuid' in legacy).toBe(false);
+    expect(await applyRemoteRow('workout_logs', asServerRow(legacy), 'user-1')).toBe('ok');
+    expect(await db.getFirstAsync('SELECT gym_uuid FROM workout_logs WHERE uuid = ?', 'log-g')).toEqual({ gym_uuid: 'gym-1' });
+    // An explicit null from the cloud untags it.
+    expect(await roundTrip('workout_logs', 'log-g', { ...log, gym_uuid: null, updated_at: 1_300 })).toBe('ok');
+    expect(await db.getFirstAsync('SELECT gym_uuid FROM workout_logs WHERE uuid = ?', 'log-g')).toEqual({ gym_uuid: null });
+  });
 });
 
 function jwt(claims: Record<string, unknown>): string {

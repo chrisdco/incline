@@ -9,6 +9,8 @@ import {
   getExercisePRSummary,
   getExerciseRepRecords,
   getExerciseSeries,
+  getExerciseGymUuids,
+  getGymsState,
   getRecentTopSetsForExercises,
   getStalledLifts,
   getProgram,
@@ -27,6 +29,7 @@ import {
   listWorkoutFeedLogs,
   searchExercises,
   type ExerciseFilters,
+  type GymsState,
   type TodayProgramSlot,
   type ActivePlanProgress,
   type WorkoutLogFilters,
@@ -108,6 +111,38 @@ export function useExerciseStats(exerciseId: number) {
       getRecentTopSetsForExercises([exerciseId], REASON_HISTORY_SESSIONS),
     ]);
     return { prSummary, repRecords, series, plateau: plateauSignal(topSets[exerciseId] ?? []) };
+  });
+}
+
+/* ---- gyms (#243) ---- */
+
+/** Every gym + the current one: shared by Settings, the session chip and the calculator. */
+export function useGymsState() {
+  return useDbQuery<GymsState>(TABLES.gyms, ['gymsState'], () => getGymsState());
+}
+
+/**
+ * Whether the exercise screen offers "This gym / All gyms": only when the
+ * exercise has sets at 2+ gyms and the current gym is one of them.
+ */
+export function useExerciseGymSplit(exerciseId: number) {
+  return useDbQuery([...TABLES.logs, ...TABLES.gyms], ['exerciseGymSplit', exerciseId], async () => {
+    if (!exerciseId) return null;
+    const [gymUuids, state] = await Promise.all([getExerciseGymUuids(exerciseId), getGymsState()]);
+    const current = state.current;
+    return gymUuids.length >= 2 && current && gymUuids.includes(current.uuid) ? current : null;
+  });
+}
+
+/** PR summary + rep records at one gym; null (no read) until a gym is picked. */
+export function useExerciseGymRecords(exerciseId: number, gymUuid: string | null) {
+  return useDbQuery([...TABLES.logs, 'gyms'], ['exerciseGymRecords', exerciseId, gymUuid], async () => {
+    if (!exerciseId || !gymUuid) return null;
+    const [prSummary, repRecords] = await Promise.all([
+      getExercisePRSummary(exerciseId, { gymUuid }),
+      getExerciseRepRecords(exerciseId, { gymUuid }),
+    ]);
+    return { prSummary, repRecords };
   });
 }
 

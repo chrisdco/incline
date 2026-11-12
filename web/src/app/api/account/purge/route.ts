@@ -17,6 +17,7 @@ const USER_TABLES = [
   "user_exercises",
   "bodyweight_entries",
   "body_measurements",
+  "gyms",
   "workout_photos",
   "user_preferences",
   "ai_task_cache",

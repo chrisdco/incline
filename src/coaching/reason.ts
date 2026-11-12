@@ -84,9 +84,9 @@ export interface CoachingReasonInputs {
   setsAtTarget: number;
   /** Consecutive recent sessions whose top set reached the top of the range. */
   sessionsAtTarget: number;
-  /** Plate step in the exercise's display unit (2.5 kg / 5 lb). */
+  /** Plate step in the exercise's display unit (2.5 kg / 5 lb, or the gym's). */
   increment: number;
-  incrementSource: 'plate-step';
+  incrementSource: 'plate-step' | 'gym';
   unit: Unit;
   unitSource: 'exercise' | 'global';
   readiness: ReadinessLevel | null;
@@ -242,6 +242,8 @@ export interface ExplainContext {
   unitSource: 'exercise' | 'global';
   readiness: ReadinessLevel | null | undefined;
   now: number;
+  /** The gym's plate step (#243); omitted = standard. */
+  increment?: number;
 }
 
 /** Attach a reason to an already computed suggestion. Pure; does not touch weight/reps. */
@@ -260,8 +262,8 @@ export function explainSuggestion(s: TrainingSuggestion, ctx: ExplainContext): C
     targetSets: s.targetSets,
     setsAtTarget: lastSets.filter((x) => x.reps >= ctx.targetRepsMax).length,
     sessionsAtTarget: sessionsAtTarget(ctx.history, ctx.targetRepsMax),
-    increment: smallestIncrement(ctx.unit),
-    incrementSource: 'plate-step',
+    increment: ctx.increment ?? smallestIncrement(ctx.unit),
+    incrementSource: ctx.increment != null ? 'gym' : 'plate-step',
     unit: ctx.unit,
     unitSource: ctx.unitSource,
     readiness: ctx.readiness ?? null,
