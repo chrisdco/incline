@@ -141,7 +141,8 @@ export default function TabsLayout() {
             <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
           </NativeTabs.Trigger>
           <NativeTabs.Trigger name="ask" role="search" prominent>
-            <NativeTabs.Trigger.Icon sf="sparkles" />
+            {/* Custom template image (tints like an SF Symbol): the bubble-spark AI mark. */}
+            <NativeTabs.Trigger.Icon src={require('../../../../assets/images/tab-ai.png')} renderingMode="template" />
             <NativeTabs.Trigger.Label>Ask</NativeTabs.Trigger.Label>
           </NativeTabs.Trigger>
 

@@ -1,21 +1,18 @@
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { ScrollView, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown, Easing, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
 import { CalendarRange, SlidersHorizontal, X } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
-import { Caption, Heading } from '@/components/common/text';
+import { Caption } from '@/components/common/text';
 import { ListGroup, ListRow, Section } from '@/components/layout';
 import { Tappable } from '@/components/ui/tappable';
-import { themeHex } from '@/lib/theme';
-import { useAppColorScheme } from '@/lib/use-color-scheme';
 import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
-import { useSettings } from '@/store/settings-store';
 import { motionDuration } from '@/styles/motion';
 
-import { AiMark, AiMarkGradient } from './ai-mark';
+import { AiHero } from './ai-hero';
+import { AiMark } from './ai-mark';
 
 type Suggestion = { title: string; subtitle: string; href: Href };
 
@@ -33,25 +30,6 @@ const BY_CONTEXT: Record<AskContext, Suggestion[]> = {
   profile: [MONTH, WEEK, ADJUST],
 };
 
-/**
- * The mark arrives from the bottom-right, where the Android AI button sits,
- * and settles in the header: the page reads as growing out of the button.
- */
-function markEntering() {
-  'worklet';
-  return {
-    initialValues: { opacity: 0, transform: [{ translateX: 120 }, { translateY: 360 }, { scale: 0.4 }] },
-    animations: {
-      opacity: withTiming(1, { duration: motionDuration.state }),
-      transform: [
-        { translateX: withSpring(0, { damping: 20, stiffness: 180 }) },
-        { translateY: withSpring(0, { damping: 20, stiffness: 180 }) },
-        { scale: withSpring(1, { damping: 14, stiffness: 180 }) },
-      ],
-    },
-  };
-}
-
 /** Staggered rise for the blocks below the header. */
 const rise = (i: number) =>
   FadeInDown.duration(motionDuration.enter)
@@ -66,17 +44,9 @@ const rise = (i: number) =>
 export function AskScreen({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const from = useAiEntry((s) => s.from);
-  const scheme = useAppColorScheme();
-  const accent = useSettings((s) => s.accentTheme);
-  const { primary, background } = themeHex(scheme, accent);
 
   return (
     <View className="flex-1">
-      {/* Accent glow behind the header; fades in so the page "lights up". */}
-      <Animated.View entering={FadeIn.duration(motionDuration.enter * 2)} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}>
-        <LinearGradient colors={[`${primary}38`, `${primary}10`, `${background}00`]} locations={[0, 0.45, 1]} style={{ flex: 1 }} />
-      </Animated.View>
-
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerClassName="px-4 pb-10">
         {onClose ? (
           <View className="flex-row justify-end pt-2">
@@ -92,13 +62,10 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
           </View>
         ) : null}
 
-        <View className="mt-6 items-start">
-          <Animated.View entering={markEntering}>
-            <AiMarkGradient size={52} strokeWidth={2.2} gradient={[primary, `${primary}80`]} />
-          </Animated.View>
+        <View className="mt-4">
+          <AiHero />
           <Animated.View entering={rise(0)}>
-            <Heading className="mt-4">Ask Incline</Heading>
-            <Caption className="mt-1">Built from your logged training. Nothing changes until you approve it.</Caption>
+            <Caption className="mt-3 px-1">Built from your logged training. Nothing changes until you approve it.</Caption>
           </Animated.View>
         </View>
 
