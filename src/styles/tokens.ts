@@ -404,3 +404,18 @@ export function themeHex(scheme: Scheme | null | undefined, accent: AccentTheme 
 }
 
 export type ThemeHex = ReturnType<typeof themeHex>;
+
+/**
+ * Brand gradient: deep teal into navy (dark) / mint into periwinkle (light).
+ * Fixed brand colors, independent of the user's accent — used for brand
+ * moments (AI hero, future splash/onboarding), never for controls or data.
+ * Diagonal, top-left to bottom-right; `ink` is the foreground drawn on it.
+ */
+export const BRAND = {
+  dark: { colors: ['#0b2e2b', '#0d4f48', '#1b2a4a'], locations: [0, 0.55, 1], ink: '#ffffff', inkMuted: 'rgba(255,255,255,0.72)' },
+  light: { colors: ['#d7f5ef', '#a8e8dc', '#cfe0ff'], locations: [0, 0.6, 1], ink: '#063c36', inkMuted: 'rgba(6,60,54,0.72)' },
+} as const satisfies Record<Scheme, { colors: readonly [string, string, string]; locations: readonly [number, number, number]; ink: string; inkMuted: string }>;
+
+export function brandTheme(scheme: Scheme | null | undefined) {
+  return BRAND[scheme === 'dark' ? 'dark' : 'light'];
+}
