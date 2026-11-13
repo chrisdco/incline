@@ -91,11 +91,30 @@ Buffer rule: whatever the matrix finds (RLS, blocked pull cursor, photo
 queue, account-switch wipe) outranks new features — file it as
 `matrix-*` and fix only that path.
 
-## Next native build (ship together; none of these can go out over the air)
+## Build 2 — next native build (planned 2026-11-13)
 
-- [ ] **Native Google + Apple sign-in** (Clerk `useSignInWithGoogle` from `@clerk/expo/google`, `useSignInWithApple` + `expo-apple-authentication`). Google account sheet on Android (Credential Manager), native picker on iOS; email code stays. Needs Google Cloud OAuth clients: Android (package + SHA-1 of the EAS signing cert), iOS (bundle id), web (what Clerk verifies the token against); set in Clerk + config plugin. Browser SSO stays as fallback.
-- [ ] **Voice in Ask**: hold-to-talk, `expo-speech-recognition`, on-device where supported (ASK-UI.md "Voice").
-- [ ] **G2 attestation** (FOUNDATION-REVIEW.md).
+Goal: a fresh install on a real phone that feels clearly different. Over-the-air
+work lands first; native pieces ship together in one build.
+
+1. [ ] **Ask Phase 2, rest (OTA):** "Ask about this" on cards across the app
+   (Home, Progress, workout summary) opening a thread with the card attached;
+   proposal cards from chat applied with one tap; the idle brief reuses the
+   answer-card components.
+2. [ ] **Native Google + Apple sign-in** (Clerk `useSignInWithGoogle` from
+   `@clerk/expo/google`, `useSignInWithApple` + `expo-apple-authentication`).
+   Needs Google Cloud OAuth clients (user): Android (package + SHA-1 of the EAS
+   signing cert), iOS (bundle id), web (what Clerk verifies against). Browser
+   SSO stays as fallback; email code stays.
+3. [ ] **Voice in Ask:** hold-to-talk, `expo-speech-recognition`, on-device
+   where supported (ASK-UI.md "Voice").
+4. [ ] **Health Connect, read only** — [HEALTH.md](decisions/HEALTH.md):
+   `HealthPort` + Health Connect adapter, sleep/RHR/HRV/weight/steps,
+   readiness on Home and an Ask read tool. Samsung Health via its Health
+   Connect sync.
+5. [ ] **G2 attestation** (FOUNDATION-REVIEW.md).
+6. [ ] **Build + install:** EAS preview build on the user's phone, full gym
+   smoke. User-owned before it: OAuth clients (2), `ai-task` secrets
+   (`CLERK_FRONTEND_API`, `GROQ_API_KEY`), Play Console health declaration.
 
 ## P0 — Complete & trustworthy (work top-down)
 
