@@ -12,7 +12,7 @@ import {
   shouldNudgeStreak,
 } from '@/lib/notifications/nudge-rules';
 import { reminderBodyForDay } from '@/lib/notifications/copy';
-import { pathForNotificationPayload, resolveSessionPath } from '@/lib/notifications/routes';
+import { LIVE_SESSION_PATH, pathForNotificationPayload, resolveSessionPath } from '@/lib/notifications/routes';
 import {
   NOTIFICATION_IDS,
   isNotificationPayload,
@@ -57,7 +57,6 @@ describe('pathForNotificationPayload', () => {
     expect(pathForNotificationPayload({ type: 'workout_reminder' })).toBe('/(app)/(tabs)');
     expect(pathForNotificationPayload({ type: 'weekly_digest' })).toBe('/(app)/report/week');
     expect(pathForNotificationPayload({ type: 'monthly_recap' })).toBe('/(app)/report/month');
-    expect(pathForNotificationPayload({ type: 'rest_complete' })).toBe('/(app)/(tabs)');
   });
 
   it('routes nudges to the session, home, and progress', () => {
@@ -68,8 +67,9 @@ describe('pathForNotificationPayload', () => {
     );
   });
 
-  it('routes rest with a session id to the live session', () => {
-    expect(pathForNotificationPayload({ type: 'rest_complete', sessionId: 3 })).toBe('/session/3');
+  it('routes rest to whichever session is live, with or without an id', () => {
+    expect(pathForNotificationPayload({ type: 'rest_complete', sessionId: 3 })).toBe(LIVE_SESSION_PATH);
+    expect(pathForNotificationPayload({ type: 'rest_complete' })).toBe(LIVE_SESSION_PATH);
   });
 });
 
@@ -166,5 +166,25 @@ describe('resolveSessionPath (#152)', () => {
   });
   it('leaves other paths alone', () => {
     expect(resolveSessionPath('/(app)/report/week', null)).toBe('/(app)/report/week');
+  });
+});
+
+describe('rest-complete tap (rest-deeplink)', () => {
+  const tap = (payload: Parameters<typeof pathForNotificationPayload>[0], activeLogId: number | null) =>
+    resolveSessionPath(pathForNotificationPayload(payload)!, activeLogId);
+
+  it('opens the live session when one exists', () => {
+    expect(tap({ type: 'rest_complete', sessionId: 3 }, 3)).toBe('/session/3');
+    expect(tap({ type: 'rest_complete' }, 5)).toBe('/session/5');
+  });
+  it('opens the live session even when the alert carries an older id', () => {
+    expect(tap({ type: 'rest_complete', sessionId: 3 }, 4)).toBe('/session/4');
+  });
+  it('goes Home when no session is open', () => {
+    expect(tap({ type: 'rest_complete', sessionId: 3 }, null)).toBe('/(app)/(tabs)');
+    expect(tap({ type: 'rest_complete' }, null)).toBe('/(app)/(tabs)');
+  });
+  it('keeps abandoned-session links pinned to their own session', () => {
+    expect(tap({ type: 'abandoned_session', sessionId: 7 }, 8)).toBe('/(app)/(tabs)');
   });
 });
