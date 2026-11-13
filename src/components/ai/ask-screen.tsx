@@ -38,6 +38,7 @@ import { useSuggestedTemplate, useTodayProgramSlot } from '@/hooks/use-data';
 import { askBriefQuery, chatThreadsQuery } from '@/lib/query-keys';
 import { cn } from '@/lib/cn';
 import { newUuid } from '@/lib/uuid';
+import { askAboutHref } from '@/ai/ask-about';
 import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
 import type { TemplateExercise } from '@/db/types';
 
@@ -248,7 +249,7 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
                 <SectionLabel>Worth a look</SectionLabel>
                 <View className="flex-row gap-2.5">
                   {tiles.map((c) => (
-                    <StatTile key={c.question} insight={c} onPress={() => openChat(c.question)} />
+                    <StatTile key={c.question} insight={c} onPress={() => router.push(askAboutHref({ type: 'context', kind: 'insight', label: `${c.stat.label}: ${c.stat.value}${c.stat.unit ? ` ${c.stat.unit}` : ''}` }, c.question))} />
                   ))}
                   {tiles.length === 1 ? <View className="flex-1" /> : null}
                 </View>

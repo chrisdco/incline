@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ellipsis } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 
+import { aboutFromParams } from '@/ai/ask-about';
 import { AskAmbientBand } from '@/components/ai/ask-ambient';
 import { ChatThread } from '@/components/ai/chat-thread';
 import { Icon } from '@/components/common/icon';
@@ -18,7 +19,8 @@ import { chatThreadsQuery } from '@/lib/query-keys';
 /** An Ask thread. `id` is the thread uuid; a new one exists once the first question is saved. */
 export default function ChatPage() {
   const router = useRouter();
-  const { id, q } = useLocalSearchParams<{ id: string; q?: string }>();
+  const { id, q, aboutKind, aboutLabel, aboutRef } = useLocalSearchParams<{ id: string; q?: string; aboutKind?: string; aboutLabel?: string; aboutRef?: string }>();
+  const about = aboutFromParams({ aboutKind, aboutLabel, aboutRef });
   const { data: threads } = useQuery(chatThreadsQuery);
   const thread = threads?.find((t) => t.uuid === id);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export default function ChatPage() {
         }}
       />
       <AskAmbientBand />
-      <ChatThread threadUuid={id} initialQuestion={q} />
+      <ChatThread threadUuid={id} initialQuestion={q} initialAbout={about} />
 
       <Sheet open={renaming !== null} onOpenChange={(open) => !open && setRenaming(null)} title="Rename chat" mode="fit">
         <View className="gap-4 pb-4">

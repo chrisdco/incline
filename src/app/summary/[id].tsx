@@ -1,3 +1,4 @@
+import { AskAboutButton } from '@/components/ai/ask-about-button';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -399,6 +400,7 @@ export default function SummaryScreen() {
           onPress={() => router.push(`/share/${logId}` as Href)}>
           Share workout
         </Button>
+        <AskAboutButton className="mt-2" label="Ask about this workout" about={{ kind: 'workout', label: log.name, ref: String(logId) }} />
 
         {distribution.length > 0 ? (
           <Section title="Muscles trained">
