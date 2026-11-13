@@ -145,6 +145,7 @@ export function chatErrorText(code: ChatErrorCode | 'consent' | 'unavailable' | 
 
 const obj = (v: Json): Record<string, Json> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, Json>) : {});
 const arr = (v: Json): Json[] => (Array.isArray(v) ? v : []);
+const num = (v: Json | undefined): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
 /** "Looked at 6 Bench Press sessions": what the answer read, said once, after the fact. */
 export function readLines(parts: readonly ChatPart[]): string[] {
@@ -197,6 +198,63 @@ export function trendCardsFor(parts: readonly ChatPart[]): TrendCard[] {
     if (exercise && points.length >= 2) out.set(exercise, { exercise, unit: str(r.unit) ?? '', points });
   }
   return [...out.values()];
+}
+
+/** Rows a card shows at most: a glance, not a table (the answer has the rest). */
+const CARD_ROWS = { records: 3, muscles: 6, workouts: 3 } as const;
+
+/**
+ * T1 catalog cards (ASK-UI.md): what an answer read, drawn by us. Each is
+ * built by rules from a tool result (device SQLite), so every number on a
+ * card is ours, never the model's. One card per read kind; trends per lift.
+ */
+export type AnswerCard =
+  | ({ kind: 'trend' } & TrendCard)
+  | { kind: 'records'; unit: string; rows: { exercise: string; value: number }[] }
+  | { kind: 'muscles'; weeks: number; rows: { muscle: string; average: number }[] }
+  | { kind: 'workouts'; unit: string; rows: { id: string; name: string; date: string; minutes: number; sets: number }[] };
+
+export function answerCardsFor(parts: readonly ChatPart[]): AnswerCard[] {
+  const cards: AnswerCard[] = [];
+  const kinds = new Set<AnswerCard['kind']>();
+  const add = (c: AnswerCard) => {
+    if (c.kind !== 'trend' && kinds.has(c.kind)) return;
+    kinds.add(c.kind);
+    cards.push(c);
+  };
+  for (const p of parts) {
+    if (p.type !== 'tool_result' || p.isError) continue;
+    const r = obj(p.result);
+    if (p.name === 'get_exercise_history') {
+      for (const t of trendCardsFor([p])) add({ kind: 'trend', ...t });
+    } else if (p.name === 'get_personal_records') {
+      const rows = arr(r.records)
+        .map(obj)
+        .flatMap((x) => (str(x.exercise) && typeof x.estimated_1rm === 'number' && x.estimated_1rm > 0 ? [{ exercise: str(x.exercise)!, value: x.estimated_1rm }] : []))
+        .slice(0, CARD_ROWS.records);
+      if (rows.length) add({ kind: 'records', unit: str(r.unit) ?? '', rows });
+    } else if (p.name === 'get_training_summary') {
+      const rows = Object.entries(obj(r.sets_per_muscle_per_week))
+        .flatMap(([muscle, v]) => {
+          const average = obj(v).average;
+          return typeof average === 'number' && average > 0 ? [{ muscle, average }] : [];
+        })
+        .sort((a, b) => b.average - a.average)
+        .slice(0, CARD_ROWS.muscles);
+      if (rows.length) add({ kind: 'muscles', weeks: typeof r.weeks === 'number' ? r.weeks : 4, rows });
+    } else if (p.name === 'list_workouts') {
+      const rows = arr(r.workouts)
+        .map(obj)
+        .flatMap((w) =>
+          str(w.id) && str(w.date)
+            ? [{ id: str(w.id)!, name: str(w.name) || 'Workout', date: str(w.date)!, minutes: num(w.minutes), sets: num(w.completed_sets) }]
+            : [],
+        )
+        .slice(0, CARD_ROWS.workouts);
+      if (rows.length) add({ kind: 'workouts', unit: str(r.unit) ?? '', rows });
+    }
+  }
+  return cards;
 }
 
 /** Two follow-ups from what the answer read: tappable next questions, by rules. */
