@@ -91,6 +91,12 @@ Buffer rule: whatever the matrix finds (RLS, blocked pull cursor, photo
 queue, account-switch wipe) outranks new features — file it as
 `matrix-*` and fix only that path.
 
+## Next native build (ship together; none of these can go out over the air)
+
+- [ ] **Native Google + Apple sign-in** (Clerk `useSignInWithGoogle` from `@clerk/expo/google`, `useSignInWithApple` + `expo-apple-authentication`). Google account sheet on Android (Credential Manager), native picker on iOS; email code stays. Needs Google Cloud OAuth clients: Android (package + SHA-1 of the EAS signing cert), iOS (bundle id), web (what Clerk verifies the token against); set in Clerk + config plugin. Browser SSO stays as fallback.
+- [ ] **Voice in Ask**: hold-to-talk, `expo-speech-recognition`, on-device where supported (ASK-UI.md "Voice").
+- [ ] **G2 attestation** (FOUNDATION-REVIEW.md).
+
 ## P0 — Complete & trustworthy (work top-down)
 
 ### A. Units and denominators (decisions everything assumes)
