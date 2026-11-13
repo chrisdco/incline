@@ -1,16 +1,19 @@
-import type { ChatEvent, Json, ModelMessage, ModelPort, RunFinish, ToolSpec } from '@/contracts/ai/chat';
+import type { ChatEvent, ChatPart, Json, ModelMessage, ModelPort, RunFinish, ToolSpec } from '@/contracts/ai/chat';
 import { addUsage, type AiUsage } from '@/contracts/ai/data-use';
 
 /**
  * The chat agent loop (AI-CHAT §3, §3A.1): runs on the device, model steps
  * through a ModelPort, tools against local SQLite, capped at `maxSteps`.
- * Policies live here, not in the model: only registered tools run, read tools
- * only, results are fenced as data, and every run ends with exactly one
- * `run_end`. Never throws.
+ * Policies live here, not in the model: only registered tools run, reads and
+ * proposals only (a propose tool never writes; its result becomes a card the
+ * user applies), results are fenced as data, and every run ends with exactly
+ * one `run_end`. Never throws.
  */
 export interface ToolImpl {
   spec: ToolSpec;
   run(args: Json, ctx: { signal?: AbortSignal }): Promise<Json>;
+  /** Propose tools: the card shown for a successful result. */
+  toPart?(result: Json): ChatPart | null;
 }
 
 export interface RunTurnOptions {
@@ -40,7 +43,9 @@ export function fenceToolResult(result: Json): string {
 async function runTool(tools: readonly ToolImpl[], name: string, args: Json, signal?: AbortSignal): Promise<{ result: Json; isError: boolean }> {
   const tool = tools.find((t) => t.spec.name === name);
   if (!tool) return { result: { error: `unknown tool "${name}"` }, isError: true };
-  if (tool.spec.kind !== 'read') return { result: { error: `${name} is not available here` }, isError: true };
+  if (tool.spec.kind !== 'read' && !(tool.spec.kind === 'propose' && tool.toPart)) {
+    return { result: { error: `${name} is not available here` }, isError: true };
+  }
   try {
     return { result: await tool.run(args, { signal }), isError: false };
   } catch (err) {
@@ -124,6 +129,9 @@ export async function* runChatTurn(opts: RunTurnOptions): AsyncGenerator<ChatEve
       }
       const { result, isError } = await runTool(opts.tools, call.name, call.args, opts.signal);
       yield { type: 'tool_result', callId: call.id, name: call.name, result, isError };
+      const impl = isError ? undefined : opts.tools.find((t) => t.spec.name === call.name);
+      const card = impl?.spec.kind === 'propose' ? (impl.toPart?.(result) ?? null) : null;
+      if (card) yield { type: 'part', part: card };
       messages.push({ role: 'tool', toolCallId: call.id, content: fenceToolResult(result) });
     }
   }

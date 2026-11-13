@@ -10,7 +10,7 @@ import type { AiFailure } from './types';
  * the sources shown under an answer and what goes in "AI data use". Kept out
  * of the hook so they're unit-tested and shared by future surfaces.
  */
-export const CHAT_PROMPT_VERSION = 'chat-2';
+export const CHAT_PROMPT_VERSION = 'chat-3';
 /** Earlier messages sent with a turn. Tool results are not replayed; the model can read again. */
 export const HISTORY_MESSAGES = 12;
 
@@ -32,7 +32,7 @@ export function buildChatSystem(ctx: ChatPromptContext): string {
     'A question may start with a bracketed [About this …] line: that is what they are looking at in the app. Read it with your tools before answering.',
     'If the data is not there, say so plainly.',
     'Answer in a few short sentences or a short list. Lead with the answer, then the numbers that back it.',
-    'You cannot change their routines or logs here; if they ask, say what you would change and that they can apply it from the routine.',
+    'You never change anything yourself. To suggest a change to one of their routines, read it, then call propose_routine_change; they review and apply it from the card. Never claim a change was made. Workout logs are not editable here.',
     'Stay on training, recovery and the app. Politely decline anything else.',
   ]
     .filter(Boolean)
@@ -109,11 +109,14 @@ export function sourceLabel(name: string, result: Json): string {
   }
 }
 
+/** Proposals are cards, not reads: no source chip, no "Looked at" line. */
+const isProposeTool = (name: string) => findTool(name)?.kind === 'propose';
+
 export function sourcesFor(parts: readonly ChatPart[]): SourcePart[] {
   const seen = new Set<string>();
   const out: SourcePart[] = [];
   for (const p of parts) {
-    if (p.type !== 'tool_result' || p.isError) continue;
+    if (p.type !== 'tool_result' || p.isError || isProposeTool(p.name)) continue;
     const label = sourceLabel(p.name, p.result);
     if (seen.has(label)) continue;
     seen.add(label);
@@ -179,7 +182,7 @@ const num = (v: Json | undefined): number => (typeof v === 'number' && Number.is
 export function readLines(parts: readonly ChatPart[]): string[] {
   const seen = new Set<string>();
   for (const p of parts) {
-    if (p.type !== 'tool_result' || p.isError) continue;
+    if (p.type !== 'tool_result' || p.isError || isProposeTool(p.name)) continue;
     const r = obj(p.result);
     let line: string;
     switch (p.name) {

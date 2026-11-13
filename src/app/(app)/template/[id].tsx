@@ -94,7 +94,9 @@ function draftTemplate(name: string, exercises: Exercise[]): WorkoutTemplate {
 }
 
 export default function TemplateEditorScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, ask } = useLocalSearchParams<{ id: string; ask?: string }>();
+  // A change suggested in Ask chat; the routine's own Ask runs it (review, apply, undo).
+  const suggested = typeof ask === 'string' && ask.trim() ? ask.trim().slice(0, 300) : undefined;
   const isNew = !id || id === 'new';
   const templateId = isNew ? null : Number(id);
   const router = useRouter();
@@ -265,6 +267,16 @@ export default function TemplateEditorScreen() {
         contentContainerStyle={SCREEN_CONTENT_CTA}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets>
+        {template && suggested ? (
+          <View className="mb-5">
+            <TemplateAsk
+              template={{ ...template, name: name.trim() || template.name, exercises }}
+              initialIntent={suggested}
+              onChanged={() => void reloadFromDb()}
+              onOpenRoutine={(newId) => router.push(`/template/${newId}`)}
+            />
+          </View>
+        ) : null}
         <View className="gap-3">
           <View className="gap-1">
             <Label>Name</Label>
@@ -335,7 +347,7 @@ export default function TemplateEditorScreen() {
           />
         </View>
 
-        {template ? (
+        {template && !suggested ? (
           <>
             <Separator className="my-5" />
             <TemplateAsk template={{ ...template, name: name.trim() || template.name, exercises }} onChanged={() => void reloadFromDb()}
