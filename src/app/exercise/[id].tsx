@@ -6,6 +6,7 @@ import { Icon } from '@/components/common/icon';
 
 import { Body, Caption, Text, Title } from '@/components/common/text';
 import { ListRow, Section, StatBlock } from '@/components/layout';
+import { AskAboutButton } from '@/components/ai/ask-about-button';
 import { ExerciseMedia, ExerciseThumb } from '@/components/exercise/exercise-media';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -200,6 +201,7 @@ export default function ExerciseDetailScreen() {
             {adding ? 'Starting…' : 'Start workout with this'}
           </Button>
         )}
+        {history?.length ? <AskAboutButton className="mt-2" label="Ask about this exercise" about={{ kind: 'exercise', label: exercise.name, ref: String(exercise.id) }} /> : null}
       </View>
 
       {/* Tab selector */}

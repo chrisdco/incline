@@ -1,4 +1,4 @@
-import type { ChatErrorCode, ChatMessageRecord, ChatPart, Json, ModelMessage, RunFinish, SourcePart } from '@/contracts/ai/chat';
+import type { ChatErrorCode, ChatMessageRecord, ChatPart, ContextPart, Json, ModelMessage, RunFinish, SourcePart } from '@/contracts/ai/chat';
 import { findTool } from '@/contracts/ai/chat-tools';
 import { textOf } from '@/contracts/ai/chat';
 import type { AiDataCategory } from '@/contracts/ai/data-use';
@@ -10,7 +10,7 @@ import type { AiFailure } from './types';
  * the sources shown under an answer and what goes in "AI data use". Kept out
  * of the hook so they're unit-tested and shared by future surfaces.
  */
-export const CHAT_PROMPT_VERSION = 'chat-1';
+export const CHAT_PROMPT_VERSION = 'chat-2';
 /** Earlier messages sent with a turn. Tool results are not replayed; the model can read again. */
 export const HISTORY_MESSAGES = 12;
 
@@ -29,6 +29,7 @@ export function buildChatSystem(ctx: ChatPromptContext): string {
     ctx.goal ? `Their goal: ${ctx.goal}.` : '',
     ctx.experience ? `Experience: ${ctx.experience}.` : '',
     'Use the tools to read their logged data before answering anything about it; never guess numbers.',
+    'A question may start with a bracketed [About this …] line: that is what they are looking at in the app. Read it with your tools before answering.',
     'If the data is not there, say so plainly.',
     'Answer in a few short sentences or a short list. Lead with the answer, then the numbers that back it.',
     'You cannot change their routines or logs here; if they ask, say what you would change and that they can apply it from the routine.',
@@ -38,12 +39,39 @@ export function buildChatSystem(ctx: ChatPromptContext): string {
     .join(' ');
 }
 
+const ABOUT_NOUN: Record<ContextPart['kind'], string> = {
+  exercise: 'exercise',
+  workout: 'logged workout',
+  routine: 'routine',
+  insight: 'insight from the Ask screen',
+};
+
+/** The attached thing, if any, on a user turn. */
+export function aboutOf(parts: readonly ChatPart[]): ContextPart | null {
+  return parts.find((p): p is ContextPart => p.type === 'context') ?? null;
+}
+
+/**
+ * What the model sees for a user turn: an "Ask about this" attachment
+ * becomes one bracketed line naming the thing (a pointer, not data; the
+ * model reads the numbers with its tools), then the question. The label is
+ * user data, quoted and trimmed so it can't pose as an instruction.
+ */
+export function userContentFor(parts: readonly ChatPart[]): string {
+  const text = textOf(parts).trim();
+  const about = aboutOf(parts);
+  if (!about) return text;
+  const label = about.label.replace(/["[\]\n\r]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const ref = about.ref && /^[\w-]{1,40}$/.test(about.ref) ? ` (id ${about.ref})` : '';
+  return `[About this ${ABOUT_NOUN[about.kind]}: "${label}"${ref}]\n${text}`;
+}
+
 /** Stored messages → what the model sees: user and assistant text only, last N. */
 export function historyFor(messages: readonly ChatMessageRecord[], limit = HISTORY_MESSAGES): ModelMessage[] {
   const out: ModelMessage[] = [];
   for (const m of messages) {
     if (m.role === 'system') continue;
-    const text = textOf(m.parts).trim();
+    const text = (m.role === 'user' ? userContentFor(m.parts) : textOf(m.parts)).trim();
     if (!text) continue;
     out.push(m.role === 'user' ? { role: 'user', content: text } : { role: 'assistant', content: text });
   }

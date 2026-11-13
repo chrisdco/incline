@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import type { ChatMessageRecord, ChatPart } from '@/contracts/ai/chat';
+import type { ChatMessageRecord, ChatPart, ContextPart } from '@/contracts/ai/chat';
 import type { GetToken } from '@/sync/supabase-auth';
 
 import { executeChatTurn } from './chat-session';
@@ -13,13 +13,15 @@ import { executeChatTurn } from './chat-session';
 export interface ChatRunState {
   /** The question being answered (shown before it's saved). */
   pendingUser: string | null;
+  /** What the pending question is about, if attached. */
+  pendingAbout: ContextPart | null;
   /** The answer so far. */
   parts: ChatPart[];
   running: boolean;
 }
 
 const FLUSH_MS = 50;
-const IDLE: ChatRunState = { pendingUser: null, parts: [], running: false };
+const IDLE: ChatRunState = { pendingUser: null, pendingAbout: null, parts: [], running: false };
 
 export function useChatRun(opts: {
   threadUuid: string;
@@ -40,13 +42,13 @@ export function useChatRun(opts: {
 
   const stop = useCallback(() => controller.current?.abort(), []);
 
-  const send = useCallback((raw: string) => {
+  const send = useCallback((raw: string, about: ContextPart | null = null) => {
     const text = raw.trim();
     if (!text || controller.current) return;
     const ac = new AbortController();
     controller.current = ac;
     latestParts.current = [];
-    setState({ pendingUser: text, parts: [], running: true });
+    setState({ pendingUser: text, pendingAbout: about, parts: [], running: true });
     const flush = () => {
       timer.current = null;
       setState((s) => ({ ...s, parts: latestParts.current }));
@@ -54,6 +56,7 @@ export function useChatRun(opts: {
     void executeChatTurn({
       ...latest.current,
       text,
+      about,
       signal: ac.signal,
       onParts: (parts) => {
         latestParts.current = parts;

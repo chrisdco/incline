@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { BlurTargetView } from 'expo-blur';
-import { Check } from 'lucide-react-native';
+import { Check, Paperclip } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
@@ -10,10 +10,10 @@ import { Body, Caption, Text } from '@/components/common/text';
 import { EdgeBlur, useBlurTarget } from '@/components/ui/edge-blur';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { useChatRun } from '@/ai/use-chat-run';
-import type { ChatMessageRecord, ChatPart, SourcePart } from '@/contracts/ai/chat';
+import type { ChatMessageRecord, ChatPart, ContextPart, SourcePart } from '@/contracts/ai/chat';
 import { textOf } from '@/contracts/ai/chat';
 import { chatMessagesQuery } from '@/lib/query-keys';
-import { answerCardsFor, followUpsFor, readLines } from '@/ai/chat-turn';
+import { aboutOf, answerCardsFor, followUpsFor, readLines } from '@/ai/chat-turn';
 
 import { AnswerCardView } from './answer-cards';
 import { AskComposer } from './ask-composer';
@@ -49,14 +49,20 @@ const WORKING: Record<string, string> = {
 };
 
 type Row =
-  | { key: string; kind: 'user'; text: string }
+  | { key: string; kind: 'user'; text: string; about: ContextPart | null }
   | { key: string; kind: 'assistant'; parts: readonly ChatPart[]; live: boolean };
 
-function rowsFor(messages: readonly ChatMessageRecord[], pendingUser: string | null, live: readonly ChatPart[], running: boolean): Row[] {
+function rowsFor(
+  messages: readonly ChatMessageRecord[],
+  pendingUser: string | null,
+  pendingAbout: ContextPart | null,
+  live: readonly ChatPart[],
+  running: boolean,
+): Row[] {
   const rows: Row[] = messages.map((m) =>
-    m.role === 'user' ? { key: m.id, kind: 'user', text: textOf(m.parts) } : { key: m.id, kind: 'assistant', parts: m.parts, live: false },
+    m.role === 'user' ? { key: m.id, kind: 'user', text: textOf(m.parts), about: aboutOf(m.parts) } : { key: m.id, kind: 'assistant', parts: m.parts, live: false },
   );
-  if (pendingUser) rows.push({ key: 'pending-user', kind: 'user', text: pendingUser });
+  if (pendingUser) rows.push({ key: 'pending-user', kind: 'user', text: pendingUser, about: pendingAbout });
   if (running) rows.push({ key: 'live', kind: 'assistant', parts: live, live: true });
   return rows;
 }
@@ -145,9 +151,15 @@ function AssistantRow({ parts, live, onFollowUp }: { parts: readonly ChatPart[];
   );
 }
 
-function UserRow({ text }: { text: string }) {
+function UserRow({ text, about }: { text: string; about: ContextPart | null }) {
   return (
-    <View className="items-end py-2">
+    <View className="items-end gap-1.5 py-2">
+      {about ? (
+        <View className="max-w-[85%] flex-row items-center gap-1.5 rounded-full border border-hairline bg-surface1 px-3 py-1" accessibilityLabel={`About ${about.label}`}>
+          <Icon icon={Paperclip} size={12} color="muted-foreground" />
+          <Caption numberOfLines={1}>{about.label}</Caption>
+        </View>
+      ) : null}
       <View className="max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 px-4 py-2.5">
         <Body className="text-foreground">{text}</Body>
       </View>
@@ -155,7 +167,7 @@ function UserRow({ text }: { text: string }) {
   );
 }
 
-export function ChatThread({ threadUuid, initialQuestion }: { threadUuid: string; initialQuestion?: string }) {
+export function ChatThread({ threadUuid, initialQuestion, initialAbout = null }: { threadUuid: string; initialQuestion?: string; initialAbout?: ContextPart | null }) {
   const { userId, getToken } = useAppAuth();
   const { data: messages = [] } = useQuery(chatMessagesQuery(threadUuid));
   const run = useChatRun({ threadUuid, messages, getToken, userId });
@@ -164,14 +176,15 @@ export function ChatThread({ threadUuid, initialQuestion }: { threadUuid: string
   const target = useBlurTarget();
   const { send } = run;
 
-  // A starter from the Ask screen is sent once, on open.
+  // A starter from the Ask screen (or "Ask about this", with its attachment) is sent once, on open.
+  const opening = useRef(initialAbout);
   useEffect(() => {
     if (!initialQuestion || asked.current) return;
     asked.current = true;
-    send(initialQuestion);
+    send(initialQuestion, opening.current);
   }, [initialQuestion, send]);
 
-  const rows = useMemo(() => rowsFor(messages, run.pendingUser, run.parts, run.running), [messages, run.pendingUser, run.parts, run.running]);
+  const rows = useMemo(() => rowsFor(messages, run.pendingUser, run.pendingAbout, run.parts, run.running), [messages, run.pendingUser, run.pendingAbout, run.parts, run.running]);
   const empty = rows.length === 0;
 
   const submit = (text: string) => {
@@ -199,7 +212,7 @@ export function ChatThread({ threadUuid, initialQuestion }: { threadUuid: string
           getItemType={(r) => r.kind}
           renderItem={({ item, index }) =>
             item.kind === 'user' ? (
-              <UserRow text={item.text} />
+              <UserRow text={item.text} about={item.about} />
             ) : (
               <AssistantRow parts={item.parts} live={item.live} onFollowUp={index === rows.length - 1 && !run.running ? submit : undefined} />
             )

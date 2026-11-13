@@ -1,4 +1,4 @@
-import type { ChatErrorCode, ChatMessageRecord, ChatPart, RunFinish } from '@/contracts/ai/chat';
+import type { ChatErrorCode, ChatMessageRecord, ChatPart, ContextPart, RunFinish } from '@/contracts/ai/chat';
 import type { AiUsage } from '@/contracts/ai/data-use';
 import { appendChatMessages } from '@/db/queries/chat';
 import type { GetToken } from '@/sync/supabase-auth';
@@ -10,6 +10,7 @@ import {
   chatErrorText,
   historyFor,
   outcomeOf,
+  userContentFor,
   sourcesFor,
 } from './chat-turn';
 import { applyChatEvent } from './runtime/parts';
@@ -23,6 +24,8 @@ import { applyChatEvent } from './runtime/parts';
 export interface ChatTurnInput {
   threadUuid: string;
   text: string;
+  /** "Ask about this": what the question is about. */
+  about?: ContextPart | null;
   /** Saved messages (for history). */
   messages: readonly ChatMessageRecord[];
   getToken: GetToken;
@@ -46,8 +49,8 @@ function notice(text: string, code: string): ChatPart {
  * notice in the saved answer. Resolves once the saved rows are loaded.
  */
 export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
-  const { threadUuid, text, messages, getToken, userId, signal, onParts } = input;
-  const userMsg = { role: 'user' as const, parts: [{ type: 'text' as const, text }] };
+  const { threadUuid, text, about, messages, getToken, userId, signal, onParts } = input;
+  const userMsg = { role: 'user' as const, parts: [...(about ? [about] : []), { type: 'text' as const, text }] as ChatPart[] };
   let live: ChatPart[] = [];
 
   const save = async (assistant: { parts: ChatPart[]; model?: string; provider?: string } | null) => {
@@ -117,7 +120,7 @@ export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
       model: choice.model,
       system,
       history: historyFor(messages),
-      user: text,
+      user: userContentFor(userMsg.parts),
       tools: deviceReadTools(),
       signal,
     })) {
