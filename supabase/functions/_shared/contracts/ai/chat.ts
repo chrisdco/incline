@@ -39,6 +39,19 @@ export interface ToolResultPart {
   isError?: boolean;
 }
 
+/** What "Ask about this" attached: a pointer the model resolves with its read tools, never data. */
+export type AboutKind = 'exercise' | 'workout' | 'routine' | 'insight';
+export const ABOUT_KINDS: readonly AboutKind[] = ['exercise', 'workout', 'routine', 'insight'];
+
+export interface ContextPart {
+  type: 'context';
+  kind: AboutKind;
+  /** Display name, also what the model is told ("Bench Press"). */
+  label: string;
+  /** Our id for the thing (workout log id, exercise id), for opening it later. */
+  ref?: string;
+}
+
 /** A structured card the UI renders natively (PR list, trend, workout). */
 export interface DataCardPart {
   type: 'data_card';
@@ -81,6 +94,7 @@ export interface NoticePart {
 
 export type ChatPart =
   | TextPart
+  | ContextPart
   | ToolCallPart
   | ToolResultPart
   | DataCardPart
@@ -106,6 +120,7 @@ export interface ChatMessageRecord {
 
 const PART_TYPES: ReadonlySet<string> = new Set([
   'text',
+  'context',
   'tool_call',
   'tool_result',
   'data_card',
