@@ -312,6 +312,8 @@ export async function readRecentSets(open: () => Promise<Db> = openDatabase): Pr
 export interface DeviceTool {
   spec: ToolSpec;
   run(args: Json, ctx: { signal?: AbortSignal }): Promise<Json>;
+  /** Propose tools: the card for a successful result. */
+  toPart?(result: Json): import('@/contracts/ai/chat').ChatPart | null;
 }
 
 /** The chat read tools bound to device SQLite. Unknown args → a readable error the model can repair. */

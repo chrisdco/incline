@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { BlurTargetView } from 'expo-blur';
 import { Check, Paperclip } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
@@ -10,11 +11,15 @@ import { Body, Caption, Text } from '@/components/common/text';
 import { EdgeBlur, useBlurTarget } from '@/components/ui/edge-blur';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { useChatRun } from '@/ai/use-chat-run';
-import type { ChatMessageRecord, ChatPart, ContextPart, SourcePart } from '@/contracts/ai/chat';
+import type { ChatMessageRecord, ChatPart, ContextPart, ProposalPart, SourcePart } from '@/contracts/ai/chat';
 import { textOf } from '@/contracts/ai/chat';
 import { chatMessagesQuery } from '@/lib/query-keys';
 import { aboutOf, answerCardsFor, followUpsFor, readLines } from '@/ai/chat-turn';
 
+import { parseRoutineChange, ROUTINE_CHANGE_ACTION } from '@/ai/capabilities/propose-tools';
+import { Button } from '@/components/ui/button';
+
+import { AiMark } from './ai-mark';
 import { AnswerCardView } from './answer-cards';
 import { AskComposer } from './ask-composer';
 import { SourceChip } from './markers';
@@ -46,6 +51,7 @@ const WORKING: Record<string, string> = {
   get_routine: 'Opening that routine…',
   get_profile: 'Checking your profile…',
   search_exercises: 'Searching exercises…',
+  propose_routine_change: 'Drafting a change…',
 };
 
 type Row =
@@ -105,6 +111,33 @@ function RichText({ text }: { text: string }) {
   );
 }
 
+/**
+ * A change the model suggested (propose tool). Nothing has been written:
+ * Review opens the routine, where its own Ask builds the exact edit for the
+ * user to apply (and undo).
+ */
+function SuggestedChange({ part }: { part: ProposalPart }) {
+  const router = useRouter();
+  const change = part.action === ROUTINE_CHANGE_ACTION ? parseRoutineChange(part.payload) : null;
+  if (!change) return null;
+  return (
+    <View className="gap-2 rounded-2xl border border-hairline bg-surface1 px-4 py-3" accessible={false}>
+      <View className="flex-row items-center gap-1.5">
+        <Icon icon={AiMark} size={12} color="primary" />
+        <Caption numberOfLines={1}>Suggested change · {change.routineName}</Caption>
+      </View>
+      <Body className="text-foreground">{change.change}</Body>
+      <Button
+        size="sm"
+        variant="outline"
+        accessibilityHint="Opens the routine to review the exact edit before anything changes"
+        onPress={() => router.push(`/template/${change.templateId}?ask=${encodeURIComponent(change.change)}`)}>
+        Review change
+      </Button>
+    </View>
+  );
+}
+
 function AssistantRow({ parts, live, onFollowUp }: { parts: readonly ChatPart[]; live: boolean; onFollowUp?: (q: string) => void }) {
   const text = textOf(parts);
   const sources = parts.filter((p): p is SourcePart => p.type === 'source');
@@ -125,6 +158,7 @@ function AssistantRow({ parts, live, onFollowUp }: { parts: readonly ChatPart[];
           ))}
       {text ? <RichText text={text} /> : null}
       {live ? null : answerCardsFor(parts).map((c) => <AnswerCardView key={c.kind === 'trend' ? `trend:${c.exercise}` : c.kind} card={c} />)}
+      {live ? null : parts.filter((p): p is ProposalPart => p.type === 'proposal').map((p) => <SuggestedChange key={p.proposalId} part={p} />)}
       {workingLine ? <ThinkingShimmer label={workingLine} /> : null}
       {notices.map((n, i) =>
         n.type === 'notice' ? (

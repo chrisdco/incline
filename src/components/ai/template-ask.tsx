@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { ArrowUp } from 'lucide-react-native';
 import { AiMark } from './ai-mark';
@@ -131,12 +131,15 @@ export function TemplateAsk({
   onChanged,
   onDraft,
   onOpenRoutine,
+  initialIntent,
 }: {
   template: WorkoutTemplate;
   onChanged?: () => void;
   onDraft?: (proposal: TemplateProposal) => void;
   /** Opens a routine the AI just created (versions are saved as copies). */
   onOpenRoutine?: (templateId: number) => void;
+  /** A change suggested in Ask chat: run it once on open, still review-then-apply. */
+  initialIntent?: string;
 }) {
   const drafting = Boolean(onDraft);
   const { userId, getToken } = useAppAuth();
@@ -172,6 +175,13 @@ export function TemplateAsk({
     else if (outcome.status === 'declined') setState({ kind: 'declined', message: outcome.message });
     else setState({ kind: 'failed', reason: outcome.reason });
   };
+
+  const autoAsked = useRef(false);
+  useEffect(() => {
+    if (!initialIntent || autoAsked.current) return;
+    autoAsked.current = true;
+    void ask(initialIntent);
+  }, [initialIntent, ask]);
 
   const cancel = () => {
     abort.current?.abort();

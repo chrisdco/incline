@@ -99,7 +99,9 @@ work lands first; native pieces ship together in one build.
 1. [ ] **Ask Phase 2, rest (OTA):** "Ask about this" on cards across the app
    (Home, Progress, workout summary) opening a thread with the card attached;
    proposal cards from chat applied with one tap; the idle brief reuses the
-   answer-card components.
+   answer-card components. Done: exercise + workout summary + insight tiles
+   (#371), proposal cards (routine changes, review then apply). Left: Home and
+   Progress cards, idle brief.
 2. [ ] **Native Google + Apple sign-in** (Clerk `useSignInWithGoogle` from
    `@clerk/expo/google`, `useSignInWithApple` + `expo-apple-authentication`).
    Needs Google Cloud OAuth clients (user): Android (package + SHA-1 of the EAS
