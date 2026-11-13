@@ -114,6 +114,14 @@ describe('reminderBodyForDay', () => {
     expect(reminderBodyForDay(0)).toBe('Sunday session — ready when you are.');
     expect(reminderBodyForDay(99)).toBe('Workout session — ready when you are.');
   });
+
+  it('stays short and never nags, every day of the week (reminder-copy)', () => {
+    for (let day = 0; day < 7; day++) {
+      const body = reminderBodyForDay(day);
+      expect(body.length).toBeLessThanOrEqual(40);
+      expect(body).not.toMatch(/!|don't|miss|streak|lazy|skip|again|still/i);
+    }
+  });
 });
 
 describe('nudge caps', () => {
