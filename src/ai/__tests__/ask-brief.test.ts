@@ -61,6 +61,18 @@ describe('Ask idle brief', () => {
     }
     const b = buildAskBrief(sets, 'metric', NOW);
     expect(b.cards.map((c) => c.kind)).toContain('balance');
+    const card = b.cards.find((c) => c.kind === 'balance')!.card;
+    expect(card).toMatchObject({ kind: 'muscles', weeks: 4 });
+    expect(card?.kind === 'muscles' && card.rows[0]).toEqual({ muscle: 'chest', average: 12 });
+  });
+
+  it('draws lift insights with the chat trend card, in the user unit', () => {
+    const sets = [set(20, 'Bench', 90), set(14, 'Bench', 92.5), set(7.5, 'Bench', 92.5), set(1, 'Bench', 100)];
+    const card = buildAskBrief(sets, 'imperial', NOW).cards[0]!.card;
+    expect(card).toMatchObject({ kind: 'trend', exercise: 'Bench', unit: 'lb' });
+    expect(card?.kind === 'trend' && card.points).toHaveLength(4);
+    const flat = [set(30, 'Squat', 120), set(22, 'Squat', 120), set(15, 'Squat', 120), set(8, 'Squat', 120), set(2, 'Squat', 120)];
+    expect(buildAskBrief(flat, 'metric', NOW).cards.find((c) => c.kind === 'stalled')!.card).toMatchObject({ kind: 'trend', exercise: 'Squat' });
   });
 });
 
