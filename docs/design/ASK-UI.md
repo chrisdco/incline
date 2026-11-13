@@ -288,7 +288,7 @@ Cleaner, not removed (Android `GlassTabBar`):
 |---|---|---|
 | 0.5 contracts | ✅ #355 | Nothing (runtime, lint layers) |
 | 1 core | ✅ #353–#358 | Consent, AI data use, thread screen with streaming, tool line, source chips, stop; recent chats on Ask |
-| **1.5 shell + idle** | 🟡 shell shipped | ✅ Ambient dither header with contextual scenes, rules-built idle (headline, insight cards, continue), composer at the bottom, drawer (New chat, Tools, Recents with delete, privacy). Left: thinking shimmer, thread rename/search, thin ambient band in threads, the What's new sheet announcing Ask |
+| **1.5 shell + idle** | ✅ shipped | Ambient dither header with contextual scenes, rules-built idle (headline, insight cards, continue), floating composer, drawer (New chat, Tools, Recents with delete, privacy). Then: thinking shimmer on the working line (static under reduced motion), thread rename (chat menu → sheet), drawer search over titles and message text (local LIKE scan, newest 300 matches), thin brand band at the top of threads, one-time What's new sheet on Home (seen flag = announcement dismiss list, `ask-v1`). Live answers on device still need a signed-in run |
 | 2 cards + actions | | Data cards in answers (records, e1RM sparkline, sets per muscle, workout row) **shared with the brief**; proposal cards from chat; follow-up chips; `+` attach; "Ask about this" from cards across the app |
 | 3 memory | | "Saved to memory · Undo" chip; *What Incline knows* in the drawer; temporary chat toggle in the header |
 | 4 in-session sheet | | Ask as a sheet over the active workout, read-only, timer keeps running |

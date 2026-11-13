@@ -5,13 +5,13 @@ import { Alert, Modal, Pressable, ScrollView, TextInput, View } from 'react-nati
 import Animated, { Easing, FadeIn, FadeOut, SlideInLeft, SlideOutLeft } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart3, CalendarRange, Gauge, Plus, Scale, Search, SlidersHorizontal, type LucideIcon } from 'lucide-react-native';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Text } from '@/components/common/text';
 import { Tappable } from '@/components/ui/tappable';
 import { deleteChatThread } from '@/db/queries/chat';
-import { chatThreadsQuery } from '@/lib/query-keys';
+import { chatSearchQuery, chatThreadsQuery } from '@/lib/query-keys';
 import { useAiEntry, type AskContext } from '@/store/ai-entry-store';
 import { motionDuration } from '@/styles/motion';
 import { PLACEHOLDER_HEX } from '@/styles/tokens';
@@ -80,7 +80,8 @@ function Row({
 
 /**
  * Ask's drawer (ASK-UI.md): search, Tools, Recents, then privacy and
- * settings, with New chat floating bottom-right (Claude's layout). Opens from
+ * settings, with New chat floating bottom-right (Claude's layout). Search
+ * matches titles and what was said in the chat. Opens from
  * ☰ only (no edge swipe; that would fight Android's back gesture).
  * Long-press a chat to delete it.
  */
@@ -93,7 +94,10 @@ export function AskDrawer({ open, onClose, onNewChat }: { open: boolean; onClose
   const [all, setAll] = useState(false);
   const bg = useThemeHex().background;
   const q = query.trim().toLowerCase();
-  const matches = q ? threads.filter((t) => (t.title || 'Chat').toLowerCase().includes(q)) : threads;
+  // Titles match as you type; message text joins from SQLite once 2+ characters are in.
+  const { data: hits = [] } = useQuery({ ...chatSearchQuery(q), placeholderData: keepPreviousData });
+  const hitSet = new Set(q ? hits : []);
+  const matches = q ? threads.filter((t) => (t.title || 'Chat').toLowerCase().includes(q) || hitSet.has(t.uuid)) : threads;
   const shown = q || all ? matches : matches.slice(0, RECENT);
   const go = (href: Href) => {
     onClose();

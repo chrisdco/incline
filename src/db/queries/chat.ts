@@ -1,4 +1,4 @@
-import { CHAT_PARTS_VERSION, upgradeParts, type ChatMessageRecord, type ChatPart, type ChatRole } from '@/contracts/ai/chat';
+import { CHAT_PARTS_VERSION, textOf, upgradeParts, type ChatMessageRecord, type ChatPart, type ChatRole } from '@/contracts/ai/chat';
 import { newUuid } from '@/lib/uuid';
 
 import { openDatabase } from '../client';
@@ -174,4 +174,46 @@ export async function deleteChatThread(uuid: string): Promise<void> {
     await tx.runAsync(`DELETE FROM chat_messages WHERE thread_uuid = ?`, uuid);
     await tx.runAsync(`DELETE FROM chat_threads WHERE uuid = ?`, uuid);
   });
+}
+
+/** Renames a thread from the thread menu. Empty input falls back to "Chat". */
+export async function renameChatThread(uuid: string, title: string): Promise<void> {
+  const clean = title.replace(/\s+/g, ' ').trim().slice(0, MAX_TITLE) || 'Chat';
+  await mutate(CHAT_TABLES, async (tx) => {
+    await tx.runAsync(`UPDATE chat_threads SET title = ? WHERE uuid = ? AND deleted_at IS NULL`, clean, uuid);
+  });
+}
+
+/** Rows scanned per search; plenty for device-local chats, bounded for old phones. */
+const SEARCH_SCAN = 300;
+
+/**
+ * Threads whose messages mention `query` (drawer search). One query: SQLite
+ * narrows by LIKE over the stored JSON, then the visible text is checked so
+ * JSON keys and tool payloads don't match. Newest messages first.
+ */
+export async function searchChatThreadUuids(query: string, open = openDatabase): Promise<string[]> {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const like = `%${q.replace(/[\%_]/g, (c) => `\${c}`)}%`;
+  const db = await open();
+  const rows = await db.getAllAsync<{ thread_uuid: string; parts_json: string; v: number }>(
+    `SELECT m.thread_uuid, m.parts_json, m.v FROM chat_messages m
+       JOIN chat_threads t ON t.uuid = m.thread_uuid AND t.deleted_at IS NULL
+       WHERE lower(m.parts_json) LIKE ? ESCAPE '\'
+       ORDER BY m.created_at DESC LIMIT ?`,
+    like,
+    SEARCH_SCAN,
+  );
+  const out = new Set<string>();
+  for (const r of rows) {
+    if (out.has(r.thread_uuid)) continue;
+    try {
+      const parts = upgradeParts(JSON.parse(r.parts_json), r.v);
+      if (textOf(parts).toLowerCase().includes(q)) out.add(r.thread_uuid);
+    } catch {
+      // A row we can't parse just doesn't match.
+    }
+  }
+  return [...out];
 }
