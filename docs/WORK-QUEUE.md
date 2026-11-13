@@ -113,8 +113,9 @@ work lands first; native pieces ship together in one build.
    Connect sync.
 5. [ ] **G2 attestation** (FOUNDATION-REVIEW.md).
 6. [ ] **Build + install:** EAS preview build on the user's phone, full gym
-   smoke. User-owned before it: OAuth clients (2), `ai-task` secrets
-   (`CLERK_FRONTEND_API`, `GROQ_API_KEY`), Play Console health declaration.
+   smoke (installed directly, not through Play). User-owned before it: Google
+   OAuth clients (2). The Play Console Health Connect declaration is only
+   needed before the first upload to a Play track.
 
 ## P0 — Complete & trustworthy (work top-down)
 
@@ -253,7 +254,7 @@ step's issue is opened when it starts. Evals live in [evals/](../evals/README.md
   - [x] `ai-task` edge function (deployed; `supabase/ai-task.sql` applied):
     task table, per-user cache + quota, kill switch, Groq primary with an
     optional fallback upstream. Cloudflare AI Gateway = set `AI_BASE_URL`.
-  - [ ] Set the `ai-task` secrets (user): `CLERK_FRONTEND_API`, `GROQ_API_KEY`.
+  - [x] `ai-task` secrets set (`CLERK_FRONTEND_API`, `GROQ_API_KEY`, 2026-11-04).
   - Picks up #148 and #189.
 - [x] **2. Templates AI:** `TemplateDiff` to create, modify, duplicate, or
   build a template from a workout; editor chips (#330–#333).
