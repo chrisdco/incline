@@ -38,9 +38,6 @@ Safe anytime (lean / docs / copy):
 
 | Slice | Why | Stay inside |
 |----|-----|-------------|
-| `rest-deeplink` | Rest-complete tap opens the live session if one exists, else Home | `src/lib/notifications/routes.ts`, `deep-link.ts`, tests |
-| `reminder-copy` | Workout reminder body is generic; keep it short, no extra nags | `src/lib/notifications/reminders.ts` + tests |
-| `ghost-warmups` | Extra test that warm-up sets cannot beat “Last time” volume | `src/lib/session-ghost.ts` + existing tests |
 | `lint-warnings` | Drive down pre-existing lint warnings without behavior change | One directory per session (`src/lib` or `src/app`) |
 | `dead-exports` | Remove unused exports / imports in one module | One folder; no “while I’m here” refactors |
 
