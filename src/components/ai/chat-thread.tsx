@@ -21,6 +21,7 @@ import { followUpsFor, readLines, trendCardsFor, type TrendCard } from '@/ai/cha
 import { AskComposer } from './ask-composer';
 import { SourceChip } from './markers';
 import { SuggestionChip } from './suggestion-chip';
+import { ThinkingShimmer } from './thinking-shimmer';
 
 /** Floating composer height plus its gap; the list pads by this so the last answer clears it. */
 const DOCK_H = 64;
@@ -120,11 +121,7 @@ function AssistantRow({ parts, live, onFollowUp }: { parts: readonly ChatPart[];
           ))}
       {text ? <RichText text={text} /> : null}
       {live ? null : trendCardsFor(parts).map((c) => <TrendCardView key={c.exercise} card={c} />)}
-      {workingLine ? (
-        <Caption className="italic" accessibilityLiveRegion="polite">
-          {workingLine}
-        </Caption>
-      ) : null}
+      {workingLine ? <ThinkingShimmer label={workingLine} /> : null}
       {notices.map((n, i) =>
         n.type === 'notice' ? (
           <Caption key={i} className={n.level === 'error' ? 'text-destructive' : undefined}>

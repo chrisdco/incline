@@ -2,7 +2,7 @@ import { queryOptions } from '@tanstack/react-query';
 
 import { buildAskBrief } from '@/ai/ask-brief';
 import { readRecentSets } from '@/ai/capabilities/read-tools';
-import { getChatMessages, listChatThreads } from '@/db/queries/chat';
+import { getChatMessages, listChatThreads, searchChatThreadUuids } from '@/db/queries/chat';
 import { listExercises } from '@/db/queries/exercises';
 import { getSessionExerciseNotes } from '@/db/queries/session-notes';
 import { getWorkoutGym } from '@/db/queries/gyms';
@@ -109,6 +109,15 @@ export const chatThreadsQuery = queryOptions({
   queryKey: dbKey(TABLES.chat, 'threads'),
   queryFn: () => listChatThreads(),
 });
+
+/** Threads whose messages mention `q` (drawer search). */
+export function chatSearchQuery(q: string) {
+  return queryOptions({
+    queryKey: dbKey(TABLES.chat, 'search', q),
+    queryFn: () => searchChatThreadUuids(q),
+    enabled: q.trim().length >= 2,
+  });
+}
 
 export function chatMessagesQuery(threadUuid: string) {
   return queryOptions({

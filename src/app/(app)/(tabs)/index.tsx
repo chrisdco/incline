@@ -36,6 +36,7 @@ import { formatVolume, formatFullDate } from '@/db/calc';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
 import { ReadinessCheckIn } from '@/components/home/readiness-checkin';
+import { WhatsNewAsk } from '@/components/ai/whats-new-ask';
 import type { FeedWorkoutLog, MuscleGroup } from '@/db/types';
 
 function greeting() {
@@ -464,6 +465,7 @@ export default function HomeScreen() {
           </>
         }
       />
+      <WhatsNewAsk />
     </SafeAreaView>
   );
 }

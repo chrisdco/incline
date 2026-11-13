@@ -77,3 +77,32 @@ export function AskMark({ size = 44 }: { size?: number }) {
     </Animated.View>
   );
 }
+
+/** Height of the thin ambient band at the top of a thread. */
+const BAND_HEIGHT = 28;
+
+/**
+ * The ambient, reduced to a thin band for threads (ASK-UI.md Phase 1.5): the
+ * brand gradient bleeding in from the header edge and dissolving into the
+ * page, so a thread reads as part of Ask without the full scene. Sits under
+ * the thread content; decorative, never takes touches.
+ */
+export function AskAmbientBand() {
+  const scheme = useAppColorScheme();
+  const bg = useThemeHex().background;
+  return (
+    <Animated.View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      className="absolute inset-x-0 top-0"
+      style={{ height: BAND_HEIGHT }}>
+      <BrandGradient style={{ flex: 1, opacity: scheme === 'dark' ? 0.55 : 0.4 }} />
+      <LinearGradient
+        colors={[hexToRgba(bg, 0), bg]}
+        locations={[0, 1]}
+        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
+      />
+    </Animated.View>
+  );
+}
