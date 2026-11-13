@@ -20,6 +20,7 @@ import { TrendChip } from '@/components/progress/trend-chip';
 import { PRCard } from '@/components/progress/pr-card';
 import { HistoryRow } from '@/components/progress/history-row';
 import { HeroGlow } from '@/components/common/hero-glow';
+import { AskAboutLink } from '@/components/ai/ask-about-button';
 import {
   HistoryFilters,
   HistoryExerciseFilterSheet,
@@ -184,7 +185,10 @@ export default function ProgressScreen() {
                   <VolumeChart data={volumeData} unit={unit} />
                 </Card>
 
-                <Section title="Records" first>
+                <Section
+                  title="Records"
+                  first
+                  action={stats.prs.length > 0 ? <AskAboutLink about={{ kind: 'insight', label: 'My records' }} question="Which of my lifts are progressing best?" /> : null}>
                   {stats.prs.length > 0 ? (
                     <ListGroup>
                       {stats.prs.slice(0, 5).map((pr) => (
@@ -198,7 +202,15 @@ export default function ProgressScreen() {
 
                 {/* Plateau signals (advisory, same rule as "Why this weight?"). Hidden when none. */}
                 {stalled && stalled.length > 0 ? (
-                  <Section title="Stalled lifts" first>
+                  <Section
+                    title="Stalled lifts"
+                    first
+                    action={
+                      <AskAboutLink
+                        about={{ kind: 'insight', label: `Stalled: ${stalled.map((l) => l.name).join(', ')}`.slice(0, 80) }}
+                        question="How do I get these lifts moving again?"
+                      />
+                    }>
                     <Card className="py-1">
                       {stalled.map((lift, i) => (
                         <View key={lift.exerciseId}>

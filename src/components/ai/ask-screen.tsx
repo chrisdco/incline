@@ -44,6 +44,7 @@ import type { TemplateExercise } from '@/db/types';
 
 import { AiFallbackNotice } from './ai-fallback-notice';
 import { AiHero } from './ai-hero';
+import { AnswerCardView } from './answer-cards';
 import { AskAmbient } from './ask-ambient';
 import { AskComposer } from './ask-composer';
 import { AskDrawer } from './ask-drawer';
@@ -253,6 +254,12 @@ export function AskScreen({ onClose }: { onClose?: () => void }) {
                   ))}
                   {tiles.length === 1 ? <View className="flex-1" /> : null}
                 </View>
+                {/* The headline insight drawn with chat's answer card, so the brief and answers look alike. */}
+                {cards[0]?.card ? (
+                  <View className="mt-2.5">
+                    <AnswerCardView card={cards[0].card} />
+                  </View>
+                ) : null}
                 {third ? (
                   <Tappable
                     onPress={() => openChat(third.question)}

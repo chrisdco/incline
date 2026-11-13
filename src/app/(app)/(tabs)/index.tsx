@@ -37,6 +37,7 @@ import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
 import { ReadinessCheckIn } from '@/components/home/readiness-checkin';
 import { WhatsNewAsk } from '@/components/ai/whats-new-ask';
+import { AskAboutLink } from '@/components/ai/ask-about-button';
 import type { FeedWorkoutLog, MuscleGroup } from '@/db/types';
 
 function greeting() {
@@ -286,7 +287,9 @@ export default function HomeScreen() {
 
 
       {hasData ? (
-        <Section title="This week">
+        <Section
+          title="This week"
+          action={<AskAboutLink about={{ kind: 'insight', label: `This week: ${weekSessions} sessions, ${streak}w streak` }} question="How is my week going?" />}>
         <View className="flex-row gap-3">
           <StatCard label="Sessions" value={goalLabel ?? weekSessions} icon={<Icon icon={METRIC_ICONS.sessions} size={16} color="muted-foreground" />} />
           <StatCard

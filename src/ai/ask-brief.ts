@@ -1,4 +1,5 @@
 import type { NormSet } from '@/contracts/mcp/shape';
+import type { AnswerCard } from './chat-turn';
 import { estimate1rm, toUnit, unitLabel, weeklyMuscleSets, type Unit } from '@/contracts/mcp/tools';
 
 /**
@@ -23,6 +24,8 @@ export interface Insight {
   question: string;
   /** The same number as a tile: `up` is progress (accent/success), `warn` needs a look. */
   stat: InsightStat;
+  /** The same answer card Ask shows in chat, drawn under the headline insight. */
+  card?: AnswerCard;
 }
 
 export interface InsightStat {
@@ -64,6 +67,13 @@ const SCENE: Record<InsightKind, SceneKind> = {
   break: 'gap',
   streak: 'steady',
 };
+
+/** Sessions a brief trend card draws (the chat card's look, fewer points). */
+const CARD_SESSIONS = 8;
+const trendCard = (exercise: string, sessions: Session[], unit: Unit): AnswerCard | undefined =>
+  sessions.length >= 2
+    ? { kind: 'trend', exercise, unit: unitLabel(unit), points: sessions.slice(-CARD_SESSIONS).map((s) => toUnit(s.e1rm, unit)) }
+    : undefined;
 
 const label = (m: string) => m.charAt(0).toUpperCase() + m.slice(1).replace('_', ' ');
 
@@ -110,6 +120,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
           metric: `${name} e1RM ${w(prev)} → ${w(last.e1rm)}`,
           question: `What got my ${name} to a new best?`,
           stat: { label: `${name} e1RM`, value: String(toUnit(last.e1rm, unit)), unit: u, delta: `+${toUnit(last.e1rm - prev, unit)} new best`, tone: 'up' },
+          card: trendCard(name, sessions, unit),
           gain: last.e1rm / prev - 1,
         });
         continue;
@@ -129,6 +140,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
         metric: `${name} e1RM ${w(from)} → ${w(to)}`,
         question: `How do I keep my ${name} climbing?`,
         stat: { label: `${name} e1RM`, value: String(toUnit(to, unit)), unit: u, delta: `+${toUnit(to - from, unit)} in ${recent.length} sessions`, tone: 'up' },
+        card: trendCard(name, recent, unit),
         gain,
       });
     } else if (Math.abs(gain) < FLAT) {
@@ -138,6 +150,7 @@ function liftInsights(sets: readonly NormSet[], unit: Unit, now: number): Insigh
         metric: `${name} e1RM flat at ${w(to)}`,
         question: `Why has my ${name} stalled?`,
         stat: { label: `${name} e1RM`, value: String(toUnit(to, unit)), unit: u, delta: `flat ${recent.length} sessions`, tone: 'warn' },
+        card: trendCard(name, recent, unit),
         gain: -1,
       });
     }
@@ -169,6 +182,11 @@ function balanceInsight(sets: readonly NormSet[], now: number): Insight | null {
     metric: `${label(low.m)} ${sets1} sets/wk (aim ${MUSCLE_FLOOR})`,
     question: `Am I training ${low.m.replace('_', ' ')} enough?`,
     stat: { label: `${label(low.m)} sets`, value: String(sets1), unit: '/wk', delta: `below ${MUSCLE_FLOOR}`, tone: 'warn' },
+    card: {
+      kind: 'muscles',
+      weeks: BALANCE_WEEKS,
+      rows: MAJOR.map((m) => ({ muscle: m, average: Math.round(avg(m) * 10) / 10 })).sort((a, b) => b.average - a.average),
+    },
   };
 }
 
