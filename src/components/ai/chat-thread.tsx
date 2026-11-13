@@ -3,7 +3,6 @@ import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { BlurTargetView } from 'expo-blur';
 import { Check } from 'lucide-react-native';
-import Svg, { Circle, Polyline } from 'react-native-svg';
 import { useQuery } from '@tanstack/react-query';
 
 import { Icon } from '@/components/common/icon';
@@ -14,10 +13,9 @@ import { useChatRun } from '@/ai/use-chat-run';
 import type { ChatMessageRecord, ChatPart, SourcePart } from '@/contracts/ai/chat';
 import { textOf } from '@/contracts/ai/chat';
 import { chatMessagesQuery } from '@/lib/query-keys';
-import { cn } from '@/lib/cn';
-import { hexToRgba, useThemeHex } from '@/lib/theme';
-import { followUpsFor, readLines, trendCardsFor, type TrendCard } from '@/ai/chat-turn';
+import { answerCardsFor, followUpsFor, readLines } from '@/ai/chat-turn';
 
+import { AnswerCardView } from './answer-cards';
 import { AskComposer } from './ask-composer';
 import { SourceChip } from './markers';
 import { SuggestionChip } from './suggestion-chip';
@@ -120,7 +118,7 @@ function AssistantRow({ parts, live, onFollowUp }: { parts: readonly ChatPart[];
             </View>
           ))}
       {text ? <RichText text={text} /> : null}
-      {live ? null : trendCardsFor(parts).map((c) => <TrendCardView key={c.exercise} card={c} />)}
+      {live ? null : answerCardsFor(parts).map((c) => <AnswerCardView key={c.kind === 'trend' ? `trend:${c.exercise}` : c.kind} card={c} />)}
       {workingLine ? <ThinkingShimmer label={workingLine} /> : null}
       {notices.map((n, i) =>
         n.type === 'notice' ? (
@@ -143,37 +141,6 @@ function AssistantRow({ parts, live, onFollowUp }: { parts: readonly ChatPart[];
           ))}
         </View>
       ) : null}
-    </View>
-  );
-}
-
-/** e1RM over the sessions the answer read: numbers from the tool result, drawn by us. */
-function TrendCardView({ card }: { card: TrendCard }) {
-  const W = 260;
-  const H = 56;
-  const min = Math.min(...card.points);
-  const max = Math.max(...card.points);
-  const span = max - min || 1;
-  const xy = card.points.map((v, i) => [(i / (card.points.length - 1)) * (W - 8) + 4, H - 6 - ((v - min) / span) * (H - 12)] as const);
-  const lastPt = xy[xy.length - 1]!;
-  const up = card.points[card.points.length - 1]! >= card.points[0]!;
-  const primary = useThemeHex().primary;
-  return (
-    <View
-      className="rounded-2xl border border-hairline bg-surface1 px-4 py-3"
-      accessibilityLabel={`${card.exercise} estimated max over ${card.points.length} sessions, from ${card.points[0]} to ${card.points.at(-1)} ${card.unit}`}>
-      <View className="flex-row items-baseline justify-between">
-        <Caption>
-          {card.exercise} e1RM · {card.points.length} sessions
-        </Caption>
-        <Text className={cn('text-xs font-semibold tabular-nums', up ? 'text-success' : 'text-muted-foreground')}>
-          {card.points[0]} → {card.points.at(-1)} {card.unit}
-        </Text>
-      </View>
-      <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-2">
-        <Polyline points={xy.map(([x, y]) => `${x},${y}`).join(' ')} fill="none" stroke={hexToRgba(primary, 0.55)} strokeWidth={2} strokeLinejoin="round" />
-        <Circle cx={lastPt[0]} cy={lastPt[1]} r={3.5} fill={primary} />
-      </Svg>
     </View>
   );
 }
