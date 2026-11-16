@@ -8,11 +8,11 @@ Tracking lives in **GitHub milestones** (architecture notes are on each mileston
 
 | Milestone | Intent |
 |-----------|--------|
-| [P0 — Complete & trustworthy](https://github.com/ChrisDc777/incline/milestone/1) | Sync ops, export, reminders, finish moment, history filters |
-| [P1 — Habit loops](https://github.com/ChrisDc777/incline/milestone/2) | Home context, supersets, measurements, motion polish |
-| [P2 — Coaching & intelligence](https://github.com/ChrisDc777/incline/milestone/3) | Overload, insights, AI Edge Functions, analytics |
-| [P3 — Social & platform growth](https://github.com/ChrisDc777/incline/milestone/4) | Friends/public workouts, marketplace, Health/Fit |
-| [P4 — Target architecture](https://github.com/ChrisDc777/incline/milestone/5) | Deferred: GC, conflicts, API boundary, sync protocol evolution — [#83](https://github.com/ChrisDc777/incline/issues/83) |
+| [P0 — Complete & trustworthy](https://github.com/chrisdco/incline/milestone/1) | Sync ops, export, reminders, finish moment, history filters |
+| [P1 — Habit loops](https://github.com/chrisdco/incline/milestone/2) | Home context, supersets, measurements, motion polish |
+| [P2 — Coaching & intelligence](https://github.com/chrisdco/incline/milestone/3) | Overload, insights, AI Edge Functions, analytics |
+| [P3 — Social & platform growth](https://github.com/chrisdco/incline/milestone/4) | Friends/public workouts, marketplace, Health/Fit |
+| [P4 — Target architecture](https://github.com/chrisdco/incline/milestone/5) | Deferred: GC, conflicts, API boundary, sync protocol evolution — [#83](https://github.com/chrisdco/incline/issues/83) |
 
 **Prioritize P0.** Do not over-build P4 patterns until P0 sync is proven with real multi-device use.
 
@@ -28,8 +28,8 @@ Tracking lives in **GitHub milestones** (architecture notes are on each mileston
 ## Next (see [docs/WORK-QUEUE.md](docs/WORK-QUEUE.md) verify-to-close first)
 
 - **Prove sync ops** — deploy schema + Edge Function, two-device matrix, then close #119–#122 on proof
-- **AI narrations live** — `ai-task` is deployed; set its `CLERK_FRONTEND_API` + `GROQ_API_KEY` secrets ([#99](https://github.com/ChrisDc777/incline/issues/99))
-- **Photo cloud sync** — Storage backup for session pics ([#109](https://github.com/ChrisDc777/incline/issues/109)); local week-vs-week compare already shipped ([#23](https://github.com/ChrisDc777/incline/issues/23))
+- **AI narrations live** — `ai-task` is deployed; set its `CLERK_FRONTEND_API` + `GROQ_API_KEY` secrets ([#99](https://github.com/chrisdco/incline/issues/99))
+- **Photo cloud sync** — Storage backup for session pics ([#109](https://github.com/chrisdco/incline/issues/109)); local week-vs-week compare already shipped ([#23](https://github.com/chrisdco/incline/issues/23))
 - Then pick exactly one Week-2 track (session alerts, #126 volume, or narration polish) per WORK-QUEUE
 
 ## Sync model (keep)

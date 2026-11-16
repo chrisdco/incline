@@ -61,7 +61,7 @@ Offline-first strength training app for React Native + Expo. Log sets in the gym
 | [docs/archive/](docs/archive/) | Shipped history (sprint, P1–P2 notes, audits) — read-only |
 | [AGENTS.md](AGENTS.md) | Agent entry (Expo SDK 58 + rules) |
 
-Tracking: [GitHub milestones](https://github.com/ChrisDc777/incline/milestones).
+Tracking: [GitHub milestones](https://github.com/chrisdco/incline/milestones).
 
 ## Tech stack
 

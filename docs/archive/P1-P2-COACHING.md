@@ -74,11 +74,11 @@ Celebration surfaces (toast, summary, recap, feed badge, achievements) use heavi
 ## P2 deferred (backlog)
 
 - Body-measure ↔ training observational stories (sparse data; from #98)
-- AI-1 narration ([#99](https://github.com/ChrisDc777/incline/issues/99)) — **code shipped**; still needs dashboard deploy (SQL + function + secrets). Stub: `COACH_NARRATE_STUB=1` or missing `OPENAI_API_KEY`.
+- AI-1 narration ([#99](https://github.com/chrisdco/incline/issues/99)) — **code shipped**; still needs dashboard deploy (SQL + function + secrets). Stub: `COACH_NARRATE_STUB=1` or missing `OPENAI_API_KEY`.
 - Program + settings sync extension (milestone follow-up on #57)
-- Measurement goals ([#94](https://github.com/ChrisDc777/incline/issues/94)) — keep open; do not build until Measures has regular use
-- Photo cloud sync ([#109](https://github.com/ChrisDc777/incline/issues/109)) — local week-vs-week compare shipped ([#23](https://github.com/ChrisDc777/incline/issues/23))
-- Native Google account picker ([#112](https://github.com/ChrisDc777/incline/issues/112)) — much later
+- Measurement goals ([#94](https://github.com/chrisdco/incline/issues/94)) — keep open; do not build until Measures has regular use
+- Photo cloud sync ([#109](https://github.com/chrisdco/incline/issues/109)) — local week-vs-week compare shipped ([#23](https://github.com/chrisdco/incline/issues/23))
+- Native Google account picker ([#112](https://github.com/chrisdco/incline/issues/112)) — much later
 - Chat coach, program generation, model keys in the app — out of scope
 
 ## P2 — Stage C (complete)
@@ -113,7 +113,7 @@ Celebration surfaces (toast, summary, recap, feed badge, achievements) use heavi
 | UI | [`photo-compare.tsx`](../src/components/progress/photo-compare.tsx), [`photo-picker-sheet.tsx`](../src/components/progress/photo-picker-sheet.tsx) |
 | Queries | [`src/db/queries/photos.ts`](../src/db/queries/photos.ts) — join finished sessions |
 
-**Constraint:** local files only until [#109](https://github.com/ChrisDc777/incline/issues/109). No second capture pipeline.
+**Constraint:** local files only until [#109](https://github.com/chrisdco/incline/issues/109). No second capture pipeline.
 
 ## Verification
 
