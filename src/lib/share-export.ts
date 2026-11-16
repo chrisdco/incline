@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 import type { ViewInstance } from 'react-native';
 import { Linking, Share } from 'react-native';
 import type { ToastOptions } from '@/components/ui/toast';
+import { withAppLink } from '@/lib/app-link';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { cacheDirectory, copyAsync } from 'expo-file-system/legacy';
@@ -30,6 +31,9 @@ export async function sharePngOrMessage(opts: {
   title: string;
   message: string;
 }): Promise<'file' | 'message'> {
+  const message = withAppLink(opts.message);
+  // Image plus caption (and app link) in one share, where the target app takes both.
+  if (opts.uri && (await shareImageWithCaption(opts.uri, opts.title, message))) return 'file';
   const canShareFile = await Sharing.isAvailableAsync();
   if (canShareFile && opts.uri) {
     await Sharing.shareAsync(opts.uri, {
@@ -38,8 +42,33 @@ export async function sharePngOrMessage(opts: {
     });
     return 'file';
   }
-  await Share.share({ message: opts.message, title: opts.title });
+  await Share.share({ message, title: opts.title });
   return 'message';
+}
+
+type RNShare = typeof import('react-native-share').default;
+
+/** True when the native sheet opened; false when the module is absent (older build) or failed. */
+async function shareImageWithCaption(uri: string, title: string, message: string): Promise<boolean> {
+  let lib: RNShare;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: the native module may be absent
+    lib = (require('react-native-share') as { default: RNShare }).default;
+  } catch {
+    return false;
+  }
+  try {
+    await lib.open({
+      url: uri.startsWith('file://') ? uri : `file://${uri}`,
+      type: 'image/png',
+      message,
+      title,
+      failOnCancel: false,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Copy the captured PNG so the OS share sheet can Save Image / Files. */
@@ -102,7 +131,7 @@ export async function downloadSharePng(opts: {
       return 'saved';
     }
   }
-  await Share.share({ message: opts.message, title: opts.title });
+  await Share.share({ message: withAppLink(opts.message), title: opts.title });
   return 'message';
 }
 
