@@ -3,8 +3,9 @@ import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
-import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } from 'react-native-draggable-flatlist';
-import { Plus, GripVertical, Trash2 } from 'lucide-react-native';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
+import { Plus, Trash2 } from 'lucide-react-native';
+import { SortableList } from '@/components/common/sortable-list';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
@@ -109,6 +110,7 @@ export default function TemplateEditorScreen() {
   const [difficulty, setDifficulty] = useState<Difficulty>('intermediate');
   const [estimatedMinutes, setEstimatedMinutes] = useState(45);
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -246,7 +248,7 @@ export default function TemplateEditorScreen() {
     void updateExercise(editingExercise, patch);
   };
 
-  const onDragEnd = async ({ data }: { data: Exercise[] }) => {
+  const onReorder = async (data: Exercise[]) => {
     setExercises(data);
     if (templateId) {
       await reorderTemplateExercises(templateId, data.map((e) => e.id));
@@ -263,7 +265,8 @@ export default function TemplateEditorScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
-      <NestableScrollContainer
+      <Animated.ScrollView
+        ref={scrollRef}
         contentContainerStyle={SCREEN_CONTENT_CTA}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets>
@@ -310,15 +313,16 @@ export default function TemplateEditorScreen() {
         </View>
 
         <View className="mt-3">
-          <NestableDraggableFlatList
-            data={exercises}
-            keyExtractor={(item) => `${item.id}`}
-            onDragEnd={onDragEnd}
-            renderItem={({ item: te, drag, isActive }) => (
-              <ScaleDecorator>
-                <Pressable onPress={() => openEdit(te)} onLongPress={drag} disabled={isActive}>
-                  <Card className={`mb-2 flex-row items-center gap-3 p-3 ${isActive ? 'opacity-80' : ''}`}>
-                    <Icon icon={GripVertical} size={16} color="muted-foreground" />
+          {exercises.length ? (
+            <SortableList
+              data={exercises}
+              keyOf={(te) => `${te.id}`}
+              scrollableRef={scrollRef}
+              onReorder={(next) => { void onReorder(next); }}
+              renderRow={(te, grip) => (
+                <Pressable onPress={() => openEdit(te)}>
+                  <Card className="flex-row items-center gap-3 p-3">
+                    {grip}
                     <View className="flex-1">
                       <Body className="font-medium text-foreground">{te.exercise?.name ?? 'Exercise'}</Body>
                       <Caption>
@@ -330,21 +334,22 @@ export default function TemplateEditorScreen() {
                       ) : null}
                     </View>
                     <Pressable
-                      onPress={(e) => { e.stopPropagation(); removeExercise(te); }}
+                      onPress={() => removeExercise(te)}
                       hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${te.exercise?.name ?? 'exercise'}`}
                       className="p-1">
                       <Icon icon={Trash2} size={16} color="destructive" />
                     </Pressable>
                   </Card>
                 </Pressable>
-              </ScaleDecorator>
-            )}
-            ListEmptyComponent={
-              <View className="items-center py-10">
-                <Caption className="text-center">No exercises yet. Tap Add to build your routine.</Caption>
-              </View>
-            }
-          />
+              )}
+            />
+          ) : (
+            <View className="items-center py-10">
+              <Caption className="text-center">No exercises yet. Tap Add to build your routine.</Caption>
+            </View>
+          )}
         </View>
 
         {template && !suggested ? (
@@ -360,7 +365,7 @@ export default function TemplateEditorScreen() {
             <TemplateAsk template={draftTemplate(name, exercises)} onDraft={applyDraft} />
           </>
         ) : null}
-      </NestableScrollContainer>
+      </Animated.ScrollView>
 
       {/* Hidden while typing so it never sits on the field being edited (#186). */}
       {keyboardOpen ? null : (

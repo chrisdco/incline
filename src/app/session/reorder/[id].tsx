@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
-import { ChevronDown, ChevronLeft, ChevronUp, GripVertical } from 'lucide-react-native';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
+import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react-native';
+import { SortableList } from '@/components/common/sortable-list';
 
 import { Body, Caption, Heading } from '@/components/common/text';
 import { Icon } from '@/components/common/icon';
@@ -47,6 +48,7 @@ export default function ReorderSessionScreen() {
   const router = useRouter();
   const { toast } = useToast();
   const { impact } = useHaptics();
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const [items, setItems] = useState<ReorderItem[] | null>(() =>
     // Stale-while-revalidate: the session screen keeps this cache fresh, so
     // reorder renders synchronously and refreshes in the background.
@@ -127,55 +129,44 @@ export default function ReorderSessionScreen() {
           <ListSkeleton count={4} />
         </View>
       ) : (
-        <View className="flex-1 px-4">
-          <DraggableFlatList
+        <Animated.ScrollView ref={scrollRef} className="flex-1" contentContainerClassName="px-4 pb-32">
+          <SortableList
             data={items}
-            keyExtractor={(item) => `${item.exerciseId}`}
-            onDragEnd={({ data }) => {
-              impact();
-              setItems(data);
-            }}
-            contentContainerStyle={{ paddingBottom: 120 }}
-            renderItem={({ item, drag, isActive }) => (
-              <ScaleDecorator>
+            keyOf={(item) => `${item.exerciseId}`}
+            scrollableRef={scrollRef}
+            onReorder={setItems}
+            renderRow={(item, grip) => (
+              <View className="flex-row items-center gap-3 rounded-2xl bg-surface1 p-4">
+                {grip}
+                <View className="flex-1">
+                  <Body className="font-medium text-foreground" numberOfLines={1}>
+                    {item.name}
+                  </Body>
+                  <Caption>
+                    {item.setCount} set{item.setCount === 1 ? '' : 's'}
+                  </Caption>
+                </View>
+                {/* Non-drag alternative: same reorder, screen-reader usable. */}
                 <Pressable
-                  onLongPress={drag}
-                  disabled={isActive}
-                  delayLongPress={150}
+                  onPress={() => move(item.exerciseId, -1)}
+                  hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Drag ${item.name} to reorder`}
-                  className={`mb-2 flex-row items-center gap-3 rounded-2xl bg-surface1 p-4 ${isActive ? 'opacity-80' : ''}`}>
-                  <Icon icon={GripVertical} size={18} color="muted-foreground" />
-                  <View className="flex-1">
-                    <Body className="font-medium text-foreground" numberOfLines={1}>
-                      {item.name}
-                    </Body>
-                    <Caption>
-                      {item.setCount} set{item.setCount === 1 ? '' : 's'}
-                    </Caption>
-                  </View>
-                  {/* Non-drag alternative: same reorder, screen-reader usable. */}
-                  <Pressable
-                    onPress={() => move(item.exerciseId, -1)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Move ${item.name} up`}
-                    className="p-2">
-                    <Icon icon={ChevronUp} size={18} color="muted-foreground" />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => move(item.exerciseId, 1)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Move ${item.name} down`}
-                    className="p-2">
-                    <Icon icon={ChevronDown} size={18} color="muted-foreground" />
-                  </Pressable>
+                  accessibilityLabel={`Move ${item.name} up`}
+                  className="p-2">
+                  <Icon icon={ChevronUp} size={18} color="muted-foreground" />
                 </Pressable>
-              </ScaleDecorator>
+                <Pressable
+                  onPress={() => move(item.exerciseId, 1)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Move ${item.name} down`}
+                  className="p-2">
+                  <Icon icon={ChevronDown} size={18} color="muted-foreground" />
+                </Pressable>
+              </View>
             )}
           />
-        </View>
+        </Animated.ScrollView>
       )}
 
       <View className="absolute inset-x-0 bottom-0 border-t border-border bg-background px-5 pb-8 pt-4">
