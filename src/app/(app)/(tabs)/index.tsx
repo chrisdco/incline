@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Play, Plus, ArrowRight, Dumbbell } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
@@ -36,6 +37,7 @@ import { formatVolume, formatFullDate } from '@/db/calc';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
 import { ReadinessCheckIn } from '@/components/home/readiness-checkin';
+import { healthSnapshotQuery } from '@/health/query';
 import { WhatsNewAsk } from '@/components/ai/whats-new-ask';
 import { AskAboutLink } from '@/components/ai/ask-about-button';
 import type { FeedWorkoutLog, MuscleGroup } from '@/db/types';
@@ -73,6 +75,8 @@ export default function HomeScreen() {
   const clear = useActiveWorkout((s) => s.clear);
   const feed = useWorkoutFeedLogs();
   const refreshFeed = feed.refresh;
+  const healthOn = useSettings((s) => s.healthConnectEnabled);
+  const { data: health } = useQuery({ ...healthSnapshotQuery, enabled: healthOn });
   const { consistency, contextCards, narrationHeadline, readiness, onReadiness } = useHomeCoachingContext({
     stats,
     unit,
@@ -256,7 +260,7 @@ export default function HomeScreen() {
       </View>
 
       <View className="mt-4">
-        <ReadinessCheckIn value={readiness} onChange={(level) => { void onReadiness(level); }} />
+        <ReadinessCheckIn value={readiness} suggestion={health?.suggestion} onChange={(level) => { void onReadiness(level); }} />
       </View>
 
       {/* Announcements sit under today's plan: the screen leads with the task (SYSTEM.md §3.1). */}

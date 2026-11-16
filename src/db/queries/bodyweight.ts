@@ -68,3 +68,48 @@ export async function deleteBodyweightEntry(id: number): Promise<void> {
     }
   });
 }
+
+/** Health readings this close to an existing entry (kept or deleted) are the same weigh-in. */
+const IMPORT_MATCH_MS = 10 * 60_000;
+
+/**
+ * Health platform weigh-ins → bodyweight entries (HEALTH.md). Dedupe is by
+ * time against every row, deleted ones too, so a weigh-in the user deleted
+ * never comes back. One read, one transaction. Returns how many were added.
+ */
+export async function importHealthWeights(samples: readonly { at: number; value: number }[]): Promise<number> {
+  const valid = samples.filter((s) => Number.isFinite(s.value) && s.value >= 20 && s.value <= 400 && Number.isFinite(s.at));
+  if (!valid.length) return 0;
+  const from = Math.min(...valid.map((s) => s.at)) - IMPORT_MATCH_MS;
+  const to = Math.max(...valid.map((s) => s.at)) + IMPORT_MATCH_MS;
+  const db = await openDatabase();
+  const existing = (
+    await db.getAllAsync<{ recorded_at: number }>('SELECT recorded_at FROM bodyweight_entries WHERE recorded_at BETWEEN ? AND ?', from, to)
+  ).map((r) => r.recorded_at);
+  const fresh: { at: number; value: number }[] = [];
+  for (const s of valid) {
+    const taken = [...existing, ...fresh.map((f) => f.at)];
+    if (!taken.some((t) => Math.abs(t - s.at) <= IMPORT_MATCH_MS)) fresh.push(s);
+  }
+  if (!fresh.length) return 0;
+  const now = Date.now();
+  await mutate(['bodyweight_entries'], async (tx) => {
+    for (const s of fresh) {
+      const uuid = newUuid();
+      const weight = Math.round(s.value * 100) / 100;
+      await tx.runAsync(
+        'INSERT INTO bodyweight_entries (weight, unit, recorded_at, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        weight, 'kg', s.at, uuid, now, now,
+      );
+      await enqueueSync('bodyweight_entries', uuid, 'upsert', {
+        weight,
+        unit: 'kg',
+        recorded_at: s.at,
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+      }, tx);
+    }
+  });
+  return fresh.length;
+}

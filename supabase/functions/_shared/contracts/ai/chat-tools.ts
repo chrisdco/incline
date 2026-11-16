@@ -73,8 +73,27 @@ export const CHAT_PROPOSE_TOOLS: readonly ToolSpec[] = [
   },
 ];
 
-/** Everything in-app chat may call: reads, then proposals. */
-export const CHAT_TOOLS: readonly ToolSpec[] = [...CHAT_READ_TOOLS, ...CHAT_PROPOSE_TOOLS];
+/**
+ * Health reads (HEALTH.md): daily aggregates from the phone's health store,
+ * offered only when the user turned on "Use in Ask" (G9 health consent).
+ * Chat-only: never exposed over MCP.
+ */
+export const CHAT_HEALTH_TOOLS: readonly ToolSpec[] = [
+  {
+    name: 'get_readiness',
+    title: 'Sleep and recovery today',
+    description:
+      "Today's recovery from the user's health app: last night's sleep, 7-day average sleep, HRV and resting heart rate against their own 4-week usual, steps today, latest weigh-in, and the readiness rule's suggestion (fresh / ok / tired). Daily totals only. Use for questions about how hard to train today, recovery or sleep.",
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    kind: 'read',
+    surfaces: ['chat'],
+    dataCategories: ['health'],
+    version: 1,
+  },
+];
+
+/** Everything in-app chat may call: reads, health reads, then proposals. */
+export const CHAT_TOOLS: readonly ToolSpec[] = [...CHAT_READ_TOOLS, ...CHAT_HEALTH_TOOLS, ...CHAT_PROPOSE_TOOLS];
 
 export function chatToolsFor(surface: ChatSurface, tools: readonly ToolSpec[] = CHAT_READ_TOOLS): ToolSpec[] {
   return tools.filter((t) => t.surfaces.includes(surface));

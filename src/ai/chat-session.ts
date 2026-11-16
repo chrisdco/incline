@@ -97,10 +97,11 @@ export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
       return;
     }
 
-    const [{ runChatTurn }, { deviceReadTools }, { deviceProposeTools }, { getProfile }, { newUuid }] = await Promise.all([
+    const [{ runChatTurn }, { deviceReadTools }, { deviceProposeTools }, { deviceHealthTools }, { getProfile }, { newUuid }] = await Promise.all([
       import('./runtime/loop'),
       import('./capabilities/read-tools'),
       import('./capabilities/propose-tools'),
+      import('./capabilities/health-tools'),
       import('@/db/queries/profile'),
       import('@/lib/uuid'),
     ]);
@@ -122,7 +123,7 @@ export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
       system,
       history: historyFor(messages),
       user: userContentFor(userMsg.parts),
-      tools: [...deviceReadTools(), ...deviceProposeTools()],
+      tools: [...deviceReadTools(), ...deviceHealthTools(useSettings.getState()), ...deviceProposeTools()],
       signal,
     })) {
       if (ev.type === 'run_end') {
