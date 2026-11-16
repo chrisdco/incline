@@ -22,7 +22,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#111113",
-        "foregroundImage": "./assets/images/icon-preview.png"
+        "foregroundImage": "./assets/images/icon-preview.png",
+        "monochromeImage": "./assets/images/icon-monochrome.png"
       },
       "package": "com.chrisdc777.incline",
       "softwareKeyboardLayoutMode": "resize",
@@ -71,6 +72,7 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/images/notification-icon.png",
           "color": "#0D9488"
         }
       ],
@@ -92,7 +94,7 @@
                 "targetCellHeight": 1,
                 "minWidth": 110,
                 "minHeight": 40,
-                "resizeMode": "none",
+                "resizeMode": "horizontal",
                 "initialLayout": "./src/widgets/quick-start.tsx",
                 "previewLayout": "widget_preview_quick_start"
               }
@@ -106,7 +108,7 @@
                 "targetCellHeight": 2,
                 "minWidth": 250,
                 "minHeight": 110,
-                "resizeMode": "none",
+                "resizeMode": "both",
                 "initialLayout": "./src/widgets/next-up.tsx",
                 "previewLayout": "widget_preview_next_up"
               }
@@ -120,7 +122,7 @@
                 "targetCellHeight": 2,
                 "minWidth": 110,
                 "minHeight": 110,
-                "resizeMode": "none",
+                "resizeMode": "both",
                 "initialLayout": "./src/widgets/this-week.tsx",
                 "previewLayout": "widget_preview_this_week"
               }
@@ -134,7 +136,7 @@
                 "targetCellHeight": 1,
                 "minWidth": 110,
                 "minHeight": 40,
-                "resizeMode": "none",
+                "resizeMode": "horizontal",
                 "initialLayout": "./src/widgets/streak.tsx",
                 "previewLayout": "widget_preview_streak"
               }
@@ -148,7 +150,7 @@
                 "targetCellHeight": 2,
                 "minWidth": 250,
                 "minHeight": 110,
-                "resizeMode": "none",
+                "resizeMode": "both",
                 "initialLayout": "./src/widgets/month.tsx",
                 "previewLayout": "widget_preview_month"
               }
@@ -162,7 +164,7 @@
                 "targetCellHeight": 2,
                 "minWidth": 110,
                 "minHeight": 110,
-                "resizeMode": "none",
+                "resizeMode": "both",
                 "initialLayout": "./src/widgets/volume-chart.tsx",
                 "previewLayout": "widget_preview_volume_chart"
               }
@@ -176,7 +178,7 @@
                 "targetCellHeight": 3,
                 "minWidth": 250,
                 "minHeight": 180,
-                "resizeMode": "none",
+                "resizeMode": "both",
                 "initialLayout": "./src/widgets/routines.tsx",
                 "previewLayout": "widget_preview_routines"
               }
@@ -186,6 +188,7 @@
       ],
       "@sentry/react-native",
       "./plugins/with-widget-previews",
+      "./plugins/with-app-shortcuts",
       "react-native-health-connect",
       [
         "expo-build-properties",

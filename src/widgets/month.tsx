@@ -24,16 +24,23 @@ import { createWidget } from 'expo-widgets';
 
 import type { MonthProps } from '@/lib/widgets/build-extra';
 
-const MonthWidget = (props: MonthProps, environment: { colorScheme?: 'light' | 'dark' }) => {
+const MonthWidget = (props: MonthProps, environment: { colorScheme?: 'light' | 'dark'; width?: number; height?: number }) => {
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
+  // Day cells scale with the widget: the calendar takes ~55% of the width
+  // and title + letters + weeks share the height. 18dp when size is unknown.
+  const w = environment.width ?? 0;
+  const h = environment.height ?? 0;
+  const fit = Math.min(((w - 32) * 0.55) / 7, (h - 56) / (props.weeks.length + 1));
+  const cell = w && h ? Math.max(16, Math.min(28, Math.floor(fit))) : 18;
+  const dayFont = Math.round(cell / 2);
   return (
     <Button
       {...({ target: 'open:incline:///calendar' } as object)}
       colors={{ containerColor: c.card }}
       modifiers={[fillMaxSize(), cornerRadius(24)]}>
-      <Row modifiers={[fillMaxSize(), paddingAll(14)]}>
-        <Column modifiers={[weight(1.25), fillMaxHeight()]}>
+      <Row modifiers={[fillMaxSize(), paddingAll(16)]}>
+        <Column verticalArrangement="spaceBetween" modifiers={[weight(1.25), fillMaxHeight()]}>
           <Text
             color={c.foreground}
             style={{ fontSize: 15, fontWeight: '700' }}
@@ -42,7 +49,7 @@ const MonthWidget = (props: MonthProps, environment: { colorScheme?: 'light' | '
           </Text>
           <Row horizontalArrangement="spaceBetween" modifiers={[fillMaxWidth()]}>
             {props.weekdayLetters.map((l, i) => (
-              <Box key={i} contentAlignment="center" modifiers={[size(18, 12)]}>
+              <Box key={i} contentAlignment="center" modifiers={[size(cell, 12)]}>
                 <Text color={c.muted} style={{ fontSize: 8, fontWeight: '600' }}>
                   {l}
                 </Text>
@@ -53,20 +60,20 @@ const MonthWidget = (props: MonthProps, environment: { colorScheme?: 'light' | '
             <Row
               key={w}
               horizontalArrangement="spaceBetween"
-              modifiers={[fillMaxWidth(), padding(0, 1, 0, 0)]}>
+              modifiers={[fillMaxWidth()]}>
               {week.map((d, i) => (
                 <Box
                   key={i}
                   contentAlignment="center"
                   modifiers={[
-                    size(18, 18),
+                    size(cell, cell),
                     cornerRadius(999),
                     ...(d.trained ? [background(c.primary)] : []),
                   ]}>
                   <Text
                     color={d.trained ? c.card : d.isToday ? c.primary : c.foreground}
                     style={{
-                      fontSize: 9,
+                      fontSize: dayFont,
                       fontWeight: d.trained || d.isToday ? '700' : '500',
                     }}>
                     {d.label}
@@ -78,7 +85,7 @@ const MonthWidget = (props: MonthProps, environment: { colorScheme?: 'light' | '
         </Column>
         <Column
           verticalArrangement="spaceBetween"
-          modifiers={[weight(1), fillMaxHeight(), padding(14, 2, 0, 2)]}>
+          modifiers={[weight(1), fillMaxHeight(), padding(16, 2, 0, 2)]}>
           {props.stats.map((s, i) => (
             <Column key={i}>
               <Row verticalAlignment="bottom">

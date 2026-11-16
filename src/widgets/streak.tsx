@@ -19,7 +19,7 @@ import { createWidget } from 'expo-widgets';
 
 import type { StreakProps } from '@/lib/widgets/build-extra';
 
-const StreakWidget = (props: StreakProps, environment: { colorScheme?: 'light' | 'dark' }) => {
+const StreakWidget = (props: StreakProps, environment: { colorScheme?: 'light' | 'dark'; width?: number; height?: number }) => {
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
   return (
@@ -27,7 +27,7 @@ const StreakWidget = (props: StreakProps, environment: { colorScheme?: 'light' |
       {...({ target: 'open:incline:///progress' } as object)}
       colors={{ containerColor: c.card }}
       modifiers={[fillMaxSize(), cornerRadius(24)]}>
-      <Row verticalAlignment="center" modifiers={[fillMaxSize(), paddingAll(14)]}>
+      <Row verticalAlignment="center" modifiers={[fillMaxSize(), paddingAll(16)]}>
         <Column modifiers={[weight(1)]}>
           <Text color={c.muted} style={{ fontSize: 12, fontWeight: '500' }}>
             Streak

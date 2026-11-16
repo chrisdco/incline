@@ -8,9 +8,9 @@
  *
  * Rendered by the isolated widget runtime: no hooks, no timers and no module
  * scope (only what arrives in props), and on Android `environment` carries
- * `colorScheme` alone. That is why every string and both palettes are
- * formatted app-side in `src/lib/widgets/build-next-up.ts` and unit-tested
- * there.
+ * `colorScheme` plus its `width`/`height` in dp (patch). That is why every
+ * string and both palettes are formatted app-side in
+ * `src/lib/widgets/build-next-up.ts` and unit-tested there.
  *
  * The initial props below are a placeholder shown until the app posts its
  * first snapshot — `refreshWidgets()` runs on app start/foreground, so a
@@ -34,23 +34,28 @@ import { createWidget } from 'expo-widgets';
 
 import type { NextUpProps } from '@/lib/widgets/build-next-up';
 
-const NextUpWidget = (props: NextUpProps, environment: { colorScheme?: 'light' | 'dark' }) => {
+const NextUpWidget = (props: NextUpProps, environment: { colorScheme?: 'light' | 'dark'; width?: number; height?: number }) => {
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
+  // Resized narrow, the volume column goes; resized tall, the title gets a third line.
+  const wide = (environment.width ?? 300) >= 230;
+  const titleLines = (environment.height ?? 0) >= 170 ? 3 : 2;
   return (
     <Button
       {...({ target: `open:${props.url}` } as object)}
       colors={{ containerColor: c.card }}
       modifiers={[fillMaxSize(), cornerRadius(24)]}>
       <Row modifiers={[fillMaxSize(), paddingAll(16)]}>
-        <Column verticalArrangement="spaceBetween" modifiers={[weight(1), fillMaxHeight()]}>
+        <Column
+          verticalArrangement="spaceBetween"
+          modifiers={[weight(1), fillMaxHeight(), padding(0, 0, wide ? 16 : 0, 0)]}>
           <Column>
             <Text color={c.muted} style={{ fontSize: 12, fontWeight: '500' }}>
               {props.eyebrow}
             </Text>
             <Text
               color={c.foreground}
-              maxLines={2}
+              maxLines={titleLines}
               overflow="ellipsis"
               modifiers={[padding(0, 2, 0, 2)]}
               style={{ fontSize: 20, fontWeight: '700', letterSpacing: -0.3 }}>
@@ -64,30 +69,32 @@ const NextUpWidget = (props: NextUpProps, environment: { colorScheme?: 'light' |
             {props.streakLabel ? `${props.streakLabel} · ${props.footer}` : props.footer}
           </Text>
         </Column>
-        <Box modifiers={[width(1), fillMaxHeight(), background(c.border)]} />
-        <Column modifiers={[padding(14, 0, 0, 0)]}>
-          <Text color={c.muted} style={{ fontSize: 12, fontWeight: '500' }}>
-            Volume
-          </Text>
-          <Text
-            color={c.foreground}
-            maxLines={1}
-            style={{ fontSize: 20, fontWeight: '700', letterSpacing: -0.3 }}>
-            {props.volume}
-          </Text>
-          <Text color={c.muted} maxLines={1} style={{ fontSize: 11 }}>
-            This week
-          </Text>
-          {props.volumeDelta ? (
-            <Text
-              color={props.volumeUp ? c.primary : c.muted}
-              maxLines={1}
-              style={{ fontSize: 12, fontWeight: '600' }}
-              modifiers={[padding(0, 8, 0, 0)]}>
-              {`${props.volumeDelta} vs last`}
+        {wide ? <Box modifiers={[width(1), fillMaxHeight(), background(c.border)]} /> : null}
+        {wide ? (
+          <Column modifiers={[padding(16, 0, 0, 0)]}>
+            <Text color={c.muted} style={{ fontSize: 12, fontWeight: '500' }}>
+              Volume
             </Text>
-          ) : null}
-        </Column>
+            <Text
+              color={c.foreground}
+              maxLines={1}
+              style={{ fontSize: 20, fontWeight: '700', letterSpacing: -0.3 }}>
+              {props.volume}
+            </Text>
+            <Text color={c.muted} maxLines={1} style={{ fontSize: 11 }}>
+              This week
+            </Text>
+            {props.volumeDelta ? (
+              <Text
+                color={props.volumeUp ? c.primary : c.muted}
+                maxLines={1}
+                style={{ fontSize: 12, fontWeight: '600' }}
+                modifiers={[padding(0, 8, 0, 0)]}>
+                {`${props.volumeDelta} vs last`}
+              </Text>
+            ) : null}
+          </Column>
+        ) : null}
       </Row>
     </Button>
   );

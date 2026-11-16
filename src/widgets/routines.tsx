@@ -22,11 +22,15 @@ import { createWidget } from 'expo-widgets';
 
 import type { RoutinesProps } from '@/lib/widgets/build-extra';
 
-const RoutinesWidget = (props: RoutinesProps, environment: { colorScheme?: 'light' | 'dark' }) => {
+const RoutinesWidget = (props: RoutinesProps, environment: { colorScheme?: 'light' | 'dark'; width?: number; height?: number }) => {
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
+  // As many rows of tiles as the height fits (title ~40dp, each row 60dp).
+  const rows = environment.height
+    ? props.rows.slice(0, Math.max(1, Math.floor((environment.height - 40) / 60)))
+    : props.rows;
   return (
-    <Column modifiers={[fillMaxSize(), background(c.card), cornerRadius(24), paddingAll(14)]}>
+    <Column modifiers={[fillMaxSize(), background(c.card), cornerRadius(24), paddingAll(16)]}>
       <Text
         color={c.foreground}
         style={{ fontSize: 15, fontWeight: '700' }}
@@ -38,7 +42,7 @@ const RoutinesWidget = (props: RoutinesProps, environment: { colorScheme?: 'ligh
           {props.empty}
         </Text>
       ) : null}
-      {props.rows.map((row, r) => (
+      {rows.map((row, r) => (
         <Row key={r} modifiers={[fillMaxWidth(), padding(0, r === 0 ? 0 : 8, 0, 0)]}>
           {row.map((item, i) =>
             item.url ? (

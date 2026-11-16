@@ -21,7 +21,7 @@ import type { QuickStartProps } from '@/lib/widgets/build-extra';
 
 const QuickStartWidget = (
   props: QuickStartProps,
-  environment: { colorScheme?: 'light' | 'dark' },
+  environment: { colorScheme?: 'light' | 'dark'; width?: number; height?: number },
 ) => {
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
@@ -30,7 +30,7 @@ const QuickStartWidget = (
       {...({ target: `open:${props.url}` } as object)}
       colors={{ containerColor: c.card }}
       modifiers={[fillMaxSize(), cornerRadius(24)]}>
-      <Row verticalAlignment="center" modifiers={[fillMaxSize(), paddingAll(14)]}>
+      <Row verticalAlignment="center" modifiers={[fillMaxSize(), paddingAll(16)]}>
         <Column modifiers={[weight(1)]}>
           <Text
             color={c.muted}

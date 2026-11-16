@@ -108,8 +108,8 @@ work lands first; native pieces ship together in one build.
    signing cert), iOS (bundle id), web (what Clerk verifies against). Browser
    SSO stays as fallback; email code stays.
    Android code merged (#379, `src/auth/use-google-sign-in.ts`), gated on
-   `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` in eas.json; waiting on the
-   user's OAuth clients. Apple: iOS phase.
+   `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID`, now set in every eas.json
+   profile (OAuth clients + Clerk done 2026-11-16). Apple: iOS phase.
 3. [x] **Voice in Ask:** hold-to-talk, `expo-speech-recognition`, on-device
    where supported (ASK-UI.md "Voice"). Mic replaces send while the input
    is empty; `src/ai/voice.ts`. Lands with the Build 2 APK.
@@ -122,6 +122,9 @@ work lands first; native pieces ship together in one build.
    (`expo-media-library`, write-only), image + caption + optional app link
    (`react-native-share`, `EXPO_PUBLIC_APP_SHARE_URL`), square export
    (#377, #378).
+4c. [x] **Build 2 polish:** resizable widgets (size passed to layouts via
+   the expo-widgets patch), monochrome notification + themed icon,
+   launcher shortcuts (`plugins/with-app-shortcuts.js`).
 5. [ ] **G2 attestation** (FOUNDATION-REVIEW.md).
 6. [ ] **Build + install:** EAS preview build on the user's phone, full gym
    smoke (installed directly, not through Play). User-owned before it: Google

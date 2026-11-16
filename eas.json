@@ -9,7 +9,8 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "EXPO_PUBLIC_RELEASE_STAGE": "development"
+        "EXPO_PUBLIC_RELEASE_STAGE": "development",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com"
       },
       "environment": "development"
     },
@@ -22,7 +23,8 @@
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "development",
         "EXPO_PUBLIC_DEV_BYPASS_AUTH": "1",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com"
       },
       "environment": "preview"
     },
@@ -34,7 +36,8 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "alpha",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com"
       },
       "environment": "preview"
     },
@@ -46,7 +49,8 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "beta",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com"
       },
       "environment": "preview"
     },
@@ -65,7 +69,8 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "production",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com"
       },
       "environment": "production"
     }

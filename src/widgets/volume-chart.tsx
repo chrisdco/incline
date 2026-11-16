@@ -23,16 +23,21 @@ import type { VolumeChartProps } from '@/lib/widgets/build-extra';
 
 const VolumeChartWidget = (
   props: VolumeChartProps,
-  environment: { colorScheme?: 'light' | 'dark' },
+  environment: { colorScheme?: 'light' | 'dark'; width?: number; height?: number },
 ) => {
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
+  // Bars take the height left under the header and widen with the widget.
+  const barMax = environment.height ? Math.max(24, Math.min(140, environment.height - 108)) : 44;
+  const barWidth = environment.width
+    ? Math.max(8, Math.min(22, Math.floor(((environment.width - 32) / 7) * 0.45)))
+    : 12;
   return (
     <Button
       {...({ target: 'open:incline:///progress' } as object)}
       colors={{ containerColor: c.card }}
       modifiers={[fillMaxSize(), cornerRadius(24)]}>
-      <Column verticalArrangement="spaceBetween" modifiers={[fillMaxSize(), paddingAll(14)]}>
+      <Column verticalArrangement="spaceBetween" modifiers={[fillMaxSize(), paddingAll(16)]}>
         <Column>
           <Text color={c.muted} style={{ fontSize: 12, fontWeight: '500' }}>
             Volume
@@ -55,8 +60,8 @@ const VolumeChartWidget = (
             <Column key={i} horizontalAlignment="center">
               <Box
                 modifiers={[
-                  width(12),
-                  height(Math.max(3, Math.round(b.ratio * 44))),
+                  width(barWidth),
+                  height(Math.max(3, Math.round(b.ratio * barMax))),
                   cornerRadius(4),
                   background(b.ratio > 0 ? c.primary : c.border),
                 ]}
