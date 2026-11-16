@@ -171,7 +171,10 @@ importers:
     dependencies:
       '@clerk/expo':
         specifier: ^4.14.2
-        version: 4.14.2(e7eb0f83721895b2c2dd57204e0c998e)
+        version: 4.14.2(089e93d122a7f3c7da75934b7a05f585)
+      '@clerk/expo-google-signin':
+        specifier: ^1.1.0
+        version: 1.1.0(expo@58.0.17)
       '@expo-google-fonts/geist':
         specifier: ^0.4.2
         version: 0.4.2
@@ -879,6 +882,11 @@ packages:
   '@clerk/clerk-js@6.41.0':
     resolution: {integrity: sha512-SVb5T+vA4yo3GecDY5OMj3D81Jm4OCMxgZvGd19rw84QjNo0JpG0yWE/5u6XEvH+9yYYG3j9sj/2Y006nAxY4A==}
     engines: {node: '>=20.9.0'}
+
+  '@clerk/expo-google-signin@1.1.0':
+    resolution: {integrity: sha512-pRZzPpMe1m77KEUxAZnMW/zHLlK/7uwWCCz3fKBcBnkTO9OynMzDWg8CYt5odYGIwFmvxOlRU6Nm8XtRtlJFqw==}
+    peerDependencies:
+      expo: '>=54 <59'
 
   '@clerk/expo@4.14.2':
     resolution: {integrity: sha512-3ezQpd1yxsMm3dmayasdWTEMnn5VO7V2lILbPVHJ2gAgAtxnu44tC+k9vyrslCLG8JAxX8HK6a2OlGM9ZCewdw==}
@@ -7375,7 +7383,11 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@clerk/expo@4.14.2(e7eb0f83721895b2c2dd57204e0c998e)':
+  '@clerk/expo-google-signin@1.1.0(expo@58.0.17)':
+    dependencies:
+      expo: 58.0.17(a710c5a2754929941a8b6470aa9d1906)
+
+  '@clerk/expo@4.14.2(089e93d122a7f3c7da75934b7a05f585)':
     dependencies:
       '@clerk/clerk-js': 6.41.0(@types/react@19.3.0)(bufferutil@4.1.0)(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)(use-sync-external-store@1.7.0(react@19.3.0))(zod@4.6.5)
       '@clerk/react': 6.18.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -7387,6 +7399,7 @@ snapshots:
       react-native-url-polyfill: 4.0.0(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(supports-color@8.1.1))
       tslib: 2.8.1
     optionalDependencies:
+      '@clerk/expo-google-signin': 1.1.0(expo@58.0.17)
       expo-auth-session: 58.0.14(expo@58.0.17)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1)(typescript@6.0.3)
       expo-constants: 58.0.13(expo@58.0.17)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)
       expo-crypto: 58.0.7(expo@58.0.17)

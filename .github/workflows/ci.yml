@@ -47,6 +47,9 @@ jobs:
       # src/contracts is copied to supabase/functions/_shared for Deno; a stale
       # copy means the edge runs different gates than the app (#189).
       - run: node scripts/sync-contracts.mjs --check
+      # Config plugins run here, not in tsc/lint: a bad one only failed at build time (#378).
+      - name: App config evaluates
+        run: pnpm exec expo config --type prebuild > /dev/null
 
       # Every component/hook in src/ must compile under React Compiler;
       # a bailout silently ships that function unoptimized.
