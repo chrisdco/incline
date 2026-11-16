@@ -201,7 +201,8 @@
           "savePhotosPermission": "Incline saves your share cards to your photo library.",
           "granularPermissions": []
         }
-      ]
+      ],
+      "react-native-share"
     ],
     "experiments": {
       "typedRoutes": true,
