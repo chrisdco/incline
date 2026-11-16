@@ -15,6 +15,7 @@ import {
   getStalledLifts,
   getProgram,
   getProfile,
+  getAllTimePrLeaderboard,
   getPeriodStats,
   getProgressStats,
   getSuggestedTemplate,
@@ -34,7 +35,7 @@ import {
   type ActivePlanProgress,
   type WorkoutLogFilters,
 } from '@/db/queries';
-import type { Exercise, MonthlyRecap, PeriodStats, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutTemplate } from '@/db/types';
+import type { Exercise, MonthlyRecap, PeriodStats, PR, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutTemplate } from '@/db/types';
 import { plateauSignal, REASON_HISTORY_SESSIONS } from '@/coaching/reason';
 import type { StalledLift } from '@/coaching/stalled';
 import type { DbTable } from '@/db/write';
@@ -177,6 +178,10 @@ export function useStalledLifts() {
 }
 export function useProgressStats(weeks = 8) {
   return useDbQuery<ProgressStats>(TABLES.progress, ['progressStats', weeks], () => getProgressStats(weeks));
+}
+/** Best lift per exercise, all time (the Records page). */
+export function useAllTimeRecords() {
+  return useDbQuery<PR[]>(TABLES.progress, ['allTimeRecords'], () => getAllTimePrLeaderboard());
 }
 export function usePeriodStats(range: ProgressRange) {
   return useDbQuery<PeriodStats>(TABLES.progress, ['periodStats', range], () => getPeriodStats(range));

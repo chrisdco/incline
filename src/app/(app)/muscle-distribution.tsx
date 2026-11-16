@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, CircleAlert, CircleCheck, Eye, type LucideIcon } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { IconButton } from '@/components/ui/icon-button';
@@ -19,7 +19,9 @@ import { usePeriodStats } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
 import { formatVolume } from '@/db/calc';
 import { getMuscleExposureDays } from '@/db/queries';
-import { muscleBalanceInsights, recoveryGapInsights } from '@/coaching/insights';
+import { reviewMuscles, type ReviewTone } from '@/coaching/muscle-review';
+import { AskAboutLink } from '@/components/ai/ask-about-button';
+import type { IconColor } from '@/lib/icon-color';
 import { MUSCLE_LABELS } from '@/lib/labels';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
@@ -32,6 +34,12 @@ const RANGES: { value: ProgressRange; label: string }[] = [
   { value: '1y', label: '1Y' },
   { value: 'all', label: 'All' },
 ];
+
+const TONE: Record<ReviewTone, { icon: LucideIcon; color: IconColor }> = {
+  act: { icon: CircleAlert, color: 'warning' },
+  watch: { icon: Eye, color: 'muted-foreground' },
+  good: { icon: CircleCheck, color: 'success' },
+};
 
 export default function MuscleDistributionScreen() {
   const router = useRouter();
@@ -54,10 +62,13 @@ export default function MuscleDistributionScreen() {
     return list.slice(0, 3);
   }, [stats]);
 
-  const coachingNotes = useMemo(() => {
-    if (!stats) return [];
-    return [...recoveryGapInsights(exposure), ...muscleBalanceInsights(stats.muscleDistribution)];
-  }, [stats, exposure]);
+  const review = useMemo(
+    () =>
+      stats
+        ? reviewMuscles({ range, current: stats.muscleDistribution, previous: stats.previousMuscleDistribution, exposureDays: exposure })
+        : null,
+    [stats, range, exposure],
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -114,14 +125,28 @@ export default function MuscleDistributionScreen() {
               />
             </Card>
 
-            {coachingNotes.length > 0 ? (
+            {review ? (
               <View>
-                <Body className="mb-3 text-lg font-semibold text-foreground">Coaching</Body>
+                <View className="mb-1 flex-row items-center justify-between">
+                  <Body className="text-lg font-semibold text-foreground">Review</Body>
+                  <AskAboutLink
+                    about={{ kind: 'insight', label: 'My muscle balance' }}
+                    question="Look at my muscle balance and tell me what to change in my training."
+                  />
+                </View>
+                <Caption className="mb-3">{review.summary}</Caption>
                 <ListGroup>
-                  {coachingNotes.map((note) => (
-                    <ListRow key={note.id} title={note.title} subtitle={note.body} />
+                  {review.points.map((p) => (
+                    <View key={p.id} className="flex-row items-start gap-3 py-3">
+                      <Icon icon={TONE[p.tone].icon} size={18} color={TONE[p.tone].color} />
+                      <View className="min-w-0 flex-1">
+                        <Body className="font-medium text-foreground">{p.title}</Body>
+                        <Caption className="mt-0.5">{p.body}</Caption>
+                      </View>
+                    </View>
                   ))}
                 </ListGroup>
+                <Caption className="mt-2">Based on common guidance (about 10–20 sets per muscle a week), not a prescription.</Caption>
               </View>
             ) : null}
 

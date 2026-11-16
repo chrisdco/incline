@@ -1,86 +1,108 @@
-import { memo } from 'react';
-import { View } from 'react-native';
-import { BarChart } from 'react-native-gifted-charts';
+import { memo, useState } from 'react';
+import { Pressable, View } from 'react-native';
 
-import { Text } from '@/components/common/text';
+import { Caption, Text } from '@/components/common/text';
 import { cn } from '@/lib/cn';
-import { useThemeHex } from '@/lib/theme';
 import { formatDisplayVolume } from '@/db/calc';
 import { kgToDisplay } from '@/lib/units';
 import type { Unit } from '@/db/types';
 
-/** Axis labels as 39k / 1.2M — raw 39112 is noise at a glance. */
-function compactAxis(label: string): string {
-  const n = Number(label);
-  if (!Number.isFinite(n)) return label;
-  if (n >= 1_000_000) return `${+(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `${Math.round(n / 1000)}k`;
-  return String(Math.round(n));
+export interface VolumeBar {
+  /** Short axis label (e.g. "Mon", "11/10", "Nov"). */
+  label: string;
+  /** Readout label for the selected bar (e.g. "Week of Nov 10"). */
+  detail: string;
+  /** Canonical kg. */
+  value: number;
+  sessions: number;
 }
 
-/** Hevy-style weekly/monthly volume bar chart with tap-to-see-value. */
+/** At most this many axis labels; the rest of the bars stay unlabeled. */
+const MAX_LABELS = 7;
+
+/**
+ * Volume over the selected range as flex bars (plain Views, no chart lib).
+ * The caller passes every bucket in the range, empty ones included, so the
+ * chart always spans the card instead of a few bars bunched at the left.
+ * Tapping a bar selects it; the readout sits above the chart (no floating
+ * tooltip). The latest bar is selected by default.
+ *
+ * Replaced react-native-gifted-charts here: fixed bar widths left short
+ * ranges looking partial, and its press pointer drew an offset label.
+ */
 export const VolumeChart = memo(function VolumeChart({
   data,
   unit,
-  height = 170,
-  className,
+  height = 150,
 }: {
-  data: { label: string; value: number }[];
+  data: VolumeBar[];
   unit: Unit;
   height?: number;
-  className?: string;
 }) {
-  const colors = useThemeHex();
-  // Values arrive in canonical kg; bars and axis plot the display unit.
-  const shown = data.map((d) => ({ ...d, value: kgToDisplay(d.value, unit) }));
-  const max = Math.max(1, ...shown.map((d) => d.value));
+  const [picked, setPicked] = useState<number | null>(null);
+  if (data.length === 0) return <Caption>No data yet</Caption>;
 
-  if (data.length === 0) {
-    return (
-      <Text className="text-sm text-muted-foreground">No data yet</Text>
-    );
-  }
+  const selected = picked != null && picked < data.length ? picked : data.length - 1;
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const every = Math.ceil(data.length / MAX_LABELS);
+  const sel = data[selected]!;
+  const avg = data.reduce((a, d) => a + d.value, 0) / data.length;
 
   return (
-    <View className={cn('overflow-hidden', className)}>
-      <BarChart
-        height={height}
-        // Latest bar in full accent, history at 45% so the newest reads first
-        // and a bright accent never floods the card (SYSTEM.md §4).
-        data={shown.map((d, i) => ({
-          value: d.value,
-          label: d.label,
-          frontColor: d.value <= 0 ? colors.muted : i === shown.length - 1 ? colors.primary : `${colors.primary}73`,
-        }))}
-        barWidth={data.length > 12 ? 10 : 22}
-        spacing={data.length > 12 ? 8 : 16}
-        barBorderRadius={6}
-        maxValue={max}
-        noOfSections={4}
-        isAnimated
-        yAxisTextStyle={{ fontSize: 10, color: colors.mutedForeground }}
-        xAxisLabelTextStyle={{ fontSize: 9, color: colors.mutedForeground }}
-        yAxisLabelSuffix=""
-        formatYLabel={compactAxis}
-        yAxisThickness={0}
-        xAxisColor={colors.border}
-        yAxisLabelWidth={34}
-        rulesType="solid"
-        rulesColor={colors.border}
-        labelWidth={36}
-        focusBarOnPress
-        showValuesAsTopLabel={false}
-        pointerConfig={{
-          pointerStripHeight: height - 20,
-          pointerLabelComponent: (items: { value: number }[]) => (
-            <View className="-mt-10 items-center rounded-xl bg-foreground px-2 py-1">
-              <Text className="text-xs font-semibold text-background">
-                {formatDisplayVolume(items[0]?.value ?? 0, unit)}
-              </Text>
-            </View>
-          ),
-        }}
-      />
+    <View className="gap-3">
+      <View className="flex-row items-end justify-between">
+        <View>
+          <Caption>{sel.detail}</Caption>
+          <Text className="text-xl font-semibold text-foreground">{formatDisplayVolume(kgToDisplay(sel.value, unit), unit)}</Text>
+        </View>
+        <Caption>{sessionsLabel(sel.sessions)}</Caption>
+      </View>
+
+      <View style={{ height }} className="flex-row items-end gap-1">
+        {/* Average across the range: a quiet reference, not a target. */}
+        <View
+          pointerEvents="none"
+          className="absolute inset-x-0 border-t border-dashed border-border"
+          style={{ bottom: (avg / max) * height }}
+        />
+        {data.map((d, i) => (
+          <Pressable
+            key={`${d.label}-${i}`}
+            onPress={() => setPicked(i)}
+            accessibilityRole="button"
+            accessibilityLabel={`${d.detail}: ${formatDisplayVolume(kgToDisplay(d.value, unit), unit)}`}
+            accessibilityState={{ selected: i === selected }}
+            className="h-full flex-1 justify-end"
+            style={{ maxWidth: 36 }}>
+            <View
+              className={cn('w-full rounded-md', barTone(d.value, i === selected))}
+              style={{ height: Math.max(3, (d.value / max) * height) }}
+            />
+          </Pressable>
+        ))}
+      </View>
+
+      <View className="flex-row gap-1">
+        {data.map((d, i) => (
+          <View key={`${d.label}-${i}`} className="flex-1 items-center" style={{ maxWidth: 36 }}>
+            {i % every === (data.length - 1) % every ? (
+              <Caption className="text-2xs" numberOfLines={1}>
+                {d.label}
+              </Caption>
+            ) : null}
+          </View>
+        ))}
+      </View>
     </View>
   );
 });
+
+function barTone(value: number, selected: boolean): string {
+  if (value <= 0) return 'bg-muted';
+  return selected ? 'bg-primary' : 'bg-primary/45';
+}
+
+function sessionsLabel(n: number): string {
+  if (n === 0) return 'Rest';
+  return `${n} session${n === 1 ? '' : 's'}`;
+}

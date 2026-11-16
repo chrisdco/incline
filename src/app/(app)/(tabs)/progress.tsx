@@ -4,7 +4,7 @@ import { PrimaryActivityIndicator } from '@/components/common/primary-activity-i
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
-import { Camera, CalendarRange, Dumbbell, PersonStanding, ArrowUpRight } from 'lucide-react-native';
+import { Camera, CalendarRange, Dumbbell, PersonStanding } from 'lucide-react-native';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Caption } from '@/components/common/text';
@@ -15,7 +15,8 @@ import { Separator } from '@/components/ui/separator';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { StatRowSkeleton } from '@/components/common/skeleton';
 import { SegmentedControl } from '@/components/common/segmented-control';
-import { VolumeChart } from '@/components/progress/volume-chart';
+import { VolumeChart, type VolumeBar } from '@/components/progress/volume-chart';
+import { Tappable } from '@/components/ui/tappable';
 import { TrendChip } from '@/components/progress/trend-chip';
 import { PRCard } from '@/components/progress/pr-card';
 import { HistoryRow } from '@/components/progress/history-row';
@@ -36,9 +37,10 @@ import { usePrimaryHex } from '@/lib/theme';
 import { isAuroraAccent } from '@/lib/accent-themes';
 import { formatMonthLabel, formatVolume, previousMonthStart } from '@/db/calc';
 import { MUSCLE_LABELS } from '@/lib/labels';
+import { periodHeadline } from '@/coaching/period-headline';
 import { useTabScreenContent } from '@/hooks/use-tab-content-inset';
 import { METRIC_ICONS } from '@/lib/metric-icons';
-import type { ProgressRange } from '@/db/types';
+import type { PeriodStats, ProgressRange } from '@/db/types';
 import type { WorkoutLogFilters } from '@/db/queries';
 
 const RANGES: { value: ProgressRange; label: string }[] = [
@@ -49,15 +51,50 @@ const RANGES: { value: ProgressRange; label: string }[] = [
   { value: 'all', label: 'All' },
 ];
 
-function weekLabel(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
+const RANGE_DESCRIPTION: Record<ProgressRange, string> = {
+  '1w': 'Last 7 days, by day',
+  '30d': 'Last 30 days, by week',
+  '3m': 'Last 3 months, by week',
+  '1y': 'Last 12 months, by month',
+  all: 'All time, by month',
+};
 
-function monthLabel(key: string): string {
-  const [y, m] = key.split('-').map(Number);
-  const d = new Date(y, m - 1, 1);
-  return d.toLocaleDateString(undefined, { month: 'short' });
+const localDay = (iso: string) => new Date(iso + 'T00:00:00');
+
+/** Every bucket in the range (empty ones too), so the chart always spans the card. */
+function volumeBars(stats: PeriodStats, range: ProgressRange): VolumeBar[] {
+  if (range === '1w') {
+    return stats.dailyVolume.map((d, i, all) => {
+      const date = localDay(d.day);
+      return {
+        label: date.toLocaleDateString(undefined, { weekday: 'narrow' }),
+        detail: i === all.length - 1 ? 'Today' : date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }),
+        value: d.volume,
+        sessions: d.sessions,
+      };
+    });
+  }
+  if (range === '1y' || range === 'all') {
+    return stats.monthlyVolume.map((m, i, all) => {
+      const [y, mo] = m.month.split('-').map(Number);
+      const date = new Date(y, mo - 1, 1);
+      return {
+        label: date.toLocaleDateString(undefined, { month: 'narrow' }),
+        detail: i === all.length - 1 ? 'This month' : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+        value: m.volume,
+        sessions: m.sessions,
+      };
+    });
+  }
+  return stats.weeklyVolume.map((w, i, all) => {
+    const date = localDay(w.weekStart);
+    return {
+      label: `${date.getMonth() + 1}/${date.getDate()}`,
+      detail: i === all.length - 1 ? 'This week' : `Week of ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
+      value: w.volume,
+      sessions: w.sessions,
+    };
+  });
 }
 
 export default function ProgressScreen() {
@@ -108,13 +145,7 @@ export default function ProgressScreen() {
     setHistoryTemplate(null);
   };
 
-  const volumeData = useMemo(() => {
-    if (!stats) return [];
-    if (range === '1y' || range === 'all') {
-      return stats.monthlyVolume.map((w) => ({ label: monthLabel(w.month), value: w.volume }));
-    }
-    return stats.weeklyVolume.map((w) => ({ label: weekLabel(w.weekStart), value: w.volume }));
-  }, [stats, range]);
+  const volumeData = useMemo(() => (stats ? volumeBars(stats, range) : []), [stats, range]);
 
   const topMuscle = useMemo(() => {
     const list = stats?.muscleDistribution ?? [];
@@ -140,7 +171,7 @@ export default function ProgressScreen() {
             {aurora ? <HeroGlow hex={primaryHex} /> : null}
             <View className="mt-2">
               <Heading>Progress</Heading>
-              <Caption className="mt-1">Your training history at a glance.</Caption>
+              <Caption className="mt-1">{stats ? periodHeadline(stats, range) : 'Your training history at a glance.'}</Caption>
             </View>
 
             <SegmentedControl value={range} onChange={setRange} values={RANGES} />
@@ -168,27 +199,31 @@ export default function ProgressScreen() {
                   <CardHeader>
                     <View>
                       <CardTitle>Volume</CardTitle>
-                      <CardDescription>
-                        {range === '1w'
-                          ? 'Last 7 days'
-                          : range === '30d'
-                            ? 'Last 30 days'
-                            : range === '3m'
-                              ? 'Last 3 months'
-                              : range === '1y'
-                                ? 'Last year'
-                                : 'All time'}
-                      </CardDescription>
+                      <CardDescription>{RANGE_DESCRIPTION[range]}</CardDescription>
                     </View>
-                    <Icon icon={ArrowUpRight} size={18} color="muted-foreground" />
                   </CardHeader>
-                  <VolumeChart data={volumeData} unit={unit} />
+                  {/* Keyed by range: the selected bar resets to the latest when the range changes. */}
+                  <VolumeChart key={range} data={volumeData} unit={unit} />
                 </Card>
 
                 <Section
                   title="Records"
                   first
-                  action={stats.prs.length > 0 ? <AskAboutLink about={{ kind: 'insight', label: 'My records' }} question="Which of my lifts are progressing best?" /> : null}>
+                  action={
+                    stats.prs.length > 0 ? (
+                      <View className="flex-row items-center gap-4">
+                        <AskAboutLink about={{ kind: 'insight', label: 'My records' }} question="Which of my lifts are progressing best?" />
+                        <Tappable
+                          onPress={() => router.push('/(app)/records' as Href)}
+                          pressedOpacity={0.55}
+                          hitSlop={8}
+                          accessibilityRole="link"
+                          accessibilityLabel="See all records">
+                          <Caption className="font-medium text-primary-text">See all</Caption>
+                        </Tappable>
+                      </View>
+                    ) : null
+                  }>
                   {stats.prs.length > 0 ? (
                     <ListGroup>
                       {stats.prs.slice(0, 5).map((pr) => (
