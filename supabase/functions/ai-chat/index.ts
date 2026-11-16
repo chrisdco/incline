@@ -2,7 +2,9 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { AI_CONSENT_HEADER, AI_CONSENT_VERSION } from '../_shared/contracts/ai/consent.ts';
 import { aiTaskFlag, isFlagDisabled } from '../_shared/contracts/ai/flags.ts';
+import { attestedLimit, INTEGRITY_NONCE_HEADER, INTEGRITY_TOKEN_HEADER } from '../_shared/contracts/ai/integrity.ts';
 import { verifyBearerSub } from '../_shared/edge/auth.ts';
+import { gradeIntegrity } from '../_shared/edge/integrity.ts';
 import { upstreams } from '../_shared/edge/upstream.ts';
 import { MAX_BODY_BYTES, parseChatRequest, pickChatUpstreams, withPreamble, type CatalogRow } from './request.ts';
 
@@ -20,7 +22,7 @@ import { MAX_BODY_BYTES, parseChatRequest, pickChatUpstreams, withPreamble, type
  */
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': `authorization, x-client-info, apikey, content-type, ${AI_CONSENT_HEADER}`,
+  'Access-Control-Allow-Headers': `authorization, x-client-info, apikey, content-type, ${AI_CONSENT_HEADER}, ${INTEGRITY_TOKEN_HEADER}, ${INTEGRITY_NONCE_HEADER}`,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Expose-Headers': 'x-incline-model',
 };
@@ -120,7 +122,7 @@ Deno.serve(async (req) => {
   const { data: allowed, error: rateError } = await db.rpc('ai_task_consume', {
     p_user: userId,
     p_task: 'chat',
-    p_limit: DAILY_STEPS * multiplier,
+    p_limit: attestedLimit(DAILY_STEPS, multiplier, await gradeIntegrity(req, db)),
     p_window_seconds: DAY_SECONDS,
   });
   if (rateError) return json(500, { ok: false, error: 'quota_unavailable' });

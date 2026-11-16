@@ -3,7 +3,7 @@ import { Alert, Platform, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse,
+  Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse, Moon, Sun, Smartphone,
 } from 'lucide-react-native';
 import { AiMark } from '@/components/ai/ai-mark';
 import { PhotoStorageRow } from '@/components/account/photo-storage-row';
@@ -90,10 +90,12 @@ function aiSummary(enabled: boolean, byok: ByokConfig | null): string {
 }
 
 const MODE_LABELS = { system: 'System', light: 'Light', dark: 'Dark' } as const;
+const MODES = ['system', 'light', 'dark'] as const;
 
 /**
- * Settings hub. Topics with more than a few rows (notifications, appearance,
- * AI) are their own screens; this one keeps the toggles you change often.
+ * Settings hub, most-changed first: appearance (mode inline, theme and
+ * accent one tap away), basics, rest timer, in-session options, then the
+ * linked screens (notifications, health, AI), demos, data and about.
  */
 export default function SettingsScreen() {
   const {
@@ -106,7 +108,7 @@ export default function SettingsScreen() {
     workoutRemindersEnabled, weeklyDigestEnabled,
     monthlyRecapEnabled, abandonedNudgeEnabled, streakNudgeEnabled, milestoneNudgeEnabled,
     exerciseMediaStyle, exerciseMediaAnimation, devExerciseMediaOverride,
-    setUnit, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe,
+    setUnit, setThemeMode, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe,
     setShowSessionGhost,
     setCalendarHeatMetric, setWeekStartsOn, setKeepScreenAwake, setWeeklyWorkoutGoal,
     setExerciseMediaStyle, setExerciseMediaAnimation, setDevExerciseMediaOverride,
@@ -119,7 +121,7 @@ export default function SettingsScreen() {
   const [clearOpen, setClearOpen] = useState(false);
 
   const accent = ACCENT_THEME_LIST.find((t) => t.id === accentTheme) ?? ACCENT_THEME_LIST[0];
-  const appearanceSummary = `${MODE_LABELS[themeMode]} · ${accent.label}${isAuroraAccent(accentTheme) ? ' aurora' : ''}`;
+  const accentSummary = isAuroraAccent(accentTheme) ? `${accent.label} aurora` : `Classic · ${accent.label}`;
   const notificationsOn = [
     workoutRemindersEnabled, weeklyDigestEnabled, monthlyRecapEnabled,
     abandonedNudgeEnabled, streakNudgeEnabled, milestoneNudgeEnabled,
@@ -189,7 +191,70 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={SCREEN_CONTENT}>
-        <Section title="Workout" className="mt-4">
+        <Section title="Appearance" className="mt-4">
+          <ListGroup>
+            <ListRow stacked icon={<Icon icon={themeMode === 'dark' ? Moon : themeMode === 'light' ? Sun : Smartphone} size={18} color="muted-foreground" />} title="Light or dark" subtitle="System follows your phone">
+              <View className="flex-row flex-wrap gap-2">
+                {MODES.map((m) => (
+                  <Chip key={m} label={MODE_LABELS[m]} selected={themeMode === m} onPress={() => setThemeMode(m)} />
+                ))}
+              </View>
+            </ListRow>
+            <ListRow
+              icon={<Icon icon={Palette} size={18} color="muted-foreground" />}
+              title="Theme and accent"
+              subtitle={accentSummary}
+              onPress={() => router.push('/(app)/appearance' as Href)}
+            />
+          </ListGroup>
+        </Section>
+
+        <Section title="Basics">
+          <ListGroup>
+            <ListRow icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Units" subtitle="Displayed across workouts and stats">
+              <View className="flex-row gap-2">
+                <Chip label="kg" selected={unit === 'metric'} onPress={() => changeUnit('metric')} />
+                <Chip label="lb" selected={unit === 'imperial'} onPress={() => changeUnit('imperial')} />
+              </View>
+            </ListRow>
+            <ListRow stacked icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />} title="Weekly workout goal" subtitle="Sessions per week for consistency tracking">
+              <View className="flex-row flex-wrap gap-1.5">
+                {[0, 3, 4, 5, 6].map((g) => (
+                  <Chip key={g} size="sm" label={g === 0 ? 'Off' : `${g}×`} selected={weeklyWorkoutGoal === g} onPress={() => setWeeklyWorkoutGoal(g)} />
+                ))}
+              </View>
+            </ListRow>
+            <ListRow
+              icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
+              title="Week starts on"
+              subtitle="Calendar grids and day headers">
+              <View className="flex-row gap-2">
+                <Chip label="Mon" selected={weekStartsOn === 'monday'} onPress={() => setWeekStartsOn('monday')} />
+                <Chip label="Sun" selected={weekStartsOn === 'sunday'} onPress={() => setWeekStartsOn('sunday')} />
+              </View>
+            </ListRow>
+            <ListRow stacked
+              icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
+              title="Calendar day color"
+              subtitle="What each tinted day represents">
+              <View className="flex-row flex-wrap gap-2">
+                {(
+                  [
+                    { id: 'presence' as const, label: 'Trained' },
+                    { id: 'volume' as const, label: 'Volume' },
+                    { id: 'intensity' as const, label: 'Intensity' },
+                    { id: 'reps' as const, label: 'Reps' },
+                  ]
+                ).map((opt) => (
+                  <Chip key={opt.id} size="sm" label={opt.label} selected={calendarHeatMetric === opt.id} onPress={() => setCalendarHeatMetric(opt.id)} />
+                ))}
+              </View>
+            </ListRow>
+            <GymsSettingsRow />
+          </ListGroup>
+        </Section>
+
+        <Section title="Rest timer">
           <ListGroup>
             <ListRow icon={<Icon icon={Zap} size={18} color="muted-foreground" />} title="Auto-start rest timer" subtitle="Begin countdown when you finish a set">
               <Switch value={autoStartRest} onValueChange={setAutoStartRest} accessibilityLabel="Auto-start rest timer" />
@@ -212,6 +277,11 @@ export default function SettingsScreen() {
                 <Chip label="Allow" onPress={allowExactAlarms} />
               </ListRow>
             ) : null}
+          </ListGroup>
+        </Section>
+
+        <Section title="During a workout">
+          <ListGroup>
             <ListRow icon={<Icon icon={METRIC_ICONS.warmUp} size={18} color="muted-foreground" />} title="Warm-up set button" subtitle="Quick 50% set in the session">
               <Switch value={showWarmUpSets} onValueChange={setShowWarmUpSets} accessibilityLabel="Warm-up set button" />
             </ListRow>
@@ -230,36 +300,11 @@ export default function SettingsScreen() {
             <ListRow icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
               <Switch value={hapticsEnabled} onValueChange={setHaptics} accessibilityLabel="Haptics" />
             </ListRow>
-            <ListRow stacked icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />} title="Weekly workout goal" subtitle="Sessions per week for consistency tracking">
-              <View className="flex-row flex-wrap gap-1.5">
-                {[0, 3, 4, 5, 6].map((g) => (
-                  <Chip key={g} size="sm" label={g === 0 ? 'Off' : `${g}×`} selected={weeklyWorkoutGoal === g} onPress={() => setWeeklyWorkoutGoal(g)} />
-                ))}
-              </View>
-            </ListRow>
           </ListGroup>
         </Section>
 
-        <Section title="Units">
+        <Section title="Notifications, health and AI">
           <ListGroup>
-            <ListRow icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Measurement" subtitle="Displayed across workouts and stats">
-              <View className="flex-row gap-2">
-                <Chip label="kg" selected={unit === 'metric'} onPress={() => changeUnit('metric')} />
-                <Chip label="lb" selected={unit === 'imperial'} onPress={() => changeUnit('imperial')} />
-              </View>
-            </ListRow>
-            <GymsSettingsRow />
-          </ListGroup>
-        </Section>
-
-        <Section title="App">
-          <ListGroup>
-            <ListRow
-              icon={<Icon icon={Palette} size={18} color="muted-foreground" />}
-              title="Appearance"
-              subtitle={appearanceSummary}
-              onPress={() => router.push('/(app)/appearance' as Href)}
-            />
             <ListRow
               icon={<Icon icon={Bell} size={18} color="muted-foreground" />}
               title="Notifications"
@@ -284,7 +329,7 @@ export default function SettingsScreen() {
           </ListGroup>
         </Section>
 
-        <Section title="Display">
+        <Section title="Exercise demos">
           <ListGroup>
             <ListRow stacked
               icon={<Icon icon={Film} size={18} color="muted-foreground" />}
@@ -303,32 +348,6 @@ export default function SettingsScreen() {
               <View className="flex-row gap-2">
                 <Chip label="Cycle" selected={exerciseMediaAnimation === 'cycle'} onPress={() => setExerciseMediaAnimation('cycle')} />
                 <Chip label="Static" selected={exerciseMediaAnimation === 'static'} onPress={() => setExerciseMediaAnimation('static')} />
-              </View>
-            </ListRow>
-            <ListRow stacked
-              icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
-              title="Calendar day color"
-              subtitle="What each tinted day represents">
-              <View className="flex-row flex-wrap gap-2">
-                {(
-                  [
-                    { id: 'presence' as const, label: 'Trained' },
-                    { id: 'volume' as const, label: 'Volume' },
-                    { id: 'intensity' as const, label: 'Intensity' },
-                    { id: 'reps' as const, label: 'Reps' },
-                  ]
-                ).map((opt) => (
-                  <Chip key={opt.id} size="sm" label={opt.label} selected={calendarHeatMetric === opt.id} onPress={() => setCalendarHeatMetric(opt.id)} />
-                ))}
-              </View>
-            </ListRow>
-            <ListRow
-              icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
-              title="Week starts on"
-              subtitle="Calendar grids and day headers">
-              <View className="flex-row gap-2">
-                <Chip label="Mon" selected={weekStartsOn === 'monday'} onPress={() => setWeekStartsOn('monday')} />
-                <Chip label="Sun" selected={weekStartsOn === 'sunday'} onPress={() => setWeekStartsOn('sunday')} />
               </View>
             </ListRow>
           </ListGroup>

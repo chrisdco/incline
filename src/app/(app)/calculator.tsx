@@ -6,5 +6,6 @@ import { Redirect, useLocalSearchParams, type Href } from 'expo-router';
  */
 export default function CalculatorRedirect() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
-  return <Redirect href={{ pathname: '/(app)/calculators', params: tab ? { tab } : {} } as Href} />;
+  const href: string = tab ? `/calculators?tab=${encodeURIComponent(tab)}` : '/calculators';
+  return <Redirect href={href as Href} />;
 }

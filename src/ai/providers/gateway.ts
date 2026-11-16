@@ -1,3 +1,4 @@
+import { integrityHeaders } from '@/ai/integrity';
 import { AI_CONSENT_HEADER, AI_CONSENT_VERSION } from '@/contracts/ai/consent';
 import { usageFromCompletion } from '@/contracts/ai/data-use';
 
@@ -45,6 +46,7 @@ export function createGatewayProvider(config: GatewayProviderConfig): AiProvider
             'Content-Type': 'application/json',
             // The chain only includes this provider with consent; the server can audit/enforce it.
             [AI_CONSENT_HEADER]: String(AI_CONSENT_VERSION),
+            ...(await integrityHeaders()),
           },
           body: JSON.stringify(await spec.body(input)),
           signal: ctx.signal,
