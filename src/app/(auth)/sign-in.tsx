@@ -2,11 +2,10 @@ import * as React from 'react';
 import { Platform, View, Pressable, Image, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useSSO } from '@clerk/expo';
 import { useSignIn } from '@clerk/expo/legacy';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 
+import { useGoogleSignIn } from '@/auth/use-google-sign-in';
 import { Heading, Caption, Text } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -22,7 +21,7 @@ type ResetStep = 'idle' | 'sending' | 'verify' | 'resetting' | 'done';
 export default function SignInScreen() {
   const router = useRouter();
   const { signIn, setActive, isLoaded } = useSignIn();
-  const { startSSOFlow } = useSSO();
+  const signInWithGoogle = useGoogleSignIn();
   const [emailAddress, setEmailAddress] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
@@ -47,12 +46,7 @@ export default function SignInScreen() {
     setGoogleLoading(true);
     setError('');
     try {
-      const result = await startSSOFlow({
-        strategy: 'oauth_google',
-        redirectUrl: Linking.createURL('/'),
-      });
-      if (result.createdSessionId) {
-        if (result.setActive) await result.setActive({ session: result.createdSessionId });
+      if ((await signInWithGoogle()) === 'signed-in') {
         // Root gate binds Clerk user → local SQLite (wipes on account switch).
         router.replace('/');
       }
@@ -60,7 +54,7 @@ export default function SignInScreen() {
       setError(err?.message ?? 'Google sign-in failed. Please try again.');
     }
     setGoogleLoading(false);
-  }, [startSSOFlow, router]);
+  }, [signInWithGoogle, router]);
 
   const onSignInPress = async () => {
     if (!isLoaded) return;

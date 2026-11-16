@@ -202,7 +202,7 @@
           "granularPermissions": []
         }
       ],
-      "react-native-share"
+      "@clerk/expo-google-signin"
     ],
     "experiments": {
       "typedRoutes": true,
