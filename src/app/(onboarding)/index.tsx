@@ -12,11 +12,13 @@ import { Button } from '@/components/ui/button';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { Icon } from '@/components/common/icon';
 import { useToast } from '@/components/ui/toast';
+import { BrandFade, InclineMark } from '@/components/brand/incline-mark';
+import { INCLINE_AI_PROCESSORS, useAiConsent } from '@/ai/consent';
 import { completeOnboarding } from '@/db/queries';
 import { useSettings } from '@/store/settings-store';
 import { GOAL_LABELS } from '@/lib/labels';
 import type { Goal, Unit, ExperienceLevel } from '@/db/types';
-import { Dumbbell, Target, ChevronRight, ChevronLeft, Check } from 'lucide-react-native';
+import { Ban, Dumbbell, Target, ChevronRight, ChevronLeft, Check, Send, Settings2, Sparkles } from 'lucide-react-native';
 import { displayToKg } from '@/lib/units';
 
 const GOALS: Goal[] = ['build_muscle', 'gain_strength', 'lose_fat', 'improve_endurance'];
@@ -35,12 +37,21 @@ const GOAL_ICONS: Record<Goal, typeof Dumbbell> = {
   improve_endurance: Target,
 };
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
+
+/** The AI step's disclosure (App Store 5.1.2(i)): what is sent, to whom, and how to change it. */
+const AI_POINTS = [
+  { icon: Send, text: `Only what an answer needs (workouts, routines, records) goes to Incline AI, processed by ${INCLINE_AI_PROCESSORS.join(' and ')}.` },
+  { icon: Ban, text: 'Never your email, account details, photos or passwords.' },
+  { icon: Settings2, text: 'Off until you choose. Change it any time in Settings → AI.' },
+] as const;
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const { toast } = useToast();
   const setUnitStore = useSettings((s) => s.setUnit);
+  const setAiEnabled = useSettings((s) => s.setAiExplanationsEnabled);
+  const setConsent = useAiConsent((s) => s.set);
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [bodyweight, setBodyweight] = useState('');
@@ -69,7 +80,7 @@ export default function OnboardingScreen() {
     if (step > 0) setStep(step - 1);
   };
 
-  const finish = async () => {
+  const finish = async (withAi: boolean) => {
     if (!name.trim()) {
       toast({ title: 'Add your name', variant: 'warning' });
       return;
@@ -88,6 +99,11 @@ export default function OnboardingScreen() {
         bodyweight: savedBodyweight,
       });
       setUnitStore(unit);
+      // Accepting here is the consent screen's 'Allow Incline AI' plus the AI switch, in one tap.
+      if (withAi) {
+        setConsent({ kind: 'incline' }, true);
+        setAiEnabled(true);
+      }
       router.replace('/(app)/(tabs)');
     } catch (err) {
       console.error('ONBOARDING ERROR:', err);
@@ -98,9 +114,13 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
+      <BrandFade />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
+        <View className="items-center pt-4">
+          <InclineMark size={step === 0 ? 72 : 40} />
+        </View>
         {/* Progress dots + step count */}
-        <View className="flex-row items-center justify-center gap-2 pt-4">
+        <View className="flex-row items-center justify-center gap-2 pt-2">
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <View
               key={i}
@@ -112,16 +132,12 @@ export default function OnboardingScreen() {
 
         <View className="flex-1 px-6">
           {step === 0 && (
-            <Animated.View entering={FadeIn.duration(300)} className="flex-1 pt-10">
-              <View className="items-center mb-8">
-                {name ? (
-                  <InitialsAvatar name={name} size={80} />
-                ) : (
-                  <View className="h-20 w-20 items-center justify-center rounded-full bg-primary/15">
-                    <Icon icon={Dumbbell} size={36} color="primary" />
-                  </View>
-                )}
-              </View>
+            <Animated.View entering={FadeIn.duration(300)} className="flex-1 pt-8">
+              {name ? (
+                <View className="mb-6 items-center">
+                  <InitialsAvatar name={name} size={64} />
+                </View>
+              ) : null}
               <Heading className="text-center">Welcome to Incline</Heading>
               <Body className="mt-2 text-center text-muted-foreground">
                 Your personal strength training companion.
@@ -224,6 +240,28 @@ export default function OnboardingScreen() {
               </View>
             </Animated.View>
           )}
+
+          {step === 4 && (
+            <Animated.View entering={FadeInRight.duration(300)} className="flex-1 pt-10">
+              <View className="items-center">
+                <View className="h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+                  <Icon icon={Sparkles} size={26} color="primary" />
+                </View>
+              </View>
+              <Heading className="mt-4 text-center">Coaching with AI</Heading>
+              <Body className="mt-2 text-center text-muted-foreground">
+                Ask about your training, get plans built and changes explained in plain words.
+              </Body>
+              <View className="mt-8 gap-4 rounded-2xl bg-surface1 p-4">
+                {AI_POINTS.map((p) => (
+                  <View key={p.text} className="flex-row items-start gap-3">
+                    <Icon icon={p.icon} size={18} color="muted-foreground" />
+                    <Caption className="min-w-0 flex-1">{p.text}</Caption>
+                  </View>
+                ))}
+              </View>
+            </Animated.View>
+          )}
         </View>
 
         {/* Navigation */}
@@ -247,9 +285,14 @@ export default function OnboardingScreen() {
                 </Button>
               </>
             ) : (
-              <Button className="flex-1" variant="success" onPress={finish} disabled={saving}>
-                {saving ? 'Setting up…' : 'Get started'}
-              </Button>
+              <>
+                <Button variant="ghost" onPress={() => void finish(false)} disabled={saving}>
+                  Not now
+                </Button>
+                <Button className="flex-1" variant="success" onPress={() => void finish(true)} disabled={saving}>
+                  {saving ? 'Setting up…' : 'Turn on AI'}
+                </Button>
+              </>
             )}
           </View>
         </View>

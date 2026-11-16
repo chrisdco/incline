@@ -8,10 +8,19 @@ import { Button } from '@/components/ui/button';
 import { aiFailureCopy } from '@/ai/copy';
 import type { AiFailure } from '@/ai/types';
 
+/** Where each failure can be fixed, so the notice is never a dead end. */
+const FIX: Partial<Record<AiFailure, { label: string; href: Href }>> = {
+  disabled: { label: 'Turn on AI', href: '/(app)/ai-consent?enable=1' as Href },
+  consent: { label: 'Choose a provider', href: '/(app)/ai-consent' as Href },
+  rate_limited: { label: 'Use your own key', href: '/(app)/ai-settings' as Href },
+  unavailable: { label: 'AI settings', href: '/(app)/ai-settings' as Href },
+};
+
 /**
  * The one way an AI surface says it couldn't help (AI-ARCHITECTURE §3). Copy
  * comes from `src/ai/copy.ts`; there is always a way on (retry, or the manual
- * path the surface already has).
+ * path the surface already has), plus a direct route to the setting that
+ * fixes it (consent, turning AI on, a key or the provider).
  */
 export function AiFallbackNotice({
   reason,
@@ -28,7 +37,7 @@ export function AiFallbackNotice({
   if (reason === 'cancelled') return null;
   const copy = aiFailureCopy(reason);
   const canRetry = onRetry && reason !== 'disabled' && reason !== 'consent';
-  const review = reason === 'consent' ? () => router.push('/(app)/ai-consent' as Href) : undefined;
+  const fix = FIX[reason];
   return (
     <View className="gap-3 rounded-2xl bg-muted/60 p-3" accessibilityRole="alert">
       <View className="flex-row items-start gap-2">
@@ -38,11 +47,11 @@ export function AiFallbackNotice({
           {copy.body ? <Caption className="mt-0.5">{copy.body}</Caption> : null}
         </View>
       </View>
-      {canRetry || onManual || review ? (
+      {canRetry || onManual || fix ? (
         <View className="flex-row gap-2">
-          {review ? (
-            <Button size="sm" className="flex-1" onPress={review}>
-              Choose a provider
+          {fix ? (
+            <Button size="sm" className="flex-1" onPress={() => router.push(fix.href)}>
+              {fix.label}
             </Button>
           ) : null}
           {canRetry ? (
