@@ -98,6 +98,9 @@ questions you can open with one tap. The one action on it is *asking*.
   the runtime fingerprint, so it ships with the next native build, not an
   OTA. Needs mic and speech permissions, plus a consent line for devices
   that can only recognise online. No dead mic button before then.
+  Built (2026-11-16): the send button is a mic while the input is empty;
+  hold to talk (live transcript in the input), release to send. Off-device
+  recognisers get the consent line under the composer while listening.
 - **Floating, solid** (2026-11-12): the composer is a solid pill
   (`floating`: surface2, shadow) 8 pt above the home indicator, not a bar
   docked to the edge. A frosted pill was tried and rejected: text behind it

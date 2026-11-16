@@ -274,6 +274,9 @@ importers:
       expo-sharing:
         specifier: ~58.0.20
         version: 58.0.20(expo@58.0.17)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1)(typescript@6.0.3)
+      expo-speech-recognition:
+        specifier: ^58.0.1
+        version: 58.0.1(expo@58.0.17)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
       expo-splash-screen:
         specifier: ~58.0.11
         version: 58.0.11(expo@58.0.17)(supports-color@8.1.1)(typescript@6.0.3)
@@ -4311,6 +4314,13 @@ packages:
 
   expo-sharing@58.0.20:
     resolution: {integrity: sha512-FxfBGaiWYNmV12bDbT81TAi08MGN1OdQtz9WLscN3He0We3w9RfIQNAhCSOJLKpcFvbNAXZ4nkOjpO8q3I8LRw==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
+
+  expo-speech-recognition@58.0.1:
+    resolution: {integrity: sha512-ycDe1BxXblqFGsXxedjBKn3tVQO8Vnj/BtBIycdMjXkXueTYto1LaenkjeBGycJmnS/6mOWC8oQcyBSbZsueFg==}
     peerDependencies:
       expo: '*'
       react: '*'
@@ -11008,6 +11018,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
+
+  expo-speech-recognition@58.0.1(expo@58.0.17)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0):
+    dependencies:
+      expo: 58.0.17(a710c5a2754929941a8b6470aa9d1906)
+      react: 19.3.0
+      react-native: 0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(supports-color@8.1.1)
 
   expo-splash-screen@58.0.11(expo@58.0.17)(supports-color@8.1.1)(typescript@6.0.3):
     dependencies:
