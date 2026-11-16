@@ -202,7 +202,17 @@
           "granularPermissions": []
         }
       ],
-      "@clerk/expo-google-signin"
+      "@clerk/expo-google-signin",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Incline uses the microphone while you hold the mic button to ask a question.",
+          "speechRecognitionPermission": "Incline turns what you say into text for your question, on your phone where possible.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

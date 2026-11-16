@@ -107,8 +107,9 @@ work lands first; native pieces ship together in one build.
    Needs Google Cloud OAuth clients (user): Android (package + SHA-1 of the EAS
    signing cert), iOS (bundle id), web (what Clerk verifies against). Browser
    SSO stays as fallback; email code stays.
-3. [ ] **Voice in Ask:** hold-to-talk, `expo-speech-recognition`, on-device
-   where supported (ASK-UI.md "Voice").
+3. [x] **Voice in Ask:** hold-to-talk, `expo-speech-recognition`, on-device
+   where supported (ASK-UI.md "Voice"). Mic replaces send while the input
+   is empty; `src/ai/voice.ts`. Lands with the Build 2 APK.
 4. [x] **Health Connect, read only** — [HEALTH.md](decisions/HEALTH.md):
    `HealthPort` + Health Connect adapter, sleep/RHR/HRV/weight/steps,
    readiness on Home and an Ask read tool. Samsung Health via its Health

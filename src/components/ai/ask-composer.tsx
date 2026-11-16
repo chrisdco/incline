@@ -1,7 +1,7 @@
 import { useRef, useState, type ComponentRef } from 'react';
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { Modal, Pressable, View, useWindowDimensions } from 'react-native';
+import { Linking, Modal, Pressable, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, FadeOut, ZoomIn } from 'react-native-reanimated';
 import {
   ArrowUp,
@@ -10,6 +10,7 @@ import {
   Dumbbell,
   Gauge,
   History,
+  Mic,
   Plus,
   SlidersHorizontal,
   Square,
@@ -19,7 +20,9 @@ import {
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption } from '@/components/common/text';
+import { useHoldToTalk, type VoiceProblem } from '@/ai/voice';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 import { Tappable } from '@/components/ui/tappable';
 import { cn } from '@/lib/cn';
 import { motionDuration } from '@/styles/motion';
@@ -38,6 +41,12 @@ const TOOLS: MenuItem[] = [
   { label: 'Adjust my program', href: '/(app)/program-adjust' as Href, icon: SlidersHorizontal },
   { label: 'Deload check', href: '/(app)/deload' as Href, icon: Gauge },
 ];
+
+const VOICE_PROBLEM: Record<VoiceProblem, string> = {
+  permission: 'Microphone access is off',
+  unavailable: "Speech recognition isn't available on this phone",
+  failed: "Couldn't catch that, try again",
+};
 
 /** Gap between the composer and the menu above it. */
 const MENU_GAP = 8;
@@ -60,11 +69,18 @@ function MenuRow({ item, onPress }: { item: MenuItem; onPress: () => void }) {
   );
 }
 
+/** While holding: what to do next, and where speech is recognised when it isn't on the phone. */
+function voiceNote(listening: boolean, onDevice: boolean, footnote?: string): string | undefined {
+  if (!listening) return footnote;
+  return onDevice ? 'Release to send' : "Release to send · speech is recognised by your phone's speech service";
+}
+
 /**
  * Ask's composer, shared by idle and threads: `+`, the input, and send/Stop.
  * `+` opens a small menu right above it (ChatGPT/Claude style), not a
- * sheet: quick questions and tools now, attachments in Phase 2. Voice is
- * hold-to-talk later (ASK-UI.md: it needs a native speech module).
+ * sheet: quick questions and tools now, attachments in Phase 2. With an
+ * empty input the send button is a mic: hold to talk, release to send
+ * (ASK-UI.md "Voice"); builds without the speech module show no mic.
  *
  * `floating` makes it a solid pill with a shadow, for screens where content
  * scrolls beneath it (EdgeBlur blurs what passes under it).
@@ -93,6 +109,18 @@ export function AskComposer({
   const shell = useRef<ComponentRef<typeof View>>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const canSend = !!value.trim();
+  const { toast } = useToast();
+  const voice = useHoldToTalk({
+    onPartial: onChangeText,
+    onFinal: onSend,
+    onProblem: (p) =>
+      toast({
+        title: VOICE_PROBLEM[p],
+        variant: 'warning',
+        ...(p === 'permission' ? { action: { label: 'Settings', onPress: () => void Linking.openSettings() } } : null),
+      }),
+  });
+  const showMic = voice.available && !running && (!canSend || voice.listening);
 
   const openMenu = () => shell.current?.measureInWindow((x, y) => setAnchor({ x, y }));
   const close = () => setAnchor(null);
@@ -123,11 +151,26 @@ export function AskComposer({
           className="max-h-32 min-h-10 flex-1 border-0 bg-transparent px-1 py-2"
           value={value}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          placeholder={voice.listening ? 'Listening…' : placeholder}
           multiline
           maxLength={1000}
           accessibilityLabel="Your question"
         />
+        {showMic ? (
+          <Pressable
+            onPressIn={() => void voice.start()}
+            onPressOut={voice.stop}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Hold to talk"
+            accessibilityHint="Release to send"
+            className={cn(
+              'h-10 w-10 items-center justify-center rounded-full',
+              voice.listening ? 'scale-110 bg-primary' : 'bg-surface3',
+            )}>
+            <Icon icon={Mic} size={18} color={voice.listening ? 'primary-foreground' : 'foreground'} />
+          </Pressable>
+        ) : (
         <Tappable
           onPress={() => (running ? onStop?.() : onSend(value))}
           disabled={!running && !canSend}
@@ -137,8 +180,11 @@ export function AskComposer({
           className={cn('h-10 w-10 items-center justify-center rounded-full bg-primary', !running && !canSend && 'opacity-40')}>
           <Icon icon={running ? Square : ArrowUp} size={running ? 14 : 18} color="primary-foreground" />
         </Tappable>
+        )}
       </View>
-      {footnote ? <Caption className="mt-1.5 text-center">{footnote}</Caption> : null}
+      {voiceNote(voice.listening, voice.onDevice, footnote) ? (
+        <Caption className="mt-1.5 text-center">{voiceNote(voice.listening, voice.onDevice, footnote)}</Caption>
+      ) : null}
 
       <Modal visible={!!anchor} transparent animationType="none" statusBarTranslucent onRequestClose={close}>
         <Pressable className="flex-1" onPress={close} accessibilityRole="button" accessibilityLabel="Close menu">
