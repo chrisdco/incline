@@ -92,3 +92,17 @@ index 82cabea..ab57c40 100644
      resolveColor(context, options.color)?.let { builder.color = it }
      contentIntent(context, state.tag, options.url)?.let(builder::setContentIntent)
      builder.addExtras(state.toExtras())
+diff --git a/android/src/main/java/expo/modules/widgets/ExpoWidgetsPeekWidget.kt b/android/src/main/java/expo/modules/widgets/ExpoWidgetsPeekWidget.kt
+--- a/android/src/main/java/expo/modules/widgets/ExpoWidgetsPeekWidget.kt
++++ b/android/src/main/java/expo/modules/widgets/ExpoWidgetsPeekWidget.kt
+@@ -25,7 +25,9 @@
+     val layout = WidgetsLayoutRegistry.layout(appContext, widgetName)
+       ?: return createErrorRoot("No layout found for $widgetName")
+     val props = WidgetsLayoutRegistry.props(appContext, widgetName)
+-    val environment = getWidgetEnvironment(appContext)
++    // Incline patch: hand the layout its size (dp) so it can adapt when resized.
++    val environment = getWidgetEnvironment(appContext) +
++      mapOf("width" to size.width.value.toDouble(), "height" to size.height.value.toDouble())
+     val node = evaluateLayout(appContext, layout, props, environment)
+ 
+     return node.toPeekRoot(appContext, InteractionSource.Widget(widgetName), size)

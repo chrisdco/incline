@@ -23,15 +23,18 @@ import { createWidget } from 'expo-widgets';
 
 import type { ThisWeekProps } from '@/lib/widgets/build-this-week';
 
-const ThisWeekWidget = (props: ThisWeekProps, environment: { colorScheme?: 'light' | 'dark' }) => {
+const ThisWeekWidget = (props: ThisWeekProps, environment: { colorScheme?: 'light' | 'dark'; width?: number; height?: number }) => {
   'widget';
   const c = environment.colorScheme === 'dark' ? props.dark : props.light;
+  // Grows with the widget: bigger day dots when wide, bigger count when tall.
+  const dot = (environment.width ?? 0) >= 220 ? 22 : 16;
+  const countSize = (environment.height ?? 0) >= 200 ? 40 : 32;
   return (
     <Button
       {...({ target: 'open:incline:///calendar' } as object)}
       colors={{ containerColor: c.card }}
       modifiers={[fillMaxSize(), cornerRadius(24)]}>
-      <Column verticalArrangement="spaceBetween" modifiers={[fillMaxSize(), paddingAll(14)]}>
+      <Column verticalArrangement="spaceBetween" modifiers={[fillMaxSize(), paddingAll(16)]}>
         <Column>
           <Text color={c.muted} style={{ fontSize: 12, fontWeight: '500' }}>
             {props.eyebrow}
@@ -39,7 +42,7 @@ const ThisWeekWidget = (props: ThisWeekProps, environment: { colorScheme?: 'ligh
           <Row verticalAlignment="bottom" modifiers={[padding(0, 2, 0, 0)]}>
             <Text
               color={c.foreground}
-              style={{ fontSize: 32, fontWeight: '700', letterSpacing: -1 }}>
+              style={{ fontSize: countSize, fontWeight: '700', letterSpacing: -1 }}>
               {props.count}
             </Text>
             <Text
@@ -57,7 +60,7 @@ const ThisWeekWidget = (props: ThisWeekProps, environment: { colorScheme?: 'ligh
               <Column key={i} horizontalAlignment="center">
                 <Box
                   modifiers={[
-                    size(16, 16),
+                    size(dot, dot),
                     cornerRadius(999),
                     background(d.trained ? c.primary : c.border),
                     ...(d.isToday && !d.trained ? [border(2, c.primary)] : []),
