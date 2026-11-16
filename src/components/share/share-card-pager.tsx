@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import {
   FlatList,
   View,
@@ -30,8 +30,16 @@ export function ShareCardPager<T>({
   onSettlingChange?: (settling: boolean) => void;
 }) {
   const { width } = useWindowDimensions();
-  const pageRefs = useCallback((el: ViewInstance | null, i: number) => {
+  // Every mounted page's view by index; the capture target follows `index`.
+  // (A ref callback keyed on index could miss the page when rows don't re-render.)
+  const pages = useRef(new Map<number, ViewInstance>());
+  const pageRef = (el: ViewInstance | null, i: number) => {
+    if (el) pages.current.set(i, el);
+    else pages.current.delete(i);
     if (i === index) captureRef.current = el;
+  };
+  useEffect(() => {
+    captureRef.current = pages.current.get(index) ?? null;
   }, [captureRef, index]);
 
   const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -56,11 +64,11 @@ export function ShareCardPager<T>({
         renderItem={({ item, index: i }) => (
           <View style={{ width, paddingHorizontal: 20 }}>
             <View
-              ref={(el) => pageRefs(el, i)}
+              ref={(el) => pageRef(el, i)}
               collapsable={false}
               style={{
+                // Square: rounded corners export as transparent (white or black in other apps).
                 backgroundColor: pageBackground,
-                borderRadius: 28,
                 padding: 8,
               }}>
               {renderCard(item, i)}

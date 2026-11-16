@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/toast';
 import { formatDuration, formatVolume } from '@/db/calc';
 import {
   captureSharePng,
+  announceSave,
   downloadSharePng,
   nextShareBackgroundId,
   shareBackgroundById,
@@ -114,12 +115,13 @@ export default function ShareWorkoutScreen() {
         toast({ title: 'Image capture failed', description: 'Sharing as text instead.', variant: 'warning' });
       }
       if (mode === 'download') {
-        await downloadSharePng({
+        const saved = await downloadSharePng({
           uri,
           filename: `incline-workout-${log.id}.png`,
           title: 'Save workout card',
           message,
         });
+        announceSave(toast, saved);
       } else {
         await sharePngOrMessage({
           uri,
@@ -156,7 +158,7 @@ export default function ShareWorkoutScreen() {
 
       <View className="flex-1 px-4 pt-4">
         <ViewShot options={{ format: 'png', quality: 1, result: 'tmpfile' }}>
-          <View ref={shareRef} collapsable={false} style={{ backgroundColor: bg.page, padding: 12, borderRadius: 28 }}>
+          <View ref={shareRef} collapsable={false} style={{ backgroundColor: bg.page, padding: 12 }}>
             <ShareSummaryCard
               athleteName={athleteName}
               handle={handle}

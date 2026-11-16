@@ -20,6 +20,7 @@ import { useProfile, useWeeklyRecap } from '@/hooks/use-data';
 import { useSettings } from '@/store/settings-store';
 import {
   captureSharePng,
+  announceSave,
   downloadSharePng,
   nextShareBackgroundId,
   shareBackgroundById,
@@ -69,12 +70,13 @@ export default function ShareWeekScreen() {
         toast({ title: 'Image capture failed', description: 'Sharing as text instead.', variant: 'warning' });
       }
       if (mode === 'download') {
-        await downloadSharePng({
+        const saved = await downloadSharePng({
           uri,
           filename: 'incline-week.png',
           title: 'Save weekly report',
           message,
         });
+        announceSave(toast, saved);
       } else {
         await sharePngOrMessage({
           uri,

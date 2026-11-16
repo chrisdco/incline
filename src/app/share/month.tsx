@@ -24,6 +24,7 @@ import { useSettings } from '@/store/settings-store';
 import { useShallow } from 'zustand/react/shallow';
 import {
   captureSharePng,
+  announceSave,
   downloadSharePng,
   nextShareBackgroundId,
   shareBackgroundById,
@@ -77,12 +78,13 @@ export default function ShareMonthScreen() {
         toast({ title: 'Image capture failed', description: 'Sharing as text instead.', variant: 'warning' });
       }
       if (mode === 'download') {
-        await downloadSharePng({
+        const saved = await downloadSharePng({
           uri,
           filename: `incline-month-${recap.monthKey}.png`,
           title: 'Save monthly report',
           message,
         });
+        announceSave(toast, saved);
       } else {
         await sharePngOrMessage({
           uri,

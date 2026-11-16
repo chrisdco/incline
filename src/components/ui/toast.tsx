@@ -18,7 +18,7 @@ interface ToastAction {
   onPress: () => void;
 }
 
-interface ToastOptions {
+export interface ToastOptions {
   title: string;
   description?: string;
   variant?: ToastVariant;
