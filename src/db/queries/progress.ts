@@ -4,6 +4,7 @@ import { estimated1RM, isoDate, startOfWeek } from '../calc';
 import { computeBestWeeklyStreak, computeWeeklyStreak, countLocalDays, localDayKey } from '@/lib/consistency';
 import { ghostWorkingSql } from '@/lib/session-ghost';
 import type {
+  DailyVolume,
   MonthlyVolume,
   MuscleDistribution,
   MuscleGroup,
@@ -215,7 +216,8 @@ export async function getPeriodStats(range: ProgressRange): Promise<PeriodStats>
     if (mb) { mb.volume += v; mb.sessions += 1; }
     else { monthlyMap.set(mk, { month: mk, volume: v, sessions: 1 }); }
   }
-  const monthly = [...monthlyMap.values()].sort((a, b) => a.month.localeCompare(b.month));
+  const monthly = contiguousMonths(monthlyMap, range === 'all' ? logs[0]?.started_at ?? now : now - 11 * 31 * DAY_MS, now);
+  const daily = lastDays(trendLogs, now, 7);
 
   const setCount = await db.getFirstAsync<{ c: number }>(
     'SELECT COUNT(*) as c FROM set_entries s JOIN workout_logs w ON w.id = s.workout_log_id WHERE w.ended_at IS NOT NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL AND s.completed = 1 AND w.started_at >= ?',
@@ -268,11 +270,52 @@ export async function getPeriodStats(range: ProgressRange): Promise<PeriodStats>
     streak: await getStreak(),
     weeklyVolume: weekly,
     monthlyVolume: monthly,
+    dailyVolume: daily,
     muscleDistribution,
     previousMuscleDistribution,
     prs,
     trend,
   };
+}
+
+/** Every month from `from` to `now`, zero-filled, so the chart never shows gaps as missing bars. */
+export function contiguousMonths(map: Map<string, MonthlyVolume>, from: number, now: number): MonthlyVolume[] {
+  const out: MonthlyVolume[] = [];
+  const d = new Date(from);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  const end = monthKey(now);
+  for (let guard = 0; guard < 600; guard++) {
+    const key = monthKey(d.getTime());
+    out.push(map.get(key) ?? { month: key, volume: 0, sessions: 0 });
+    if (key === end) break;
+    d.setMonth(d.getMonth() + 1);
+  }
+  return out;
+}
+
+/** The last `n` local days (today last), zero-filled. */
+export function lastDays(logs: { started_at: number; volume: number }[], now: number, n: number): DailyVolume[] {
+  const out: DailyVolume[] = [];
+  const index = new Map<string, DailyVolume>();
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - (n - 1));
+  for (let i = 0; i < n; i++) {
+    const day = isoDate(d.getTime());
+    const b = { day, volume: 0, sessions: 0 };
+    out.push(b);
+    index.set(day, b);
+    d.setDate(d.getDate() + 1);
+  }
+  for (const l of logs) {
+    const b = index.get(isoDate(l.started_at));
+    if (b) {
+      b.volume += l.volume;
+      b.sessions += 1;
+    }
+  }
+  return out;
 }
 
 function computeTrend(logs: { started_at: number; volume: number }[], now: number, bucketLen: number): Trend | null {

@@ -108,6 +108,7 @@ export {
 export { getSessionExerciseNote, getSessionExerciseNotes, saveSessionExerciseNote } from './session-notes';
 
 export {
+  getAllTimePrLeaderboard,
   getWorkoutPrCount,
   getWorkoutPrs,
   type WorkoutPr,

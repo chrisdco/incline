@@ -421,6 +421,13 @@ export interface ProgressStats {
   lastSessionAt: number | null;
 }
 
+export interface DailyVolume {
+  /** Local date, YYYY-MM-DD. */
+  day: string;
+  volume: number;
+  sessions: number;
+}
+
 export interface PeriodStats {
   range: ProgressRange;
   sessions: number;
@@ -428,7 +435,10 @@ export interface PeriodStats {
   totalSets: number;
   streak: number;
   weeklyVolume: WeeklyVolume[];
+  /** Contiguous months (empty ones included) so the chart spans the range: 12 for `1y`, first log → now for `all`. */
   monthlyVolume: MonthlyVolume[];
+  /** The last 7 days, oldest first, empty days included (`1w` chart). */
+  dailyVolume: DailyVolume[];
   muscleDistribution: MuscleDistribution[];
   /** Equal-length window immediately before the selected range (empty for `all`). */
   previousMuscleDistribution: MuscleDistribution[];
