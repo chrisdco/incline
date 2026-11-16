@@ -3,7 +3,7 @@ import { Alert, Platform, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2,
+  Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse,
 } from 'lucide-react-native';
 import { AiMark } from '@/components/ai/ai-mark';
 import { PhotoStorageRow } from '@/components/account/photo-storage-row';
@@ -101,6 +101,7 @@ export default function SettingsScreen() {
     restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe,
     showSessionGhost,
     aiExplanationsEnabled,
+    healthConnectEnabled: healthOn,
     calendarHeatMetric, weekStartsOn, keepScreenAwake, weeklyWorkoutGoal,
     workoutRemindersEnabled, weeklyDigestEnabled,
     monthlyRecapEnabled, abandonedNudgeEnabled, streakNudgeEnabled, milestoneNudgeEnabled,
@@ -265,6 +266,14 @@ export default function SettingsScreen() {
               subtitle={notificationsOn ? `${notificationsOn} on` : 'Off'}
               onPress={() => router.push('/(app)/notifications' as Href)}
             />
+            {Platform.OS === 'android' ? (
+              <ListRow
+                icon={<Icon icon={HeartPulse} size={18} color="muted-foreground" />}
+                title="Health"
+                subtitle={healthOn ? 'Health Connect on' : 'Off'}
+                onPress={() => router.push('/(app)/health' as Href)}
+              />
+            ) : null}
             <ListRow
               icon={<Icon icon={AiMark} size={18} color="muted-foreground" />}
               title="AI coaching"

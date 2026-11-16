@@ -52,6 +52,7 @@ const WORKING: Record<string, string> = {
   get_profile: 'Checking your profile…',
   search_exercises: 'Searching exercises…',
   propose_routine_change: 'Drafting a change…',
+  get_readiness: 'Checking your sleep and recovery…',
 };
 
 type Row =

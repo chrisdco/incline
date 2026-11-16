@@ -42,6 +42,25 @@ Use: readiness rule (#7) on Home and in Ask (a `get_readiness` read tool),
 weight into bodyweight entries (dedupe by source + time).
 Write workouts to Health Connect: after read is proven (Build 3).
 
+## Implementation (Build 2)
+
+- `src/health/`: `types.ts` (the port), `health-connect.ts` (adapter; the
+  library is `require`d lazily so an older APK running a newer OTA degrades
+  to "unavailable" instead of crashing), `readiness.ts` (the rule, pure),
+  `query.ts` (TanStack key `['health','snapshot']`, 30 min stale; external
+  source, so not table-led).
+- Readiness rule: last night's sleep (<6h strain, <7h mild), HRV vs the
+  median of the user's last 4 weeks (≤ −15% strain), resting HR (≥ +5 bpm
+  strain); needs 5+ baseline days. Two strains or <5h sleep → suggests
+  Tired, one → OK, all good → Fresh. Advisory: shown on the Home check-in,
+  the user still picks.
+- Weight: last 30 days imported into `bodyweight_entries` once a day; a
+  reading within 10 min of any row (deleted ones too) is the same weigh-in.
+- Ask: `get_readiness` (chat-only, `health` category) is offered only when
+  Health Connect and "Use in Ask" are both on. Daily totals, never samples.
+- Settings → Health (Android only): connect, per-type status, manage
+  permissions in Health Connect, "Use in Ask".
+
 ## Requirements and gotchas
 
 - Native: new build, not OTA. `minSdkVersion` 26 via `expo-build-properties`.

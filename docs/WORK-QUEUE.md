@@ -109,10 +109,11 @@ work lands first; native pieces ship together in one build.
    SSO stays as fallback; email code stays.
 3. [ ] **Voice in Ask:** hold-to-talk, `expo-speech-recognition`, on-device
    where supported (ASK-UI.md "Voice").
-4. [ ] **Health Connect, read only** — [HEALTH.md](decisions/HEALTH.md):
+4. [x] **Health Connect, read only** — [HEALTH.md](decisions/HEALTH.md):
    `HealthPort` + Health Connect adapter, sleep/RHR/HRV/weight/steps,
    readiness on Home and an Ask read tool. Samsung Health via its Health
-   Connect sync.
+   Connect sync. Code merged; needs the Build 2 APK to run (native module,
+   minSdk 26). Verify on the phone after step 6.
 5. [ ] **G2 attestation** (FOUNDATION-REVIEW.md).
 6. [ ] **Build + install:** EAS preview build on the user's phone, full gym
    smoke (installed directly, not through Play). User-owned before it: Google

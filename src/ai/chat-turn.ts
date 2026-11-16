@@ -104,6 +104,8 @@ export function sourceLabel(name: string, result: Json): string {
       return 'Your profile';
     case 'search_exercises':
       return 'Exercise library';
+    case 'get_readiness':
+      return 'Sleep and recovery';
     default:
       return name;
   }
@@ -197,6 +199,9 @@ export function readLines(parts: readonly ChatPart[]): string[] {
         break;
       case 'list_workouts':
         line = `Looked at ${arr(r.workouts).length} workouts`;
+        break;
+      case 'get_readiness':
+        line = 'Looked at your sleep and recovery';
         break;
       default:
         line = `Looked at ${sourceLabel(p.name, p.result).toLowerCase()}`;
