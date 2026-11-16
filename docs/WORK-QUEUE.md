@@ -107,6 +107,9 @@ work lands first; native pieces ship together in one build.
    Needs Google Cloud OAuth clients (user): Android (package + SHA-1 of the EAS
    signing cert), iOS (bundle id), web (what Clerk verifies against). Browser
    SSO stays as fallback; email code stays.
+   Android code merged (#379, `src/auth/use-google-sign-in.ts`), gated on
+   `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` in eas.json; waiting on the
+   user's OAuth clients. Apple: iOS phase.
 3. [x] **Voice in Ask:** hold-to-talk, `expo-speech-recognition`, on-device
    where supported (ASK-UI.md "Voice"). Mic replaces send while the input
    is empty; `src/ai/voice.ts`. Lands with the Build 2 APK.
@@ -115,6 +118,10 @@ work lands first; native pieces ship together in one build.
    readiness on Home and an Ask read tool. Samsung Health via its Health
    Connect sync. Code merged; needs the Build 2 APK to run (native module,
    minSdk 26). Verify on the phone after step 6.
+4b. [x] **Share fixes (Build 2):** Download saves to Photos
+   (`expo-media-library`, write-only), image + caption + optional app link
+   (`react-native-share`, `EXPO_PUBLIC_APP_SHARE_URL`), square export
+   (#377, #378).
 5. [ ] **G2 attestation** (FOUNDATION-REVIEW.md).
 6. [ ] **Build + install:** EAS preview build on the user's phone, full gym
    smoke (installed directly, not through Play). User-owned before it: Google
