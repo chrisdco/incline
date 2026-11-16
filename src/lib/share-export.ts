@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import type { ViewInstance } from 'react-native';
-import { Share } from 'react-native';
+import { Linking, Share } from 'react-native';
+import type { ToastOptions } from '@/components/ui/toast';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { cacheDirectory, copyAsync } from 'expo-file-system/legacy';
@@ -43,18 +44,54 @@ export async function sharePngOrMessage(opts: {
 
 /** Copy the captured PNG so the OS share sheet can Save Image / Files. */
 export async function saveSharePng(uri: string, filename: string): Promise<string> {
-  const dest = `${cacheDirectory ?? ''}${filename}`;
+  // Unique name: copying onto an earlier save fails on some platforms.
+  const dest = `${cacheDirectory ?? ''}${Date.now()}-${filename}`;
   await copyAsync({ from: uri, to: dest });
   return dest;
 }
 
+type MediaLibrary = typeof import('expo-media-library');
+
+/** Lazy: a build without the native module falls back to the share sheet. */
+function mediaLibrary(): MediaLibrary | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: the native module may be absent
+    return require('expo-media-library') as MediaLibrary;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Saves straight to the photo library. Write-only access: no read prompt,
+ * and Android 10+ needs no permission at all. Null when unavailable or denied.
+ */
+export async function savePngToPhotos(uri: string): Promise<'photos' | 'denied' | null> {
+  const ml = mediaLibrary();
+  if (!ml) return null;
+  try {
+    const perm = await ml.requestPermissionsAsync(true);
+    if (!perm.granted) return 'denied';
+    await ml.Asset.create(uri);
+    return 'photos';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Download = save to Photos. Falls back to the share sheet (Save image /
+ * Files) when the library is unavailable, then to a text share.
+ */
 export async function downloadSharePng(opts: {
   uri: string | null;
   filename: string;
   title: string;
   message: string;
-}): Promise<'saved' | 'message'> {
+}): Promise<'photos' | 'denied' | 'saved' | 'message'> {
   if (opts.uri) {
+    const photos = await savePngToPhotos(opts.uri);
+    if (photos) return photos;
     const dest = await saveSharePng(opts.uri, opts.filename);
     const canShareFile = await Sharing.isAvailableAsync();
     if (canShareFile) {
@@ -67,4 +104,20 @@ export async function downloadSharePng(opts: {
   }
   await Share.share({ message: opts.message, title: opts.title });
   return 'message';
+}
+
+/** The toast after Download; the share-sheet fallbacks need none. */
+export function announceSave(
+  toast: (t: ToastOptions) => void,
+  result: Awaited<ReturnType<typeof downloadSharePng>>,
+): void {
+  if (result === 'photos') toast({ title: 'Saved to Photos', variant: 'success' });
+  if (result === 'denied') {
+    toast({
+      title: 'Photos access is off',
+      description: 'Allow it in Settings to save cards directly.',
+      variant: 'warning',
+      action: { label: 'Settings', onPress: () => void Linking.openSettings() },
+    });
+  }
 }
