@@ -7,6 +7,7 @@
  * answer in Ask can't drift (AI-CHAT §3A.3).
  */
 import { estimate1rm, toUnit, unitLabel, weeklyMuscleSets, type Unit } from './tools.ts';
+import { reviewMuscleSets } from '../coaching/muscle-review.ts';
 
 /** One completed set, source-agnostic. Weights in kg. */
 export interface NormSet {
@@ -102,7 +103,13 @@ export function shapeTrainingSummary(sets: readonly NormSet[], weeks: number, no
         .sort((a, b) => avg(b[1]) - avg(a[1]))
         .map(([m, xs]) => [m, { weekly: xs.map((x) => Math.round(x * 10) / 10), average: avg(xs) }]),
     ),
-    note: 'Completed sets only. Primary muscle counts 1, each secondary 0.5.',
+    // Same rules as the app's Muscle distribution review (contracts/coaching).
+    review: reviewMuscleSets({
+      weeks,
+      current: Object.entries(perMuscle).map(([muscle, xs]) => ({ muscle, sets: xs.reduce((t, x) => t + x, 0) })),
+      previous: [],
+    }),
+    note: 'Completed sets only. Primary muscle counts 1, each secondary 0.5. review: deterministic coaching points (act > watch > good).',
   };
 }
 

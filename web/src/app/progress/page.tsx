@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { getDashboard, getMuscleSplit, getRecords, getTrainingDays, getVolumeSeries } from "@/lib/queries";
 import { Card, SectionTitle, Stat } from "@/components/ui";
 import { formatVolume, formatWeight } from "@/lib/format";
+import { foldMuscles, reviewMuscleSets, type ReviewTone } from "@/lib/muscle-review";
 
 const VolumeChart = dynamicChart(() => import("@/components/charts").then((m) => m.VolumeChart), {
   ssr: false,
@@ -134,8 +135,22 @@ async function VolumeSection({ unit }: { unit: string }) {
   );
 }
 
+const TONE_STYLE: Record<ReviewTone, string> = {
+  act: "bg-rose-500",
+  watch: "bg-amber-500",
+  good: "bg-teal-600",
+};
+
 async function MusclesSection() {
-  const muscles30 = await getMuscleSplit(30);
+  const [muscles30, muscles60] = await Promise.all([getMuscleSplit(30), getMuscleSplit(60)]);
+  const current = foldMuscles(muscles30);
+  const recent = new Map(current.map((m) => [m.muscle, m.sets]));
+  const review = reviewMuscleSets({
+    weeks: 30 / 7,
+    current,
+    // The 30 days before: the 60-day split minus the last 30.
+    previous: foldMuscles(muscles60).map((m) => ({ muscle: m.muscle, sets: m.sets - (recent.get(m.muscle) ?? 0) })),
+  });
   const topMuscleSets = muscles30.reduce((a, m) => a + m.sets, 0);
   if (muscles30.length === 0) return <p className="text-sm text-zinc-500">No working sets in range.</p>;
   return (
@@ -151,6 +166,22 @@ async function MusclesSection() {
           </div>
         ))}
       </div>
+      {review ? (
+        <div className="mt-5 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+          <p className="text-sm font-medium">{review.summary}</p>
+          <ul className="mt-3 flex flex-col gap-3">
+            {review.points.map((p) => (
+              <li key={p.id} className="flex gap-3">
+                <span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TONE_STYLE[p.tone]}`} />
+                <div>
+                  <p className="text-sm font-medium">{p.title}</p>
+                  <p className="text-xs text-zinc-500">{p.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </>
   );
 }
