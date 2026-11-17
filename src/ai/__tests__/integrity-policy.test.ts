@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { attestedLimit, integrityProblem, type IntegrityPayload } from '../integrity';
+import { attestedLimit, integrityProblem, type IntegrityPayload } from '@/contracts/ai/integrity';
 
 const NOW = 1_800_000_000_000;
 const expectations = { packageName: 'com.chrisdc777.incline', nonce: 'n-1', now: NOW, certDigests: ['ourcert'] };
