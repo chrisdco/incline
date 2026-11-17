@@ -13,6 +13,13 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v58.0.0/ before 
 - **List projections stay light.** Browse/search rows need name/muscle/equipment only — don't drag instructions/images into list queries (next escalation when catalog passes low thousands).
 - **No new SWR hand-rolls** — reads are TanStack Query (adopted, #228). Zustand stays for UI/session state only.
 
+## Surface parity (app, MCP, web, Ask)
+
+- **Every data feature or insight lands on all surfaces, or the PR says why not.** The app, the MCP server (`supabase/functions/incline-mcp`), the web app (`web/`) and in-app Ask read the same data; they must say the same thing about it.
+- **Shared logic lives in `src/contracts/`** (pure TS, synced to Deno by `scripts/sync-contracts.mjs`; web imports it by relative path, see `web/src/lib/muscle-review.ts`). Put rules, thresholds and output shapes there, never inside a screen.
+- **MCP/Ask tool output comes from `src/contracts/mcp/shape.ts`**, so a new insight added there reaches Claude (MCP) and Ask at once.
+- **PR checklist line:** app / MCP / web / Ask: done, or a named follow-up in docs/WORK-QUEUE.md.
+
 ## UI changes (screenshots beat memory)
 
 - **Tokens and layout primitives first:** [docs/design/SYSTEM.md](docs/design/SYSTEM.md) (type scale, spacing, radius, `Section` / `ListRow` / `StatBlock`). Lint rejects arbitrary style values.

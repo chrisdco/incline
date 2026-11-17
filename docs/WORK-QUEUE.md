@@ -136,6 +136,12 @@ work lands first; native pieces ship together in one build.
 5b. [x] **Settings + Profile order:** appearance first (mode inline), then
    basics, rest timer, in-session, linked screens; Profile gains Records,
    Progress photos, Appearance and Settings rows.
+5d. [x] **Surface parity:** muscle review moved to `src/contracts/coaching`;
+   MCP/Ask `get_training_summary` returns it, web Progress shows it. Rule in
+   AGENTS.md. Open: period headline and the full-range volume chart on web.
+5e. [ ] **After Build 2:** point EAS env `EXPO_PUBLIC_APP_SHARE_URL` (preview,
+   production, development) at the Build 2 page, then OTA. It points at the
+   2026-11-05 alpha build for now.
 5c. [ ] **Later (user call):** the teal/blue gradient background theme as an
    Appearance preset (presets list in `appearance.tsx`).
 6. [ ] **Build + install:** EAS preview build on the user's phone, full gym
