@@ -17,6 +17,9 @@ import {
   Trophy,
   UserX,
   FlaskConical,
+  Medal,
+  Images,
+  Palette,
 } from 'lucide-react-native';
 import { SignOutRow } from '@/components/account/sign-out-row';
 import { Icon } from '@/components/common/icon';
@@ -185,6 +188,12 @@ export default function ProfileScreen() {
               onPress={() => router.push('/(app)/milestones' as Href)}
             />
             <ListRow
+              icon={<Icon icon={Medal} size={18} color="muted-foreground" />}
+              title="Records"
+              subtitle="Your best lift on every exercise"
+              onPress={() => router.push('/(app)/records' as Href)}
+            />
+            <ListRow
               icon={<Icon icon={Dumbbell} size={18} color="muted-foreground" />}
               title="Exercises"
               onPress={() => router.push('/(app)/exercises' as Href)}
@@ -193,6 +202,11 @@ export default function ProfileScreen() {
               icon={<Icon icon={Ruler} size={18} color="muted-foreground" />}
               title="Measurements"
               onPress={() => router.push('/(app)/measurements' as Href)}
+            />
+            <ListRow
+              icon={<Icon icon={Images} size={18} color="muted-foreground" />}
+              title="Progress photos"
+              onPress={() => router.push('/(app)/progress-photos' as Href)}
             />
             <ListRow
               icon={<Icon icon={Calendar} size={18} color="muted-foreground" />}
@@ -204,6 +218,24 @@ export default function ProfileScreen() {
               title="Calculators"
               subtitle="1RM and plates"
               onPress={() => router.push('/(app)/calculators' as Href)}
+            />
+          </ListGroup>
+        </Section>
+
+        {/* Appearance is one tap from Profile too: it's the setting people look for first. */}
+        <Section title="App">
+          <ListGroup>
+            <ListRow
+              icon={<Icon icon={Palette} size={18} color="muted-foreground" />}
+              title="Appearance"
+              subtitle="Light or dark, theme and accent"
+              onPress={() => router.push('/(app)/appearance' as Href)}
+            />
+            <ListRow
+              icon={<Icon icon={SettingsIcon} size={18} color="muted-foreground" />}
+              title="Settings"
+              subtitle="Workout, rest timer, notifications, AI, backup"
+              onPress={() => router.push('/(app)/settings' as Href)}
             />
           </ListGroup>
         </Section>

@@ -125,7 +125,19 @@ work lands first; native pieces ship together in one build.
 4c. [x] **Build 2 polish:** resizable widgets (size passed to layouts via
    the expo-widgets patch), monochrome notification + themed icon,
    launcher shortcuts (`plugins/with-app-shortcuts.js`).
-5. [ ] **G2 attestation** (FOUNDATION-REVIEW.md).
+5. [x] **G2 attestation** (FOUNDATION-REVIEW.md): Play Integrity token + one-time
+   nonce on every managed-AI call (`src/ai/integrity.ts`); the edge grades it
+   (`_shared/edge/integrity.ts`, policy in `src/contracts/ai/integrity.ts`) and
+   halves the quota for unverified calls, testers exempt, never a hard block.
+   Off until the user adds the secrets: enable the Play Integrity API in Cloud
+   project 693170623852, create a service account, set
+   `PLAY_INTEGRITY_SERVICE_ACCOUNT` + `PLAY_INTEGRITY_CERT_SHA256` (EAS
+   signing cert, base64url) as function secrets. iOS App Attest: iOS phase.
+5b. [x] **Settings + Profile order:** appearance first (mode inline), then
+   basics, rest timer, in-session, linked screens; Profile gains Records,
+   Progress photos, Appearance and Settings rows.
+5c. [ ] **Later (user call):** the teal/blue gradient background theme as an
+   Appearance preset (presets list in `appearance.tsx`).
 6. [ ] **Build + install:** EAS preview build on the user's phone, full gym
    smoke (installed directly, not through Play). User-owned before it: Google
    OAuth clients (2). The Play Console Health Connect declaration is only

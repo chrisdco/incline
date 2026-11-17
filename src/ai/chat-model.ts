@@ -1,3 +1,4 @@
+import { integrityHeaders } from '@/ai/integrity';
 import type { ModelPort } from '@/contracts/ai/chat';
 import { AI_CONSENT_HEADER, AI_CONSENT_VERSION } from '@/contracts/ai/consent';
 
@@ -54,6 +55,7 @@ export function chooseChatModel(inputs: ChainInputs): ChatModelChoice {
           return {
             apikey: anonKey,
             [AI_CONSENT_HEADER]: String(AI_CONSENT_VERSION),
+            ...(await integrityHeaders()),
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           };
         },
