@@ -153,7 +153,7 @@ work lands first; native pieces ship together in one build.
    app carousel sheet on Home (replaces the Ask sheet; swipe, dots, fixed
    height, Try it / Later, seen per item), web dashboard cards, and each
    build's notes in `app_releases` filled from the pack by the webhook.
-   Later: an "update available" card once builds carry a comparable version.
+   Update-available card done (runtime compare, RELEASES.md "Update available").
 5h. [ ] **Abuse layers 6-8** ([ABUSE.md](decisions/ABUSE.md)): new-account
    quota ramp, anomaly alert, cost ledger.
 5c. [ ] **Later (user call):** the teal/blue gradient background theme as an

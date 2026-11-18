@@ -1,0 +1,45 @@
+/**
+ * "Update available" (RELEASES.md): does this install need a new APK?
+ *
+ * OTA updates already reach every build with the same runtime, so a new
+ * binary only matters when its runtime differs from the installed one
+ * (native code changed). Build numbers are not used: versionCode is not
+ * incremented per build. Pure, so the app, web and tests share it.
+ */
+
+export interface ReleaseRow {
+  id: string;
+  profile: string;
+  channel: string | null;
+  runtime_version: string | null;
+  title: string | null;
+  notes: { id: string; title: string; body: string }[] | null;
+  completed_at: string;
+}
+
+export interface Installed {
+  /** EAS Update channel baked into the binary (alpha, beta…). */
+  channel: string | null;
+  runtimeVersion: string | null;
+}
+
+/** Channels whose builds are installed from the share link (Play handles production). */
+export const SIDELOAD_CHANNELS: ReadonlySet<string> = new Set(['alpha', 'beta', 'preview']);
+
+/**
+ * The newest build on this install's channel that it can't get by OTA, or
+ * null. If the installed runtime appears in the feed on a build newer than
+ * the candidate, this install is ahead (or equal) and nothing is shown.
+ */
+export function buildUpdateFor(rows: readonly ReleaseRow[], installed: Installed): ReleaseRow | null {
+  const { channel, runtimeVersion } = installed;
+  if (!channel || !runtimeVersion || !SIDELOAD_CHANNELS.has(channel)) return null;
+  const mine = rows
+    .filter((r) => (r.channel ?? r.profile) === channel && r.runtime_version)
+    .sort((a, b) => Date.parse(b.completed_at) - Date.parse(a.completed_at));
+  const latest = mine[0];
+  if (!latest || latest.runtime_version === runtimeVersion) return null;
+  const ownAt = mine.find((r) => r.runtime_version === runtimeVersion)?.completed_at;
+  if (ownAt && Date.parse(ownAt) >= Date.parse(latest.completed_at)) return null;
+  return latest;
+}
