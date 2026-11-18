@@ -4,6 +4,8 @@ import { useSSO } from '@clerk/expo';
 import { useSignInWithGoogle } from '@clerk/expo/google';
 import * as Linking from 'expo-linking';
 
+import { reportError } from '@/lib/monitoring';
+
 /**
  * Google sign-in for both auth screens.
  *
@@ -36,8 +38,13 @@ export function useGoogleSignIn(): () => Promise<GoogleSignInResult> {
     let native: Awaited<ReturnType<typeof startGoogleAuthenticationFlow>>;
     try {
       native = await startGoogleAuthenticationFlow();
-    } catch {
-      // Native module missing or no usable Google account setup: the browser still works.
+    } catch (e) {
+      // Native module missing (older build), no Google account, or a config
+      // mismatch (DEVELOPER_ERROR: the Android OAuth client's SHA-1 doesn't
+      // match the signing key). The browser still works, but report why so
+      // a silent fallback can't hide a broken native path.
+      const code = (e as { code?: unknown } | null)?.code;
+      reportError(e, { area: 'google_sign_in', fallback: 'browser', code: typeof code === 'string' || typeof code === 'number' ? code : 'none' });
       return browser();
     }
     if (!native.createdSessionId) return 'cancelled';

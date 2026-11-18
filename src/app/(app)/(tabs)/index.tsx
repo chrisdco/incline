@@ -39,6 +39,7 @@ import { homeWeekCaption } from '@/lib/home-context';
 import { ReadinessCheckIn } from '@/components/home/readiness-checkin';
 import { healthSnapshotQuery } from '@/health/query';
 import { WhatsNewSheet } from '@/components/whats-new/whats-new-sheet';
+import { BuildUpdateCard } from '@/components/home/build-update-card';
 import { AskAboutLink } from '@/components/ai/ask-about-button';
 import type { FeedWorkoutLog, MuscleGroup } from '@/db/types';
 
@@ -207,6 +208,7 @@ export default function HomeScreen() {
       ) : null}
 
       <View className="mt-4 gap-3">
+        <BuildUpdateCard />
         {heroLoading ? (
           <CardSkeleton />
         ) : programWorkout ? (

@@ -41,6 +41,17 @@ One pack, `src/contracts/releases/whats-new.ts`, read by every surface:
 
 Add an item in the same PR as its feature; never reuse an id.
 
+## Update available
+
+Home shows one compact row, "Update available · tap to install", when the
+newest build on the install's channel has a different **runtime** from the
+installed one (`src/contracts/releases/update-check.ts`). Same runtime
+means OTA already delivers it, so nothing shows. Build numbers aren't
+compared because versionCode isn't bumped per build. Sideloaded channels
+only (alpha, beta, preview); Play handles production. One feed read per
+app open, tap opens the always-latest link, ✕ hides it until the next
+build. Web already links the newest APK; MCP and Ask don't install apps.
+
 ## Rules
 
 - Only shareable profiles count; emulator/development builds never reach users.
