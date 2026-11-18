@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useSSO } from '@clerk/expo';
 import { useSignInWithGoogle } from '@clerk/expo/google';
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import * as Updates from 'expo-updates';
 
@@ -19,7 +20,22 @@ import { reportError } from '@/lib/monitoring';
  * needs EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID too; until then iOS uses
  * the browser flow.
  */
-const NATIVE_ENABLED = Platform.OS === 'android' && !!process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID;
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID;
+const NATIVE_ENABLED = Platform.OS === 'android' && !!WEB_CLIENT_ID;
+
+// Clerk reads the client ID from Constants.expoConfig.extra or its own
+// process.env, but EXPO_PUBLIC_ values are only inlined into app code, never
+// node_modules, so it found nothing ("credentials not found"). Hand it over
+// at runtime: putting it in app config would change the native fingerprint
+// and need a new APK.
+if (WEB_CLIENT_ID) {
+  try {
+    const cfg = Constants.expoConfig as { extra?: Record<string, unknown> } | null;
+    if (cfg) cfg.extra = { ...cfg.extra, EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID: WEB_CLIENT_ID };
+  } catch {
+    // Read-only config: the browser fallback still works.
+  }
+}
 
 const TEST_CHANNELS: ReadonlySet<string> = new Set(['alpha', 'beta', 'preview', 'emulator']);
 
