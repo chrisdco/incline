@@ -34,7 +34,7 @@ import { useHaptics } from '@/hooks/use-haptics';
 import { useSettings } from '@/store/settings-store';
 import { MOVEMENT_LABELS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/lib/labels';
 import { estimated1RM, formatDisplayVolume, formatDisplayWeight, formatWeight, relativeTime } from '@/db/calc';
-import { kgToDisplay, weightLabel } from '@/lib/units';
+import { kgToDisplay } from '@/lib/units';
 import { RULE_LABEL, type CoachingSignal } from '@/coaching/reason';
 import type { Exercise, ExerciseHistoryRow, Unit } from '@/db/types';
 import { resolveWeightUnit } from '@/lib/units';
@@ -383,19 +383,16 @@ function ProgressTab({
         title="Estimated 1RM"
         points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.e1rm, unit) }))}
         formatValue={(v) => formatDisplayWeight(v, unit)}
-        valueHint={weightLabel(unit)}
       />
       <SeriesAreaChart
         title="Set Volume"
         points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.setVolume, unit) }))}
         formatValue={(v) => formatDisplayVolume(v, unit)}
-        valueHint="volume"
       />
       <SeriesAreaChart
         title="Heaviest weight"
         points={chartPoints.map((p) => ({ label: p.label, value: kgToDisplay(p.weight, unit) }))}
         formatValue={(v) => formatDisplayWeight(v, unit)}
-        valueHint={weightLabel(unit)}
       />
     </View>
   );

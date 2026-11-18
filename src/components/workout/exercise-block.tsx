@@ -45,6 +45,17 @@ const SET_TYPE_BADGE: Record<SetType, { letter: string; className: string }> = {
  * PR / load assist details live behind a compact info affordance so the set
  * list stays the primary focus during logging.
  */
+/** Shown set numbers: a drop set keeps the number of the set above it. */
+function setNumbers(sets: readonly { setType?: string | null }[]): number[] {
+  const out: number[] = [];
+  let n = 0;
+  for (const s of sets) {
+    if (s.setType !== 'drop') n += 1;
+    out.push(n);
+  }
+  return out;
+}
+
 const UNIT_OPTIONS: { value: Unit; label: string }[] = [
   { value: 'metric', label: 'kg' },
   { value: 'imperial', label: 'lb' },
@@ -173,10 +184,7 @@ function ExerciseBlockImpl({
   const fatigue = useMemo(() => detectSetFatigue(sets, unit), [sets, unit]);
 
   // Shown set numbers: drops ride on the set above and don't take one.
-  const numbers = useMemo(() => {
-    let n = 0;
-    return sets.map((s) => (s.setType === 'drop' ? n : ++n));
-  }, [sets]);
+  const numbers = useMemo(() => setNumbers(sets), [sets]);
   const lastDoneId = useMemo(() => [...sets].reverse().find((s) => s.completed)?.id ?? null, [sets]);
   const canDropAfter = (i: number) => !(sets[i + 1]?.setType === 'drop' && !sets[i + 1]?.completed);
 
