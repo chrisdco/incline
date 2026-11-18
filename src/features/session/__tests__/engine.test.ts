@@ -244,6 +244,38 @@ describe('session engine: per-set write order (#164)', () => {
   });
 });
 
+describe('session engine: typed reps survive Add set', () => {
+  it('adds and reloads only after the pending reps write lands', async () => {
+    const logs = { 1: workout(1, [set(1, 10, { reps: 0 })]) };
+    const h = harness(logs);
+    await h.engine.open(1);
+    let release!: () => void;
+    const slow = new Promise<void>((r) => {
+      release = r;
+    });
+    (h.deps.updateSet as ReturnType<typeof vi.fn>).mockImplementation(async (id: number, p: SetPatch) => {
+      await slow;
+      const row = logs[1].sets.find((x) => x.id === id)!;
+      Object.assign(row, p);
+      h.calls.push('update');
+    });
+    (h.deps.addSet as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      h.calls.push('add');
+      return 2;
+    });
+    h.engine.changeReps(1, 8);
+    const adding = h.engine.addSet(10);
+    await tick();
+    expect(h.calls).toEqual([]);
+    release();
+    await adding;
+    await tick();
+    await tick();
+    expect(h.calls).toEqual(['update', 'add']);
+    expect(h.engine.store.getState().session?.sets[0].reps).toBe(8);
+  });
+});
+
 describe('session engine: undo stack (#167)', () => {
   it('keeps every removal undoable, each independently', async () => {
     const h = harness({ 1: workout(1, [set(1, 10), set(2, 10), set(3, 10)]) });
