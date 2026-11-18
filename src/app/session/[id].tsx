@@ -49,6 +49,7 @@ import { METRIC_ICONS } from '@/lib/metric-icons';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
 
 import type { MuscleGroup, SetEntry, Unit } from '@/db/types';
+import { resolveDumbbellLoad, type DumbbellLoad } from '@/contracts/coaching/dumbbell-load';
 import { resolveWeightUnit } from '@/lib/units';
 import { pickRestTarget } from '@/lib/rest-ongoing/build';
 
@@ -107,6 +108,7 @@ export default function SessionScreen() {
   const { impact, notify } = useHaptics();
   const clear = useActiveWorkout((s) => s.clear);
   const { unit, setUnit, restSoundEnabled, keepScreenAwake, showWarmUpSets, showRpe, showSessionGhost, exerciseWeightUnits, setExerciseWeightUnit } = useSettings(useShallow((s) => ({ unit: s.unit, setUnit: s.setUnit, restSoundEnabled: s.restSoundEnabled, keepScreenAwake: s.keepScreenAwake, showWarmUpSets: s.showWarmUpSets, showRpe: s.showRpe, showSessionGhost: s.showSessionGhost, exerciseWeightUnits: s.exerciseWeightUnits, setExerciseWeightUnit: s.setExerciseWeightUnit })));
+  const { dumbbellLoadDefault, exerciseDumbbellLoads, setExerciseDumbbellLoad } = useSettings(useShallow((s) => ({ dumbbellLoadDefault: s.dumbbellLoadDefault, exerciseDumbbellLoads: s.exerciseDumbbellLoads, setExerciseDumbbellLoad: s.setExerciseDumbbellLoad })));
 
   // Until open() claims this id (first effect), paint the reopen cache (§7)
   // and none of a previous session's assist state.
@@ -241,6 +243,18 @@ export default function SessionScreen() {
       return;
     }
     setExerciseWeightUnit(refKey, next === unit ? null : next);
+  };
+
+  // Per-exercise dumbbell meaning ("each" / "total"). Picking the account
+  // default clears the override so the exercise follows it again. A label
+  // only: stored weights never change (contracts/coaching/dumbbell-load).
+  const changeDumbbellLoad = (exerciseId: number, next: DumbbellLoad) => {
+    const refKey = groups.find((x) => x.exerciseId === exerciseId)?.refKey;
+    if (!refKey) {
+      toast({ title: 'This exercise can’t have its own setting yet', variant: 'warning' });
+      return;
+    }
+    setExerciseDumbbellLoad(refKey, next === dumbbellLoadDefault ? null : next);
   };
 
   // The exercise the user should be working on: first group that still has an
@@ -504,6 +518,13 @@ export default function SessionScreen() {
                   showRpe={showRpe}
                   loadSuggestion={suggestionMap[g.exerciseId] ?? null}
                   equipment={equipmentById.get(g.exerciseId)}
+                  dumbbellLoad={resolveDumbbellLoad(
+                    equipmentById.get(g.exerciseId),
+                    exerciseDumbbellLoads,
+                    g.refKey,
+                    dumbbellLoadDefault,
+                  )}
+                  onChangeDumbbellLoad={changeDumbbellLoad}
                 />
               </View>
               </Animated.View>

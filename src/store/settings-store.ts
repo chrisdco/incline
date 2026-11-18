@@ -1,3 +1,9 @@
+import {
+  DUMBBELL_LOAD_DEFAULT,
+  isDumbbellLoad,
+  sanitizeDumbbellLoads,
+  type DumbbellLoad,
+} from '@/contracts/coaching/dumbbell-load';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
@@ -30,6 +36,9 @@ interface SettingsState extends Settings {
   setUnit: (unit: Unit) => void;
   /** Override one exercise's display unit; null returns it to the global unit. */
   setExerciseWeightUnit: (refKey: string, unit: Unit | null) => void;
+  setDumbbellLoadDefault: (mode: DumbbellLoad) => void;
+  /** Override one dumbbell exercise; null returns it to the default. */
+  setExerciseDumbbellLoad: (refKey: string, mode: DumbbellLoad | null) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setAccentTheme: (accent: AccentTheme) => void;
   /** Full-skin presets: aurora ids enable the neon skin, anything else is Classic. */
@@ -182,6 +191,8 @@ export const useSettings = create<SettingsState>()(
       showSessionGhost: true,
       exerciseWeightUnits: {},
       progressionAutonomy: DEFAULT_PROGRESSION_AUTONOMY,
+      dumbbellLoadDefault: DUMBBELL_LOAD_DEFAULT,
+      exerciseDumbbellLoads: {},
       exerciseMediaStyle: 'auto',
       exerciseMediaAnimation: 'cycle',
       devExerciseMediaOverride: 'off',
@@ -192,6 +203,14 @@ export const useSettings = create<SettingsState>()(
           if (unit == null) delete next[refKey];
           else next[refKey] = unit;
           return { exerciseWeightUnits: next };
+        }),
+      setDumbbellLoadDefault: (dumbbellLoadDefault) => set({ dumbbellLoadDefault }),
+      setExerciseDumbbellLoad: (refKey, mode) =>
+        set((s) => {
+          const next = { ...s.exerciseDumbbellLoads };
+          if (mode == null) delete next[refKey];
+          else next[refKey] = mode;
+          return { exerciseDumbbellLoads: next };
         }),
       setThemeMode: (themeMode) => set({ themeMode }),
       setAccentTheme: (accentTheme) =>
@@ -306,6 +325,8 @@ export const useSettings = create<SettingsState>()(
         dismissedAnnouncementIds: s.dismissedAnnouncementIds,
         showSessionGhost: s.showSessionGhost,
         exerciseWeightUnits: s.exerciseWeightUnits,
+        dumbbellLoadDefault: s.dumbbellLoadDefault,
+        exerciseDumbbellLoads: s.exerciseDumbbellLoads,
         progressionAutonomy: s.progressionAutonomy,
         exerciseMediaStyle: s.exerciseMediaStyle,
         exerciseMediaAnimation: s.exerciseMediaAnimation,
@@ -323,6 +344,8 @@ export const useSettings = create<SettingsState>()(
           ...p,
           accentTheme: isAccentTheme(p.accentTheme) ? p.accentTheme : DEFAULT_ACCENT_THEME,
           exerciseWeightUnits: sanitizeExerciseWeightUnits(p.exerciseWeightUnits),
+          dumbbellLoadDefault: isDumbbellLoad(p.dumbbellLoadDefault) ? p.dumbbellLoadDefault : DUMBBELL_LOAD_DEFAULT,
+          exerciseDumbbellLoads: sanitizeDumbbellLoads(p.exerciseDumbbellLoads),
           lastClassicAccent:
             p.lastClassicAccent != null && isAccentTheme(p.lastClassicAccent) && !isAuroraAccent(p.lastClassicAccent)
               ? p.lastClassicAccent
@@ -465,6 +488,8 @@ export function resetAccountPreferences(options: { keepDeviceSettings?: boolean 
       showSessionGhost: ACCOUNT_PREF_DEFAULTS.showSessionGhost,
       exerciseWeightUnits: {},
       progressionAutonomy: DEFAULT_PROGRESSION_AUTONOMY,
+      dumbbellLoadDefault: DUMBBELL_LOAD_DEFAULT,
+      exerciseDumbbellLoads: {},
       // Local-only prefs never sync, so a new account would otherwise inherit
       // the previous owner's reminders, nudges, media taste, and behavior
       // flags (deviceDefaults above, on a switch). Account-derived local
@@ -506,6 +531,8 @@ export function applyRemoteAccountPrefs(payload: Record<string, unknown>): void 
       showSessionGhost: prefs.showSessionGhost,
       exerciseWeightUnits: sanitizeExerciseWeightUnits(prefs.exerciseWeightUnits),
       progressionAutonomy: prefs.progressionAutonomy,
+      dumbbellLoadDefault: prefs.dumbbellLoadDefault,
+      exerciseDumbbellLoads: prefs.exerciseDumbbellLoads,
     }));
   } finally {
     suppressPrefSync = false;

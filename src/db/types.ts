@@ -1,3 +1,4 @@
+import type { DumbbellLoad } from '@/contracts/coaching/dumbbell-load';
 import type { RepQuality } from '@/contracts/coaching/rep-quality';
 import type { ProgressionAutonomy } from '@/contracts/coaching/progression';
 
@@ -288,6 +289,10 @@ export interface Settings {
   exerciseWeightUnits: Record<string, Unit>;
   /** Plateau fixes autonomy (synced account pref; PROGRESSION.md §6). */
   progressionAutonomy: ProgressionAutonomy;
+  /** What a dumbbell weight means by default (contracts/coaching/dumbbell-load). */
+  dumbbellLoadDefault: DumbbellLoad;
+  /** Per-exercise dumbbell overrides, keyed by `exerciseRefKey`. */
+  exerciseDumbbellLoads: Record<string, DumbbellLoad>;
   /** Exercise demonstration artwork source preference. */
   exerciseMediaStyle: ExerciseMediaStyle;
   /** Cycle illustration frames on the detail screen vs a single static pose. */

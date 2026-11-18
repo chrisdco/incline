@@ -6,6 +6,7 @@
  * names a model sees then come from one place, so an answer in Claude and an
  * answer in Ask can't drift (AI-CHAT §3A.3).
  */
+import { DUMBBELL_LOAD_MEANING, type DumbbellLoad } from '../coaching/dumbbell-load.ts';
 import { argText, estimate1rm, KG_PER_LB, rankExercises, toUnit, unitLabel, weeklyMuscleSets, type ExerciseCandidate, type Unit } from './tools.ts';
 import { reviewMuscleSets } from '../coaching/muscle-review.ts';
 import {
@@ -80,7 +81,14 @@ export function shapePersonalRecords(sets: readonly NormSet[], unit: Unit, limit
 }
 
 /** `sets` already filtered to one exercise. */
-export function shapeExerciseHistory(exercise: string, sets: readonly NormSet[], unit: Unit, limit: number) {
+export function shapeExerciseHistory(
+  exercise: string,
+  sets: readonly NormSet[],
+  unit: Unit,
+  limit: number,
+  /** Dumbbell exercises: what the logged number means (resolveDumbbellLoad). */
+  dumbbellLoad: DumbbellLoad | null = null,
+) {
   const byLog = new Map<string, { date: string; best: { weight: number; reps: number }; e1rm: number | null; sets: number }>();
   for (const s of sets) {
     const cur = byLog.get(s.logId) ?? { date: s.startedAt, best: { weight: 0, reps: 0 }, e1rm: null, sets: 0 };
@@ -94,6 +102,7 @@ export function shapeExerciseHistory(exercise: string, sets: readonly NormSet[],
   return {
     exercise,
     unit: unitLabel(unit),
+    ...(dumbbellLoad ? { weight_is: DUMBBELL_LOAD_MEANING[dumbbellLoad] } : {}),
     sessions: sessions.map((s) => ({
       date: s.date,
       sets: s.sets,
