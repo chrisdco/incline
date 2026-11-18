@@ -1,3 +1,4 @@
+import { isDumbbellExercise, resolveDumbbellLoad, type DumbbellLoad } from '@/contracts/coaching/dumbbell-load';
 import type { Json, ToolSpec } from '@/contracts/ai/chat';
 import { CHAT_READ_TOOLS } from '@/contracts/ai/chat-tools';
 import {
@@ -93,6 +94,26 @@ async function recentSets(db: Db, sinceMs?: number): Promise<NormSet[]> {
 
 /** Custom exercise ids seen by `candidates`, for search's `source` field. */
 const customIds = new Set<number>();
+
+/** What a dumbbell exercise's numbers mean on this device (synced pref). */
+async function dumbbellLoadFor(db: Db, id: number, equipment: string): Promise<DumbbellLoad | null> {
+  if (!isDumbbellExercise(equipment)) return null;
+  try {
+    const row = await db.getFirstAsync<{ is_custom: number; uuid: string | null; external_id: string | null }>(
+      'SELECT is_custom, uuid, external_id FROM exercises WHERE id = ?',
+      id,
+    );
+    // Lazy: the store pulls in RN modules the integration runner lacks.
+    const [{ exerciseRefKeyFromRow }, { useSettings }] = await Promise.all([
+      import('@/sync/exercise-ref'),
+      import('@/store/settings-store'),
+    ]);
+    const st = useSettings.getState();
+    return resolveDumbbellLoad(equipment, st.exerciseDumbbellLoads, row ? exerciseRefKeyFromRow(id, row) : null, st.dumbbellLoadDefault);
+  } catch {
+    return resolveDumbbellLoad(equipment, undefined, null, undefined);
+  }
+}
 
 async function candidates(db: Db, ids?: number[]): Promise<ExerciseCandidate[]> {
   const where = ids ? `AND id IN (${ph(ids.length)})` : '';
@@ -285,7 +306,8 @@ const HANDLERS: Record<string, (db: Db, args: Args) => Promise<unknown>> = {
       );
     }
     const key = hit.ref.refType === 'custom' ? hit.ref.userExerciseId : '';
-    return shapeExerciseHistory(hit.name, sets.filter((s) => s.exerciseKey === key), unit, argLimit(args, 10));
+    const load = await dumbbellLoadFor(db, Number(key), hit.equipment);
+    return shapeExerciseHistory(hit.name, sets.filter((s) => s.exerciseKey === key), unit, argLimit(args, 10), load);
   },
 
   async get_personal_records(db, args) {

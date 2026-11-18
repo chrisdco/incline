@@ -73,6 +73,17 @@ MCP), facts in the Ask prompt, "Saved to memory · Undo", What Incline knows.
 - `memory-feedback`: rejecting the same exercise twice suggests "avoids X".
 - `memory-decay`: "still true?" for goals/constraints after 8 weeks.
 
+## Dumbbell weight — remaining
+
+Shipped: per-exercise "Each / Total" (session ⋯ menu), account default in
+Settings, `KG EACH` / `KG TOTAL` column header, `weight_is` in MCP / Ask
+exercise history (`src/contracts/coaching/dumbbell-load.ts`).
+
+- `dumbbell-web`: show "per dumbbell" / "both dumbbells" next to weights on
+  web exercise and workout pages (read the same `user_preferences` payload).
+- `dumbbell-workout-tool`: add `weight_is` to MCP / Ask `get_workout` sets for
+  dumbbell exercises (history already has it).
+
 ## With the next APK (native rebuild)
 
 Things that need a new binary anyway; fold them into the next build, never
@@ -83,6 +94,14 @@ installed builds).
   `extra.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` from env, then delete the
   runtime hand-over in `src/auth/use-google-sign-in.ts` (#393). The hand-over
   works; this is the documented way and drops a mutation of Constants.
+- **Better loading screen** (user ask, 2026-11-18). Two halves: the native
+  splash (`expo-splash-screen` config: logo, background per theme, dark
+  variant) needs this build; the JS hand-off after it (DB open, migrations,
+  first query) can ship by OTA. Goal: splash → content with no blank frame or
+  bare spinner; hold the splash until the first screen's data is ready
+  (`SplashScreen.preventAutoHideAsync` + hide on first render), then a short
+  fade. Reference first: Apple/Material launch-screen guidance, Hevy/Strong
+  cold starts. Measure cold start before and after.
 
 ## Verify-to-close (merged code, proof still owed)
 

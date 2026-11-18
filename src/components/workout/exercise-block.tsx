@@ -2,6 +2,12 @@ import { memo, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Tappable } from '@/components/ui/tappable';
 
+import {
+  DUMBBELL_LOAD_HEADER,
+  DUMBBELL_LOAD_SHORT,
+  DUMBBELL_LOADS,
+  type DumbbellLoad,
+} from '@/contracts/coaching/dumbbell-load';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/common/icon';
 import { Body, Caption, Text } from '@/components/common/text';
@@ -19,7 +25,7 @@ import type { SetEntry, SetType, Unit } from '@/db/types';
 import type { ExercisePRSummary } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
 import { detectSetFatigue } from '@/coaching/fatigue';
-import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical, Scale } from 'lucide-react-native';
+import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical, Scale, Dumbbell } from 'lucide-react-native';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { SET_CELL, SET_COL } from './set-layout';
 
@@ -92,12 +98,17 @@ function ExerciseBlockImpl({
   showRpe = true,
   loadSuggestion,
   equipment,
+  dumbbellLoad,
+  onChangeDumbbellLoad,
   className,
 }: {
   name: string;
   exerciseId: number;
   /** Catalog equipment, looked up once by the session (drives the plates hint). */
   equipment?: string | null;
+  /** Dumbbell exercises only: what the weight number means. Null hides it. */
+  dumbbellLoad?: DumbbellLoad | null;
+  onChangeDumbbellLoad?: (exerciseId: number, mode: DumbbellLoad) => void;
   sets: SetEntry[];
   unit: Unit;
   lastSets: SetEntry[];
@@ -145,7 +156,7 @@ function ExerciseBlockImpl({
   const typeMenuSet = typeMenuSetId != null ? sets.find((s) => s.id === typeMenuSetId) ?? null : null;
   const rowRefs = useRef<(SetRowHandle | null)[]>([]);
   const completedCount = sets.filter((s) => s.completed).length;
-  const weightLabel = unit === 'metric' ? 'KG' : 'LB';
+  const weightLabel = `${unit === 'metric' ? 'kg' : 'lb'}${dumbbellLoad ? ` ${DUMBBELL_LOAD_HEADER[dumbbellLoad]}` : ''}`;
 
   const activeSet = sets.find((s) => !s.completed) ?? sets.at(-1) ?? null;
   const workingWeight = activeSet && activeSet.weight > 0
@@ -457,6 +468,24 @@ function ExerciseBlockImpl({
                   value={unit}
                   onChange={(next) => {
                     if (next !== unit) onChangeUnit(exerciseId, next);
+                  }}
+                />
+              </View>
+            </View>
+          ) : null}
+          {dumbbellLoad && onChangeDumbbellLoad ? (
+            <View className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <Icon icon={Dumbbell} size={18} color="foreground" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">Dumbbell weight</Text>
+                <Caption>One dumbbell, or both together</Caption>
+              </View>
+              <View style={{ width: 128 }}>
+                <SegmentedControl<DumbbellLoad>
+                  values={DUMBBELL_LOADS.map((m) => ({ value: m, label: DUMBBELL_LOAD_SHORT[m] }))}
+                  value={dumbbellLoad}
+                  onChange={(next) => {
+                    if (next !== dumbbellLoad) onChangeDumbbellLoad(exerciseId, next);
                   }}
                 />
               </View>

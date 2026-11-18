@@ -5,7 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse, Moon, Sun, Smartphone,
   TrendingUp,
+  Dumbbell,
 } from 'lucide-react-native';
+import { DUMBBELL_LOADS } from '@/contracts/coaching/dumbbell-load';
 import { AiMark } from '@/components/ai/ai-mark';
 import { PhotoStorageRow } from '@/components/account/photo-storage-row';
 import { GymsSettingsRow } from '@/components/gyms/gyms-settings-row';
@@ -104,6 +106,7 @@ export default function SettingsScreen() {
     unit, themeMode, accentTheme, hapticsEnabled,
     restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe,
     showSessionGhost,
+    dumbbellLoadDefault, setDumbbellLoadDefault,
     progressionAutonomy,
     aiExplanationsEnabled,
     healthConnectEnabled: healthOn,
@@ -297,6 +300,23 @@ export default function SettingsScreen() {
               title="Last-session comparison"
               subtitle="Show last time on the workout preview and live session">
               <Switch value={showSessionGhost} onValueChange={setShowSessionGhost} accessibilityLabel="Last-session comparison" />
+            </ListRow>
+            <ListRow
+              stacked
+              icon={<Icon icon={Dumbbell} size={18} color="muted-foreground" />}
+              title="Dumbbell weight"
+              subtitle="What you type for dumbbell exercises. Change it per exercise from its ⋯ menu">
+              <View className="flex-row flex-wrap gap-1.5">
+                {DUMBBELL_LOADS.map((m) => (
+                  <Chip
+                    key={m}
+                    size="sm"
+                    label={m === 'each' ? 'One dumbbell' : 'Both together'}
+                    selected={dumbbellLoadDefault === m}
+                    onPress={() => setDumbbellLoadDefault(m)}
+                  />
+                ))}
+              </View>
             </ListRow>
             <ListRow icon={<Icon icon={MonitorSmartphone} size={18} color="muted-foreground" />} title="Keep screen on" subtitle="While a workout session is open">
               <Switch value={keepScreenAwake} onValueChange={setKeepScreenAwake} accessibilityLabel="Keep screen on during workout" />

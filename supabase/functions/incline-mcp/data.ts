@@ -1,3 +1,4 @@
+import { isDumbbellExercise, resolveDumbbellLoad, sanitizeDumbbellLoads } from '../_shared/contracts/coaching/dumbbell-load.ts';
 import { asRepQuality, effectiveRpe } from '../_shared/contracts/coaching/rep-quality.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import type { MemoryFact } from '../_shared/contracts/ai/chat.ts';
@@ -518,7 +519,14 @@ async function exerciseHistory(ctx: Ctx, args: Args): Promise<ToolResult> {
   }
   const key = refKey(hit.ref);
   const mine = normSets(sets, meta).filter((s) => s.exerciseKey === key);
-  return { ok: true, data: shapeExerciseHistory(hit.name, mine, unit, argLimit(args, 10)) };
+  const prefs: Record<string, unknown> = isDumbbellExercise(hit.equipment) ? await prefsOf(ctx) : {};
+  const load = resolveDumbbellLoad(
+    hit.equipment,
+    sanitizeDumbbellLoads(prefs.exerciseDumbbellLoads),
+    key,
+    prefs.dumbbellLoadDefault,
+  );
+  return { ok: true, data: shapeExerciseHistory(hit.name, mine, unit, argLimit(args, 10), load) };
 }
 
 async function personalRecords(ctx: Ctx, args: Args): Promise<ToolResult> {
@@ -581,9 +589,13 @@ function experienceOf(row: Record<string, unknown> | null): Experience {
   return e === 'beginner' || e === 'advanced' ? e : 'intermediate';
 }
 
-async function autonomyOf(ctx: Ctx): Promise<string> {
+async function prefsOf(ctx: Ctx): Promise<Record<string, unknown>> {
   const { data } = await ctx.db.from('user_preferences').select('payload').eq('user_id', ctx.userId).maybeSingle();
-  const v = (data?.payload as Record<string, unknown> | undefined)?.progressionAutonomy;
+  return (data?.payload as Record<string, unknown> | undefined) ?? {};
+}
+
+async function autonomyOf(ctx: Ctx): Promise<string> {
+  const v = (await prefsOf(ctx)).progressionAutonomy;
   return typeof v === 'string' ? v : 'ask';
 }
 

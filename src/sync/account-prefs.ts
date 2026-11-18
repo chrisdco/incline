@@ -1,5 +1,11 @@
 /** Cross-device account preferences. Unit lives on profile; AI opt-in stays per-device. */
 import { DEFAULT_PROGRESSION_AUTONOMY, isProgressionAutonomy, type ProgressionAutonomy } from '@/contracts/coaching/progression';
+import {
+  DUMBBELL_LOAD_DEFAULT,
+  isDumbbellLoad,
+  sanitizeDumbbellLoads,
+  type DumbbellLoad,
+} from '@/contracts/coaching/dumbbell-load';
 import { DEFAULT_ACCENT_THEME } from '@/lib/accent-themes';
 
 export const ACCOUNT_PREF_KEYS = [
@@ -16,6 +22,8 @@ export const ACCOUNT_PREF_KEYS = [
   'showSessionGhost',
   'exerciseWeightUnits',
   'progressionAutonomy',
+  'dumbbellLoadDefault',
+  'exerciseDumbbellLoads',
 ] as const;
 
 export const ACCOUNT_PREFS_ROW = 'prefs';
@@ -39,6 +47,10 @@ export type AccountPrefsPayload = {
   exerciseWeightUnits: Record<string, 'metric' | 'imperial'>;
   /** Plateau fixes: ask first, auto-apply low-risk coach fixes, or off (PROGRESSION.md §6). */
   progressionAutonomy: ProgressionAutonomy;
+  /** What a dumbbell weight means by default (contracts/coaching/dumbbell-load). */
+  dumbbellLoadDefault: DumbbellLoad;
+  /** exerciseRefKey → 'each' | 'total'; overrides the default per exercise. */
+  exerciseDumbbellLoads: Record<string, DumbbellLoad>;
 };
 
 export const ACCOUNT_PREF_DEFAULTS: AccountPrefsPayload = {
@@ -55,6 +67,8 @@ export const ACCOUNT_PREF_DEFAULTS: AccountPrefsPayload = {
   showSessionGhost: true,
   exerciseWeightUnits: {},
   progressionAutonomy: DEFAULT_PROGRESSION_AUTONOMY,
+  dumbbellLoadDefault: DUMBBELL_LOAD_DEFAULT,
+  exerciseDumbbellLoads: {},
 };
 
 export function pickAccountPrefs(state: Record<string, unknown>): AccountPrefsPayload {
@@ -96,6 +110,10 @@ export function pickAccountPrefs(state: Record<string, unknown>): AccountPrefsPa
     progressionAutonomy: isProgressionAutonomy(state.progressionAutonomy)
       ? state.progressionAutonomy
       : DEFAULT_PROGRESSION_AUTONOMY,
+    dumbbellLoadDefault: isDumbbellLoad(state.dumbbellLoadDefault)
+      ? state.dumbbellLoadDefault
+      : DUMBBELL_LOAD_DEFAULT,
+    exerciseDumbbellLoads: sanitizeDumbbellLoads(state.exerciseDumbbellLoads),
   };
 }
 
