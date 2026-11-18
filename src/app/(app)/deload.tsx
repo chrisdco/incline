@@ -15,6 +15,7 @@ import { DELOAD_APPLIED_KEY, DELOAD_SNOOZE_KEY, deloadSnoozeUntil, detectDeload 
 import { deloadReasonDetail } from '@/coaching/reason';
 import { COACHING_RULE_VERSION } from '@/coaching/types';
 import { useProgressStats } from '@/hooks/use-data';
+import { recordDeloadDecision } from '@/db/queries/progression';
 import { kvStorage } from '@/db/kv';
 import { createDeloadTemplate, getSuggestedTemplate, getTemplate } from '@/db/queries';
 import type { WorkoutTemplate } from '@/db/types';
@@ -53,6 +54,8 @@ export default function DeloadScreen() {
     try {
       const newId = await createDeloadTemplate(source.id);
       await kvStorage.setItem(DELOAD_APPLIED_KEY, String(Date.now()));
+      // Synced record, so MCP, web and Ask see the deload too (PROGRESSION.md §3).
+      await recordDeloadDecision().catch(() => undefined);
       toast({ title: 'Deload routine ready', description: 'Original routine was not changed.', variant: 'success' });
       router.replace(`/template/${newId}` as Href);
     } catch (e) {

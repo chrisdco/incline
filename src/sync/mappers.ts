@@ -207,6 +207,31 @@ export function buildCloudUpsertRow(
     };
   }
 
+  if (cloudTable === 'progression_decisions') {
+    let params: unknown = null;
+    if (typeof payload.params === 'string') {
+      try {
+        params = JSON.parse(payload.params);
+      } catch {
+        params = null;
+      }
+    } else if (payload.params && typeof payload.params === 'object') params = payload.params;
+    return {
+      ...row,
+      exercise_ref: payload.exercise_ref,
+      exercise_name: payload.exercise_name ?? '',
+      remedy: payload.remedy,
+      params,
+      status: payload.status,
+      source: payload.source,
+      rationale: payload.rationale ?? '',
+      rule_version: payload.rule_version ?? '',
+      resume_after_sessions: payload.resume_after_sessions ?? null,
+      resolved_at: msToIso(payload.resolved_at as number | null),
+      created_at: msToIso(payload.created_at as number) ?? msToIso(updatedAt),
+    };
+  }
+
   if (cloudTable === 'gyms') {
     return {
       ...row,
@@ -354,6 +379,7 @@ function singletonPushOp(
         defaultRestSeconds: payload.defaultRestSeconds,
         showSessionGhost: payload.showSessionGhost,
         exerciseWeightUnits: payload.exerciseWeightUnits ?? {},
+        progressionAutonomy: payload.progressionAutonomy,
       },
       updated_at,
       deleted_at: msToIso(deletedAt),

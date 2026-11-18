@@ -19,13 +19,26 @@ import {
   type Unit,
 } from '../_shared/contracts/mcp/tools.ts';
 import {
+  buildProposal,
   clampWeeks,
+  liftHistories,
+  matchLift,
+  normalizeRefKey,
+  parseProgressionProposal,
+  progressionFindings,
+  shapeProgressionReview,
+  shapeProposalResult,
   shapeExerciseHistory,
   shapePersonalRecords,
   shapeTrainingSummary,
   shapeWorkoutList,
   type NormSet,
 } from '../_shared/contracts/mcp/shape.ts';
+import {
+  parseRemedyPlan,
+  PROGRESSION_RULE_VERSION,
+  type ProgressionDecision,
+} from '../_shared/contracts/coaching/progression.ts';
 
 /**
  * Tool handlers. Every query is scoped to the token's user and skips
@@ -38,6 +51,8 @@ type Args = Record<string, unknown>;
 interface Ctx {
   db: SupabaseClient;
   userId: string;
+  /** Token label slug, for `mcp:<client>` attribution. */
+  client?: string;
 }
 
 const SET_SCAN = 5000;
@@ -338,9 +353,11 @@ interface SetRow extends RefCols {
   reps: number;
   completed: boolean;
   created_at: string;
+  rpe?: number | null;
+  set_type?: string | null;
 }
 
-const SET_COLS = 'workout_log_id, ref_type, catalog_external_id, user_exercise_id, set_index, weight, reps, completed, created_at';
+const SET_COLS = 'workout_log_id, ref_type, catalog_external_id, user_exercise_id, set_index, weight, reps, completed, created_at, rpe, set_type';
 
 async function listWorkouts(ctx: Ctx, args: Args): Promise<ToolResult> {
   const { unit } = await profile(ctx);
@@ -471,6 +488,8 @@ function normSets(sets: (SetRow & { startedAt: string })[], meta: Map<string, Ex
       reps: s.reps,
       primaryMuscle: m?.primaryMuscle ?? null,
       secondaryMuscles: m?.secondaryMuscles ?? [],
+      rpe: s.rpe ?? null,
+      setType: s.set_type ?? null,
     });
   }
   return out;
@@ -505,6 +524,128 @@ async function trainingSummary(ctx: Ctx, args: Args): Promise<ToolResult> {
   return { ok: true, data: shapeTrainingSummary(normSets(sets, meta), weeks, now) };
 }
 
+// ---------- progression (PROGRESSION.md) ----------
+
+type Experience = 'beginner' | 'intermediate' | 'advanced';
+
+interface DecisionRow {
+  id: string;
+  exercise_ref: string;
+  remedy: string;
+  params: unknown;
+  status: string;
+  source: string;
+  rationale: string;
+  rule_version: string;
+  resume_after_sessions: number | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+async function decisions(ctx: Ctx): Promise<ProgressionDecision[]> {
+  const { data } = await ctx.db
+    .from('progression_decisions')
+    .select('id, exercise_ref, remedy, params, status, source, rationale, rule_version, resume_after_sessions, created_at, resolved_at')
+    .eq('user_id', ctx.userId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  return ((data ?? []) as DecisionRow[]).map((r) => ({
+    id: r.id,
+    exerciseKey: normalizeRefKey(r.exercise_ref),
+    remedy: r.remedy as ProgressionDecision['remedy'],
+    params: parseRemedyPlan(r.params),
+    status: r.status as ProgressionDecision['status'],
+    source: r.source as ProgressionDecision['source'],
+    rationale: r.rationale,
+    ruleVersion: r.rule_version,
+    resumeAfterSessions: r.resume_after_sessions,
+    createdAt: Date.parse(r.created_at),
+    resolvedAt: r.resolved_at ? Date.parse(r.resolved_at) : null,
+  }));
+}
+
+function experienceOf(row: Record<string, unknown> | null): Experience {
+  const e = row?.experience_level;
+  return e === 'beginner' || e === 'advanced' ? e : 'intermediate';
+}
+
+async function autonomyOf(ctx: Ctx): Promise<string> {
+  const { data } = await ctx.db.from('user_preferences').select('payload').eq('user_id', ctx.userId).maybeSingle();
+  const v = (data?.payload as Record<string, unknown> | undefined)?.progressionAutonomy;
+  return typeof v === 'string' ? v : 'ask';
+}
+
+async function progressionReview(ctx: Ctx): Promise<ToolResult> {
+  const { unit, row } = await profile(ctx);
+  const [{ sets, meta }, decided, autonomy] = await Promise.all([recentSets(ctx), decisions(ctx), autonomyOf(ctx)]);
+  return {
+    ok: true,
+    data: shapeProgressionReview(normSets(sets, meta), {
+      unit,
+      experience: experienceOf(row),
+      decisions: decided,
+      now: Date.now(),
+      autonomy,
+    }),
+  };
+}
+
+/** Proposals land in the user's inbox; a runaway client can't flood it. */
+const DAILY_PROPOSALS = 20;
+
+async function proposeProgression(ctx: Ctx, args: Args): Promise<ToolResult> {
+  const parsed = parseProgressionProposal(args);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const { data: allowed } = await ctx.db.rpc('ai_task_consume', {
+    p_user: ctx.userId,
+    p_task: 'mcp:propose',
+    p_limit: DAILY_PROPOSALS,
+    p_window_seconds: 86_400,
+  });
+  if (allowed !== true) return { ok: false, error: `That's ${DAILY_PROPOSALS} suggestions today; the user can review them in the app first.` };
+  const p = parsed.value;
+  const { unit, row } = await profile(ctx);
+  const [{ sets, meta }, decided] = await Promise.all([recentSets(ctx), decisions(ctx)]);
+  const norm = normSets(sets, meta);
+  const lift = matchLift(p.exercise, liftHistories(norm));
+  if (!lift) return { ok: false, error: `No recent sets of "${p.exercise}". Use a name from get_progression_review.` };
+  const findings = progressionFindings(norm, { unit, experience: experienceOf(row), decisions: decided, now: Date.now() });
+  const finding = findings.find((f) => f.exerciseKey === lift.key) ?? null;
+
+  let substitute: { key: string; name: string } | null = null;
+  if (p.remedy === 'swap' && p.substitute) {
+    const all = [...(await customRows(ctx)), ...SEED, ...(await catalogRows(ctx.db))];
+    const hit = matchExercise(p.substitute, all);
+    if (hit) substitute = { key: normalizeRefKey(refKey(hit.ref)), name: hit.name };
+  }
+  const built = buildProposal(p, lift, finding, unit, substitute);
+  if (!built.ok) return { ok: false, error: built.error };
+  const out = shapeProposalResult(lift, built.plan, built.assessment, unit);
+  if (!out.queued) return { ok: true, data: out };
+
+  const now = new Date().toISOString();
+  const { error } = await ctx.db.from('progression_decisions').insert({
+    id: crypto.randomUUID(),
+    user_id: ctx.userId,
+    exercise_ref: lift.key,
+    exercise_name: lift.name.slice(0, 120),
+    remedy: built.plan.remedy,
+    params: built.plan,
+    status: 'proposed',
+    source: `mcp:${ctx.client ?? 'client'}`,
+    rationale: p.rationale,
+    rule_version: PROGRESSION_RULE_VERSION,
+    created_at: now,
+    updated_at: now,
+  });
+  if (error) {
+    console.error('propose_progression_change insert failed', error.message);
+    return { ok: false, error: 'Could not save the suggestion; try again.' };
+  }
+  return { ok: true, data: out };
+}
+
 async function searchExercises(ctx: Ctx, args: Args): Promise<ToolResult> {
   const query = argText(args, 'query', 80);
   if (!query) return { ok: false, error: 'query is required' };
@@ -535,8 +676,10 @@ export const HANDLERS: Record<string, (ctx: Ctx, args: Args) => Promise<ToolResu
   get_exercise_history: exerciseHistory,
   get_personal_records: personalRecords,
   get_training_summary: trainingSummary,
+  get_progression_review: progressionReview,
+  propose_progression_change: proposeProgression,
   search_exercises: searchExercises,
   create_routine: createRoutine,
 };
 
-export const WRITE_TOOLS = new Set(['create_routine']);
+export const WRITE_TOOLS = new Set(['create_routine', 'propose_progression_change']);

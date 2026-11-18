@@ -139,9 +139,21 @@ work lands first; native pieces ship together in one build.
 5d. [x] **Surface parity:** muscle review moved to `src/contracts/coaching`;
    MCP/Ask `get_training_summary` returns it, web Progress shows it. Rule in
    AGENTS.md. Open: period headline and the full-range volume chart on web.
-5e. [ ] **After Build 2:** point EAS env `EXPO_PUBLIC_APP_SHARE_URL` (preview,
-   production, development) at the Build 2 page, then OTA. It points at the
-   2026-11-05 alpha build for now.
+5e. [x] **Always-latest share link** ([RELEASES.md](decisions/RELEASES.md)):
+   `EXPO_PUBLIC_APP_SHARE_URL` → `app-release` function, fed by the EAS build
+   webhook. **User:** add repo secrets `EXPO_TOKEN` + `EAS_WEBHOOK_SECRET` so
+   `release-mirror.yml` keeps a permanent copy (EAS artifacts expire ~14 days).
+5f. [x] **Plateau fixes on every surface** ([PROGRESSION.md](decisions/PROGRESSION.md)):
+   app (Progress, fix screen, workout summary, home insight, lift page,
+   Settings → Coaching), MCP (review + propose), Ask (review + propose card),
+   web (Progress section, Send to app / Not now / Withdraw, Settings).
+   Verify on device after the next OTA: Claude proposal → inbox → Apply →
+   next session load → Undo.
+5g. [ ] **What's new cards:** Ask-style cards from `app-release?format=json`
+   (`app_releases.notes`), on app home after an update and on web. Notes
+   are written per release.
+5h. [ ] **Abuse layers 6-8** ([ABUSE.md](decisions/ABUSE.md)): new-account
+   quota ramp, anomaly alert, cost ledger.
 5c. [ ] **Later (user call):** the teal/blue gradient background theme as an
    Appearance preset (presets list in `appearance.tsx`).
 6. [ ] **Build + install:** EAS preview build on the user's phone, full gym

@@ -462,6 +462,60 @@ export async function applyRemoteRow(
     return 'ok';
   }
 
+  if (table === 'progression_decisions') {
+    const local = await db.getFirstAsync<{ id: number; updated_at: number }>(
+      'SELECT id, updated_at FROM progression_decisions WHERE uuid = ?',
+      id,
+    );
+    if (local && local.updated_at > updatedAt) return 'ok';
+    // Cloud `params` is jsonb; local keeps the JSON text.
+    const params = remote.params == null ? null : JSON.stringify(remote.params);
+    const resolvedAt = isoToMs(remote.resolved_at as string | null);
+    const resume = remote.resume_after_sessions == null ? null : asNum(remote.resume_after_sessions);
+    if (local) {
+      await db.runAsync(
+        `UPDATE progression_decisions SET exercise_ref = ?, exercise_name = ?, remedy = ?, params = ?, status = ?, source = ?,
+           rationale = ?, rule_version = ?, resume_after_sessions = ?, resolved_at = ?, updated_at = ?, deleted_at = ?
+         WHERE id = ?`,
+        asStr(remote.exercise_ref),
+        asStr(remote.exercise_name),
+        asStr(remote.remedy),
+        params,
+        asStr(remote.status),
+        asStr(remote.source),
+        asStr(remote.rationale),
+        asStr(remote.rule_version),
+        resume,
+        resolvedAt,
+        updatedAt,
+        deletedAt,
+        local.id,
+      );
+    } else if (!deletedAt) {
+      const created = isoToMs(asStr(remote.created_at)) ?? updatedAt;
+      await db.runAsync(
+        `INSERT INTO progression_decisions (uuid, exercise_ref, exercise_name, remedy, params, status, source, rationale,
+           rule_version, resume_after_sessions, created_at, resolved_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        asStr(remote.exercise_ref),
+        asStr(remote.exercise_name),
+        asStr(remote.remedy),
+        params,
+        asStr(remote.status),
+        asStr(remote.source),
+        asStr(remote.rationale),
+        asStr(remote.rule_version),
+        resume,
+        created,
+        resolvedAt,
+        updatedAt,
+        deletedAt,
+      );
+    }
+    return 'ok';
+  }
+
   if (table === 'body_measurements') {
     const local = await db.getFirstAsync<{ id: number; updated_at: number }>(
       'SELECT id, updated_at FROM body_measurements WHERE uuid = ?',

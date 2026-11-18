@@ -1,3 +1,5 @@
+import type { ProgressionAutonomy } from '@/contracts/coaching/progression';
+
 export type MuscleGroup =
   | 'chest'
   | 'back'
@@ -281,6 +283,8 @@ export interface Settings {
    * `unit`. Display only: stored loads are always kg (TECH-DECISIONS §15).
    */
   exerciseWeightUnits: Record<string, Unit>;
+  /** Plateau fixes autonomy (synced account pref; PROGRESSION.md §6). */
+  progressionAutonomy: ProgressionAutonomy;
   /** Exercise demonstration artwork source preference. */
   exerciseMediaStyle: ExerciseMediaStyle;
   /** Cycle illustration frames on the detail screen vs a single static pose. */

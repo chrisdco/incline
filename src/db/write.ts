@@ -21,6 +21,7 @@ export type DbTable =
   | 'photo_blob_queue'
   | 'program_workouts'
   | 'programs'
+  | 'progression_decisions'
   | 'session_exercise_notes'
   | 'set_entries'
   | 'sync_outbox'

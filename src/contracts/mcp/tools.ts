@@ -92,6 +92,14 @@ export const TOOLS: ToolDef[] = [
     annotations: READ,
   },
   {
+    name: 'get_progression_review',
+    title: 'Stalled lifts and fixes',
+    description:
+      "Lifts that stopped progressing (4 sessions in a row without beating their best estimated 1RM), each with the likely cause, Incline's evidence-graded fix and alternatives, plus fixes already proposed, applied or declined. Use for plateau, 'why am I stuck' and 'what should I change' questions. Incline's fix is a default; the user can pick another.",
+    inputSchema: obj({}),
+    annotations: READ,
+  },
+  {
     name: 'search_exercises',
     title: 'Search exercises',
     description: 'Find exercises by name in the user\'s library (bundled, catalog and custom). Use the returned names in create_routine.',
@@ -129,6 +137,26 @@ export const TOOLS: ToolDef[] = [
         },
       },
       ['name', 'exercises'],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'propose_progression_change',
+    title: 'Suggest a plateau fix',
+    description:
+      "Send a fix for a stalled lift to the user's phone as a suggestion. Nothing changes until they apply it in Incline. Call get_progression_review first. You may disagree with incline_fix: the card shows both, with your rationale. Fixes outside safety bounds (load change beyond -30%/+10%, more than 10 sets, reps outside 1-30) are refused with the reason. Confirm with the user before calling.",
+    inputSchema: obj(
+      {
+        exercise: { type: 'string', description: 'Exercise name as in get_progression_review' },
+        remedy: { type: 'string', enum: ['reset', 'add_set', 'rep_range', 'swap', 'deload'] },
+        weight: { type: 'number', description: "reset: the new top load, in the user's unit" },
+        sets: { type: 'integer', minimum: 1, maximum: 10, description: 'add_set: sets per session' },
+        reps_min: { type: 'integer', minimum: 1, maximum: 30, description: 'rep_range: low end' },
+        reps_max: { type: 'integer', minimum: 1, maximum: 30, description: 'rep_range: high end' },
+        substitute: { type: 'string', description: 'swap: exercise name to swap in (check with search_exercises)' },
+        rationale: { type: 'string', maxLength: 300, description: 'Why, in one or two sentences; shown to the user' },
+      },
+      ['exercise', 'remedy', 'rationale'],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },

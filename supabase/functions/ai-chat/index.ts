@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { AI_CONSENT_HEADER, AI_CONSENT_VERSION } from '../_shared/contracts/ai/consent.ts';
 import { aiTaskFlag, isFlagDisabled } from '../_shared/contracts/ai/flags.ts';
 import { attestedLimit, INTEGRITY_NONCE_HEADER, INTEGRITY_TOKEN_HEADER } from '../_shared/contracts/ai/integrity.ts';
+import { abuseCheck } from '../_shared/edge/abuse.ts';
 import { verifyBearerSub } from '../_shared/edge/auth.ts';
 import { gradeIntegrity } from '../_shared/edge/integrity.ts';
 import { upstreams } from '../_shared/edge/upstream.ts';
@@ -127,6 +128,10 @@ Deno.serve(async (req) => {
   });
   if (rateError) return json(500, { ok: false, error: 'quota_unavailable' });
   if (allowed !== true) return json(429, { ok: false, error: 'rate_limited' });
+  const abuse = await abuseCheck(db, userId, 'chat');
+  if (abuse === 'unavailable') return json(500, { ok: false, error: 'quota_unavailable' });
+  // Burst and the global ceiling are "try again", not "today's limit".
+  if (abuse !== 'ok') return json(503, { ok: false, error: 'busy' });
 
   const slots = upstreams();
   if (Deno.env.get('AI_TASK_STUB') === '1' || slots.length === 0) return stubStream();

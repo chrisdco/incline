@@ -64,6 +64,8 @@ export interface CoachingInsightInput {
   deloadSnoozeUntil?: number | null;
   /** When set, surfaces ahead of generic deload (program write path). */
   programPlanInsight?: CoachingInsight | null;
+  /** Stalled lift or a waiting fix suggestion (plateau-insight.ts). */
+  plateauInsight?: CoachingInsight | null;
   now?: number;
 }
 
@@ -94,6 +96,7 @@ export function collectCoachingInsights(input: CoachingInsightInput): CoachingIn
   const weeks = stats.weeklyVolume ?? [];
 
   if (input.programPlanInsight) out.push(input.programPlanInsight);
+  if (input.plateauInsight) out.push(input.plateauInsight);
 
   const deload = detectDeload({
     weeklyStreak: input.weeklyStreak ?? stats.streak,

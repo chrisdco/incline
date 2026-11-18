@@ -33,6 +33,7 @@ export function buildChatSystem(ctx: ChatPromptContext): string {
     'If the data is not there, say so plainly.',
     'Answer in a few short sentences or a short list. Lead with the answer, then the numbers that back it.',
     'You never change anything yourself. To suggest a change to one of their routines, read it, then call propose_routine_change; they review and apply it from the card. Never claim a change was made. Workout logs are not editable here.',
+    "For stuck lifts, call get_progression_review: it has Incline's evidence-graded fix per lift. You may recommend a different fix if their data supports it; say why. To send a fix to them, call propose_progression_change (it shows both side by side; they choose).",
     'Stay on training, recovery and the app. Politely decline anything else.',
   ]
     .filter(Boolean)
@@ -106,6 +107,8 @@ export function sourceLabel(name: string, result: Json): string {
       return 'Exercise library';
     case 'get_readiness':
       return 'Sleep and recovery';
+    case 'get_progression_review':
+      return 'Stalled lifts';
     default:
       return name;
   }
@@ -202,6 +205,9 @@ export function readLines(parts: readonly ChatPart[]): string[] {
         break;
       case 'get_readiness':
         line = 'Looked at your sleep and recovery';
+        break;
+      case 'get_progression_review':
+        line = `Checked ${arr(r.stalled).length} stalled ${arr(r.stalled).length === 1 ? 'lift' : 'lifts'}`;
         break;
       default:
         line = `Looked at ${sourceLabel(p.name, p.result).toLowerCase()}`;

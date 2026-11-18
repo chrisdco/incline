@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 import { STORAGE_KEYS } from '@/constants/config';
+import { DEFAULT_PROGRESSION_AUTONOMY, isProgressionAutonomy, type ProgressionAutonomy } from '@/contracts/coaching/progression';
 import { kvStorage } from '@/db/kv';
 import { mutate } from '@/db/write';
 import type { Settings, Unit, ThemeMode, AccentTheme, CalendarHeatMetric, WeekStartsOn, BodyMetric, ExerciseMediaStyle, ExerciseMediaAnimation, DevExerciseMediaOverride } from '@/db/types';
@@ -62,6 +63,7 @@ interface SettingsState extends Settings {
   setWeeklyWorkoutGoal: (goal: number) => void;
   dismissAnnouncement: (id: string) => void;
   setShowSessionGhost: (enabled: boolean) => void;
+  setProgressionAutonomy: (mode: ProgressionAutonomy) => void;
   setExerciseMediaStyle: (style: ExerciseMediaStyle) => void;
   setExerciseMediaAnimation: (animation: ExerciseMediaAnimation) => void;
   setDevExerciseMediaOverride: (override: DevExerciseMediaOverride) => void;
@@ -179,6 +181,7 @@ export const useSettings = create<SettingsState>()(
       dismissedAnnouncementIds: [],
       showSessionGhost: true,
       exerciseWeightUnits: {},
+      progressionAutonomy: DEFAULT_PROGRESSION_AUTONOMY,
       exerciseMediaStyle: 'auto',
       exerciseMediaAnimation: 'cycle',
       devExerciseMediaOverride: 'off',
@@ -259,6 +262,7 @@ export const useSettings = create<SettingsState>()(
           dismissedAnnouncementIds: sanitizeDismissedIds([...s.dismissedAnnouncementIds, id]),
         })),
       setShowSessionGhost: (showSessionGhost) => set({ showSessionGhost }),
+      setProgressionAutonomy: (progressionAutonomy) => set({ progressionAutonomy }),
       setExerciseMediaStyle: (exerciseMediaStyle) => set({ exerciseMediaStyle }),
       setExerciseMediaAnimation: (exerciseMediaAnimation) => set({ exerciseMediaAnimation }),
       setDevExerciseMediaOverride: (devExerciseMediaOverride) => set({ devExerciseMediaOverride }),
@@ -302,6 +306,7 @@ export const useSettings = create<SettingsState>()(
         dismissedAnnouncementIds: s.dismissedAnnouncementIds,
         showSessionGhost: s.showSessionGhost,
         exerciseWeightUnits: s.exerciseWeightUnits,
+        progressionAutonomy: s.progressionAutonomy,
         exerciseMediaStyle: s.exerciseMediaStyle,
         exerciseMediaAnimation: s.exerciseMediaAnimation,
         devExerciseMediaOverride: s.devExerciseMediaOverride,
@@ -358,6 +363,7 @@ export const useSettings = create<SettingsState>()(
           weeklyWorkoutGoal: sanitizeWeeklyGoal(p.weeklyWorkoutGoal),
           dismissedAnnouncementIds: sanitizeDismissedIds(p.dismissedAnnouncementIds),
           showSessionGhost: typeof p.showSessionGhost === 'boolean' ? p.showSessionGhost : true,
+          progressionAutonomy: isProgressionAutonomy(p.progressionAutonomy) ? p.progressionAutonomy : DEFAULT_PROGRESSION_AUTONOMY,
           exerciseMediaStyle: isExerciseMediaStyle(p.exerciseMediaStyle) ? p.exerciseMediaStyle : 'auto',
           exerciseMediaAnimation: isExerciseMediaAnimation(p.exerciseMediaAnimation)
             ? p.exerciseMediaAnimation
@@ -458,6 +464,7 @@ export function resetAccountPreferences(options: { keepDeviceSettings?: boolean 
       defaultRestSeconds: ACCOUNT_PREF_DEFAULTS.defaultRestSeconds,
       showSessionGhost: ACCOUNT_PREF_DEFAULTS.showSessionGhost,
       exerciseWeightUnits: {},
+      progressionAutonomy: DEFAULT_PROGRESSION_AUTONOMY,
       // Local-only prefs never sync, so a new account would otherwise inherit
       // the previous owner's reminders, nudges, media taste, and behavior
       // flags (deviceDefaults above, on a switch). Account-derived local
@@ -498,6 +505,7 @@ export function applyRemoteAccountPrefs(payload: Record<string, unknown>): void 
       defaultRestSeconds: prefs.defaultRestSeconds,
       showSessionGhost: prefs.showSessionGhost,
       exerciseWeightUnits: sanitizeExerciseWeightUnits(prefs.exerciseWeightUnits),
+      progressionAutonomy: prefs.progressionAutonomy,
     }));
   } finally {
     suppressPrefSync = false;

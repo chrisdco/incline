@@ -19,6 +19,8 @@ function reasonText(code: ReasonCode, ctx: { repsMax: number; repsMin: number; n
       return 'Last session was already very hard — hold weight this time.';
     case 'readiness_hold':
       return 'Checked in tired — keep today lighter and recover.';
+    case 'plateau_reset':
+      return 'Plateau reset — lighter this session, then build back up.';
     default:
       return 'Suggested from your last session.';
   }

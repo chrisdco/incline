@@ -1,4 +1,5 @@
 /** Cross-device account preferences. Unit lives on profile; AI opt-in stays per-device. */
+import { DEFAULT_PROGRESSION_AUTONOMY, isProgressionAutonomy, type ProgressionAutonomy } from '@/contracts/coaching/progression';
 import { DEFAULT_ACCENT_THEME } from '@/lib/accent-themes';
 
 export const ACCOUNT_PREF_KEYS = [
@@ -14,6 +15,7 @@ export const ACCOUNT_PREF_KEYS = [
   'defaultRestSeconds',
   'showSessionGhost',
   'exerciseWeightUnits',
+  'progressionAutonomy',
 ] as const;
 
 export const ACCOUNT_PREFS_ROW = 'prefs';
@@ -35,6 +37,8 @@ export type AccountPrefsPayload = {
   showSessionGhost: boolean;
   /** exerciseRefKey → 'metric' | 'imperial' (display only). */
   exerciseWeightUnits: Record<string, 'metric' | 'imperial'>;
+  /** Plateau fixes: ask first, auto-apply low-risk coach fixes, or off (PROGRESSION.md §6). */
+  progressionAutonomy: ProgressionAutonomy;
 };
 
 export const ACCOUNT_PREF_DEFAULTS: AccountPrefsPayload = {
@@ -50,6 +54,7 @@ export const ACCOUNT_PREF_DEFAULTS: AccountPrefsPayload = {
   defaultRestSeconds: 90,
   showSessionGhost: true,
   exerciseWeightUnits: {},
+  progressionAutonomy: DEFAULT_PROGRESSION_AUTONOMY,
 };
 
 export function pickAccountPrefs(state: Record<string, unknown>): AccountPrefsPayload {
@@ -88,6 +93,9 @@ export function pickAccountPrefs(state: Record<string, unknown>): AccountPrefsPa
         ? state.showSessionGhost
         : ACCOUNT_PREF_DEFAULTS.showSessionGhost,
     exerciseWeightUnits: sanitizeExerciseWeightUnits(state.exerciseWeightUnits),
+    progressionAutonomy: isProgressionAutonomy(state.progressionAutonomy)
+      ? state.progressionAutonomy
+      : DEFAULT_PROGRESSION_AUTONOMY,
   };
 }
 

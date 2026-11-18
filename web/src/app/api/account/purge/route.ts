@@ -18,6 +18,7 @@ const USER_TABLES = [
   "bodyweight_entries",
   "body_measurements",
   "gyms",
+  "progression_decisions",
   "workout_photos",
   "user_preferences",
   "ai_task_cache",

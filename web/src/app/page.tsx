@@ -1,15 +1,10 @@
 import Link from "next/link";
-import dynamicChart from "next/dynamic";
+import { VolumeChart } from "@/components/charts-lazy";
 import { Suspense } from "react";
 
 import { getDashboard, getVolumeSeries } from "@/lib/queries";
 import { formatDateTime, formatVolume, toDisplayWeight } from "@/lib/format";
 import { Card, EmptyState, SectionTitle, Stat } from "@/components/ui";
-
-const VolumeChart = dynamicChart(() => import("@/components/charts").then((m) => m.VolumeChart), {
-  ssr: false,
-  loading: () => <div className="h-64 animate-pulse rounded-xl bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />,
-});
 
 export const dynamic = "force-dynamic";
 

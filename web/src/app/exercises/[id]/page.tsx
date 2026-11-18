@@ -1,16 +1,11 @@
 import Link from "next/link";
-import dynamicChart from "next/dynamic";
+import { TrendChart } from "@/components/charts-lazy";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { getCatalogExercise, getCustomExercise, getExerciseHistory, getProfile } from "@/lib/queries";
 import { formatDate, formatWeight, kgToDisplay } from "@/lib/format";
 import { Badge, Card, EmptyState, SectionTitle } from "@/components/ui";
-
-const TrendChart = dynamicChart(() => import("@/components/charts").then((m) => m.TrendChart), {
-  ssr: false,
-  loading: () => <div className="h-64 animate-pulse rounded-xl bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />,
-});
 
 export const dynamic = "force-dynamic";
 

@@ -4,6 +4,7 @@ import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse, Moon, Sun, Smartphone,
+  TrendingUp,
 } from 'lucide-react-native';
 import { AiMark } from '@/components/ai/ai-mark';
 import { PhotoStorageRow } from '@/components/account/photo-storage-row';
@@ -22,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import { useSettings, DEFAULT_REST_OPTIONS } from '@/store/settings-store';
+import { AUTONOMY_COPY, PROGRESSION_AUTONOMY } from '@/contracts/coaching/progression';
 import { useProfile } from '@/hooks/use-data';
 import { useCloudSync } from '@/hooks/use-cloud-sync';
 import { clearWorkoutHistory, saveProfile } from '@/db/queries';
@@ -102,6 +104,7 @@ export default function SettingsScreen() {
     unit, themeMode, accentTheme, hapticsEnabled,
     restSoundEnabled, autoStartRest, defaultRestSeconds, showWarmUpSets, showRpe,
     showSessionGhost,
+    progressionAutonomy,
     aiExplanationsEnabled,
     healthConnectEnabled: healthOn,
     calendarHeatMetric, weekStartsOn, keepScreenAwake, weeklyWorkoutGoal,
@@ -110,6 +113,7 @@ export default function SettingsScreen() {
     exerciseMediaStyle, exerciseMediaAnimation, devExerciseMediaOverride,
     setUnit, setThemeMode, setHaptics, setRestSound, setAutoStartRest, setDefaultRestSeconds, setShowWarmUpSets, setShowRpe,
     setShowSessionGhost,
+    setProgressionAutonomy,
     setCalendarHeatMetric, setWeekStartsOn, setKeepScreenAwake, setWeeklyWorkoutGoal,
     setExerciseMediaStyle, setExerciseMediaAnimation, setDevExerciseMediaOverride,
   } = useSettings();
@@ -299,6 +303,21 @@ export default function SettingsScreen() {
             </ListRow>
             <ListRow icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
               <Switch value={hapticsEnabled} onValueChange={setHaptics} accessibilityLabel="Haptics" />
+            </ListRow>
+          </ListGroup>
+        </Section>
+
+        <Section title="Coaching">
+          <ListGroup>
+            <ListRow stacked
+              icon={<Icon icon={TrendingUp} size={18} color="muted-foreground" />}
+              title="Plateau fixes"
+              subtitle={AUTONOMY_COPY[progressionAutonomy].detail}>
+              <View className="flex-row flex-wrap gap-2">
+                {PROGRESSION_AUTONOMY.map((mode) => (
+                  <Chip key={mode} size="sm" label={AUTONOMY_COPY[mode].label} selected={progressionAutonomy === mode} onPress={() => setProgressionAutonomy(mode)} />
+                ))}
+              </View>
             </ListRow>
           </ListGroup>
         </Section>

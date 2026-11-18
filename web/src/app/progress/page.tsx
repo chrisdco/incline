@@ -1,16 +1,13 @@
 import Link from "next/link";
-import dynamicChart from "next/dynamic";
+import { VolumeChart } from "@/components/charts-lazy";
 import { Suspense } from "react";
 
 import { getDashboard, getMuscleSplit, getRecords, getTrainingDays, getVolumeSeries } from "@/lib/queries";
 import { Card, SectionTitle, Stat } from "@/components/ui";
 import { formatVolume, formatWeight } from "@/lib/format";
+import { StalledLifts } from "@/components/stalled-lifts";
+import { getProgression } from "@/lib/progression";
 import { foldMuscles, reviewMuscleSets, type ReviewTone } from "@/lib/muscle-review";
-
-const VolumeChart = dynamicChart(() => import("@/components/charts").then((m) => m.VolumeChart), {
-  ssr: false,
-  loading: () => <div className="h-64 animate-pulse rounded-xl bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />,
-});
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +73,13 @@ export default async function ProgressPage() {
       </div>
 
       <Card>
+        <SectionTitle>Stalled lifts</SectionTitle>
+        <Suspense fallback={<ChartSkeleton />}>
+          <StalledSection />
+        </Suspense>
+      </Card>
+
+      <Card>
         <SectionTitle>Volume — last 26 weeks</SectionTitle>
         <Suspense fallback={<ChartSkeleton />}>
           <VolumeSection unit={unit} />
@@ -104,6 +108,10 @@ export default async function ProgressPage() {
       </Card>
     </div>
   );
+}
+
+async function StalledSection() {
+  return <StalledLifts data={await getProgression()} />;
 }
 
 async function VolumeSection({ unit }: { unit: string }) {
