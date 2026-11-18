@@ -59,6 +59,17 @@ signed public photos, #83, chat coach, program generation, logging a set
 from a notification. (Android home-screen widgets shipped separately; they
 are a surface, not a queue slice.)
 
+## With the next APK (native rebuild)
+
+Things that need a new binary anyway; fold them into the next build, never
+into an OTA (they change the runtime fingerprint, so OTAs stop reaching
+installed builds).
+
+- **Clerk Google client ID in app config.** Add an `app.config.ts` that sets
+  `extra.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` from env, then delete the
+  runtime hand-over in `src/auth/use-google-sign-in.ts` (#393). The hand-over
+  works; this is the documented way and drops a mutation of Constants.
+
 ## Verify-to-close (merged code, proof still owed)
 
 Do not close these on merge alone. Proof is the two-device matrix

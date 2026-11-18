@@ -329,10 +329,19 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     return s;
   }
 
+  /** Every queued set write has landed (failures already toasted). */
+  const writesSettled = () => Promise.all([...setQueues.values()]).then(() => undefined);
+
+  /**
+   * Re-read rows from SQLite only after pending set writes land: reading
+   * first put the old reps back over the ones just typed ("reps vanish
+   * when I add a set").
+   */
   function reloadRows() {
     const { logId } = get();
     if (logId == null) return;
-    void loadRows(generation, logId);
+    const gen = generation;
+    void writesSettled().then(() => loadRows(gen, logId));
   }
 
   const engine = {
@@ -573,6 +582,8 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     async addSet(exerciseId: number): Promise<void> {
       const { logId } = get();
       if (logId == null) return;
+      // New rows copy the last set's values from SQLite: let typed edits land first.
+      await writesSettled();
       await deps.addSet(logId, exerciseId).then(reloadRows, () => {
         ui.toast({ title: 'Could not add set', variant: 'destructive' });
       });
@@ -582,6 +593,7 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     async addDrop(setId: number): Promise<void> {
       const target = get().session?.sets.find((s) => s.id === setId);
       if (!target) return;
+      await writesSettled();
       await deps.addDropSet(setId, unitFor(target.exerciseRefKey)).then(reloadRows, () => {
         ui.toast({ title: 'Could not add drop set', variant: 'destructive' });
       });
@@ -590,6 +602,8 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     async addWarmUp(exerciseId: number): Promise<void> {
       const { logId } = get();
       if (logId == null) return;
+      // New rows copy the last set's values from SQLite: let typed edits land first.
+      await writesSettled();
       await deps.addWarmUpSet(logId, exerciseId).then(reloadRows, () => {
         ui.toast({ title: 'Could not add warm-up', variant: 'destructive' });
       });
