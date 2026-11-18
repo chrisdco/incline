@@ -1,3 +1,4 @@
+import { effectiveRpe } from '@/contracts/coaching/rep-quality';
 import { openDatabase } from '../../client';
 import { getLastSetsForExercises, getRecentTopSetsForExercises, listExercises, getExercise } from '../exercises';
 import { getTemplate } from '../templates';
@@ -21,10 +22,11 @@ function applyResetOverride(s: TrainingSuggestion, resetKg: number | undefined):
   s.reasonText = 'Plateau reset — lighter this session, then build back up.';
 }
 
-function workingSets(sets: SetEntry[]): { weight: number; reps: number; rpe: number | null }[] {
+function workingSets(sets: SetEntry[]): { weight: number; reps: number; rpe: number | null; dirty: boolean }[] {
   return sets
     .filter((s) => s.completed && s.weight > 0 && (s.setType ?? 'working') === 'working')
-    .map((s) => ({ weight: s.weight, reps: s.reps, rpe: s.rpe ?? null }));
+    // A dirty-reps set was at the limit: hold the load as if RPE 10 (WORKOUT-SETS.md).
+    .map((s) => ({ weight: s.weight, reps: s.reps, rpe: effectiveRpe(s.rpe, s.repQuality), dirty: s.repQuality === 'dirty' }));
 }
 
 /** Overload suggestions for every exercise in a template. */

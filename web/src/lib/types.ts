@@ -40,6 +40,8 @@ export interface SetEntryRow {
   /** Legacy rows synced before set_type existed come back NULL (= working). */
   set_type: string | null;
   rpe: number | null;
+  /** 'dirty' = form broke (WORKOUT-SETS.md); NULL = clean. */
+  rep_quality?: string | null;
 }
 
 export interface CatalogExerciseRow {

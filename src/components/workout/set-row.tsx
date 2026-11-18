@@ -51,6 +51,11 @@ const SET_TYPE_LABEL: Record<SetType, string> = {
  * opaque base under the translucent completed tint for the same reason.
  * RPE: one inline prompt for the set just finished, then "@8" under the set
  * number; edit from the set menu (tap the number).
+ * Dirty reps (WORKOUT-SETS.md): "dirty" under the number in warning colour,
+ * replacing "@RPE". Long-press the tick to complete and mark it in one go.
+ * Drop sets: "D" in place of the number plus a thin info-coloured bar on the
+ * left edge, so a drop reads as part of the set above it. Columns never
+ * move (no indent): the bar is absolute.
  */
 export function SetRow({
   ref,
@@ -64,10 +69,13 @@ export function SetRow({
   unit,
   setType = 'working',
   rpe = null,
+  repQuality = null,
+  number,
   onChangeWeight,
   onChangeReps,
   onApplyPrevious,
   onToggleComplete,
+  onLongPressComplete,
   onRemove,
   onSubmitReps,
   onOpenSetType,
@@ -85,10 +93,16 @@ export function SetRow({
   setType?: SetType;
   /** Shown as "@8" under the set number; edited from the set menu. */
   rpe?: number | null;
+  /** 'dirty' shows "dirty" under the number. */
+  repQuality?: 'dirty' | null;
+  /** Shown set number; drops don't take one. Defaults to index + 1. */
+  number?: number;
   onChangeWeight: (v: number) => void;
   onChangeReps: (v: number) => void;
   onApplyPrevious?: () => void;
   onToggleComplete?: () => void;
+  /** Long-press on the tick: complete (if needed) and mark dirty reps. */
+  onLongPressComplete?: () => void;
   onRemove?: () => void;
   onSubmitReps?: () => void;
   /** When provided, the set number becomes a button opening the set-type menu. */
@@ -104,6 +118,9 @@ export function SetRow({
   const { impact, selection, notify } = useHaptics();
 
   const hasPrevious = previousWeight !== undefined && previousWeight > 0;
+  const isDrop = setType === 'drop';
+  const dirty = repQuality === 'dirty';
+  const shownNumber = number ?? index + 1;
 
   const toggleClass = cn(
     'h-11 w-11 items-center justify-center rounded-full border-2',
@@ -122,6 +139,7 @@ export function SetRow({
     <View
       style={{ height: SET_ROW_HEIGHT }}
       className={cn('w-full flex-row items-center gap-2 px-1', completed && 'bg-success/8')}>
+      {isDrop ? <View pointerEvents="none" className="absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-full bg-info/70" /> : null}
       {/* Layout lives on plain Views: NativeWind drops a Pressable's style
           *function* when className is also set, so widths given there never
           applied and SET/PREV collapsed to their text (Oct 29 screenshots). */}
@@ -133,13 +151,16 @@ export function SetRow({
         onPress={onOpenSetType}
         android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
         accessibilityRole={onOpenSetType ? 'button' : undefined}
-        accessibilityLabel={onOpenSetType ? `Set ${index + 1}: ${SET_TYPE_LABEL[setType]}${rpe != null ? `, RPE ${rpe}` : ''}. Activate to change type or RPE.` : undefined}
+        accessibilityLabel={onOpenSetType ? `${isDrop ? 'Drop set' : `Set ${shownNumber}: ${SET_TYPE_LABEL[setType]}`}${dirty ? ', dirty reps' : rpe != null ? `, RPE ${rpe}` : ''}. Activate to change type, RPE or form.` : undefined}
         hitSlop={6}>
-        <Text className="text-sm font-bold text-foreground">{index + 1}</Text>
-        {rpe != null && setType !== 'warmup' ? (
+        <Text className={cn('text-sm font-bold', isDrop ? SET_TYPE_LETTER_COLOR.drop : 'text-foreground')}>{isDrop ? 'D' : shownNumber}</Text>
+        {dirty ? (
+          // eslint-disable-next-line no-restricted-syntax -- form tag sits under the 14pt set number inside a fixed-width cell
+          <Text className="text-[9px] font-semibold leading-none text-warning">dirty</Text>
+        ) : rpe != null && setType !== 'warmup' ? (
           // eslint-disable-next-line no-restricted-syntax -- RPE tag sits under the 14pt set number inside a fixed-width cell
           <Text className="text-[9px] font-semibold leading-none text-muted-foreground">@{rpe}</Text>
-        ) : setType !== 'working' ? (
+        ) : setType !== 'working' && !isDrop ? (
           // eslint-disable-next-line no-restricted-syntax -- set-type letter sits under the 14pt set number inside a fixed-width cell
           <Text className={cn('text-[9px] font-bold leading-none', SET_TYPE_LETTER_COLOR[setType])}>
             {SET_TYPE_LETTER[setType]}
@@ -209,7 +230,17 @@ export function SetRow({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={completed ? 'Mark incomplete' : 'Complete set'}
+            accessibilityHint={onLongPressComplete ? 'Long-press to mark dirty reps' : undefined}
             accessibilityState={{ checked: completed }}
+            onLongPress={
+              onLongPressComplete
+                ? () => {
+                    notify(Haptics.NotificationFeedbackType.Warning);
+                    onLongPressComplete();
+                  }
+                : undefined
+            }
+            delayLongPress={350}
             onPress={() => {
               if (completed) {
                 impact(Haptics.ImpactFeedbackStyle.Light);

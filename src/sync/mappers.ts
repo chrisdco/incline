@@ -1,3 +1,4 @@
+import { asRepQuality } from '@/contracts/coaching/rep-quality';
 import type { ExerciseRef, SyncOp, SyncTable, TemplateRef } from './types';
 import { isSetType, type SetType } from '@/db/types';
 
@@ -193,6 +194,7 @@ export function buildCloudUpsertRow(
       superset_group: payload.superset_group ?? null,
       set_type: asSetType(payload.set_type),
       rpe: payload.rpe ?? null,
+      rep_quality: asRepQuality(payload.rep_quality),
       created_at: msToIso(payload.created_at as number) ?? msToIso(updatedAt),
     };
   }

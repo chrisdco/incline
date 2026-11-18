@@ -65,3 +65,18 @@ export function decreaseLoad(weightKg: number, unit: Unit, increment?: number): 
   const shown = kgToDisplay(weightKg, unit);
   return Math.max(0, displayToKg(roundDisplay(shown - inc, inc, 'nearest'), unit));
 }
+
+/** Share of the load a drop keeps: ~20% lighter (WORKOUT-SETS.md "Drop sets"). */
+export const DROP_SET_FRACTION = 0.8;
+
+/**
+ * Next drop's load: ~20% off, rounded to the unit's plates, always at least
+ * one step lighter, never below zero. Bodyweight (0) stays 0.
+ */
+export function dropSetLoad(weightKg: number, unit: Unit, increment?: number): number {
+  if (!(weightKg > 0)) return 0;
+  const inc = stepFor(unit, increment);
+  const shown = kgToDisplay(weightKg, unit);
+  const target = Math.min(roundDisplay(shown * DROP_SET_FRACTION, inc, 'nearest'), shown - inc);
+  return Math.max(0, displayToKg(target, unit));
+}

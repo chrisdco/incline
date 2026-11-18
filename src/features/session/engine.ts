@@ -13,6 +13,7 @@ import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
 
 import type { ExercisePRSummary, SessionGhost, SessionSet, SessionWorkout, SetPatch } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
+import type { RepQuality } from '@/contracts/coaching/rep-quality';
 import type { SetEntry, SetType, Unit } from '@/db/types';
 import { resolveWeightUnit } from '@/lib/units';
 
@@ -93,6 +94,7 @@ export interface SessionEngineDeps {
   updateSet: (setId: number, patch: SetPatch) => Promise<void>;
   addSet: (logId: number, exerciseId: number) => Promise<number>;
   addWarmUpSet: (logId: number, exerciseId: number) => Promise<number>;
+  addDropSet: (afterSetId: number, unit: Unit) => Promise<number>;
   removeSet: (setId: number) => Promise<void>;
   restoreSet: (setId: number) => Promise<void>;
   removeExerciseFromWorkout: (
@@ -449,6 +451,12 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       engine.patchSet(setId, { rpe });
       void engine.writeSet(setId, { rpe }, 'Could not save RPE');
     },
+    /** "Dirty reps" (WORKOUT-SETS.md): form broke; coaching reads it as max effort. */
+    changeRepQuality(setId: number, repQuality: RepQuality | null) {
+      engine.patchSet(setId, { repQuality });
+      void engine.writeSet(setId, { repQuality }, 'Could not save set');
+    },
+
     changeSetType(setId: number, setType: SetType) {
       engine.patchSet(setId, { setType });
       void engine.writeSet(setId, { setType }, 'Could not save set type');
@@ -567,6 +575,15 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       if (logId == null) return;
       await deps.addSet(logId, exerciseId).then(reloadRows, () => {
         ui.toast({ title: 'Could not add set', variant: 'destructive' });
+      });
+    },
+
+    /** A drop right under `setId`, ~20% lighter (WORKOUT-SETS.md "Drop sets"). */
+    async addDrop(setId: number): Promise<void> {
+      const target = get().session?.sets.find((s) => s.id === setId);
+      if (!target) return;
+      await deps.addDropSet(setId, unitFor(target.exerciseRefKey)).then(reloadRows, () => {
+        ui.toast({ title: 'Could not add drop set', variant: 'destructive' });
       });
     },
 

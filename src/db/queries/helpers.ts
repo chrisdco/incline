@@ -1,3 +1,4 @@
+import { asRepQuality } from '@/contracts/coaching/rep-quality';
 import { openDatabase } from '../client';
 import type { Tx } from '../write';
 import { ghostWorkingSql } from '@/lib/session-ghost';
@@ -125,6 +126,7 @@ export interface SetRow {
   superset_group: number | null;
   set_type?: string | null;
   rpe?: number | null;
+  rep_quality?: string | null;
   /** Display order of the exercise group (018, local-only). NULL = insertion order. */
   sort_order?: number | null;
   uuid: string | null;
@@ -267,6 +269,7 @@ export function mapSet(r: SetRow): SetEntry {
     supersetGroup: r.superset_group ?? null,
     setType,
     rpe: typeof r.rpe === 'number' && r.rpe >= 1 && r.rpe <= 10 ? Math.round(r.rpe) : null,
+    repQuality: asRepQuality(r.rep_quality),
     createdAt: r.created_at,
   };
 }

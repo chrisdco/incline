@@ -69,6 +69,8 @@ function ExerciseBlockImpl({
   onApplyLoad,
   onApplySuggestion,
   onChangeRpe,
+  onChangeRepQuality,
+  onAddDrop,
   onChangeSetType,
   onOpenExercise,
   onReplaceExercise,
@@ -102,6 +104,10 @@ function ExerciseBlockImpl({
   /** Fill every unfinished working set with the suggestion (Undo via snackbar). */
   onApplySuggestion?: (exerciseId: number, weight: number, reps?: number) => void;
   onChangeRpe?: (setId: number, rpe: number | null) => void;
+  /** Mark/unmark "dirty reps" (form broke; WORKOUT-SETS.md). */
+  onChangeRepQuality?: (setId: number, quality: 'dirty' | null) => void;
+  /** Insert a drop set (~20% lighter) right after this set. */
+  onAddDrop?: (setId: number) => void;
   onChangeSetType: (setId: number, setType: SetType) => void;
   /** Open exercise detail (history / charts). */
   onOpenExercise?: (exerciseId: number) => void;
@@ -166,13 +172,21 @@ function ExerciseBlockImpl({
 
   const fatigue = useMemo(() => detectSetFatigue(sets, unit), [sets, unit]);
 
+  // Shown set numbers: drops ride on the set above and don't take one.
+  const numbers = useMemo(() => {
+    let n = 0;
+    return sets.map((s) => (s.setType === 'drop' ? n : ++n));
+  }, [sets]);
+  const lastDoneId = useMemo(() => [...sets].reverse().find((s) => s.completed)?.id ?? null, [sets]);
+  const canDropAfter = (i: number) => !(sets[i + 1]?.setType === 'drop' && !sets[i + 1]?.completed);
+
   // RPE asks once, inline, for the set just finished; every other set shows
   // its value as "@8" under the number and edits it from the set menu.
   // (Inline chips under every completed set crowded the list.)
   const rpePromptSetId = useMemo(() => {
     if (!showRpe || !onChangeRpe) return null;
     const lastDone = [...sets].reverse().find((s) => s.completed);
-    if (!lastDone || (lastDone.setType ?? 'working') === 'warmup' || lastDone.rpe != null) return null;
+    if (!lastDone || (lastDone.setType ?? 'working') === 'warmup' || lastDone.rpe != null || lastDone.repQuality === 'dirty') return null;
     return lastDone.id;
   }, [sets, showRpe, onChangeRpe]);
 
@@ -337,6 +351,8 @@ function ExerciseBlockImpl({
               unit={unit}
               setType={s.setType}
               rpe={showRpe ? (s.rpe ?? null) : null}
+              repQuality={s.repQuality ?? null}
+              number={numbers[i]}
               onOpenSetType={() => setTypeMenuSetId(s.id)}
               onChangeWeight={(v) => onChangeWeight(s.id, v)}
               onChangeReps={(v) => onChangeReps(s.id, v)}
@@ -349,11 +365,34 @@ function ExerciseBlockImpl({
                   : undefined
               }
               onToggleComplete={() => onToggleComplete(s.id)}
+              onLongPressComplete={
+                onChangeRepQuality && (s.setType ?? 'working') !== 'warmup'
+                  ? () => {
+                      if (!s.completed) onToggleComplete(s.id);
+                      onChangeRepQuality(s.id, 'dirty');
+                    }
+                  : undefined
+              }
               onRemove={sets.length > 1 ? () => onRemoveSet(s.id) : undefined}
               onSubmitReps={i + 1 < sets.length ? () => rowRefs.current[i + 1]?.focusWeight() : undefined}
             />
             {rpePromptSetId === s.id && onChangeRpe ? (
               <RpeChips value={null} onChange={(v) => onChangeRpe(s.id, v)} />
+            ) : null}
+            {lastDoneId === s.id && (s.setType ?? 'working') !== 'warmup' && (onChangeRepQuality || onAddDrop) ? (
+              <View className="flex-row justify-center gap-2 py-1">
+                {onChangeRepQuality ? (
+                  <FollowUpChip
+                    label="Dirty reps"
+                    active={s.repQuality === 'dirty'}
+                    tone="warning"
+                    onPress={() => onChangeRepQuality(s.id, s.repQuality === 'dirty' ? null : 'dirty')}
+                  />
+                ) : null}
+                {onAddDrop && canDropAfter(i) ? (
+                  <FollowUpChip label="+ Drop" tone="info" onPress={() => onAddDrop(s.id)} />
+                ) : null}
+              </View>
             ) : null}
           </View>
         ))}
@@ -480,6 +519,39 @@ function ExerciseBlockImpl({
                 onChange={(v) => onChangeRpe(typeMenuSet.id, v)}
               />
             </View>
+          ) : null}
+          {typeMenuSet && onChangeRepQuality && (typeMenuSet.setType ?? 'working') !== 'warmup' ? (
+            <Pressable
+              onPress={() => {
+                onChangeRepQuality(typeMenuSet.id, typeMenuSet.repQuality === 'dirty' ? null : 'dirty');
+                setTypeMenuSetId(null);
+              }}
+              accessibilityRole="switch"
+              accessibilityLabel="Dirty reps"
+              accessibilityState={{ checked: typeMenuSet.repQuality === 'dirty' }}
+              className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">Dirty reps</Text>
+                <Caption>Form broke or you forced it. Counts as max effort, so a lighter next set is expected.</Caption>
+              </View>
+              {typeMenuSet.repQuality === 'dirty' ? <Icon icon={Check} size={18} color="primary" /> : null}
+            </Pressable>
+          ) : null}
+          {typeMenuSet && onAddDrop ? (
+            <Pressable
+              onPress={() => {
+                onAddDrop(typeMenuSet.id);
+                setTypeMenuSetId(null);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Add drop set after this"
+              className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">Add drop set after this</Text>
+                <Caption>About 20% lighter, straight after, no rest</Caption>
+              </View>
+              <Icon icon={Plus} size={18} color="foreground" />
+            </Pressable>
           ) : null}
           {SET_TYPE_OPTIONS.map((opt) => {
             const selected = (typeMenuSet?.setType ?? 'working') === opt.id;
@@ -648,3 +720,20 @@ export const ExerciseBlock = memo(ExerciseBlockImpl, (prev: ExerciseBlockProps, 
   }
   return sameRows(prev.sets, next.sets) && sameRows(prev.lastSets, next.lastSets);
 });
+
+function FollowUpChip({ label, active = false, tone, onPress }: { label: string; active?: boolean; tone: 'warning' | 'info'; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      className={cn(
+        'rounded-full px-3 py-1.5 active:opacity-70',
+        active ? (tone === 'warning' ? 'bg-warning/20' : 'bg-info/20') : 'bg-surface2',
+      )}>
+      <Text className={cn('text-xs font-semibold', active ? (tone === 'warning' ? 'text-warning' : 'text-info') : 'text-muted-foreground')}>{label}</Text>
+    </Pressable>
+  );
+}

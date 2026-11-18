@@ -1,3 +1,4 @@
+import { asRepQuality, effectiveRpe } from '@/contracts/coaching/rep-quality';
 import { DELOAD_APPLIED_KEY } from '@/coaching/deload';
 import {
   latestDecisions,
@@ -54,6 +55,7 @@ export async function loadProgressionSets(db?: Db): Promise<ProgressionSets> {
     weight: number;
     reps: number;
     rpe: number | null;
+    rep_quality: string | null;
     set_type: string | null;
     name: string;
     primary_muscle: string | null;
@@ -61,7 +63,7 @@ export async function loadProgressionSets(db?: Db): Promise<ProgressionSets> {
     uuid: string | null;
     external_id: string | null;
   }>(
-    `SELECT s.workout_log_id, s.exercise_id, s.weight, s.reps, s.rpe, s.set_type,
+    `SELECT s.workout_log_id, s.exercise_id, s.weight, s.reps, s.rpe, s.rep_quality, s.set_type,
             e.name, e.primary_muscle, e.is_custom, e.uuid, e.external_id
      FROM set_entries s JOIN exercises e ON e.id = s.exercise_id
      WHERE s.completed = 1 AND s.deleted_at IS NULL AND s.workout_log_id IN (${ph(logs.length)})
@@ -92,7 +94,7 @@ export async function loadProgressionSets(db?: Db): Promise<ProgressionSets> {
       reps: r.reps,
       primaryMuscle: r.primary_muscle,
       secondaryMuscles: secondary.get(r.exercise_id) ?? [],
-      rpe: r.rpe,
+      rpe: effectiveRpe(r.rpe, asRepQuality(r.rep_quality)),
       setType: r.set_type,
     });
   }

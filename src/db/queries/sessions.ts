@@ -1,6 +1,8 @@
+import { asRepQuality, type RepQuality } from '@/contracts/coaching/rep-quality';
 import { openDatabase } from '../client';
 import { PAGINATION } from '@/constants/config';
 import { newUuid } from '@/lib/uuid';
+import { dropSetLoad } from '@/coaching/plates';
 import { enqueueSync } from '@/sync/outbox';
 import { exerciseRefFromRow } from '@/sync/exercise-ref';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -10,6 +12,7 @@ import type {
   MuscleGroup,
   Paginated,
   SetType,
+  Unit,
   WorkoutLog,
 } from '../types';
 import { getCelebrationPrCounts } from './coaching/prs';
@@ -125,6 +128,7 @@ export async function enqueueSetUpserts(tx: Tx, setIds: number[]): Promise<SetSy
         superset_group: row.superset_group,
         set_type: row.set_type ?? 'working',
         rpe: row.rpe ?? null,
+        rep_quality: row.rep_quality ?? null,
         created_at: row.created_at,
         updated_at: row.updated_at,
         deleted_at: row.deleted_at,
@@ -366,12 +370,44 @@ export async function addSet(logId: number, exerciseId: number): Promise<number>
   });
 }
 
+/**
+ * Insert a drop right after `afterSetId` (WORKOUT-SETS.md "Drop sets"): same
+ * exercise, ~20% lighter, same reps, set_type 'drop'. Later sets shift down
+ * one index so the drop sits under its parent; all moved rows sync.
+ */
+export async function addDropSet(afterSetId: number, unit: Unit): Promise<number> {
+  return mutate(['set_entries'], async (tx) => {
+    const now = Date.now();
+    const parent = await tx.getFirstAsync<SetRow>('SELECT * FROM set_entries WHERE id = ? AND deleted_at IS NULL', afterSetId);
+    if (!parent) throw new Error('set not found');
+    const later = await tx.getAllAsync<{ id: number }>(
+      'SELECT id FROM set_entries WHERE workout_log_id = ? AND exercise_id = ? AND deleted_at IS NULL AND set_index > ?',
+      parent.workout_log_id, parent.exercise_id, parent.set_index,
+    );
+    const laterIds = later.map((r) => r.id);
+    if (laterIds.length) {
+      await tx.runAsync(
+        `UPDATE set_entries SET set_index = set_index + 1, updated_at = ? WHERE id IN (${laterIds.map(() => '?').join(',')})`,
+        now, ...laterIds,
+      );
+    }
+    const res = await tx.runAsync(
+      `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, set_type, sort_order, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, 'drop', ?, ?, ?, ?)`,
+      parent.workout_log_id, parent.exercise_id, parent.set_index + 1, dropSetLoad(parent.weight, unit), parent.reps,
+      parent.sort_order ?? null, newUuid(), now, now,
+    );
+    await enqueueSetUpserts(tx, [res.lastInsertRowId, ...laterIds]);
+    return res.lastInsertRowId;
+  });
+}
+
 export interface SetPatch {
   weight?: number;
   reps?: number;
   completed?: boolean;
   restSeconds?: number | null;
   rpe?: number | null;
+  repQuality?: RepQuality | null;
   setType?: SetType;
 }
 
@@ -396,6 +432,7 @@ export async function updateSet(setId: number, patch: SetPatch): Promise<void> {
       typeof n === 'number' && Number.isFinite(n) && n >= 1 && n <= 10 ? Math.round(n) : null,
     );
   }
+  if (patch.repQuality !== undefined) { sets.push('rep_quality = ?'); args.push(asRepQuality(patch.repQuality)); }
   if (sets.length === 0) return;
   sets.push('updated_at = ?');
   args.push(Date.now());

@@ -23,6 +23,7 @@ import { migration021 } from './021_ai_activity_actor';
 import { migration022 } from './022_gyms';
 import { migration023 } from './023_chat';
 import { migration024 } from './024_progression';
+import { migration025 } from './025_set_rep_quality';
 import type { Migration } from './types';
 
 export type { Migration } from './types';
@@ -53,6 +54,7 @@ export const MIGRATIONS: Migration[] = [
   migration022,
   migration023,
   migration024,
+  migration025,
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 1;
