@@ -1,4 +1,5 @@
-import { useColorScheme as useRNColorScheme } from 'react-native';
+import { useEffect } from 'react';
+import { Appearance, useColorScheme as useRNColorScheme } from 'react-native';
 
 import { isAuroraAccent } from '@/lib/accent-themes';
 import { useSettings } from '@/store/settings-store';
@@ -14,6 +15,20 @@ export function useAppColorScheme(): 'light' | 'dark' {
   const themeMode = useSettings((s) => s.themeMode);
   if (themeMode === 'system') return system === 'dark' ? 'dark' : 'light';
   return themeMode;
+}
+
+/**
+ * Hand the in-app theme choice to the native side. Native views (the
+ * `@expo/ui` Material sheets, system dialogs, pickers) theme from the OS
+ * night mode, not our `dark` class, so an app set to Dark on a light phone
+ * drew light sheets with light text. 'auto' clears the override for
+ * "system". Mount once, at the root.
+ */
+export function useSyncNativeColorScheme(): void {
+  const themeMode = useSettings((s) => s.themeMode);
+  useEffect(() => {
+    Appearance.setColorScheme(themeMode === 'system' ? 'auto' : themeMode);
+  }, [themeMode]);
 }
 
 /** Whether the effective theme is dark. Convenience for layout wrappers. */
