@@ -24,6 +24,7 @@ const CATEGORIES: Record<string, readonly AiDataCategory[]> = {
   get_progression_review: ['workouts', 'records', 'summaries'],
   propose_progression_change: ['workouts', 'exercises'],
   search_exercises: ['exercises'],
+  get_memory: ['memory'],
 };
 
 function fromMcp(def: ToolDef): ToolSpec {
@@ -96,8 +97,36 @@ export const CHAT_HEALTH_TOOLS: readonly ToolSpec[] = [
   },
 ];
 
-/** Everything in-app chat may call: reads, health reads, then proposals. */
-export const CHAT_TOOLS: readonly ToolSpec[] = [...CHAT_READ_TOOLS, ...CHAT_HEALTH_TOOLS, ...CHAT_PROPOSE_TOOLS];
+/**
+ * Memory writes (AI-CHAT §5). `remember` saves only what the user asked to
+ * be remembered, in their words; the reply shows "Saved to memory · Undo".
+ * Chat-only: MCP clients read memory (get_memory), never write it.
+ * Kind 'propose' keeps it out of answer sources.
+ */
+export const CHAT_MEMORY_TOOLS: readonly ToolSpec[] = [
+  {
+    name: 'remember',
+    title: 'Remember a fact',
+    description:
+      'Save one short fact the user explicitly asked you to remember (e.g. "remember my left knee hurts on deep squats"). Only when they ask; never infer. One fact per call, in their words, under 200 characters. Kinds: goal, constraint (injuries, limits), preference, equipment, schedule, other.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: ['goal', 'constraint', 'preference', 'equipment', 'schedule', 'other'] },
+        text: { type: 'string', description: 'The fact, max 200 characters' },
+      },
+      required: ['kind', 'text'],
+      additionalProperties: false,
+    },
+    kind: 'propose',
+    surfaces: ['chat'],
+    dataCategories: ['memory'],
+    version: 1,
+  },
+];
+
+/** Everything in-app chat may call: reads, health reads, memory, then proposals. */
+export const CHAT_TOOLS: readonly ToolSpec[] = [...CHAT_READ_TOOLS, ...CHAT_HEALTH_TOOLS, ...CHAT_MEMORY_TOOLS, ...CHAT_PROPOSE_TOOLS];
 
 export function chatToolsFor(surface: ChatSurface, tools: readonly ToolSpec[] = CHAT_READ_TOOLS): ToolSpec[] {
   return tools.filter((t) => t.surfaces.includes(surface));

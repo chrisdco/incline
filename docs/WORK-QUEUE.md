@@ -59,6 +59,20 @@ signed public photos, #83, chat coach, program generation, logging a set
 from a notification. (Android home-screen widgets shipped separately; they
 are a surface, not a queue slice.)
 
+## Ask memory — remaining (Phase 3, AI-CHAT §5)
+
+Shipped: synced `coach_memory`, `remember` (Ask) + `get_memory` (Ask and
+MCP), facts in the Ask prompt, "Saved to memory · Undo", What Incline knows.
+
+- `memory-web`: What Incline knows page on web (read, edit, delete) from
+  `src/contracts/ai/memory.ts`.
+- `memory-extract`: end-of-thread extraction proposing ADD / UPDATE / DELETE
+  as `suggested` facts (one cheap call after a quiet thread).
+- `memory-temporary-chat`: composer toggle; sets `memory_off` (plumbed:
+  `executeChatTurn({ memoryOff })` skips reading and `remember`).
+- `memory-feedback`: rejecting the same exercise twice suggests "avoids X".
+- `memory-decay`: "still true?" for goals/constraints after 8 weeks.
+
 ## With the next APK (native rebuild)
 
 Things that need a new binary anyway; fold them into the next build, never

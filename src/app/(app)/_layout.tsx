@@ -35,6 +35,7 @@ export default function AppLayout() {
         <Stack.Screen name="ai-settings" options={{ headerShown: false }} />
         <Stack.Screen name="ai-consent" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="ai-data-use" options={{ headerShown: true, title: 'AI data use' }} />
+        <Stack.Screen name="ai-memory" options={{ headerShown: true, title: 'What Incline knows' }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: true, title: 'Ask' }} />
         <Stack.Screen name="import" options={{ headerShown: false }} />
         <Stack.Screen name="template/[id]" options={{ headerShown: true, title: 'Routine' }} />

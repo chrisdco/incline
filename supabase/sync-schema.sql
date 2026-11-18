@@ -185,6 +185,25 @@ CREATE TABLE IF NOT EXISTS progression_decisions (
 CREATE INDEX IF NOT EXISTS idx_progression_decisions_user_updated
   ON progression_decisions (user_id, updated_at);
 
+-- Ask memory (docs/decisions/AI-CHAT.md §5): facts the user owns
+CREATE TABLE IF NOT EXISTS coach_memory (
+  id UUID PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('goal', 'constraint', 'preference', 'equipment', 'schedule', 'other')),
+  text TEXT NOT NULL CHECK (char_length(text) BETWEEN 1 AND 200),
+  source TEXT NOT NULL CHECK (source IN ('user', 'chat', 'extraction', 'feedback')),
+  source_ref TEXT CHECK (char_length(source_ref) <= 100),
+  confidence REAL NOT NULL DEFAULT 1 CHECK (confidence BETWEEN 0 AND 1),
+  status TEXT NOT NULL CHECK (status IN ('suggested', 'confirmed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_coach_memory_user_updated
+  ON coach_memory (user_id, updated_at);
+
 -- Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_exercises ENABLE ROW LEVEL SECURITY;
@@ -196,6 +215,7 @@ ALTER TABLE bodyweight_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE body_measurements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gyms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE progression_decisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coach_memory ENABLE ROW LEVEL SECURITY;
 
 -- Clerk JWT sub == user_id
 DROP POLICY IF EXISTS "profiles_own" ON profiles;
@@ -254,6 +274,12 @@ CREATE POLICY "gyms_own" ON gyms
 
 DROP POLICY IF EXISTS "progression_decisions_own" ON progression_decisions;
 CREATE POLICY "progression_decisions_own" ON progression_decisions
+  FOR ALL TO authenticated
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
+
+DROP POLICY IF EXISTS "coach_memory_own" ON coach_memory;
+CREATE POLICY "coach_memory_own" ON coach_memory
   FOR ALL TO authenticated
   USING (user_id = (select auth.jwt() ->> 'sub'))
   WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
@@ -431,6 +457,7 @@ BEGIN
     WHEN 'body_measurements' THEN 'id'
     WHEN 'gyms' THEN 'id'
     WHEN 'progression_decisions' THEN 'id'
+    WHEN 'coach_memory' THEN 'id'
   END;
   IF v_pk IS NULL THEN
     RAISE EXCEPTION 'sync_push: unknown table %', p_table USING ERRCODE = '22023';

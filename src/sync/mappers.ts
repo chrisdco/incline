@@ -209,6 +209,21 @@ export function buildCloudUpsertRow(
     };
   }
 
+  if (cloudTable === 'coach_memory') {
+    return {
+      ...row,
+      kind: payload.kind,
+      text: payload.text,
+      source: payload.source,
+      source_ref: payload.source_ref ?? null,
+      confidence: payload.confidence ?? 1,
+      status: payload.status,
+      last_used_at: msToIso(payload.last_used_at as number | null),
+      expires_at: msToIso(payload.expires_at as number | null),
+      created_at: msToIso(payload.created_at as number) ?? msToIso(updatedAt),
+    };
+  }
+
   if (cloudTable === 'progression_decisions') {
     let params: unknown = null;
     if (typeof payload.params === 'string') {

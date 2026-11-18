@@ -24,6 +24,7 @@ import { migration022 } from './022_gyms';
 import { migration023 } from './023_chat';
 import { migration024 } from './024_progression';
 import { migration025 } from './025_set_rep_quality';
+import { migration026 } from './026_coach_memory';
 import type { Migration } from './types';
 
 export type { Migration } from './types';
@@ -55,6 +56,7 @@ export const MIGRATIONS: Migration[] = [
   migration023,
   migration024,
   migration025,
+  migration026,
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 1;

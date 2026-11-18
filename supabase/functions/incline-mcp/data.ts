@@ -1,5 +1,7 @@
 import { asRepQuality, effectiveRpe } from '../_shared/contracts/coaching/rep-quality.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import type { MemoryFact } from '../_shared/contracts/ai/chat.ts';
+import { asMemoryKind, shapeMemory } from '../_shared/contracts/ai/memory.ts';
 
 import { SEED_EXERCISES } from '../_shared/contracts/catalog/seed-exercises.ts';
 import {
@@ -676,7 +678,32 @@ async function searchExercises(ctx: Ctx, args: Args): Promise<ToolResult> {
   };
 }
 
+async function getMemory(ctx: Ctx): Promise<ToolResult> {
+  const { data, error } = await ctx.db
+    .from('coach_memory')
+    .select('id, kind, text, source, status, confidence, created_at, last_used_at, expires_at')
+    .eq('user_id', ctx.userId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(120);
+  if (error) return { ok: false, error: 'could not read memory' };
+  const ms = (v: unknown) => (typeof v === 'string' ? Date.parse(v) : undefined);
+  const facts: MemoryFact[] = (data ?? []).map((r: Record<string, unknown>) => ({
+    id: String(r.id),
+    kind: asMemoryKind(r.kind),
+    text: String(r.text ?? ''),
+    source: 'user',
+    confidence: Number(r.confidence ?? 1),
+    status: r.status === 'confirmed' ? 'confirmed' : 'suggested',
+    createdAt: ms(r.created_at) ?? 0,
+    lastUsedAt: ms(r.last_used_at),
+    expiresAt: ms(r.expires_at),
+  }));
+  return { ok: true, data: shapeMemory(facts, Date.now()) };
+}
+
 export const HANDLERS: Record<string, (ctx: Ctx, args: Args) => Promise<ToolResult>> = {
+  get_memory: getMemory,
   get_profile: getProfile,
   list_routines: listRoutines,
   get_routine: getRoutine,

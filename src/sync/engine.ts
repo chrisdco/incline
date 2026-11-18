@@ -465,6 +465,35 @@ export async function applyRemoteRow(
     return 'ok';
   }
 
+  if (table === 'coach_memory') {
+    const local = await db.getFirstAsync<{ id: number; updated_at: number }>(
+      'SELECT id, updated_at FROM coach_memory WHERE uuid = ?',
+      id,
+    );
+    if (local && local.updated_at > updatedAt) return 'ok';
+    const lastUsed = isoToMs(remote.last_used_at as string | null);
+    const expires = isoToMs(remote.expires_at as string | null);
+    const confidence = remote.confidence == null ? 1 : asNum(remote.confidence);
+    const sourceRef = remote.source_ref == null ? null : asStr(remote.source_ref);
+    if (local) {
+      await db.runAsync(
+        `UPDATE coach_memory SET kind = ?, text = ?, source = ?, source_ref = ?, confidence = ?, status = ?,
+           last_used_at = ?, expires_at = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
+        asStr(remote.kind), asStr(remote.text), asStr(remote.source), sourceRef, confidence, asStr(remote.status),
+        lastUsed, expires, updatedAt, deletedAt, local.id,
+      );
+    } else if (!deletedAt) {
+      const created = isoToMs(asStr(remote.created_at)) ?? updatedAt;
+      await db.runAsync(
+        `INSERT INTO coach_memory (uuid, kind, text, source, source_ref, confidence, status, created_at, last_used_at,
+           expires_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, asStr(remote.kind), asStr(remote.text), asStr(remote.source), sourceRef, confidence, asStr(remote.status),
+        created, lastUsed, expires, updatedAt, deletedAt,
+      );
+    }
+    return 'ok';
+  }
+
   if (table === 'progression_decisions') {
     const local = await db.getFirstAsync<{ id: number; updated_at: number }>(
       'SELECT id, updated_at FROM progression_decisions WHERE uuid = ?',

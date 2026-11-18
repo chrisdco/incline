@@ -10,6 +10,7 @@ export type SyncTable =
   | 'body_measurements'
   | 'gyms'
   | 'progression_decisions'
+  | 'coach_memory'
   | 'user_programs'
   | 'user_program_workouts'
   | 'user_active_program'
