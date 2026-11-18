@@ -67,3 +67,20 @@ you didn't touch stays put (`src/contracts/workout-time.ts`).
 - Why: before this, changing the start left the stored finish and duration
   untouched, so the three disagreed (and could go negative); the user expected
   start edits to change the duration.
+
+## Dumbbell weight (each or total)
+
+Most lifters, and Hevy and Strong, log one dumbbell; some log the pair. Both
+are fine if consistent, so it's a choice (`src/contracts/coaching/dumbbell-load.ts`):
+
+- Account default in Settings → During a workout (`dumbbellLoadDefault`,
+  default **each**), per-exercise override in the session's ⋯ menu
+  (`exerciseDumbbellLoads`, keyed by exercise ref key). Both sync in
+  `user_preferences`, like the per-exercise kg/lb unit. Picking the default
+  clears the override.
+- Dumbbell exercises only (catalog `equipment = 'dumbbell'`).
+- **A label, never a conversion.** Stored weights, volume, PRs and progression
+  use the number as logged, so flipping it is always safe and history stays
+  comparable with itself. The weight column header says `KG EACH` / `KG TOTAL`.
+- MCP and Ask exercise history carry `weight_is` ("per dumbbell (one hand)" /
+  "both dumbbells combined") so Claude reads the numbers right.
