@@ -66,7 +66,7 @@ import {
   restoreSet,
   startWorkout,
   updateSet,
-  updateWorkoutDuration,
+  retimeWorkoutLog,
 } from '../queries/sessions';
 import { enqueueSync } from '../../sync/outbox';
 import { volatileKey } from '../../lib/session-volatile';
@@ -368,23 +368,65 @@ describe('clearWorkoutHistory', () => {
   });
 });
 
-describe('updateWorkoutDuration guard', () => {
-  it('refuses open logs and applies to finished ones', async () => {
-    const logId = await startWorkout(null, 'Push');
-    expect(await updateWorkoutDuration(logId, 3600)).toBe(false);
-    const open = await db().getFirstAsync<{ ended_at: number | null }>(
-      'SELECT ended_at FROM workout_logs WHERE id = ?',
-      logId,
+describe('retimeWorkoutLog', () => {
+  const times = async (id: number) =>
+    db().getFirstAsync<{ started_at: number; ended_at: number | null; duration_seconds: number }>(
+      'SELECT started_at, ended_at, duration_seconds FROM workout_logs WHERE id = ?',
+      id,
     );
-    expect(open?.ended_at).toBeNull();
+  const H = 3_600_000;
 
-    await finishWorkout(logId);
-    expect(await updateWorkoutDuration(logId, 3600)).toBe(true);
-    const closed = await db().getFirstAsync<{ duration_seconds: number }>(
-      'SELECT duration_seconds FROM workout_logs WHERE id = ?',
-      logId,
+  async function finishedLog(): Promise<{ id: number; start: number; end: number }> {
+    const id = await startWorkout(null, 'Push');
+    await finishWorkout(id);
+    const end = Date.now() - 2 * H;
+    const start = end - H;
+    // 50 min active in a 60 min window: 10 min paused.
+    await db().runAsync(
+      'UPDATE workout_logs SET started_at = ?, ended_at = ?, duration_seconds = ? WHERE id = ?',
+      start, end, 3000, id,
     );
-    expect(closed?.duration_seconds).toBe(3600);
+    return { id, start, end };
+  }
+
+  it('refuses duration and finish edits on an open log', async () => {
+    const id = await startWorkout(null, 'Push');
+    expect(await retimeWorkoutLog(id, { kind: 'duration', seconds: 3600 })).toEqual({ ok: false, error: 'not_finished' });
+    expect((await times(id))?.ended_at).toBeNull();
+  });
+
+  it('earlier start keeps the finish and lengthens the duration', async () => {
+    const { id, start, end } = await finishedLog();
+    const r = await retimeWorkoutLog(id, { kind: 'start', startedAt: start - 15 * 60_000 });
+    expect(r.ok).toBe(true);
+    expect(await times(id)).toEqual({ started_at: start - 15 * 60_000, ended_at: end, duration_seconds: 3000 + 900 });
+    const pushed = await db().getFirstAsync<{ payload: string }>(
+      `SELECT o.payload FROM sync_outbox o JOIN workout_logs w ON w.uuid = o.row_uuid
+       WHERE o.table_name = 'workout_logs' AND w.id = ?`,
+      id,
+    );
+    expect(JSON.parse(pushed!.payload)).toMatchObject({ duration_seconds: 3900 });
+  });
+
+  it('a later finish keeps the start; duration edits move the finish', async () => {
+    const { id, start, end } = await finishedLog();
+    await retimeWorkoutLog(id, { kind: 'end', endedAt: end + 5 * 60_000 });
+    expect(await times(id)).toEqual({ started_at: start, ended_at: end + 5 * 60_000, duration_seconds: 3300 });
+    await retimeWorkoutLog(id, { kind: 'duration', seconds: 2700 });
+    expect(await times(id)).toEqual({ started_at: start, ended_at: end + 5 * 60_000 - 600_000, duration_seconds: 2700 });
+  });
+
+  it('moving the date shifts the whole workout', async () => {
+    const { id, start, end } = await finishedLog();
+    const day = 24 * H;
+    await retimeWorkoutLog(id, { kind: 'date', startedAt: start - day });
+    expect(await times(id)).toEqual({ started_at: start - day, ended_at: end - day, duration_seconds: 3000 });
+  });
+
+  it('rejects a start after the finish without writing', async () => {
+    const { id, start, end } = await finishedLog();
+    expect(await retimeWorkoutLog(id, { kind: 'start', startedAt: end + 1 })).toEqual({ ok: false, error: 'start_after_end' });
+    expect((await times(id))?.started_at).toBe(start);
   });
 });
 

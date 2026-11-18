@@ -6,6 +6,7 @@ import { dropSetLoad } from '@/coaching/plates';
 import { enqueueSync } from '@/sync/outbox';
 import { exerciseRefFromRow } from '@/sync/exercise-ref';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { retimeWorkout, type RetimeChange, type RetimeResult } from '@/contracts/workout-time';
 import { mutate, type Tx } from '../write';
 import type {
   FeedWorkoutLog,
@@ -584,25 +585,27 @@ export async function updateWorkoutNotes(logId: number, notes: string): Promise<
   });
 }
 
-export async function updateWorkoutLogStartedAt(logId: number, startedAt: number): Promise<void> {
-  await mutate(['workout_logs'], async (tx) => {
-    await tx.runAsync('UPDATE workout_logs SET started_at = ?, updated_at = ? WHERE id = ?', startedAt, Date.now(), logId);
-    await enqueueLogUpsert(tx, logId);
-  });
-}
-
-export async function updateWorkoutDuration(logId: number, seconds: number): Promise<boolean> {
+/**
+ * Edit a workout's date, start, finish or duration (contracts/workout-time):
+ * the field you didn't touch stays put. Returns the error instead of
+ * writing when the change would be invalid.
+ */
+export async function retimeWorkoutLog(logId: number, change: RetimeChange): Promise<RetimeResult> {
   return mutate(['workout_logs'], async (tx) => {
     const log = await tx.getFirstAsync<LogRow>('SELECT * FROM workout_logs WHERE id = ?', logId);
-    // Never implicitly finish: an open session disappears from the active query
-    // and syncs as completed with full credit. Open sessions close via finish.
-    if (!log || log.ended_at == null) return false;
+    if (!log) return { ok: false, error: 'not_finished' } as const;
+    const r = retimeWorkout(
+      { startedAt: log.started_at, endedAt: log.ended_at, durationSeconds: log.duration_seconds },
+      change,
+      Date.now(),
+    );
+    if (!r.ok) return r;
     await tx.runAsync(
-      'UPDATE workout_logs SET duration_seconds = ?, ended_at = ?, updated_at = ? WHERE id = ?',
-      seconds, log.started_at + seconds * 1000, Date.now(), logId,
+      'UPDATE workout_logs SET started_at = ?, ended_at = ?, duration_seconds = ?, updated_at = ? WHERE id = ?',
+      r.times.startedAt, r.times.endedAt, r.times.durationSeconds, Date.now(), logId,
     );
     await enqueueLogUpsert(tx, logId);
-    return true;
+    return r;
   });
 }
 
