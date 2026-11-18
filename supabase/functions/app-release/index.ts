@@ -1,5 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+import { notesForBuild } from '../_shared/contracts/releases/whats-new.ts';
+
 /**
  * Always-latest share link + release feed (docs/decisions/RELEASES.md).
  *
@@ -69,6 +71,18 @@ async function onWebhook(req: Request): Promise<Response> {
   const platform = p.platform === 'ios' ? 'ios' : p.platform === 'android' ? 'android' : null;
   if (!page || !platform || typeof p.id !== 'string') return new Response('ignored');
   const commit = str(m.gitCommitMessage, 500)?.split('\n')[0] ?? '';
+  const completedAt = str(p.completedAt, 40) ?? new Date().toISOString();
+  // What's new for this build: pack items added since the previous build.
+  const { data: prev } = await db()
+    .from('app_releases')
+    .select('completed_at')
+    .eq('platform', platform)
+    .lt('completed_at', completedAt)
+    .neq('id', p.id)
+    .order('completed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const notes = notesForBuild(prev ? Date.parse(prev.completed_at as string) : null, Date.parse(completedAt));
   const { error } = await db()
     .from('app_releases')
     .upsert({
@@ -84,7 +98,8 @@ async function onWebhook(req: Request): Promise<Response> {
       page_url: page,
       artifact_url: expoUrl(artifacts.buildUrl),
       artifact_expires_at: str(p.expirationDate, 40),
-      completed_at: str(p.completedAt, 40) ?? new Date().toISOString(),
+      completed_at: completedAt,
+      notes,
     }, { onConflict: 'id', ignoreDuplicates: false });
   if (error) {
     console.error('app-release upsert failed', error.message);

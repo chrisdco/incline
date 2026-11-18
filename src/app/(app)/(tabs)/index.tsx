@@ -38,7 +38,7 @@ import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
 import { ReadinessCheckIn } from '@/components/home/readiness-checkin';
 import { healthSnapshotQuery } from '@/health/query';
-import { WhatsNewAsk } from '@/components/ai/whats-new-ask';
+import { WhatsNewSheet } from '@/components/whats-new/whats-new-sheet';
 import { AskAboutLink } from '@/components/ai/ask-about-button';
 import type { FeedWorkoutLog, MuscleGroup } from '@/db/types';
 
@@ -472,7 +472,7 @@ export default function HomeScreen() {
           </>
         }
       />
-      <WhatsNewAsk />
+      <WhatsNewSheet />
     </SafeAreaView>
   );
 }

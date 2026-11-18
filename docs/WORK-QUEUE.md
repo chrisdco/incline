@@ -149,9 +149,11 @@ work lands first; native pieces ship together in one build.
    web (Progress section, Send to app / Not now / Withdraw, Settings).
    Verify on device after the next OTA: Claude proposal → inbox → Apply →
    next session load → Undo.
-5g. [ ] **What's new cards:** Ask-style cards from `app-release?format=json`
-   (`app_releases.notes`), on app home after an update and on web. Notes
-   are written per release.
+5g. [x] **What's new:** one pack (`src/contracts/releases/whats-new.ts`):
+   app carousel sheet on Home (replaces the Ask sheet; swipe, dots, fixed
+   height, Try it / Later, seen per item), web dashboard cards, and each
+   build's notes in `app_releases` filled from the pack by the webhook.
+   Later: an "update available" card once builds carry a comparable version.
 5h. [ ] **Abuse layers 6-8** ([ABUSE.md](decisions/ABUSE.md)): new-account
    quota ramp, anomaly alert, cost ledger.
 5c. [ ] **Later (user call):** the teal/blue gradient background theme as an

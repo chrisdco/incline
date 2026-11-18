@@ -26,12 +26,20 @@ shareable APK to a GitHub Release (`incline.apk`, marked latest) every 3h
 or on demand, so the link outlives EAS retention. It needs repo secrets
 `EXPO_TOKEN` and `EAS_WEBHOOK_SECRET` and skips without them.
 
-## What's new (later)
+## What's new
 
-`app_releases.notes` (JSON array of short lines) is the source for the Ask-style
-"What's new" cards. The webhook fills `title` from the build message or
-commit; notes are written by hand (SQL or a later admin script) because commit
-subjects are not user copy. App work: WORK-QUEUE "What's new cards".
+One pack, `src/contracts/releases/whats-new.ts`, read by every surface:
+
+- **App:** Home opens a What's new sheet with every unseen item as a swipeable
+  card (newest first, max 5), page dots, one primary action that follows the
+  card, and Later. Never during a workout. Seen ids share the announcement
+  dismiss list.
+- **Web:** dashboard "What's new" row (snap carousel on phones, grid on wide
+  screens) with the always-latest download link.
+- **Feed:** the webhook writes each build's `notes` as the pack items added
+  since the previous build, so `?format=json` says what is new in it.
+
+Add an item in the same PR as its feature; never reuse an id.
 
 ## Rules
 
