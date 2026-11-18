@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { getDashboard, getVolumeSeries } from "@/lib/queries";
 import { formatDateTime, formatVolume, toDisplayWeight } from "@/lib/format";
 import { Card, EmptyState, SectionTitle, Stat } from "@/components/ui";
+import { WhatsNew } from "@/components/whats-new";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export default async function DashboardPage() {
         <Card><Stat label="Week volume" value={formatVolume(dashboard.weekVolume, unit)} /></Card>
         <Card><Stat label="All-time volume" value={formatVolume(dashboard.totalVolume, unit)} /></Card>
       </div>
+
+      <WhatsNew />
 
       <Card>
         <SectionTitle action={<Link href="/progress" className="text-sm font-medium text-teal-700 dark:text-teal-300">Progress</Link>}>
