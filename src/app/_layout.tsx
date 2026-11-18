@@ -37,7 +37,7 @@ import { useCatalogPrefetch } from '@/hooks/use-catalog-prefetch';
 import { useWeeklyDigestSync } from '@/hooks/use-weekly-digest-sync';
 import { useWidgetRefresh } from '@/hooks/use-widget-refresh';
 import { useWorkoutReminderSync } from '@/hooks/use-workout-reminder-sync';
-import { useAppColorScheme } from '@/lib/use-color-scheme';
+import { useAppColorScheme, useSyncNativeColorScheme } from '@/lib/use-color-scheme';
 import { useSettings } from '@/store/settings-store';
 
 SplashScreen.preventAutoHideAsync();
@@ -95,6 +95,7 @@ function AppShell() {
   const db = useDatabaseState();
   const dbReady = db.status === 'ready';
   const scheme = useAppColorScheme();
+  useSyncNativeColorScheme();
   const accentTheme = useSettings((s) => s.accentTheme);
   // Paint the OS window + nav containers with the themed background so push /
   // pop gestures never reveal a white flash underneath. Matches --background.

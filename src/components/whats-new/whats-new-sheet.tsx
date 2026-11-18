@@ -77,7 +77,8 @@ export function WhatsNewSheet() {
     } else if (!last) goTo(page + 1);
     else close();
   };
-  const onLayout = (e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width));
+  // Measure the scroller itself, unrounded: pages must equal its viewport.
+  const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
   const onSettle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width > 0) setPage(Math.round(e.nativeEvent.contentOffset.x / width));
   };
@@ -92,22 +93,22 @@ export function WhatsNewSheet() {
           title="What's new"
           subtitle={list.length > 1 ? `${list.length} updates · swipe through` : 'In this update'}
         />
-        <View onLayout={onLayout}>
-          {width > 0 ? (
-            <ScrollView
-              ref={scroller}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={onSettle}
-              accessibilityRole="adjustable"
-              accessibilityLabel={`Update ${page + 1} of ${list.length}`}>
-              {list.map((item) => (
-                <WhatsNewCard key={item.id} item={item} width={width} />
-              ))}
-            </ScrollView>
-          ) : null}
-        </View>
+        <ScrollView
+          ref={scroller}
+          horizontal
+          // Explicit interval, not pagingEnabled: Android's pager overshot by a
+          // few px per page inside the native sheet, so the next card peeked in.
+          snapToInterval={width || undefined}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          disableIntervalMomentum
+          onLayout={onLayout}
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onSettle}
+          accessibilityRole="adjustable"
+          accessibilityLabel={`Update ${page + 1} of ${list.length}`}>
+          {width > 0 ? list.map((item) => <WhatsNewCard key={item.id} item={item} width={width} />) : null}
+        </ScrollView>
         {list.length > 1 ? <Dots count={list.length} page={page} onPick={goTo} /> : null}
         <View className="gap-2">
           <Button onPress={primary}>{primaryLabel}</Button>
