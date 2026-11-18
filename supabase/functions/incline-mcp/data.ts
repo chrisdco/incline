@@ -1,3 +1,4 @@
+import { asRepQuality, effectiveRpe } from '../_shared/contracts/coaching/rep-quality.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { SEED_EXERCISES } from '../_shared/contracts/catalog/seed-exercises.ts';
@@ -354,10 +355,11 @@ interface SetRow extends RefCols {
   completed: boolean;
   created_at: string;
   rpe?: number | null;
+  rep_quality?: string | null;
   set_type?: string | null;
 }
 
-const SET_COLS = 'workout_log_id, ref_type, catalog_external_id, user_exercise_id, set_index, weight, reps, completed, created_at, rpe, set_type';
+const SET_COLS = 'workout_log_id, ref_type, catalog_external_id, user_exercise_id, set_index, weight, reps, completed, created_at, rpe, rep_quality, set_type';
 
 async function listWorkouts(ctx: Ctx, args: Args): Promise<ToolResult> {
   const { unit } = await profile(ctx);
@@ -420,12 +422,19 @@ async function getWorkout(ctx: Ctx, args: Args): Promise<ToolResult> {
     .order('created_at')
     .order('set_index');
   const meta = await metaFor(ctx, rows ?? []);
-  const groups = new Map<string, { exercise: string; sets: { weight: number; reps: number; done: boolean }[] }>();
+  const groups = new Map<string, { exercise: string; sets: { weight: number; reps: number; done: boolean; type?: string; dirty?: true }[] }>();
   for (const s of (rows ?? []) as SetRow[]) {
     const ref = rowRef(s);
     const key = ref ? refKey(ref) : 'unknown';
     const g = groups.get(key) ?? { exercise: nameOf(meta, s), sets: [] };
-    g.sets.push({ weight: toUnit(s.weight, unit), reps: s.reps, done: s.completed });
+    const type = (s as { set_type?: string | null }).set_type;
+    g.sets.push({
+      weight: toUnit(s.weight, unit),
+      reps: s.reps,
+      done: s.completed,
+      ...(type && type !== 'working' ? { type } : {}),
+      ...(asRepQuality((s as { rep_quality?: string | null }).rep_quality) === 'dirty' ? { dirty: true as const } : {}),
+    });
     groups.set(key, g);
   }
   return {
@@ -488,7 +497,7 @@ function normSets(sets: (SetRow & { startedAt: string })[], meta: Map<string, Ex
       reps: s.reps,
       primaryMuscle: m?.primaryMuscle ?? null,
       secondaryMuscles: m?.secondaryMuscles ?? [],
-      rpe: s.rpe ?? null,
+      rpe: effectiveRpe(s.rpe, asRepQuality(s.rep_quality)),
       setType: s.set_type ?? null,
     });
   }

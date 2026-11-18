@@ -1,3 +1,4 @@
+import { asRepQuality, effectiveRpe } from "../../../src/contracts/coaching/rep-quality";
 /**
  * Plateau review on the web (PROGRESSION.md). Same contract as the app and
  * MCP (src/contracts), so all three name the same stalled lifts and fixes.
@@ -79,13 +80,14 @@ export async function loadProgressionInputs() {
     weight: number;
     reps: number;
     rpe: number | null;
+    rep_quality: string | null;
     set_type: string | null;
   };
   let sets: SetRow[] = [];
   if (started.size) {
     const { data } = await supabase
       .from("set_entries")
-      .select("workout_log_id, ref_type, catalog_external_id, user_exercise_id, weight, reps, rpe, set_type")
+      .select("workout_log_id, ref_type, catalog_external_id, user_exercise_id, weight, reps, rpe, rep_quality, set_type")
       .eq("user_id", userId)
       .eq("completed", true)
       .is("deleted_at", null)
@@ -107,7 +109,7 @@ export async function loadProgressionInputs() {
       reps: s.reps,
       primaryMuscle: meta?.muscle ?? null,
       secondaryMuscles: [],
-      rpe: s.rpe ?? null,
+      rpe: effectiveRpe(s.rpe, asRepQuality(s.rep_quality)),
       setType: s.set_type ?? null,
     });
   }

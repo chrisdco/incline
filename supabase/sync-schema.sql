@@ -112,6 +112,8 @@ CREATE TABLE IF NOT EXISTS set_entries (
 ALTER TABLE set_entries ADD COLUMN IF NOT EXISTS superset_group INTEGER;
 ALTER TABLE set_entries ADD COLUMN IF NOT EXISTS set_type TEXT NOT NULL DEFAULT 'working';
 ALTER TABLE set_entries ADD COLUMN IF NOT EXISTS rpe INTEGER;
+-- Rep quality ('dirty' = form broke / forced reps). NULL = not marked.
+ALTER TABLE set_entries ADD COLUMN IF NOT EXISTS rep_quality TEXT CHECK (rep_quality IN ('dirty'));
 CREATE INDEX IF NOT EXISTS idx_set_entries_user_updated
   ON set_entries (user_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_set_entries_log

@@ -79,6 +79,7 @@ export {
   addExerciseToWorkout,
   addWarmUpSet,
   addSet,
+  addDropSet,
   updateSet,
   removeSet,
   restoreSet,

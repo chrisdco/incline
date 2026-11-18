@@ -151,6 +151,8 @@ function applyHighRpeHold(suggestion: TrainingSuggestion, sets: LastWorkingSet[]
     ...suggestion,
     weight: sets[0].weight,
     reasonCode: 'high_rpe_hold',
-    reasonText: `Last set was RPE ${rpe} — hold weight this time.`,
+    reasonText: sets[sets.length - 1]?.dirty
+      ? 'Last set was a grind (dirty reps) — hold weight this time.'
+      : `Last set was RPE ${rpe} — hold weight this time.`,
   };
 }

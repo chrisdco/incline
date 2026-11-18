@@ -68,7 +68,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
                       <td>{s.weight > 0 ? formatWeight(s.weight, log.unit) : "—"}</td>
                       <td>{s.reps}</td>
                       <td className="text-zinc-500">{s.set_type}{s.completed ? "" : " · open"}</td>
-                      <td>{s.rpe ?? "—"}</td>
+                      <td>{s.rpe ?? "—"}{s.rep_quality === "dirty" ? <span className="ml-1 text-amber-600">dirty</span> : null}</td>
                     </tr>
                   ))}
                 </tbody>

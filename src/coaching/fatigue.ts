@@ -12,6 +12,7 @@ export interface FatigueSet {
   reps: number;
   completed: boolean;
   setType?: string | null;
+  repQuality?: string | null;
 }
 
 export interface FatigueCue {
@@ -22,10 +23,10 @@ export interface FatigueCue {
   suggestedReps: number;
 }
 
-function workingSets(sets: FatigueSet[]): { weight: number; reps: number }[] {
+function workingSets(sets: FatigueSet[]): { weight: number; reps: number; dirty: boolean }[] {
   return sets
     .filter((s) => s.completed && (s.setType ?? 'working') === 'working' && s.weight > 0 && s.reps > 0)
-    .map((s) => ({ weight: s.weight, reps: s.reps }));
+    .map((s) => ({ weight: s.weight, reps: s.reps, dirty: s.repQuality === 'dirty' }));
 }
 
 /**
@@ -38,7 +39,11 @@ export function detectSetFatigue(sets: FatigueSet[], unit: Unit): FatigueCue | n
   const first = working[0];
   const last = working[working.length - 1];
 
+  // A set marked "dirty reps" earlier explains a lighter set after it: that
+  // is the right call (WORKOUT-SETS.md), not junk volume.
+  const brokeEarlier = working.slice(0, -1).some((s) => s.dirty);
   if (last.weight + 0.01 < first.weight) {
+    if (brokeEarlier) return null;
     return {
       kind: 'load_drop',
       title: 'Load dropped',

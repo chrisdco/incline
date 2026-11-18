@@ -1,3 +1,4 @@
+import { asRepQuality } from '@/contracts/coaching/rep-quality';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { openDatabase } from '@/db/client';
@@ -350,7 +351,7 @@ export async function applyRemoteRow(
     if (exId == null && !deletedAt) return 'blocked';
     if (local) {
       await db.runAsync(
-        `UPDATE set_entries SET exercise_id = COALESCE(?, exercise_id), set_index = ?, weight = ?, reps = ?, completed = ?, rest_seconds = ?, superset_group = ?, set_type = ?, rpe = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
+        `UPDATE set_entries SET exercise_id = COALESCE(?, exercise_id), set_index = ?, weight = ?, reps = ?, completed = ?, rest_seconds = ?, superset_group = ?, set_type = ?, rpe = ?, rep_quality = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
         exId,
         asNum(remote.set_index),
         asNum(remote.weight),
@@ -360,6 +361,7 @@ export async function applyRemoteRow(
         asNumOrNull(remote.superset_group),
         asSetType(remote.set_type),
         asNumOrNull(remote.rpe),
+        asRepQuality(remote.rep_quality),
         updatedAt,
         deletedAt,
         local.id,
@@ -367,8 +369,8 @@ export async function applyRemoteRow(
     } else if (!deletedAt && exId != null) {
       const created = isoToMs(asStr(remote.created_at)) ?? updatedAt;
       await db.runAsync(
-        `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, superset_group, set_type, rpe, uuid, created_at, updated_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, superset_group, set_type, rpe, rep_quality, uuid, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         log.id,
         exId,
         asNum(remote.set_index),
@@ -379,6 +381,7 @@ export async function applyRemoteRow(
         asNumOrNull(remote.superset_group),
         asSetType(remote.set_type),
         asNumOrNull(remote.rpe),
+        asRepQuality(remote.rep_quality),
         id,
         created,
         updatedAt,

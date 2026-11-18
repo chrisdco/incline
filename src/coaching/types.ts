@@ -56,6 +56,8 @@ export interface LastWorkingSet {
   reps: number;
   /** Optional 1–10. Missing means coaching ignores RPE for this session. */
   rpe?: number | null;
+  /** Marked "dirty reps": form broke. Its RPE arrives already raised to 10. */
+  dirty?: boolean;
 }
 
 export type ReadinessLevel = 'fresh' | 'ok' | 'tired';

@@ -1,3 +1,4 @@
+import type { RepQuality } from '@/contracts/coaching/rep-quality';
 import type { ProgressionAutonomy } from '@/contracts/coaching/progression';
 
 export type MuscleGroup =
@@ -151,6 +152,8 @@ export interface SetEntry {
   setType?: SetType;
   /** Optional 1–10. Null means skipped; never required to complete a set. */
   rpe?: number | null;
+  /** 'dirty' = the lifter marked broken form / forced reps. Null = not marked. */
+  repQuality?: RepQuality | null;
   createdAt: number;
 }
 

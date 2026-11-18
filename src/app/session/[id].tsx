@@ -493,6 +493,8 @@ export default function SessionScreen() {
                   onApplyLoad={onApplyLoad}
                   onApplySuggestion={onApplySuggestion}
                   onChangeRpe={engine.changeRpe}
+                  onChangeRepQuality={engine.changeRepQuality}
+                  onAddDrop={(id) => void engine.addDrop(id)}
                   onChangeSetType={engine.changeSetType}
                   onOpenExercise={openExercise}
                   onReplaceExercise={openReplaceExercise}

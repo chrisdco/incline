@@ -13,7 +13,7 @@ import { GYMS_DDL } from './migrations/022_gyms';
 import { PROGRESSION_DDL } from './migrations/024_progression';
 import { CHAT_DDL } from './migrations/023_chat';
 
-export const SCHEMA_VERSION = 24;
+export const SCHEMA_VERSION = 25;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -185,6 +185,7 @@ export const SCHEMA_STATEMENTS: string[] = [
     superset_group INTEGER,
     set_type TEXT NOT NULL DEFAULT 'working',
     rpe INTEGER,
+    rep_quality TEXT,
     sort_order INTEGER,
     uuid TEXT,
     deleted_at INTEGER,

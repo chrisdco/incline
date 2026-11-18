@@ -2,6 +2,7 @@ import { useStore } from 'zustand';
 
 import { kvStorage } from '@/db/kv';
 import {
+  addDropSet,
   addSet,
   addWarmUpSet,
   discardWorkout,
@@ -35,6 +36,7 @@ export const sessionEngine = createSessionEngine({
   updateSet,
   addSet,
   addWarmUpSet,
+  addDropSet,
   removeSet,
   restoreSet,
   removeExerciseFromWorkout,
