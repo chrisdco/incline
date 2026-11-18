@@ -29,7 +29,8 @@ import {
   historyRangeSinceMs,
   type HistoryFilterSelection,
 } from '@/components/progress/history-filters';
-import { usePeriodStats, useStalledLifts, useWorkoutLogs } from '@/hooks/use-data';
+import { usePeriodStats, useProgressionReview, useWorkoutLogs } from '@/hooks/use-data';
+import { StalledSection } from '@/components/progression/stalled-section';
 import { tabBarScrollProps } from '@/hooks/use-tab-bar-scroll';
 import { useSettings } from '@/store/settings-store';
 import { useShallow } from 'zustand/react/shallow';
@@ -110,7 +111,7 @@ export default function ProgressScreen() {
   const [exerciseSheetOpen, setExerciseSheetOpen] = useState(false);
   const [templateSheetOpen, setTemplateSheetOpen] = useState(false);
   const { data: stats, loading, error, refetch } = usePeriodStats(range);
-  const { data: stalled } = useStalledLifts();
+  const { data: review } = useProgressionReview();
 
   const historyFilters = useMemo<WorkoutLogFilters>(() => {
     const filters: WorkoutLogFilters = {};
@@ -235,31 +236,8 @@ export default function ProgressScreen() {
                   )}
                 </Section>
 
-                {/* Plateau signals (advisory, same rule as "Why this weight?"). Hidden when none. */}
-                {stalled && stalled.length > 0 ? (
-                  <Section
-                    title="Stalled lifts"
-                    first
-                    action={
-                      <AskAboutLink
-                        about={{ kind: 'insight', label: `Stalled: ${stalled.map((l) => l.name).join(', ')}`.slice(0, 80) }}
-                        question="How do I get these lifts moving again?"
-                      />
-                    }>
-                    <Card className="py-1">
-                      {stalled.map((lift, i) => (
-                        <View key={lift.exerciseId}>
-                          {i > 0 ? <Separator /> : null}
-                          <ListRow
-                            title={lift.name}
-                            subtitle={lift.sentence}
-                            onPress={() => router.push(`/exercise/${lift.exerciseId}` as Href)}
-                          />
-                        </View>
-                      ))}
-                    </Card>
-                  </Section>
-                ) : null}
+                {/* Plateau findings + fixes (PROGRESSION.md), same contract as MCP and web. Hidden when none. */}
+                <StalledSection review={review} />
 
                 {/* Deeper views as one grouped list instead of three cards. */}
                 <Section title="Explore" first>

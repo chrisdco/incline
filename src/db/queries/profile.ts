@@ -29,6 +29,7 @@ export const RESET_TABLES = [
   'bodyweight_entries',
   'body_measurements',
   'gyms',
+  'progression_decisions',
   'user_profile',
   'template_exercises',
   'workout_templates',
@@ -159,6 +160,7 @@ export async function wipeUserTables(tx: Tx): Promise<void> {
   await tx.execAsync('DELETE FROM bodyweight_entries');
   await tx.execAsync('DELETE FROM body_measurements');
   await tx.execAsync('DELETE FROM gyms');
+  await tx.execAsync('DELETE FROM progression_decisions');
   await tx.execAsync('DELETE FROM user_profile');
 
   // Soft-deleted or live custom template exercises → remove custom templates

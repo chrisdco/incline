@@ -16,7 +16,8 @@ import { textOf } from '@/contracts/ai/chat';
 import { chatMessagesQuery } from '@/lib/query-keys';
 import { aboutOf, answerCardsFor, followUpsFor, readLines } from '@/ai/chat-turn';
 
-import { parseRoutineChange, ROUTINE_CHANGE_ACTION } from '@/ai/capabilities/propose-tools';
+import { parseProgressionCard, parseRoutineChange, PROGRESSION_REVIEW_ACTION, ROUTINE_CHANGE_ACTION } from '@/ai/capabilities/propose-tools';
+import { progressionHref } from '@/components/progression/stalled-section';
 import { Button } from '@/components/ui/button';
 
 import { AiMark } from './ai-mark';
@@ -53,6 +54,8 @@ const WORKING: Record<string, string> = {
   search_exercises: 'Searching exercises…',
   propose_routine_change: 'Drafting a change…',
   get_readiness: 'Checking your sleep and recovery…',
+  get_progression_review: 'Checking for stalled lifts…',
+  propose_progression_change: 'Weighing a fix…',
 };
 
 type Row =
@@ -119,6 +122,27 @@ function RichText({ text }: { text: string }) {
  */
 function SuggestedChange({ part }: { part: ProposalPart }) {
   const router = useRouter();
+  if (part.action === PROGRESSION_REVIEW_ACTION) {
+    const fix = parseProgressionCard(part.payload);
+    if (!fix) return null;
+    return (
+      <View className="gap-2 rounded-2xl border border-hairline bg-surface1 px-4 py-3" accessible={false}>
+        <View className="flex-row items-center gap-1.5">
+          <Icon icon={AiMark} size={12} color="primary" />
+          <Caption numberOfLines={1}>Suggested fix · {fix.exerciseName}</Caption>
+        </View>
+        <Body className="text-foreground">{fix.change}</Body>
+        <Caption>{fix.verdict === 'matches' ? "Same as Incline's own fix." : "Differs from Incline's fix; you'll see both."}</Caption>
+        <Button
+          size="sm"
+          variant="outline"
+          accessibilityHint="Opens the plateau screen to compare and apply"
+          onPress={() => router.push(progressionHref(fix.exerciseKey))}>
+          Review fix
+        </Button>
+      </View>
+    );
+  }
   const change = part.action === ROUTINE_CHANGE_ACTION ? parseRoutineChange(part.payload) : null;
   if (!change) return null;
   return (

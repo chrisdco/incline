@@ -13,6 +13,7 @@ export const PUSH_ORDER: SyncTable[] = [
   'workout_photos',
   'bodyweight_entries',
   'body_measurements',
+  'progression_decisions',
   'user_active_program',
   'user_preferences',
   'profiles',
@@ -31,6 +32,7 @@ export const PULL_TABLES: { table: SyncTable; cloud: string; idCol: string }[] =
   { table: 'workout_photos', cloud: 'workout_photos', idCol: 'id' },
   { table: 'bodyweight_entries', cloud: 'bodyweight_entries', idCol: 'id' },
   { table: 'body_measurements', cloud: 'body_measurements', idCol: 'id' },
+  { table: 'progression_decisions', cloud: 'progression_decisions', idCol: 'id' },
   { table: 'user_active_program', cloud: 'user_active_program', idCol: 'user_id' },
   { table: 'user_preferences', cloud: 'user_preferences', idCol: 'user_id' },
 ];

@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { aiTaskFlag, isFlagDisabled } from '../_shared/contracts/ai/flags.ts';
 import { attestedLimit, INTEGRITY_NONCE_HEADER, INTEGRITY_TOKEN_HEADER } from '../_shared/contracts/ai/integrity.ts';
+import { abuseCheck } from '../_shared/edge/abuse.ts';
 import { verifyBearerSub } from '../_shared/edge/auth.ts';
 import { gradeIntegrity } from '../_shared/edge/integrity.ts';
 import { TASKS } from './tasks.ts';
@@ -175,6 +176,10 @@ Deno.serve(async (req) => {
   });
   if (rateError) return json(500, { ok: false, error: 'quota_unavailable' });
   if (allowed !== true) return json(429, { ok: false, error: 'rate_limited' });
+  const abuse = await abuseCheck(db, userId, task.id);
+  if (abuse === 'unavailable') return json(500, { ok: false, error: 'quota_unavailable' });
+  // Burst and the global ceiling are "try again", not "today's limit".
+  if (abuse !== 'ok') return json(503, { ok: false, error: 'busy' });
 
   let output: unknown;
   let meta: Meta | null = null;

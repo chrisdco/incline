@@ -29,13 +29,25 @@ export const TABLES = {
   progress: ['workout_logs', 'set_entries', 'exercises', 'bodyweight_entries', 'body_measurements'],
   profile: ['user_profile'],
   /** Load suggestions + ghosts: template shape, last sets, readiness (kv), gym plates. */
-  coaching: ['workout_templates', 'template_exercises', 'exercises', 'workout_logs', 'set_entries', 'kv', 'gyms'],
+  coaching: ['workout_templates', 'template_exercises', 'exercises', 'workout_logs', 'set_entries', 'kv', 'gyms', 'progression_decisions'],
   /** Gym profiles + the current gym (kv). */
   gyms: ['gyms', 'kv'],
   /** Ask chat threads (device-local). */
   chat: ['chat_threads', 'chat_messages'],
   /** Ask's idle brief: the read tools' recent sets + unit. */
   askBrief: ['workout_logs', 'set_entries', 'exercises', 'exercise_secondary_muscles', 'user_profile'],
+  /** Plateau review: sets by ref key, decisions (synced), profile, last deload (kv), routines. */
+  progression: [
+    'workout_logs',
+    'set_entries',
+    'exercises',
+    'exercise_secondary_muscles',
+    'user_profile',
+    'progression_decisions',
+    'kv',
+    'workout_templates',
+    'template_exercises',
+  ],
 } as const satisfies Record<string, readonly DbTable[]>;
 
 /* ---- exercise catalog (was exercise-cache.ts) ---- */

@@ -1,14 +1,9 @@
 import Link from "next/link";
-import dynamicChart from "next/dynamic";
+import { TrendChart } from "@/components/charts-lazy";
 import { Suspense } from "react";
 
 import { getBodyweight, getMeasurementMetrics, getMeasurements } from "@/lib/queries";
 import { Card, SectionTitle } from "@/components/ui";
-
-const TrendChart = dynamicChart(() => import("@/components/charts").then((m) => m.TrendChart), {
-  ssr: false,
-  loading: () => <div className="h-64 animate-pulse rounded-xl bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />,
-});
 
 export const dynamic = "force-dynamic";
 

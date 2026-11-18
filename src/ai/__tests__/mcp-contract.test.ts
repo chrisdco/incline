@@ -33,10 +33,10 @@ describe('seed catalog copy', () => {
 });
 
 describe('tool list', () => {
-  it('has unique names and object schemas; only create_routine writes', () => {
+  it('has unique names and object schemas; only create_routine and propose_progression_change write', () => {
     expect(new Set(TOOLS.map((t) => t.name)).size).toBe(TOOLS.length);
     for (const t of TOOLS) expect(t.inputSchema.type).toBe('object');
-    expect(TOOLS.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name)).toEqual(['create_routine']);
+    expect(TOOLS.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name)).toEqual(['create_routine', 'propose_progression_change']);
   });
 });
 

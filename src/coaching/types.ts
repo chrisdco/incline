@@ -10,7 +10,9 @@ export type ReasonCode =
   | 'partial_miss_hold'
   | 'all_sets_maxed'
   | 'high_rpe_hold'
-  | 'readiness_hold';
+  | 'readiness_hold'
+  /** An applied plateau reset (PROGRESSION.md §3): this session only. */
+  | 'plateau_reset';
 
 export type InsightSeverity = 'info' | 'success' | 'warning';
 
@@ -23,7 +25,8 @@ export type CoachingInsightKind =
   | 'post_session'
   | 'deload'
   | 'fatigue'
-  | 'program_plan';
+  | 'program_plan'
+  | 'plateau';
 
 export interface TrainingSuggestion {
   exerciseId: number;

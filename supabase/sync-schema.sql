@@ -162,6 +162,27 @@ CREATE INDEX IF NOT EXISTS idx_gyms_user_updated
 
 ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS gym_uuid TEXT;
 
+-- Progression decisions (docs/decisions/PROGRESSION.md §4; supabase/progression.sql)
+CREATE TABLE IF NOT EXISTS progression_decisions (
+  id UUID PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  exercise_ref TEXT NOT NULL CHECK (char_length(exercise_ref) <= 200),
+  exercise_name TEXT NOT NULL DEFAULT '' CHECK (char_length(exercise_name) <= 120),
+  remedy TEXT NOT NULL CHECK (remedy IN ('reset', 'add_set', 'rep_range', 'swap', 'deload', 'keep_going')),
+  params JSONB,
+  status TEXT NOT NULL CHECK (status IN ('proposed', 'applied', 'declined', 'done', 'reverted')),
+  source TEXT NOT NULL CHECK (source ~ '^(coach|user|web|app_ai|mcp:[a-z0-9._-]{1,64})$'),
+  rationale TEXT NOT NULL DEFAULT '' CHECK (char_length(rationale) <= 600),
+  rule_version TEXT NOT NULL DEFAULT '',
+  resume_after_sessions INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_progression_decisions_user_updated
+  ON progression_decisions (user_id, updated_at);
+
 -- Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_exercises ENABLE ROW LEVEL SECURITY;
@@ -172,6 +193,7 @@ ALTER TABLE set_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bodyweight_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE body_measurements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gyms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE progression_decisions ENABLE ROW LEVEL SECURITY;
 
 -- Clerk JWT sub == user_id
 DROP POLICY IF EXISTS "profiles_own" ON profiles;
@@ -224,6 +246,12 @@ CREATE POLICY "body_measurements_own" ON body_measurements
 
 DROP POLICY IF EXISTS "gyms_own" ON gyms;
 CREATE POLICY "gyms_own" ON gyms
+  FOR ALL TO authenticated
+  USING (user_id = (select auth.jwt() ->> 'sub'))
+  WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
+
+DROP POLICY IF EXISTS "progression_decisions_own" ON progression_decisions;
+CREATE POLICY "progression_decisions_own" ON progression_decisions
   FOR ALL TO authenticated
   USING (user_id = (select auth.jwt() ->> 'sub'))
   WITH CHECK (user_id = (select auth.jwt() ->> 'sub'));
@@ -400,6 +428,7 @@ BEGIN
     WHEN 'bodyweight_entries' THEN 'id'
     WHEN 'body_measurements' THEN 'id'
     WHEN 'gyms' THEN 'id'
+    WHEN 'progression_decisions' THEN 'id'
   END;
   IF v_pk IS NULL THEN
     RAISE EXCEPTION 'sync_push: unknown table %', p_table USING ERRCODE = '22023';

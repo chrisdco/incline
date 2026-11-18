@@ -38,6 +38,7 @@ import {
 import type { Exercise, MonthlyRecap, PeriodStats, PR, ProgressRange, Program, ProgressStats, SearchHit, UserProfile, WeeklyRecap, WorkoutTemplate } from '@/db/types';
 import { plateauSignal, REASON_HISTORY_SESSIONS } from '@/coaching/reason';
 import type { StalledLift } from '@/coaching/stalled';
+import { getProgressionReview, routinesWithExercise, type ProgressionReview, type RoutineUse } from '@/db/queries/progression';
 import type { DbTable } from '@/db/write';
 import { dbKey } from '@/lib/query-client';
 import { TABLES } from '@/lib/query-keys';
@@ -172,6 +173,16 @@ export function useActivePlanProgress() {
 }
 
 /* ---- progress & profile ---- */
+/** Plateau findings + the suggestion inbox (PROGRESSION.md); same contract as MCP and web. */
+export function useProgressionReview() {
+  return useDbQuery<ProgressionReview>(TABLES.progression, ['progressionReview'], () => getProgressionReview());
+}
+/** Routines that program a lift (fix preview). */
+export function useRoutinesWithExercise(exerciseId: number | null) {
+  return useDbQuery<RoutineUse[]>(TABLES.templates, ['routinesWithExercise', exerciseId], () =>
+    exerciseId ? routinesWithExercise(exerciseId) : Promise.resolve([]),
+  );
+}
 /** Progress "Stalled lifts": plateau signals across recently trained exercises (batched). */
 export function useStalledLifts() {
   return useDbQuery<StalledLift[]>(TABLES.logs, ['stalledLifts'], () => getStalledLifts());

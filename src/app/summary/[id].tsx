@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { InitialsAvatar } from '@/components/common/initials-avatar';
 import { FinishCelebration } from '@/components/workout/finish-celebration';
+import { AfterSessionPlateaus } from '@/components/progression/after-session';
 import { SessionPhotoStrip } from '@/components/workout/session-photo-strip';
 import { WorkoutLogActionsSheet } from '@/components/workout/workout-log-actions-sheet';
 import { ExerciseThumb } from '@/components/exercise/exercise-media';
@@ -392,6 +393,8 @@ export default function SummaryScreen() {
             </Card>
           </Section>
         ) : null}
+
+        <AfterSessionPlateaus logId={logId} startedAt={log.startedAt} />
 
         <Button
           variant="outline"

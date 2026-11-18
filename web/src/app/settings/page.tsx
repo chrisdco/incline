@@ -1,5 +1,7 @@
 import { getPrefs, getProfile, updateProfileAction } from "@/lib/queries";
 import { getDeletionStatusAction } from "@/lib/account-actions";
+import { setAutonomyAction } from "@/lib/progression-actions";
+import { AUTONOMY_COPY, PROGRESSION_AUTONOMY, isProgressionAutonomy } from "../../../../src/contracts/coaching/progression";
 import DangerZone from "@/components/danger-zone";
 import { SaveProfileButton } from "@/components/save-button";
 import { Card, SectionTitle } from "@/components/ui";
@@ -67,6 +69,34 @@ export default async function SettingsPage() {
             <SaveProfileButton />
           </form>
         )}
+      </Card>
+
+      <Card>
+        <SectionTitle>Coaching</SectionTitle>
+        <form action={setAutonomyAction} className="flex flex-col gap-3">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-sm font-medium">Plateau fixes</legend>
+            {PROGRESSION_AUTONOMY.map((m) => (
+              <label key={m} className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="autonomy"
+                  value={m}
+                  defaultChecked={(isProgressionAutonomy(prefs.progressionAutonomy) ? prefs.progressionAutonomy : "ask") === m}
+                  className="mt-1 accent-teal-600"
+                />
+                <span>
+                  <span className="font-medium">{AUTONOMY_COPY[m].label}</span>
+                  <span className="block text-zinc-500">{AUTONOMY_COPY[m].detail}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <button className="self-start rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 focus-visible:ring-2 focus-visible:ring-teal-600">
+            Save
+          </button>
+          <p className="text-xs text-zinc-500">Syncs to your phone. Suggestions from Claude or Ask always wait for you.</p>
+        </form>
       </Card>
 
       <Card>

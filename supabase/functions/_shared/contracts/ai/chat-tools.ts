@@ -21,6 +21,8 @@ const CATEGORIES: Record<string, readonly AiDataCategory[]> = {
   get_exercise_history: ['workouts', 'records', 'exercises'],
   get_personal_records: ['records', 'exercises'],
   get_training_summary: ['summaries'],
+  get_progression_review: ['workouts', 'records', 'summaries'],
+  propose_progression_change: ['workouts', 'exercises'],
   search_exercises: ['exercises'],
 };
 
@@ -71,6 +73,8 @@ export const CHAT_PROPOSE_TOOLS: readonly ToolSpec[] = [
     dataCategories: ['routines'],
     version: 1,
   },
+  // Same definition as MCP's; in Ask the card applies on device.
+  ...TOOLS.filter((t) => t.name === 'propose_progression_change').map((t) => ({ ...fromMcp(t), surfaces: ['chat'] as const })),
 ];
 
 /**

@@ -7,6 +7,9 @@ import { buildFeaturePackV1 } from '@/coaching/feature-pack';
 import { requestCoachNarration, SAFE_HOME_NARRATE_KINDS } from '@/coaching/narrate-client';
 import { DELOAD_APPLIED_KEY, DELOAD_SNOOZE_KEY } from '@/coaching/deload';
 import { programPlanInsight } from '@/coaching/program-plan';
+import { plateauInsight } from '@/coaching/plateau-insight';
+import { getProgressionReview } from '@/db/queries/progression';
+import { useSettings } from '@/store/settings-store';
 import { getTodayReadiness, setTodayReadiness } from '@/coaching/readiness-store';
 import type { ReadinessLevel } from '@/coaching/types';
 import { kvStorage } from '@/db/kv';
@@ -55,13 +58,14 @@ export function useHomeCoachingContext({
 
   const refreshContext = useCallback(async () => {
     const gen = ++contextGen.current;
-    const [cons, muscleDays, appliedRaw, snoozeRaw, planDiff, todayReady] = await Promise.all([
+    const [cons, muscleDays, appliedRaw, snoozeRaw, planDiff, todayReady, review] = await Promise.all([
       getWeeklyConsistency(weeklyWorkoutGoal),
       getMuscleExposureDays(),
       kvStorage.getItem(DELOAD_APPLIED_KEY),
       kvStorage.getItem(DELOAD_SNOOZE_KEY),
       getActiveProgramPlanDiff(),
       getTodayReadiness(),
+      getProgressionReview().catch(() => null),
     ]);
     if (gen !== contextGen.current) return;
     setConsistency(cons);
@@ -71,6 +75,7 @@ export function useHomeCoachingContext({
       lastDeloadAppliedAt: appliedRaw ? Number(appliedRaw) : null,
       deloadSnoozeUntil: snoozeRaw ? Number(snoozeRaw) : null,
       programPlanInsight: planDiff ? programPlanInsight(planDiff) : null,
+      plateauInsight: plateauInsight(review, useSettings.getState().progressionAutonomy),
     });
     const recentPr = stats?.prs?.find((p) => p.achievedAt >= Date.now() - 14 * 86_400_000);
     const cards = buildHomeContextCards({

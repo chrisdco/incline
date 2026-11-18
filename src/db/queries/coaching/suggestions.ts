@@ -1,6 +1,7 @@
 import { openDatabase } from '../../client';
 import { getLastSetsForExercises, getRecentTopSetsForExercises, listExercises, getExercise } from '../exercises';
 import { getTemplate } from '../templates';
+import { getResetOverrides } from '../progression';
 import { suggestNextLoad } from '@/coaching/overload';
 import { gymIncrement } from '@/coaching/plates';
 import { getGymByUuid, readCurrentGymUuid } from '../gyms';
@@ -11,6 +12,14 @@ import { rankSubstitutes } from '@/coaching/substitution';
 import type { TrainingSuggestion } from '@/coaching/types';
 import type { Exercise, SetEntry, Unit } from '../../types';
 import { resolveWeightUnit } from '@/lib/units';
+
+/** An applied plateau reset sets this session's load (PROGRESSION.md §3); reps stay the rule's. */
+function applyResetOverride(s: TrainingSuggestion, resetKg: number | undefined): void {
+  if (resetKg == null || !(resetKg > 0)) return;
+  s.weight = resetKg;
+  s.reasonCode = 'plateau_reset';
+  s.reasonText = 'Plateau reset — lighter this session, then build back up.';
+}
 
 function workingSets(sets: SetEntry[]): { weight: number; reps: number; rpe: number | null }[] {
   return sets
@@ -35,11 +44,12 @@ export async function getTemplateSuggestions(
   if (!template?.exercises?.length) return [];
 
   const exerciseIds = template.exercises.map((te) => te.exerciseId);
-  const [lastMap, historyMap, readiness, gym] = await Promise.all([
+  const [lastMap, historyMap, readiness, gym, resets] = await Promise.all([
     getLastSetsForExercises(exerciseIds),
     getRecentTopSetsForExercises(exerciseIds, REASON_HISTORY_SESSIONS),
     getTodayReadiness(),
     resolveGym(opts.gymUuid),
+    getResetOverrides(exerciseIds),
   ]);
   const now = Date.now();
   const out: TrainingSuggestion[] = [];
@@ -60,6 +70,7 @@ export async function getTemplateSuggestions(
       increment,
     });
     if (!suggestion) continue;
+    applyResetOverride(suggestion, resets.get(te.exerciseId));
     // Numbers above are final; the reason only explains them.
     suggestion.reason = explainSuggestion(suggestion, {
       lastSets: last,
@@ -93,10 +104,11 @@ export async function getExerciseSuggestion(
   targetSets: number,
   unit: Unit,
 ): Promise<TrainingSuggestion | null> {
-  const [lastMap, historyMap, readiness] = await Promise.all([
+  const [lastMap, historyMap, readiness, resets] = await Promise.all([
     getLastSetsForExercises([exerciseId]),
     getRecentTopSetsForExercises([exerciseId], REASON_HISTORY_SESSIONS),
     getTodayReadiness(),
+    getResetOverrides([exerciseId]),
   ]);
   const last = workingSets(lastMap[exerciseId] ?? []);
   const suggestion = suggestNextLoad({
@@ -110,6 +122,7 @@ export async function getExerciseSuggestion(
     readiness,
   });
   if (suggestion) {
+    applyResetOverride(suggestion, resets.get(exerciseId));
     suggestion.reason = explainSuggestion(suggestion, {
       lastSets: last,
       history: historyMap[exerciseId] ?? [],

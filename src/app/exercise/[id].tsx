@@ -8,6 +8,8 @@ import { Body, Caption, Text, Title } from '@/components/common/text';
 import { ListRow, Section, StatBlock } from '@/components/layout';
 import { AskAboutButton } from '@/components/ai/ask-about-button';
 import { ExerciseMedia, ExerciseThumb } from '@/components/exercise/exercise-media';
+import { progressionHref } from '@/components/progression/stalled-section';
+import { normalizeRefKey } from '@/contracts/mcp/shape';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -258,6 +260,7 @@ function SummaryTab({
   /** "All gyms / This gym" (#243); null when the lift isn't split across gyms. */
   prScopeControl?: ReactNode;
 }) {
+  const router = useRouter();
   return (
     <View>
       {/* Exercise GIF / illustration */}
@@ -287,7 +290,8 @@ function SummaryTab({
             <ListRow
               icon={<Icon icon={Minus} size={18} color="muted-foreground" />}
               title={RULE_LABEL.plateau}
-              subtitle={plateau.sentence}
+              subtitle={exercise.refKey ? `${plateau.sentence} See fixes.` : plateau.sentence}
+              onPress={exercise.refKey ? () => router.push(progressionHref(normalizeRefKey(exercise.refKey!))) : undefined}
             />
           </Card>
         </Section>

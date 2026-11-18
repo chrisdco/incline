@@ -4,6 +4,7 @@ import {
   clampWeeks,
   shapeExerciseHistory,
   shapePersonalRecords,
+  shapeProgressionReview,
   shapeTrainingSummary,
   shapeWorkoutList,
   type NormSet,
@@ -18,7 +19,10 @@ import {
   type ExerciseCandidate,
   type Unit,
 } from '@/contracts/mcp/tools';
+import { STORAGE_KEYS } from '@/constants/config';
+import { DEFAULT_PROGRESSION_AUTONOMY, isProgressionAutonomy } from '@/contracts/coaching/progression';
 import { openDatabase } from '@/db/client';
+import { loadProgressionInputs } from '@/db/queries/progression-read';
 
 /**
  * The MCP read tools on device SQLite (AI-CHAT §3.4). Same names, schemas and
@@ -115,6 +119,17 @@ async function candidates(db: Db, ids?: number[]): Promise<ExerciseCandidate[]> 
     secondaryMuscles: secondary.get(r.id) ?? [],
     equipment: r.equipment,
   }));
+}
+
+/** The synced autonomy pref, from the persisted settings row (no store import: tools run outside React too). */
+async function currentAutonomy(db: Db): Promise<string> {
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM kv WHERE key = ?', STORAGE_KEYS.settings);
+  try {
+    const v = row ? (JSON.parse(row.value) as { state?: { progressionAutonomy?: unknown } }).state?.progressionAutonomy : null;
+    return isProgressionAutonomy(v) ? v : DEFAULT_PROGRESSION_AUTONOMY;
+  } catch {
+    return DEFAULT_PROGRESSION_AUTONOMY;
+  }
 }
 
 const HANDLERS: Record<string, (db: Db, args: Args) => Promise<unknown>> = {
@@ -280,6 +295,18 @@ const HANDLERS: Record<string, (db: Db, args: Args) => Promise<unknown>> = {
     const weeks = clampWeeks(args.weeks);
     const now = Date.now();
     return shapeTrainingSummary(await recentSets(db, now - weeks * 7 * 86_400_000), weeks, now);
+  },
+
+  async get_progression_review(db) {
+    const inp = await loadProgressionInputs(db);
+    return shapeProgressionReview(inp.sets, {
+      unit: inp.unit,
+      experience: inp.experience,
+      decisions: inp.decisions,
+      now: Date.now(),
+      lastDeloadAt: inp.lastDeloadAt,
+      autonomy: await currentAutonomy(db),
+    });
   },
 
   async search_exercises(db, args) {

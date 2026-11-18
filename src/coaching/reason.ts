@@ -11,7 +11,14 @@
  * add a sentence, never a different number. Program-level deload comes from
  * `detectDeload` (./deload) and is wrapped by {@link buildDeloadReason}.
  */
-import { estimated1RM, formatWeight } from '@/db/calc';
+import {
+  detectPlateau as detectLiftPlateau,
+  plateauSentence,
+  sessionsWithoutImprovement as liftSessionsWithoutImprovement,
+  PLATEAU_HISTORY,
+  type LiftSession,
+} from '@/contracts/coaching/progression';
+import { formatWeight } from '@/db/calc';
 import type { Unit } from '@/db/types';
 import { smallestIncrement } from './plates';
 import {
@@ -25,14 +32,12 @@ import type { LastWorkingSet, ReadinessLevel, ReasonCode, TrainingSuggestion } f
 
 export const REASON_SCHEMA_VERSION = 1;
 
-/** Sessions in a row without a heavier/stronger top set before we call it a plateau. */
-export const PLATEAU_SESSIONS = 4;
-/** Minimum e1RM gain (fraction) that counts as an improvement, so rounding noise doesn't. */
-export const PLATEAU_MIN_GAIN = 0.005;
+// Plateau rule lives in the shared contract so MCP, web and Ask agree (PROGRESSION.md).
+export { PLATEAU_SESSIONS, PLATEAU_MIN_GAIN } from '@/contracts/coaching/progression';
 /** Gap since the last session that earns a "coming back from a break" note. */
 export const RETURN_AFTER_BREAK_DAYS = 21;
 /** How many recent sessions callers should load per exercise for these checks. */
-export const REASON_HISTORY_SESSIONS = PLATEAU_SESSIONS + 1;
+export const REASON_HISTORY_SESSIONS = PLATEAU_HISTORY;
 
 const DAY_MS = 86_400_000;
 
@@ -44,7 +49,8 @@ export type CoachingRule =
   | 'match-top-set'
   | 'rpe-hold'
   | 'readiness'
-  | 'deload';
+  | 'deload'
+  | 'plateau-reset';
 
 export type CoachingSignalRule = 'plateau' | 'return-after-break';
 
@@ -57,6 +63,7 @@ export const RULE_LABEL: Record<CoachingRule | CoachingSignalRule, string> = {
   'rpe-hold': 'Hard last set: hold',
   readiness: 'Tired check-in: lighter',
   deload: 'Deload',
+  'plateau-reset': 'Plateau reset',
   plateau: 'Plateau',
   'return-after-break': 'Back from a break',
 };
@@ -115,6 +122,7 @@ const RULE_BY_CODE: Record<ReasonCode, CoachingRule> = {
   partial_miss_hold: 'repeat',
   high_rpe_hold: 'rpe-hold',
   readiness_hold: 'readiness',
+  plateau_reset: 'plateau-reset',
 };
 
 export function ruleForCode(code: ReasonCode, lastSets: LastWorkingSet[]): CoachingRule {
@@ -187,40 +195,30 @@ export function reasonSentence(
       return `You did ${last} ${when}, but checked in tired today, so go a little lighter: ${next}.`;
     case 'deload':
       return `Lighter week suggested: ${next}.`;
+    case 'plateau-reset':
+      return `You applied a plateau reset after ${last} ${when}, so drop to ${next} this session and build back past it.`;
   }
 }
 
-/**
- * Consecutive sessions (newest first) without beating the session before them.
- * `history` is newest first. Returns how many recent sessions failed to
- * improve on the best e1RM seen before them; 0 if the latest improved.
- */
+function toLift(history: TopSetSample[]): LiftSession[] {
+  return history.map((h) => ({ at: h.startedAt, weightKg: h.weight, reps: h.reps }));
+}
+
+/** Consecutive sessions (newest first) without beating the best before them. */
 export function sessionsWithoutImprovement(history: TopSetSample[]): number {
-  let count = 0;
-  for (let i = 0; i < history.length - 1; i++) {
-    const cur = estimated1RM(history[i].weight, history[i].reps);
-    const before = Math.max(...history.slice(i + 1).map((h) => estimated1RM(h.weight, h.reps)));
-    if (cur > before * (1 + PLATEAU_MIN_GAIN)) break;
-    count++;
-  }
-  return count;
+  return liftSessionsWithoutImprovement(toLift(history));
 }
 
-/** Conservative plateau check: needs {@link REASON_HISTORY_SESSIONS} sessions of history. */
+/** Conservative plateau check (shared contract rule). */
 export function detectPlateau(history: TopSetSample[]): { sessions: number } | null {
-  if (history.length < REASON_HISTORY_SESSIONS) return null;
-  const n = sessionsWithoutImprovement(history.slice(0, REASON_HISTORY_SESSIONS));
-  return n >= PLATEAU_SESSIONS ? { sessions: n } : null;
+  return detectLiftPlateau(toLift(history).slice(0, REASON_HISTORY_SESSIONS));
 }
 
 /** {@link detectPlateau} as a displayable signal (exercise detail, Progress "Stalled lifts"). */
 export function plateauSignal(history: TopSetSample[]): CoachingSignal | null {
   const plateau = detectPlateau(history);
   if (!plateau) return null;
-  return {
-    rule: 'plateau',
-    sentence: `Your top set hasn't improved in ${plateau.sessions} sessions. Consider a lighter week or a different rep range.`,
-  };
+  return { rule: 'plateau', sentence: plateauSentence(plateau.sessions) };
 }
 
 export function sessionsAtTarget(history: TopSetSample[], targetRepsMax: number): number {

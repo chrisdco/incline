@@ -1,0 +1,79 @@
+name: Release mirror
+
+# EAS internal-distribution APKs expire (~14 days). This copies the newest
+# shareable Android build to a GitHub Release (asset `incline.apk`, marked
+# latest) so the share link never dies, then tells the app-release edge
+# function where the copy is. docs/decisions/RELEASES.md.
+#
+# Needs repo secrets: EXPO_TOKEN (expo.dev → access tokens) and
+# EAS_WEBHOOK_SECRET (same value as the Supabase secret). Without
+# EXPO_TOKEN the job skips.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */3 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_WEBHOOK_SECRET: ${{ secrets.EAS_WEBHOOK_SECRET }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Skip without Expo token
+        id: gate
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then echo "EXPO_TOKEN not set; skipping."; echo "run=false" >> "$GITHUB_OUTPUT"; else echo "run=true" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+
+      - name: Newest shareable build
+        if: steps.gate.outputs.run == 'true'
+        id: build
+        run: |
+          npx -y eas-cli@latest build:list --platform android --status finished --limit 10 --json --non-interactive > builds.json
+          node -e '
+            const all = require("./builds.json");
+            const b = all.find((x) => ["alpha", "beta", "preview", "production"].includes(x.buildProfile) && x.artifacts?.buildUrl?.endsWith(".apk"));
+            if (!b) { console.log("none"); process.exit(0); }
+            const out = require("fs").createWriteStream(process.env.GITHUB_OUTPUT, { flags: "a" });
+            const line = (b.gitCommitMessage || "").split("\n")[0].replace(/[^\x20-\x7e]/g, "").slice(0, 200);
+            out.write(`id=${b.id}\ntag=build-${b.id.slice(0, 8)}\nurl=${b.artifacts.buildUrl}\nversion=${b.appVersion}\nprofile=${b.buildProfile}\nnote=${line}\n`);
+          '
+
+      - name: Mirror if new
+        if: steps.build.outputs.id != ''
+        env:
+          BUILD_ID: ${{ steps.build.outputs.id }}
+          TAG: ${{ steps.build.outputs.tag }}
+          URL: ${{ steps.build.outputs.url }}
+          VERSION: ${{ steps.build.outputs.version }}
+          PROFILE: ${{ steps.build.outputs.profile }}
+          NOTE: ${{ steps.build.outputs.note }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "$TAG already mirrored"; exit 0; fi
+          case "$URL" in https://expo.dev/artifacts/*) ;; *) echo "unexpected artifact host"; exit 1;; esac
+          curl -fsSL "$URL" -o incline.apk
+          gh release create "$TAG" incline.apk --latest \
+            --title "Incline $VERSION ($PROFILE)" \
+            --notes "$NOTE"$'\n\n'"EAS build $BUILD_ID. Install: download incline.apk on an Android phone."
+          MIRROR="https://github.com/${{ github.repository }}/releases/download/$TAG/incline.apk"
+          BODY=$(node -e 'process.stdout.write(JSON.stringify({kind:"mirror",id:process.argv[1],url:process.argv[2]}))' "$BUILD_ID" "$MIRROR")
+          SIG="sha1=$(printf '%s' "$BODY" | openssl dgst -sha1 -hmac "$EAS_WEBHOOK_SECRET" -r | cut -d' ' -f1)"
+          curl -fsS -X POST -H "content-type: application/json" -H "expo-signature: $SIG" \
+            --data-binary "$BODY" https://hgzihfjzfwdemjaeledc.supabase.co/functions/v1/app-release
