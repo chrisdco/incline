@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -38,10 +38,10 @@ export default function AiMemoryScreen() {
   const [draft, setDraft] = useState<Draft | null>(null);
 
   const suggested = facts.filter((f) => f.status === 'suggested');
-  const groups = useMemo(() => {
-    const confirmed = facts.filter((f) => f.status === 'confirmed');
-    return MEMORY_KINDS.map((k) => ({ kind: k, items: confirmed.filter((f) => f.kind === k) })).filter((g) => g.items.length > 0);
-  }, [facts]);
+  const confirmed = facts.filter((f) => f.status === 'confirmed');
+  const groups = MEMORY_KINDS.map((k) => ({ kind: k, items: confirmed.filter((f) => f.kind === k) })).filter(
+    (g) => g.items.length > 0,
+  );
 
   const forget = (f: MemoryFact) => {
     void forgetMemoryFact(f.id).then(() =>

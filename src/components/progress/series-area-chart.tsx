@@ -190,7 +190,7 @@ export const SeriesAreaChart = memo(function SeriesAreaChart({
   const last = points[points.length - 1]!;
   const step = (d: 1 | -1) => {
     const next = Math.min(count - 1, Math.max(0, (selected ?? count - 1) + d));
-    index.value = next;
+    index.set(next);
     setSelected(next);
   };
   const onA11yAction = (e: AccessibilityActionEvent) => {
