@@ -44,3 +44,26 @@ set.
 - **Rest:** the timer doesn't start while the next set is an unfinished drop.
 - **Coaching:** drops are not working sets. They are excluded from overload,
   plateau and fatigue rules, but count toward volume like any completed set.
+
+## Times (start, finish, duration)
+
+Editing a finished workout's times works like a calendar event: the field
+you didn't touch stays put (`src/contracts/workout-time.ts`).
+
+| You change | Stays | Moves |
+|---|---|---|
+| Date | times, duration | the whole workout |
+| Started | finish | duration (by the same amount) |
+| Finished | start | duration |
+| Duration | start | finish |
+
+- Duration is **active time**. A paused session has finish − start > duration;
+  edits shift duration by the same delta so the paused gap survives, and the
+  Duration row says "N min paused not counted".
+- Rejected without writing: start at/after finish, finish in the future, under
+  one minute. A finish time picked earlier than the start rolls to the next day
+  only for a plausible overnight session (< 8 h).
+- Open sessions only move their start (the live clock's origin).
+- Why: before this, changing the start left the stored finish and duration
+  untouched, so the three disagreed (and could go negative); the user expected
+  start edits to change the duration.

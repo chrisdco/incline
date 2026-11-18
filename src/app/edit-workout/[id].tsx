@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Clock, Calendar, Plus, Flame, Undo2 } from 'lucide-react-native';
+import { X, Clock, Calendar, Plus, Flame, Undo2, Play, Flag, Timer } from 'lucide-react-native';
 import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { Icon } from '@/components/common/icon';
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
@@ -10,6 +10,7 @@ import { ExerciseThumb } from '@/components/exercise/exercise-media';
 import { Tappable } from '@/components/ui/tappable';
 
 import { Body, Caption } from '@/components/common/text';
+import { ListGroup, ListRow, SectionLabel } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { NumberStepper } from '@/components/workout/number-stepper';
 import { SetRow } from '@/components/workout/set-row';
@@ -30,14 +31,19 @@ import {
   removeSet,
   restoreSet,
   updateSet,
-  updateWorkoutDuration,
   updateWorkoutNotes,
-  updateWorkoutLogStartedAt,
+  retimeWorkoutLog,
   type SessionWorkout,
   type SessionSet,
 } from '@/db/queries';
 import { openDatabase } from '@/db/client';
-import { formatDuration, formatVolume, formatFullDateTime } from '@/db/calc';
+import { formatDuration, formatVolume, formatFullDate } from '@/db/calc';
+import {
+  pausedMinutes,
+  RETIME_ERROR_MESSAGE,
+  withClockTime,
+  type RetimeChange,
+} from '@/contracts/workout-time';
 import { workingSetVolume } from '@/lib/session-ghost';
 import type { Exercise, SetEntry } from '@/db/types';
 import { METRIC_ICONS } from '@/lib/metric-icons';
@@ -63,9 +69,8 @@ export default function EditWorkoutScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notes, setNotes] = useState('');
-  const [pickerStep, setPickerStep] = useState<'none' | 'date' | 'time'>('none');
-  const [draftDate, setDraftDate] = useState<Date | null>(null);
-  const [durationOpen, setDurationOpen] = useState(false);
+  /** Which time field a picker is open for (Android shows a dialog). */
+  const [timeField, setTimeField] = useState<'date' | 'start' | 'end' | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [removedSet, setRemovedSet] = useState<{ setEntry: SetEntry; exerciseId: number; logId: number } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -205,16 +210,19 @@ export default function EditWorkoutScreen() {
     });
   };
 
-  const onChangeDuration = async (minutes: number) => {
+  // Times behave like a calendar event: the field you didn't touch stays put
+  // (contracts/workout-time). Invalid edits explain themselves, never write.
+  const retime = async (change: RetimeChange) => {
+    const r = await retimeWorkoutLog(logId, change);
+    if (!r.ok) {
+      toast({ title: 'Time not changed', description: RETIME_ERROR_MESSAGE[r.error], variant: 'warning' });
+      return;
+    }
     impact();
-    const applied = await updateWorkoutDuration(logId, Math.max(0, minutes) * 60);
-    load();
-    toast(
-      applied
-        ? { title: 'Duration updated', variant: 'success' }
-        : { title: 'Duration not changed', description: 'Only finished workouts keep an edited duration.', variant: 'warning' },
-    );
+    await load();
   };
+
+  const onChangeDuration = (minutes: number) => void retime({ kind: 'duration', seconds: minutes * 60 });
 
   const handleSave = async () => {
     setSaving(true);
@@ -230,17 +238,21 @@ export default function EditWorkoutScreen() {
     setSaving(false);
   };
 
-  const openDatePicker = () => {
-    setDraftDate(new Date(log?.startedAt ?? Date.now()));
-    setPickerStep('date');
-  };
-
-  const commitDateTime = async (date: Date) => {
-    setPickerStep('none');
-    setDraftDate(null);
-    await updateWorkoutLogStartedAt(logId, date.getTime());
-    await load();
-    toast({ title: 'Workout date updated', variant: 'success' });
+  const onPickTime = (field: 'date' | 'start' | 'end', picked: Date) => {
+    // iOS pickers are inline and report every scroll; they stay open until
+    // the row is tapped again. Android's dialog closes itself.
+    if (Platform.OS !== 'ios') setTimeField(null);
+    if (!log) return;
+    if (field === 'date') {
+      // Same clock time on the picked day; the whole workout moves.
+      const d = new Date(log.startedAt);
+      d.setFullYear(picked.getFullYear(), picked.getMonth(), picked.getDate());
+      void retime({ kind: 'date', startedAt: d.getTime() });
+    } else if (field === 'start') {
+      void retime({ kind: 'start', startedAt: withClockTime(log.startedAt, picked) });
+    } else {
+      void retime({ kind: 'end', endedAt: withClockTime(log.startedAt, picked, { after: log.startedAt }) });
+    }
   };
 
   if (loading) {
@@ -291,35 +303,14 @@ export default function EditWorkoutScreen() {
 
         {/* Stats row */}
         <View className="mb-5 flex-row gap-3">
-          <Tappable
-            onPress={() => setDurationOpen(!durationOpen)}
-            pressedOpacity={0.7}
-            className="flex-1"
-            accessibilityRole="button"
-            accessibilityLabel="Edit workout duration">
-            <SummaryStat
-              label="Duration"
-              value={formatDuration(log.durationSeconds)}
-              icon={<Icon icon={Clock} size={18} color="primary" />}
-            />
-          </Tappable>
+          <SummaryStat
+            label="Duration"
+            value={formatDuration(log.durationSeconds)}
+            icon={<Icon icon={Clock} size={18} color="primary" />}
+          />
           <SummaryStat label="Volume" value={formatVolume(workingSetVolume(log?.sets ?? []), unit)} icon={<Icon icon={METRIC_ICONS.volume} size={18} color="info" />} />
           <SummaryStat label="Sets" value={`${completedSets}`} icon={<Icon icon={METRIC_ICONS.sets} size={18} color="warning" />} />
         </View>
-
-        {durationOpen ? (
-          <View className="mb-5 rounded-xl border border-border/40 bg-card p-4">
-            <Caption className="mb-2">Duration (minutes)</Caption>
-            <NumberStepper
-              value={Math.max(1, Math.round(log.durationSeconds / 60))}
-              onChange={onChangeDuration}
-              step={1}
-              min={0}
-              max={1440}
-              suffix="min"
-            />
-          </View>
-        ) : null}
 
         {/* Notes */}
         <View className="mb-5">
@@ -338,58 +329,66 @@ export default function EditWorkoutScreen() {
           />
         </View>
 
-        {/* Date */}
-        <Pressable
-          onPress={openDatePicker}
-          className="mb-4 flex-row items-center justify-between rounded-xl border border-border/40 bg-card p-4"
-          accessibilityRole="button"
-          accessibilityLabel="Edit workout date and time">
-          <View className="flex-row items-center gap-3">
-            <Icon icon={Calendar} size={18} color="muted-foreground" />
-            <Caption>Date</Caption>
-          </View>
-          <View className="flex-row items-center gap-1">
-            <Caption>{formatFullDateTime(log.startedAt)}</Caption>
-            <Caption className="text-muted-foreground"> ›</Caption>
-          </View>
-        </Pressable>
+        {/* When: date, start, finish, duration (contracts/workout-time) */}
+        <SectionLabel>When</SectionLabel>
+        <ListGroup>
+          <ListRow
+            icon={<Icon icon={Calendar} size={18} color="muted-foreground" />}
+            title="Date"
+            onPress={() => setTimeField((cur) => (cur === 'date' ? null : 'date'))}
+            accessibilityLabel={`Date, ${formatFullDate(log.startedAt)}. Moves the whole workout.`}>
+            <Caption>{formatFullDate(log.startedAt)}</Caption>
+          </ListRow>
+          <ListRow
+            icon={<Icon icon={Play} size={18} color="muted-foreground" />}
+            title="Started"
+            onPress={() => setTimeField((cur) => (cur === 'start' ? null : 'start'))}
+            accessibilityLabel={`Started at ${clock(log.startedAt)}`}>
+            <Caption>{clock(log.startedAt)}</Caption>
+          </ListRow>
+          {log.endedAt != null ? (
+            <ListRow
+              icon={<Icon icon={Flag} size={18} color="muted-foreground" />}
+              title="Finished"
+              onPress={() => setTimeField((cur) => (cur === 'end' ? null : 'end'))}
+              accessibilityLabel={`Finished at ${clock(log.endedAt)}`}>
+              <Caption>{clock(log.endedAt)}</Caption>
+            </ListRow>
+          ) : null}
+          {log.endedAt != null ? (
+            <ListRow
+              icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
+              title="Duration"
+              subtitle={pausedNote(log)}
+              stacked>
+              <NumberStepper
+                value={Math.max(1, Math.round(log.durationSeconds / 60))}
+                onChange={onChangeDuration}
+                step={1}
+                min={1}
+                max={1440}
+                suffix="min"
+              />
+            </ListRow>
+          ) : null}
+        </ListGroup>
+        <Caption className="mb-4 mt-2 px-1">
+          Changing the start or finish updates the duration; changing the duration moves the finish. A new date
+          moves the whole workout.
+        </Caption>
 
-        {pickerStep !== 'none' ? (
-          <View className="mb-4 rounded-xl border border-border/40 bg-card p-3">
-            {Platform.OS === 'ios' ? (
-              <DateTimePicker
-                value={draftDate ?? new Date(log.startedAt)}
-                mode="datetime"
-                display="inline"
-                accentColor={accentColor}
-                onValueChange={(_, d) => commitDateTime(d)}
-              />
-            ) : pickerStep === 'date' ? (
-              <DateTimePicker
-                value={draftDate ?? new Date(log.startedAt)}
-                mode="date"
-                accentColor={accentColor}
-                positiveButton={{ label: 'Next' }}
-                onValueChange={(_, d) => {
-                  setDraftDate(d);
-                  setPickerStep('time');
-                }}
-                onDismiss={() => setPickerStep('none')}
-              />
-            ) : (
-              <DateTimePicker
-                value={draftDate ?? new Date(log.startedAt)}
-                mode="time"
-                accentColor={accentColor}
-                positiveButton={{ label: 'Done' }}
-                onValueChange={(_, t) => {
-                  const combined = new Date(draftDate ?? new Date(log.startedAt));
-                  combined.setHours(t.getHours(), t.getMinutes(), t.getSeconds(), t.getMilliseconds());
-                  commitDateTime(combined);
-                }}
-                onDismiss={() => setPickerStep('none')}
-              />
-            )}
+        {timeField ? (
+          <View className={Platform.OS === 'ios' ? 'mb-4 rounded-xl bg-surface1 p-3' : undefined}>
+            <DateTimePicker
+              key={timeField}
+              value={new Date(timeField === 'end' ? (log.endedAt ?? log.startedAt) : log.startedAt)}
+              mode={timeField === 'date' ? 'date' : 'time'}
+              display={Platform.OS === 'ios' ? (timeField === 'date' ? 'inline' : 'spinner') : undefined}
+              accentColor={accentColor}
+              positiveButton={{ label: 'Done' }}
+              onValueChange={(_, d) => onPickTime(timeField, d)}
+              onDismiss={() => setTimeField(null)}
+            />
           </View>
         ) : null}
 
@@ -507,4 +506,13 @@ export default function EditWorkoutScreen() {
       <ExercisePickerSheet open={pickerOpen} onOpenChange={setPickerOpen} onPick={onPickExercise} />
     </SafeAreaView>
   );
+}
+
+function clock(ms: number): string {
+  return new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function pausedNote(log: { startedAt: number; endedAt: number | null; durationSeconds: number }): string | undefined {
+  const paused = pausedMinutes(log);
+  return paused > 0 ? `Active time · ${paused} min paused not counted` : undefined;
 }
