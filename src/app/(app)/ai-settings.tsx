@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Bot, CheckCircle2, Cloud, History, KeyRound, ShieldCheck, XCircle } from 'lucide-react-native';
+import { ArrowLeft, Bot, Brain, CheckCircle2, Cloud, History, KeyRound, ShieldCheck, XCircle } from 'lucide-react-native';
 import { AiMark } from '@/components/ai/ai-mark';
 
 import { Icon } from '@/components/common/icon';
@@ -304,6 +304,12 @@ export default function AiSettingsScreen() {
             title="Data sharing"
             subtitle={consented ? 'Allowed for the providers you chose' : 'No AI provider allowed yet'}
             onPress={() => router.push('/(app)/ai-consent' as Href)}
+          />
+          <ListRow
+            icon={<Icon icon={Brain} size={18} color="muted-foreground" />}
+            title="What Incline knows"
+            subtitle="Facts Ask remembers about you: view, edit, delete"
+            onPress={() => router.push('/(app)/ai-memory' as Href)}
           />
           <ListRow
             icon={<Icon icon={History} size={18} color="muted-foreground" />}

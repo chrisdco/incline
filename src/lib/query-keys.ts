@@ -4,6 +4,7 @@ import { buildAskBrief } from '@/ai/ask-brief';
 import { readRecentSets } from '@/ai/capabilities/read-tools';
 import { getChatMessages, listChatThreads, searchChatThreadUuids } from '@/db/queries/chat';
 import { listExercises } from '@/db/queries/exercises';
+import { listMemoryFacts } from '@/db/queries/memory';
 import { getSessionExerciseNotes } from '@/db/queries/session-notes';
 import { getWorkoutGym } from '@/db/queries/gyms';
 import type { SessionWorkout } from '@/db/queries/helpers';
@@ -32,6 +33,8 @@ export const TABLES = {
   coaching: ['workout_templates', 'template_exercises', 'exercises', 'workout_logs', 'set_entries', 'kv', 'gyms', 'progression_decisions'],
   /** Gym profiles + the current gym (kv). */
   gyms: ['gyms', 'kv'],
+  /** Ask memory facts (synced). */
+  memory: ['coach_memory'],
   /** Ask chat threads (device-local). */
   chat: ['chat_threads', 'chat_messages'],
   /** Ask's idle brief: the read tools' recent sets + unit. */
@@ -114,6 +117,13 @@ export function workoutGymQuery(logId: number) {
     queryFn: () => getWorkoutGym(logId),
   });
 }
+
+/* ---- Ask memory ---- */
+
+export const memoryFactsQuery = queryOptions({
+  queryKey: dbKey(TABLES.memory, 'memoryFacts'),
+  queryFn: () => listMemoryFacts(),
+});
 
 /* ---- Ask chat ---- */
 

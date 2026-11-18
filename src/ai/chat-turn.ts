@@ -10,7 +10,7 @@ import type { AiFailure } from './types';
  * the sources shown under an answer and what goes in "AI data use". Kept out
  * of the hook so they're unit-tested and shared by future surfaces.
  */
-export const CHAT_PROMPT_VERSION = 'chat-3';
+export const CHAT_PROMPT_VERSION = 'chat-4';
 /** Earlier messages sent with a turn. Tool results are not replayed; the model can read again. */
 export const HISTORY_MESSAGES = 12;
 
@@ -20,10 +20,12 @@ export interface ChatPromptContext {
   unit: 'kg' | 'lb';
   goal?: string | null;
   experience?: string | null;
+  /** memoryPromptSection() output, or empty (no facts / memory off). */
+  memory?: string;
 }
 
 export function buildChatSystem(ctx: ChatPromptContext): string {
-  return [
+  const base = [
     "You answer questions about the user's own strength training in the Incline app.",
     `Today is ${ctx.today}. Show weights in ${ctx.unit}.`,
     ctx.goal ? `Their goal: ${ctx.goal}.` : '',
@@ -35,9 +37,13 @@ export function buildChatSystem(ctx: ChatPromptContext): string {
     'You never change anything yourself. To suggest a change to one of their routines, read it, then call propose_routine_change; they review and apply it from the card. Never claim a change was made. Workout logs are not editable here.',
     "For stuck lifts, call get_progression_review: it has Incline's evidence-graded fix per lift. You may recommend a different fix if their data supports it; say why. To send a fix to them, call propose_progression_change (it shows both side by side; they choose).",
     'Stay on training, recovery and the app. Politely decline anything else.',
+    'When the user asks you to remember something about them, call remember with it in their words. Never save anything they did not ask you to.',
   ]
     .filter(Boolean)
     .join(' ');
+  return ctx.memory ? `${base}
+
+${ctx.memory}` : base;
 }
 
 const ABOUT_NOUN: Record<ContextPart['kind'], string> = {
@@ -131,8 +137,8 @@ export function sourcesFor(parts: readonly ChatPart[]): SourcePart[] {
 }
 
 /** What left the device: the question, the prompt's profile bits and whatever the tools read. */
-export function categoriesFor(parts: readonly ChatPart[]): AiDataCategory[] {
-  const cats = new Set<AiDataCategory>(['message', 'profile']);
+export function categoriesFor(parts: readonly ChatPart[], extra: readonly AiDataCategory[] = []): AiDataCategory[] {
+  const cats = new Set<AiDataCategory>(['message', 'profile', ...extra]);
   for (const p of parts) {
     if (p.type !== 'tool_call') continue;
     for (const c of findTool(p.name)?.dataCategories ?? []) cats.add(c);
@@ -206,6 +212,9 @@ export function readLines(parts: readonly ChatPart[]): string[] {
       case 'get_readiness':
         line = 'Looked at your sleep and recovery';
         break;
+      case 'get_memory':
+        line = 'Checked what you asked me to remember';
+        break;
       case 'get_progression_review':
         line = `Checked ${arr(r.stalled).length} stalled ${arr(r.stalled).length === 1 ? 'lift' : 'lifts'}`;
         break;
@@ -221,6 +230,19 @@ export function readLines(parts: readonly ChatPart[]): string[] {
  * The e1RM trend from an exercise-history read, oldest first: the numbers
  * come from our tool result, never from the model's text (ASK-UI.md T1).
  */
+/** Facts saved this turn by `remember`, for the "Saved to memory · Undo" chip. */
+export function savedFactsFor(parts: readonly ChatPart[]): { id: string; text: string }[] {
+  const out: { id: string; text: string }[] = [];
+  for (const p of parts) {
+    if (p.type !== 'tool_result' || p.isError || p.name !== 'remember') continue;
+    const r = obj(p.result);
+    const id = str(r.id);
+    const text = str(r.text);
+    if (r.saved === true && r.already_known !== true && id && text) out.push({ id, text });
+  }
+  return out;
+}
+
 export interface TrendCard {
   exercise: string;
   unit: string;

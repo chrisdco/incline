@@ -26,6 +26,7 @@ export const RESET_TABLES = [
   'ai_feedback',
   'chat_messages',
   'chat_threads',
+  'coach_memory',
   'bodyweight_entries',
   'body_measurements',
   'gyms',

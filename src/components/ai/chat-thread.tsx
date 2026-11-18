@@ -14,7 +14,7 @@ import { useChatRun } from '@/ai/use-chat-run';
 import type { ChatMessageRecord, ChatPart, ContextPart, ProposalPart, SourcePart } from '@/contracts/ai/chat';
 import { textOf } from '@/contracts/ai/chat';
 import { chatMessagesQuery } from '@/lib/query-keys';
-import { aboutOf, answerCardsFor, followUpsFor, readLines } from '@/ai/chat-turn';
+import { aboutOf, answerCardsFor, followUpsFor, readLines, savedFactsFor } from '@/ai/chat-turn';
 
 import { parseProgressionCard, parseRoutineChange, PROGRESSION_REVIEW_ACTION, ROUTINE_CHANGE_ACTION } from '@/ai/capabilities/propose-tools';
 import { progressionHref } from '@/components/progression/stalled-section';
@@ -25,6 +25,7 @@ import { AnswerCardView } from './answer-cards';
 import { AskComposer } from './ask-composer';
 import { SourceChip } from './markers';
 import { SuggestionChip } from './suggestion-chip';
+import { MemorySavedChip } from './memory-saved-chip';
 import { ThinkingShimmer } from './thinking-shimmer';
 
 /** Floating composer height plus its gap; the list pads by this so the last answer clears it. */
@@ -56,6 +57,8 @@ const WORKING: Record<string, string> = {
   get_readiness: 'Checking your sleep and recovery…',
   get_progression_review: 'Checking for stalled lifts…',
   propose_progression_change: 'Weighing a fix…',
+  get_memory: 'Checking what you asked me to remember…',
+  remember: 'Saving to memory…',
 };
 
 type Row =
@@ -184,6 +187,7 @@ function AssistantRow({ parts, live, onFollowUp }: { parts: readonly ChatPart[];
       {text ? <RichText text={text} /> : null}
       {live ? null : answerCardsFor(parts).map((c) => <AnswerCardView key={c.kind === 'trend' ? `trend:${c.exercise}` : c.kind} card={c} />)}
       {live ? null : parts.filter((p): p is ProposalPart => p.type === 'proposal').map((p) => <SuggestedChange key={p.proposalId} part={p} />)}
+      {live ? null : savedFactsFor(parts).map((f) => <MemorySavedChip key={f.id} id={f.id} text={f.text} />)}
       {workingLine ? <ThinkingShimmer label={workingLine} /> : null}
       {notices.map((n, i) =>
         n.type === 'notice' ? (

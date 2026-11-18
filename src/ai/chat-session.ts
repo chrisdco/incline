@@ -31,6 +31,8 @@ export interface ChatTurnInput {
   getToken: GetToken;
   userId: string | null | undefined;
   signal: AbortSignal;
+  /** Temporary / memory-off thread: no facts read or written. */
+  memoryOff?: boolean;
   /** The answer so far; called as parts change. */
   onParts: (parts: ChatPart[]) => void;
 }
@@ -49,7 +51,7 @@ function notice(text: string, code: string): ChatPart {
  * notice in the saved answer. Resolves once the saved rows are loaded.
  */
 export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
-  const { threadUuid, text, about, messages, getToken, userId, signal, onParts } = input;
+  const { threadUuid, text, about, messages, getToken, userId, signal, onParts, memoryOff = false } = input;
   const userMsg = { role: 'user' as const, parts: [...(about ? [about] : []), { type: 'text' as const, text }] as ChatPart[] };
   let live: ChatPart[] = [];
 
@@ -97,20 +99,30 @@ export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
       return;
     }
 
-    const [{ runChatTurn }, { deviceReadTools }, { deviceProposeTools }, { deviceHealthTools }, { getProfile }, { newUuid }] = await Promise.all([
+    const [{ runChatTurn }, { deviceReadTools }, { deviceProposeTools }, { deviceHealthTools }, { deviceMemoryTools }, { getProfile }, { newUuid }, memoryDb, memoryRules] = await Promise.all([
       import('./runtime/loop'),
       import('./capabilities/read-tools'),
       import('./capabilities/propose-tools'),
       import('./capabilities/health-tools'),
+      import('./capabilities/memory-tools'),
       import('@/db/queries/profile'),
       import('@/lib/uuid'),
+      import('@/db/queries/memory'),
+      import('@/contracts/ai/memory'),
     ]);
-    const profile = await getProfile().catch(() => null);
+    const [profile, facts] = await Promise.all([
+      getProfile().catch(() => null),
+      memoryOff ? Promise.resolve([]) : memoryDb.listMemoryFacts().catch(() => []),
+    ]);
+    const now = Date.now();
+    const memory = memoryRules.memoryPromptSection(facts, now);
+    const usedFacts = memory ? memoryRules.activeFacts(facts, now).map((f) => f.id).filter((id) => memory.includes(`(${id})`)) : [];
     const system = buildChatSystem({
       today: todayIso(),
       unit: useSettings.getState().unit === 'imperial' ? 'lb' : 'kg',
       goal: profile?.goal,
       experience: profile?.experienceLevel,
+      memory,
     });
 
     const started = Date.now();
@@ -123,7 +135,12 @@ export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
       system,
       history: historyFor(messages),
       user: userContentFor(userMsg.parts),
-      tools: [...deviceReadTools(), ...deviceHealthTools(useSettings.getState()), ...deviceProposeTools()],
+      tools: [
+        ...deviceReadTools(),
+        ...deviceHealthTools(useSettings.getState()),
+        ...deviceMemoryTools({ memoryOff }),
+        ...deviceProposeTools(),
+      ],
       signal,
     })) {
       if (ev.type === 'run_end') {
@@ -138,6 +155,7 @@ export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
     }
 
     const parts = [...live, ...sourcesFor(live)];
+    void memoryDb.touchMemoryFacts(usedFacts).catch(() => undefined);
     void recordTurn({
       providerId: choice.model.providerId,
       model: usage?.model ?? choice.model.model,
@@ -145,6 +163,7 @@ export async function executeChatTurn(input: ChatTurnInput): Promise<void> {
       outcome: outcomeOf(finish, errorCode),
       latencyMs: Date.now() - started,
       parts,
+      memoryUsed: usedFacts.length > 0,
     });
     await save(parts.length ? { parts, model: usage?.model ?? choice.model.model, provider: choice.model.providerId } : null);
   } catch {
@@ -176,6 +195,7 @@ async function recordTurn(t: {
   outcome: ReturnType<typeof outcomeOf>;
   latencyMs: number;
   parts: readonly ChatPart[];
+  memoryUsed?: boolean;
 }): Promise<void> {
   const { reportAiEvent } = await import('./report');
   await reportAiEvent({
@@ -194,6 +214,6 @@ async function recordTurn(t: {
         outputTokens: t.usage?.outputTokens,
       },
     ],
-    dataCategories: categoriesFor(t.parts),
+    dataCategories: categoriesFor(t.parts, t.memoryUsed ? ['memory'] : []),
   });
 }

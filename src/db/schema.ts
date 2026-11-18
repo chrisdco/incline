@@ -11,9 +11,10 @@
 import { AI_ACTIVITY_DDL } from './migrations/020_ai_activity';
 import { GYMS_DDL } from './migrations/022_gyms';
 import { PROGRESSION_DDL } from './migrations/024_progression';
+import { COACH_MEMORY_DDL } from './migrations/026_coach_memory';
 import { CHAT_DDL } from './migrations/023_chat';
 
-export const SCHEMA_VERSION = 25;
+export const SCHEMA_VERSION = 26;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -273,6 +274,7 @@ export const SCHEMA_STATEMENTS: string[] = [
   ...CHAT_DDL,
   // ---- progression decisions (synced, migration 024) ----
   ...PROGRESSION_DDL,
+  ...COACH_MEMORY_DDL,
 
   `CREATE TABLE IF NOT EXISTS schema_meta (
     key TEXT PRIMARY KEY,

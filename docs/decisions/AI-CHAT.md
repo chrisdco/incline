@@ -238,6 +238,8 @@ chat_messages  (uuid, thread_uuid, role, parts_json, v, model, provider, prompt_
 
 ## 5. Memory
 
+> Status 2026-11-18: store, `remember`, `get_memory` (Ask + MCP), prompt injection and the What Incline knows screen shipped. Extraction, temporary chat, feedback facts and decay are queued in WORK-QUEUE "Ask memory — remaining".
+
 The pattern most memory systems have settled on: **structured facts the user owns**, with a reasoning step deciding which facts to keep or update, not "embed every message and fetch the top K".
 
 - **Store**: the `coach_memory` table already planned in AI-ARCHITECTURE §1b. Columns: `(uuid, kind, text, source, source_ref, confidence, created_at, last_used_at, expires_at)`. Example kinds:

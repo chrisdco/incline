@@ -21,6 +21,7 @@ import {
 } from '@/contracts/mcp/tools';
 import { STORAGE_KEYS } from '@/constants/config';
 import { DEFAULT_PROGRESSION_AUTONOMY, isProgressionAutonomy } from '@/contracts/coaching/progression';
+import { shapeMemory } from '@/contracts/ai/memory';
 import { openDatabase } from '@/db/client';
 import { loadProgressionInputs } from '@/db/queries/progression-read';
 
@@ -307,6 +308,12 @@ const HANDLERS: Record<string, (db: Db, args: Args) => Promise<unknown>> = {
       lastDeloadAt: inp.lastDeloadAt,
       autonomy: await currentAutonomy(db),
     });
+  },
+
+  async get_memory() {
+    // Lazy: the memory module pulls in the write path, which read tools never need at load.
+    const { listMemoryFacts } = await import('@/db/queries/memory');
+    return shapeMemory(await listMemoryFacts(), Date.now());
   },
 
   async search_exercises(db, args) {

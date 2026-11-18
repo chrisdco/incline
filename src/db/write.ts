@@ -10,6 +10,7 @@ export type DbTable =
   | 'body_measurements'
   | 'chat_messages'
   | 'chat_threads'
+  | 'coach_memory'
   | 'bodyweight_entries'
   | 'exercise_aliases'
   | 'exercise_images'
