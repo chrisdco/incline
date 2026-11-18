@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { useSSO } from '@clerk/expo';
 import { useSignInWithGoogle } from '@clerk/expo/google';
 import * as Linking from 'expo-linking';
+import * as Updates from 'expo-updates';
 
 import { reportError } from '@/lib/monitoring';
 
@@ -19,6 +20,8 @@ import { reportError } from '@/lib/monitoring';
  * the browser flow.
  */
 const NATIVE_ENABLED = Platform.OS === 'android' && !!process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID;
+
+const TEST_CHANNELS: ReadonlySet<string> = new Set(['alpha', 'beta', 'preview', 'emulator']);
 
 export type GoogleSignInResult = 'signed-in' | 'cancelled';
 
@@ -45,6 +48,18 @@ export function useGoogleSignIn(): () => Promise<GoogleSignInResult> {
       // a silent fallback can't hide a broken native path.
       const code = (e as { code?: unknown } | null)?.code;
       reportError(e, { area: 'google_sign_in', fallback: 'browser', code: typeof code === 'string' || typeof code === 'number' ? code : 'none' });
+      // Test builds say why instead of silently switching to the browser
+      // (the fallback hid this failure for a week). Play builds stay quiet.
+      if (Updates.channel && TEST_CHANNELS.has(Updates.channel)) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const useBrowser = await new Promise<boolean>((resolve) =>
+          Alert.alert('Google sign-in (in-app) failed', `${String(code ?? 'no code')}: ${msg}`.slice(0, 400), [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Use browser', onPress: () => resolve(true) },
+          ], { cancelable: true, onDismiss: () => resolve(false) }),
+        );
+        if (!useBrowser) return 'cancelled';
+      }
       return browser();
     }
     if (!native.createdSessionId) return 'cancelled';
