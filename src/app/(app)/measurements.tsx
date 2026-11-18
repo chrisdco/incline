@@ -111,8 +111,7 @@ function MiniChart({
       <SeriesAreaChart
         title={title}
         points={points}
-        formatValue={(v) => v.toFixed(1)}
-        valueHint={unitLabel}
+        formatValue={(v) => `${v.toFixed(1)} ${unitLabel}`}
         height={150}
       />
     </View>
