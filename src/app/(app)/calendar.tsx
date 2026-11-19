@@ -354,7 +354,7 @@ export default function CalendarScreen() {
   const calendarHeatMetric = useSettings((s) => s.calendarHeatMetric);
   const weekStartsOn = useSettings((s) => s.weekStartsOn);
   const weeklyWorkoutGoal = useSettings((s) => s.weeklyWorkoutGoal);
-  const today = useMemo(() => new Date(), []);
+  const [today] = useState(() => new Date());
   const [now] = useState(() => Date.now());
   const [mode, setMode] = useState<CalendarMode>('month');
 

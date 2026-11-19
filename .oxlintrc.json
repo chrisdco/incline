@@ -1,0 +1,179 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Fast lint (docs/decisions/LINT.md). Mirrors eslint-config-expo + react-hooks (React Compiler) + our import boundaries. ESLint keeps only what oxlint can't run; eslint-plugin-oxlint turns the overlap off there.
+  "plugins": [
+    "react",
+    "typescript",
+    "import"
+  ],
+  "categories": {
+    "correctness": "off"
+  },
+  "env": {
+    "browser": true,
+    "es2024": true,
+    "node": true
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "web/**",
+    "supabase/functions/**",
+    "node_modules/**",
+    "android/**",
+    "ios/**",
+    "coverage/**",
+    ".claude/**"
+  ],
+  "rules": {
+    "no-dupe-keys": "error",
+    "no-duplicate-case": "error",
+    "no-dupe-class-members": "error",
+    "no-empty-character-class": "warn",
+    "no-empty-pattern": "warn",
+    "no-extend-native": "warn",
+    "no-extra-bind": "warn",
+    "no-redeclare": "warn",
+    "no-unreachable": "warn",
+    "no-unsafe-negation": "warn",
+    "no-unused-labels": "warn",
+    "no-var": "error",
+    "no-with": "warn",
+    "unicode-bom": "warn",
+    "use-isnan": "error",
+    "valid-typeof": "error",
+    "no-unused-vars": "warn",
+    "no-useless-constructor": "warn",
+    "typescript/no-empty-object-type": "warn",
+    "typescript/no-extra-non-null-assertion": "warn",
+    "typescript/no-wrapper-object-types": "warn",
+    "import/first": "warn",
+    "import/no-duplicates": "warn",
+    "react/display-name": "warn",
+    "react/jsx-key": "error",
+    "react/jsx-no-comment-textnodes": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/no-children-prop": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-find-dom-node": "error",
+    "react/no-is-mounted": "error",
+    "react/no-render-return-value": "error",
+    "react/no-string-refs": "error",
+    "react/no-unescaped-entities": "error",
+    "react/no-unknown-property": "warn",
+    "react/no-this-in-sfc": "warn",
+    "react/require-render-return": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/static-components": "error",
+    "react/use-memo": "error",
+    "react/preserve-manual-memoization": "error",
+    "react/incompatible-library": "warn",
+    "react/immutability": "error",
+    "react/globals": "error",
+    "react/refs": "error",
+    "react/set-state-in-effect": "warn",
+    "react/error-boundaries": "error",
+    "react/purity": "error",
+    "react/set-state-in-render": "error",
+    "react/unsupported-syntax": "warn"
+  },
+  "overrides": [
+    {
+      // Default for src: only src/ai/runtime/adapters imports an AI runtime library. Later overrides win for the same rule.
+      "files": [
+        "src/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(ai|@ai-sdk/.*|@tanstack/ai.*)$",
+                "message": "Only src/ai/runtime/adapters imports an AI runtime library."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // AI contracts are shared with Deno: pure TS, relative imports only (docs/decisions/AI-PLATFORM.md D1).
+      "files": [
+        "src/contracts/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^[^.]",
+                "message": "Contracts are pure TS: import only files inside src/contracts."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Surfaces use runtime hooks + components only (docs/decisions/AI-CHAT.md §3A.1).
+      "files": [
+        "src/app/**/*.{ts,tsx}",
+        "src/components/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(ai|@ai-sdk/.*|@tanstack/ai.*)$",
+                "message": "Surfaces never import an AI runtime library; use src/ai/runtime hooks."
+              },
+              {
+                "group": [
+                  "@/ai/runtime/adapters/*",
+                  "@/ai/providers/*"
+                ],
+                "message": "Surfaces never import a model adapter or provider; go through src/ai/runtime or the AI clients."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/ai/capabilities/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(ai|@ai-sdk/.*|@tanstack/ai.*|@/ai/runtime(/.*)?)$",
+                "message": "Capabilities are runtime-agnostic: contracts + domain queries only."
+              },
+              {
+                "regex": "^(@/components/.*|@/app/.*|react-native.*|react)$",
+                "message": "Capabilities never import UI."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // The one place an AI runtime library is allowed.
+      "files": [
+        "src/ai/runtime/adapters/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
+}

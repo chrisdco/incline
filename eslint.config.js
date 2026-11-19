@@ -1,12 +1,14 @@
 // https://docs.expo.dev/guides/using-eslint/
 const { defineConfig } = require('eslint/config');
 const expoConfig = require("eslint-config-expo/flat");
+const oxlint = require("eslint-plugin-oxlint");
 
 module.exports = defineConfig([
   expoConfig,
   {
     // The Next.js web app has its own toolchain (web/eslint.config.mjs).
-    ignores: ["dist/*", "web/**/*"],
+    // .claude/worktrees holds full repo copies from agent sessions.
+    ignores: ["dist/*", "web/**/*", ".claude/**"],
   },
   {
     // React Compiler lint rules vs. idiomatic library patterns in this app:
@@ -21,59 +23,11 @@ module.exports = defineConfig([
       "react-hooks/set-state-in-effect": "warn",
     },
   },
-  {
-    // AI contracts (docs/decisions/AI-PLATFORM.md D1) are shared with Deno and
-    // future hosts: pure TS, relative imports only. scripts/sync-contracts.mjs
-    // enforces the same rule when it copies them to supabase/functions/_shared.
-    files: ["src/contracts/**/*.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        { patterns: [{ regex: "^[^.]", message: "Contracts are pure TS: import only files inside src/contracts." }] },
-      ],
-    },
-  },
-  {
-    // AI layers (docs/decisions/AI-CHAT.md §3A.1): own the contracts, rent the
-    // libraries. Surfaces use runtime hooks + components only; capabilities
-    // never touch UI or a runtime library; only runtime adapters import one.
-    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            { regex: "^(ai|@ai-sdk/.*|@tanstack/ai.*)$", message: "Surfaces never import an AI runtime library; use src/ai/runtime hooks." },
-            { group: ["@/ai/runtime/adapters/*", "@/ai/providers/*"], message: "Surfaces never import a model adapter or provider; go through src/ai/runtime or the AI clients." },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/ai/capabilities/**/*.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            { regex: "^(ai|@ai-sdk/.*|@tanstack/ai.*|@/ai/runtime(/.*)?)$", message: "Capabilities are runtime-agnostic: contracts + domain queries only." },
-            { regex: "^(@/components/.*|@/app/.*|react-native.*|react)$", message: "Capabilities never import UI." },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/ai/runtime/adapters/**", "src/app/**", "src/components/**", "src/ai/capabilities/**", "src/contracts/**"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        { patterns: [{ regex: "^(ai|@ai-sdk/.*|@tanstack/ai.*)$", message: "Only src/ai/runtime/adapters imports an AI runtime library." }] },
-      ],
-    },
-  },
+  // Everything .oxlintrc.json covers (core, react, React Compiler, import
+  // boundaries) runs in oxlint first (`pnpm lint`); this turns those rules off
+  // here so each finding is reported once. ESLint keeps what oxlint can't
+  // run: the design-token syntax rules below. docs/decisions/LINT.md.
+  ...oxlint.buildFromOxlintConfigFile("./.oxlintrc.json"),
   {
     // Design system guard (docs/design/SYSTEM.md): type, radius and spacing
     // come from tokens. Arbitrary values (`text-[13px]`, `p-[7px]`) and the
