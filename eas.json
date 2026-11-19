@@ -24,6 +24,7 @@
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "development",
         "EXPO_PUBLIC_DEV_BYPASS_AUTH": "1",
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "x86_64",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com",
         "EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT": "693170623852"
@@ -38,6 +39,7 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "alpha",
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com",
         "EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT": "693170623852"
@@ -52,6 +54,7 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "beta",
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com",
         "EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT": "693170623852"
