@@ -26,3 +26,13 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v58.0.0/ before 
 
 - **Gym-loop surfaces (session rows, cards, pickers) need a side-by-side check** against the Hevy/Strong reference screenshots before PR. Misses so far: prev treatment (text, never a box), tick placement, press feedback — all caught by the user, none by code review.
 - **Reference anatomy lives in code comments** (see `set-row.tsx` header). Update the comment when the reference changes; don't restyle from memory.
+
+## Finish like a user would (completeness)
+
+- **Walk the whole flow as the user, not just the changed screen.** Before PR, run the feature end to end:
+  - back and swipe-back after it, so leftover screens don't come back;
+  - leaving mid-way and reopening;
+  - offline, and an empty account;
+  - every edge the feature touches (a dismissed drawer, a stale stack, an unsaved edit).
+- **No silent loss.** Every user change is saved or explicitly asked about. A change that's dropped without a word is a bug, however small.
+- **Nitpicks are bugs.** A leftover pixel strip, a missing gesture or a stale screen erodes trust like a crash. Fix them in the same PR when you find them, or log them in docs/WORK-QUEUE.md.

@@ -37,12 +37,18 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: node_modules/.cache/ci
-          key: ci-cache-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.js', 'tsconfig.json') }}-${{ github.sha }}
-          restore-keys: ci-cache-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.js', 'tsconfig.json') }}-
+          key: ci-cache-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.js', '.oxlintrc.json', 'tsconfig.json') }}-${{ github.sha }}
+          restore-keys: ci-cache-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.js', '.oxlintrc.json', 'tsconfig.json') }}-
 
+      # TypeScript 7 (native). TS 6 stays installed for typescript-eslint and
+      # Expo tooling, which use its JS API.
       - run: pnpm run typecheck --incremental --tsBuildInfoFile node_modules/.cache/ci/tsbuildinfo
 
-      - run: pnpm run lint -- --cache --cache-strategy content --cache-location node_modules/.cache/ci/eslint/
+      # oxlint (<1 s) runs the bulk of the rules; ESLint keeps the design-token
+      # syntax rules (docs/decisions/LINT.md).
+      - run: pnpm exec oxlint
+
+      - run: pnpm exec expo lint -- --cache --cache-strategy content --cache-location node_modules/.cache/ci/eslint/
 
       # src/contracts is copied to supabase/functions/_shared for Deno; a stale
       # copy means the edge runs different gates than the app (#189).
