@@ -24,7 +24,7 @@ import {
   type ApplyStatus,
   type TableCursor,
 } from '../cursor';
-import { cursorFilter, PULL_PAGE, pullTable, type PullSource, type RemoteRow } from '../pull';
+import { cursorFilter, prefetchFirstPages, PULL_PAGE, pullTable, type PullSource, type RemoteRow } from '../pull';
 import { getTableCursors, resetSyncState, setSyncStatus, setTableCursor } from '../state';
 
 const SPEC = { table: 'set_entries' as const, cloud: 'set_entries', idCol: 'id' };
@@ -209,5 +209,40 @@ describe('table cursor storage', () => {
     });
     await resetSyncState();
     expect((await getTableCursors(['set_entries'])).set_entries).toEqual(EMPTY_CURSOR);
+  });
+});
+
+describe('prefetchFirstPages', () => {
+  it('asks for every table at once, then pages and applies in order', async () => {
+    const big = fakeSource(Array.from({ length: PULL_PAGE + 3 }, (_, i) => row(i)));
+    const empty = fakeSource([]);
+    const calls: string[] = [];
+    const routed: PullSource = {
+      fetchPage: (spec, cursor, limit) => {
+        calls.push(spec.table);
+        return (spec.table === 'workout_logs' ? big : empty).source.fetchPage(spec, cursor, limit);
+      },
+      fetchByIds: (spec, ids) => big.source.fetchByIds(spec, ids),
+    };
+    const logs = { table: 'workout_logs' as const, cloud: 'workout_logs', idCol: 'id' };
+    const source = prefetchFirstPages(routed, [
+      { spec: logs, cursor: EMPTY_CURSOR },
+      { spec: SPEC, cursor: EMPTY_CURSOR },
+    ]);
+    // Both first pages are in flight before anything is applied.
+    expect(calls).toEqual(['workout_logs', 'set_entries']);
+
+    const applied: string[] = [];
+    const apply = async (table: string, rows: RemoteRow[]) => {
+      applied.push(`${table}:${rows.length}`);
+      return rows.map(() => 'ok' as ApplyStatus);
+    };
+    const end = await pullTable(logs, EMPTY_CURSOR, source, apply, async () => {});
+    await pullTable(SPEC, EMPTY_CURSOR, source, apply, async () => {});
+
+    expect(applied).toEqual([`workout_logs:${PULL_PAGE}`, 'workout_logs:3']);
+    expect(end.id).toBe(row(PULL_PAGE + 2).id);
+    // The prefetch is used once; only the second workout_logs page is new.
+    expect(calls).toEqual(['workout_logs', 'set_entries', 'workout_logs']);
   });
 });

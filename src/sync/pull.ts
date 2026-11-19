@@ -73,6 +73,39 @@ export async function pullTable(
   return cursor;
 }
 
+/**
+ * Ask for every table's first page at once. Applying stays one table at a
+ * time in PULL_TABLES order (parents before children); only the waiting
+ * overlaps. A launch with nothing new used to be one round trip per table
+ * back to back (16+), so a slow connection turned it into a minute (Nov 2026).
+ * A child row whose parent lands in the same run but later is parked as
+ * blocked and retried, the same as any out-of-order row.
+ */
+export function prefetchFirstPages(
+  source: PullSource,
+  starts: { spec: PullSpec; cursor: TableCursor }[],
+): PullSource {
+  const first = new Map<string, Promise<RemoteRow[]>>();
+  for (const { spec, cursor } of starts) {
+    const page = source.fetchPage(spec, cursor, PULL_PAGE);
+    // Surfaced when pullTable awaits it; never an unhandled rejection if an
+    // earlier table already failed the run.
+    page.catch(() => {});
+    first.set(spec.table, page);
+  }
+  return {
+    fetchPage(spec, cursor, limit) {
+      const page = first.get(spec.table);
+      if (page && limit === PULL_PAGE) {
+        first.delete(spec.table);
+        return page;
+      }
+      return source.fetchPage(spec, cursor, limit);
+    },
+    fetchByIds: (spec, ids) => source.fetchByIds(spec, ids),
+  };
+}
+
 /** PostgREST logic-tree value: quoted so ':', '.', '+' in timestamps parse as data. */
 function q(v: string): string {
   return `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;

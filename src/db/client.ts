@@ -94,8 +94,11 @@ export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       _db = database;
       _changeSub ??= SQLite.addDatabaseChangeListener((e) => emitTablesChanged([e.tableName]));
 
-      // Catalog sync is offline-friendly and idempotent — do not block DB readiness.
-      void seedFromSupabase(database).catch((err) => {
+      // Catalog sync is offline-friendly and idempotent — do not block DB
+      // readiness. It downloads the whole catalog (1300+ rows), which rarely
+      // changes, so it runs at most once a day instead of on every launch,
+      // where it competed with the launch sync for the network and JS thread.
+      void refreshCatalogDaily(database).catch((err) => {
         console.warn('[db] Supabase exercise seed failed', err);
       });
 
@@ -146,4 +149,22 @@ export function __resetDatabaseCacheForTests(): void {
   _db = null;
   _ready = null;
   _writer = null;
+}
+
+const CATALOG_SYNCED_KEY = 'catalog_synced_at';
+const CATALOG_REFRESH_MS = 24 * 60 * 60 * 1000;
+
+/** seedFromSupabase, skipped when it last completed under a day ago. */
+async function refreshCatalogDaily(database: SQLite.SQLiteDatabase): Promise<void> {
+  const last = await database.getFirstAsync<{ value: string }>(
+    'SELECT value FROM schema_meta WHERE key = ?',
+    CATALOG_SYNCED_KEY,
+  );
+  if (last && Date.now() - Number(last.value) < CATALOG_REFRESH_MS) return;
+  await seedFromSupabase(database);
+  await database.runAsync(
+    'INSERT INTO schema_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    CATALOG_SYNCED_KEY,
+    String(Date.now()),
+  );
 }
