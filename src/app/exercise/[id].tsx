@@ -121,6 +121,9 @@ export default function ExerciseDetailScreen() {
     (activeSession?.sets.some((s) => s.exerciseId === exercise.id) ?? false);
 
   // Discovery → training: add to the live session, or start one with this.
+  // Going to the live session pops back to it when it's already under this
+  // page (opened from its picker); pushing stacked a second copy, and the
+  // picker/search pages lingered behind the summary after finishing.
   const addToActiveWorkout = async () => {
     if (!exercise || adding || !activeLogId) return;
     setAdding(true);
@@ -128,7 +131,7 @@ export default function ExerciseDetailScreen() {
     try {
       await addExerciseToWorkout(activeLogId, exercise.id);
       toast({ title: `${exercise.name} added`, variant: 'success' });
-      router.push(`/session/${activeLogId}` as Href);
+      router.dismissTo(`/session/${activeLogId}` as Href);
     } catch {
       toast({ title: 'Could not add exercise', variant: 'destructive' });
       setAdding(false);
@@ -185,7 +188,7 @@ export default function ExerciseDetailScreen() {
         {inActiveSession && activeLogId ? (
           <Button
             leftIcon={<Icon icon={Play} size={16} color="primary-foreground" />}
-            onPress={() => router.push(`/session/${activeLogId}` as Href)}>
+            onPress={() => router.dismissTo(`/session/${activeLogId}` as Href)}>
             Open workout
           </Button>
         ) : activeLogId ? (

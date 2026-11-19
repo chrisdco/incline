@@ -1,8 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { Alert, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
-import Animated, { Easing, FadeIn, FadeOut, SlideInLeft, SlideOutLeft } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  SlideInLeft,
+  SlideOutLeft,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { GestureDetector, GestureHandlerRootView, usePanGesture } from 'react-native-gesture-handler';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart3, CalendarRange, Gauge, Plus, Scale, Search, SlidersHorizontal, type LucideIcon } from 'lucide-react-native';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -36,6 +47,9 @@ const TOOLS: Record<AskContext, Tool[]> = {
 /** Recents shown before "View all". */
 const RECENT = 6;
 const EASE = Easing.out(Easing.cubic);
+/** Swipe left this far, or flick, to close. */
+const CLOSE_DISTANCE = 80;
+const CLOSE_VELOCITY = 600;
 
 function confirmDelete(uuid: string, title: string) {
   Alert.alert('Delete chat?', `"${title}" will be removed from this device.`, [
@@ -82,7 +96,9 @@ function Row({
  * Ask's drawer (ASK-UI.md): search, Tools, Recents, then privacy and
  * settings, with New chat floating bottom-right (Claude's layout). Search
  * matches titles and what was said in the chat. Opens from
- * ☰ only (no edge swipe; that would fight Android's back gesture).
+ * ☰ only (no edge swipe; that would fight Android's back gesture); closes
+ * by swiping it left, tapping the scrim or back. The Modal is translucent
+ * under both system bars so the scrim covers the composer too.
  * Long-press a chat to delete it.
  */
 export function AskDrawer({ open, onClose, onNewChat }: { open: boolean; onClose: () => void; onNewChat: () => void }) {
@@ -104,88 +120,121 @@ export function AskDrawer({ open, onClose, onNewChat }: { open: boolean; onClose
     router.push(href);
   };
 
+  // Follows the finger leftwards only; released past the threshold it closes
+  // (the exiting slide finishes the motion), otherwise it settles back.
+  const dragX = useSharedValue(0);
+  const close = () => onClose();
+  // Reset per open, not on close: zeroing it mid-exit snaps the panel back.
+  useEffect(() => {
+    if (open) dragX.set(0);
+  }, [open, dragX]);
+  const swipe = usePanGesture({
+    activeOffsetX: [-12, 12],
+    failOffsetY: [-16, 16],
+    onUpdate: (e) => {
+      'worklet';
+      dragX.set(Math.min(0, e.translationX));
+    },
+    onDeactivate: (e) => {
+      'worklet';
+      if (dragX.get() < -CLOSE_DISTANCE || e.velocityX < -CLOSE_VELOCITY) scheduleOnRN(close);
+      else dragX.set(withTiming(0, { duration: motionDuration.exit }));
+    },
+  });
+  const panelStyle = useAnimatedStyle(() => ({ transform: [{ translateX: dragX.get() }] }));
+
   return (
-    <Modal visible={open} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible={open}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      navigationBarTranslucent>
       {open ? (
-        <View className="flex-1 flex-row">
-          <Animated.View
-            entering={SlideInLeft.duration(motionDuration.enter).easing(EASE)}
-            exiting={SlideOutLeft.duration(motionDuration.exit)}
-            className="w-4/5 max-w-sm bg-background"
-            style={{ paddingTop: insets.top + 12 }}>
-            <View className="mx-4 h-11 flex-row items-center gap-2 rounded-full border border-input bg-surface1 px-4">
-              <Icon icon={Search} size={16} color="muted-foreground" />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search chats"
-                placeholderTextColor={PLACEHOLDER_HEX}
-                accessibilityLabel="Search chats"
-                className="flex-1 text-base text-foreground"
-                returnKeyType="search"
-              />
-            </View>
-
-            <ScrollView contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: insets.bottom + 88 }} keyboardShouldPersistTaps="handled">
-              {q ? null : (
-                <>
-                  <GroupLabel>Tools</GroupLabel>
-                  {TOOLS[from].map((t) => (
-                    <Row key={t.title} label={t.title} icon={t.icon} onPress={() => go(t.href)} />
-                  ))}
-                </>
-              )}
-
-              <GroupLabel>{q ? 'Matching chats' : 'Recents'}</GroupLabel>
-              {shown.length ? (
-                shown.map((t) => (
-                  <Row
-                    key={t.uuid}
-                    label={t.title || 'Chat'}
-                    onPress={() => go(`/(app)/chat/${t.uuid}` as Href)}
-                    onLongPress={() => confirmDelete(t.uuid, t.title || 'Chat')}
-                    hint="Long press to delete"
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <GestureDetector gesture={swipe}>
+            <View className="flex-1 flex-row">
+              <Animated.View
+                entering={SlideInLeft.duration(motionDuration.enter).easing(EASE)}
+                exiting={SlideOutLeft.duration(motionDuration.exit)}
+                className="w-4/5 max-w-sm bg-background"
+                style={[{ paddingTop: insets.top + 12 }, panelStyle]}>
+                <View className="mx-4 h-11 flex-row items-center gap-2 rounded-full border border-input bg-surface1 px-4">
+                  <Icon icon={Search} size={16} color="muted-foreground" />
+                  <TextInput
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder="Search chats"
+                    placeholderTextColor={PLACEHOLDER_HEX}
+                    accessibilityLabel="Search chats"
+                    className="flex-1 text-base text-foreground"
+                    returnKeyType="search"
                   />
-                ))
-              ) : (
-                <Caption className="px-3 py-2">{q ? 'No chats match.' : 'Your chats stay on this device.'}</Caption>
-              )}
-              {!q && !all && matches.length > RECENT ? (
-                <Tappable onPress={() => setAll(true)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
-                  <Text className="text-sm font-medium text-muted-foreground">View all ›</Text>
-                </Tappable>
-              ) : null}
+                </View>
 
-              <View className="mx-3 mt-5 h-px bg-hairline" />
-              <View className="mt-3">
-                <Tappable onPress={() => go('/(app)/ai-data-use' as Href)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
-                  <Body className="text-muted-foreground">AI data use</Body>
-                </Tappable>
-                <Tappable onPress={() => go('/(app)/ai-settings' as Href)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
-                  <Body className="text-muted-foreground">AI settings</Body>
-                </Tappable>
-              </View>
-            </ScrollView>
+                <ScrollView contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: insets.bottom + 88 }} keyboardShouldPersistTaps="handled">
+                  {q ? null : (
+                    <>
+                      <GroupLabel>Tools</GroupLabel>
+                      {TOOLS[from].map((t) => (
+                        <Row key={t.title} label={t.title} icon={t.icon} onPress={() => go(t.href)} />
+                      ))}
+                    </>
+                  )}
 
-            <View className="absolute right-4" style={{ bottom: insets.bottom + 16 }}>
-              <Tappable
-                onPress={() => {
-                  onClose();
-                  onNewChat();
-                }}
-                pressedOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="New chat"
-                className="h-11 flex-row items-center gap-1.5 rounded-full bg-foreground px-4">
-                <Icon icon={Plus} size={16} color={bg} />
-                <Text className="text-sm font-semibold text-background">New chat</Text>
-              </Tappable>
+                  <GroupLabel>{q ? 'Matching chats' : 'Recents'}</GroupLabel>
+                  {shown.length ? (
+                    shown.map((t) => (
+                      <Row
+                        key={t.uuid}
+                        label={t.title || 'Chat'}
+                        onPress={() => go(`/(app)/chat/${t.uuid}` as Href)}
+                        onLongPress={() => confirmDelete(t.uuid, t.title || 'Chat')}
+                        hint="Long press to delete"
+                      />
+                    ))
+                  ) : (
+                    <Caption className="px-3 py-2">{q ? 'No chats match.' : 'Your chats stay on this device.'}</Caption>
+                  )}
+                  {!q && !all && matches.length > RECENT ? (
+                    <Tappable onPress={() => setAll(true)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
+                      <Text className="text-sm font-medium text-muted-foreground">View all ›</Text>
+                    </Tappable>
+                  ) : null}
+
+                  <View className="mx-3 mt-5 h-px bg-hairline" />
+                  <View className="mt-3">
+                    <Tappable onPress={() => go('/(app)/ai-data-use' as Href)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
+                      <Body className="text-muted-foreground">AI data use</Body>
+                    </Tappable>
+                    <Tappable onPress={() => go('/(app)/ai-settings' as Href)} pressedOpacity={0.55} accessibilityRole="button" className="px-3 py-2">
+                      <Body className="text-muted-foreground">AI settings</Body>
+                    </Tappable>
+                  </View>
+                </ScrollView>
+
+                <View className="absolute right-4" style={{ bottom: insets.bottom + 16 }}>
+                  <Tappable
+                    onPress={() => {
+                      onClose();
+                      onNewChat();
+                    }}
+                    pressedOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="New chat"
+                    className="h-11 flex-row items-center gap-1.5 rounded-full bg-foreground px-4">
+                    <Icon icon={Plus} size={16} color={bg} />
+                    <Text className="text-sm font-semibold text-background">New chat</Text>
+                  </Tappable>
+                </View>
+              </Animated.View>
+              <Animated.View entering={FadeIn.duration(motionDuration.enter)} exiting={FadeOut} className="flex-1 bg-black/40">
+                <Pressable className="flex-1" onPress={onClose} accessibilityRole="button" accessibilityLabel="Close menu" />
+              </Animated.View>
             </View>
-          </Animated.View>
-          <Animated.View entering={FadeIn.duration(motionDuration.enter)} exiting={FadeOut} className="flex-1 bg-black/40">
-            <Pressable className="flex-1" onPress={onClose} accessibilityRole="button" accessibilityLabel="Close menu" />
-          </Animated.View>
-        </View>
+          </GestureDetector>
+        </GestureHandlerRootView>
       ) : null}
     </Modal>
   );
