@@ -25,7 +25,7 @@ import type { SetEntry, SetType, Unit } from '@/db/types';
 import type { ExercisePRSummary } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
 import { detectSetFatigue } from '@/coaching/fatigue';
-import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical, Scale, Dumbbell } from 'lucide-react-native';
+import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical, Scale, Dumbbell, SkipForward } from 'lucide-react-native';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { SET_CELL, SET_COL } from './set-layout';
 
@@ -93,6 +93,9 @@ function ExerciseBlockImpl({
   onReplaceExercise,
   onRemoveExercise,
   onReorderExercises,
+  skipped = false,
+  onSkipExercise,
+  onRestoreExercise,
   onChangeUnit,
   showWarmUpSets = true,
   showRpe = true,
@@ -139,6 +142,10 @@ function ExerciseBlockImpl({
   onRemoveExercise?: (exerciseId: number, name: string) => void;
   /** Open the session reorder screen. */
   onReorderExercises?: () => void;
+  /** Set aside for today: the card shrinks to its header (ROUTINE-CHANGES.md). */
+  skipped?: boolean;
+  onSkipExercise?: (exerciseId: number) => void;
+  onRestoreExercise?: (exerciseId: number) => void;
   /** Switch this exercise's display unit (stored values stay kg). */
   onChangeUnit?: (exerciseId: number, unit: Unit) => void;
   showWarmUpSets?: boolean;
@@ -213,6 +220,29 @@ function ExerciseBlockImpl({
     onApplyLoad?.(exerciseId, weight, reps);
     setAssistOpen(false);
   };
+
+
+  // Skipped today: header only, muted, one tap back. Its open sets drop at
+  // finish like any open set; the routine keeps it (ROUTINE-CHANGES.md).
+  if (skipped) {
+    return (
+      <View className={cn('flex-row items-center gap-3 rounded-2xl px-2 py-1', className)}>
+        <View className="min-w-0 flex-1">
+          <Text className="text-base font-semibold text-muted-foreground line-through" numberOfLines={1}>{name}</Text>
+          <Caption>
+            {completedCount > 0
+              ? `Skipped today · ${completedCount} done set${completedCount === 1 ? '' : 's'} kept`
+              : 'Skipped today · stays in your routine'}
+          </Caption>
+        </View>
+        {onRestoreExercise ? (
+          <Button size="sm" variant="tonal" onPress={() => onRestoreExercise(exerciseId)} accessibilityLabel={`Bring back ${name}`}>
+            Bring back
+          </Button>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View className={cn('gap-2 rounded-2xl px-1 py-1', className)}>
@@ -491,6 +521,22 @@ function ExerciseBlockImpl({
               </View>
             </View>
           ) : null}
+          {onSkipExercise ? (
+            <Pressable
+              onPress={() => {
+                setOptionsOpen(false);
+                onSkipExercise(exerciseId);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Skip ${name} today`}
+              className="flex-row items-center gap-3 rounded-xl px-3 py-2.5">
+              <Icon icon={SkipForward} size={18} color="foreground" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">Skip today</Text>
+                <Caption>Folds it away for this workout · routine unchanged</Caption>
+              </View>
+            </Pressable>
+          ) : null}
           {onReplaceExercise ? (
             <Pressable
               onPress={() => {
@@ -519,7 +565,7 @@ function ExerciseBlockImpl({
               <Icon icon={ArrowUpDown} size={18} color="foreground" />
               <View className="flex-1">
                 <Text className="text-sm font-semibold text-foreground">Reorder exercises</Text>
-                <Caption>Saved for this session</Caption>
+                <Caption>This workout · routine asked at finish</Caption>
               </View>
             </Pressable>
           ) : null}
@@ -535,7 +581,7 @@ function ExerciseBlockImpl({
               <Icon icon={Trash2} size={18} color="destructive" />
               <View className="flex-1">
                 <Text className="text-sm font-semibold text-destructive">Remove exercise</Text>
-                <Caption>Removes its sets from this session only</Caption>
+                <Caption>Drops its sets here · routine asked at finish</Caption>
               </View>
             </Pressable>
           ) : null}

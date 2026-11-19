@@ -27,6 +27,7 @@ export type DbTable =
   | 'set_entries'
   | 'sync_outbox'
   | 'template_exercises'
+  | 'template_versions'
   | 'user_profile'
   | 'workout_logs'
   | 'workout_photos'

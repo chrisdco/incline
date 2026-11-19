@@ -181,6 +181,8 @@ export interface TemplateStateRow {
   sets: number;
   repsMin: number;
   repsMax: number;
+  /** Omitted: an existing row keeps its rest; a new row gets 90 s. */
+  restSeconds?: number;
 }
 
 export interface TemplateSnapshot {
@@ -226,14 +228,14 @@ export async function writeTemplateState(
     if (row.id && live.has(row.id)) {
       await tx.runAsync(
         `UPDATE template_exercises SET exercise_id = ?, sort_order = ?, target_sets = ?, target_reps_min = ?,
-         target_reps_max = ?, updated_at = ? WHERE id = ?`,
-        row.exerciseId, i, row.sets, row.repsMin, row.repsMax, now, row.id,
+         target_reps_max = ?, rest_seconds = COALESCE(?, rest_seconds), updated_at = ? WHERE id = ?`,
+        row.exerciseId, i, row.sets, row.repsMin, row.repsMax, row.restSeconds ?? null, now, row.id,
       );
       await enqueueTemplateExerciseUpsert(tx, row.id);
     } else {
       const res = await tx.runAsync(
-        `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?, 90, '', ?, ?)`,
-        templateId, row.exerciseId, i, row.sets, row.repsMin, row.repsMax, newUuid(), now,
+        `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?)`,
+        templateId, row.exerciseId, i, row.sets, row.repsMin, row.repsMax, row.restSeconds ?? 90, newUuid(), now,
       );
       inserted.push(res.lastInsertRowId);
       await enqueueTemplateExerciseUpsert(tx, res.lastInsertRowId);
@@ -309,7 +311,7 @@ export async function insertTemplateCopy(
       `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, superset_group, uuid, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       templateId, row.exerciseId, i, row.sets, row.repsMin, row.repsMax,
-      from?.rest_seconds ?? 90, from?.notes ?? '', from?.superset_group ?? null, newUuid(), now,
+      row.restSeconds ?? from?.rest_seconds ?? 90, from?.notes ?? '', from?.superset_group ?? null, newUuid(), now,
     );
     await enqueueTemplateExerciseUpsert(tx, child.lastInsertRowId);
   }

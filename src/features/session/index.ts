@@ -19,11 +19,25 @@ import {
   updateSet,
   updateWorkoutNotes,
 } from '@/db/queries';
+import {
+  getRoutineForSession,
+  restoreTemplateVersion,
+  saveWorkoutAsRoutineCopy,
+  updateRoutineFromWorkout,
+} from '@/db/queries/routine-versions';
 import { useSettings } from '@/store/settings-store';
 
 import { createSessionEngine, type SessionEngineState } from './engine';
 
-export { finishBlock, pausedMsAt, volatileKey, type SessionEngine, type UndoEntry } from './engine';
+export {
+  finishBlock,
+  pausedMsAt,
+  volatileKey,
+  type RoutineChoice,
+  type RoutinePlan,
+  type SessionEngine,
+  type UndoEntry,
+} from './engine';
 
 /** The app's one live-session engine (one open workout at a time). */
 export const sessionEngine = createSessionEngine({
@@ -45,6 +59,12 @@ export const sessionEngine = createSessionEngine({
   discardWorkout,
   kvGet: kvStorage.getItem,
   kvSet: kvStorage.setItem,
+  routines: {
+    get: getRoutineForSession,
+    update: updateRoutineFromWorkout,
+    saveCopy: saveWorkoutAsRoutineCopy,
+    restore: restoreTemplateVersion,
+  },
   settings: () => {
     const s = useSettings.getState();
     return {
