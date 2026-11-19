@@ -341,7 +341,10 @@ export default function SessionScreen() {
     stopRest();
     clear();
     dropCachedSession(logId);
-    router.replace(`/summary/${logId}?celebrate=1`);
+    // Clear everything opened during the workout (picker, search, exercise
+    // pages, a second copy of this screen) so back from the summary is home.
+    if (router.canDismiss()) router.dismissAll();
+    router.push(`/summary/${logId}?celebrate=1`);
   };
   const discard = async () => {
     setDiscardOpen(false);
