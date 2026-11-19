@@ -36,7 +36,10 @@ export async function seedFromSupabase(db: SQLiteDatabase): Promise<number> {
       .select('*')
       .order('name')
       .range(offset, offset + PAGE - 1);
-    if (error || !data || data.length === 0) break;
+    // Throw rather than seed a partial list: the diff below deletes catalog
+    // rows missing from it, and the caller only stamps a complete refresh.
+    if (error) throw error;
+    if (!data || data.length === 0) break;
     all.push(...data);
     if (data.length < PAGE) break;
     offset += data.length;

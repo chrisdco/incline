@@ -14,7 +14,7 @@ import { useProfile } from '@/hooks/use-data';
 import { cancelDeletion, getDeletionStatus, type DeletionStatus } from '@/lib/account-deletion';
 import { isDevAuthBypassEnabled } from '@/lib/env';
 import { ACCOUNT_DELETION_ENABLED } from '@/constants/config';
-import { runSync, syncBackendReady } from '@/sync';
+import { isLocalProfileReady, runSync, syncBackendReady } from '@/sync';
 
 /**
  * Root gate: routes based on auth state → deletion check → onboarding → app.
@@ -69,10 +69,16 @@ export default function Gate() {
       return;
     }
     const skipSync = !check.ok;
-    // Pull cloud profile/workouts before routing so a returning account
-    // does not land in empty onboarding after a local wipe.
+    // Same account with a filled-in local profile: open on local data now.
+    // The app shell's CloudSyncProvider syncs on mount, so waiting here only
+    // ran the same sync twice and held the spinner for every round trip
+    // (a minute on a slow connection, Nov 2026). SQLite is the source of
+    // truth; pulled rows refresh screens through the table-change event.
+    const localReady = !switched && (await isLocalProfileReady());
+    // Otherwise pull cloud profile/workouts before routing so a returning
+    // account does not land in empty onboarding after a local wipe.
     // Skipped under the dev auth bypass (no token by design — stays local).
-    if (!skipSync && syncBackendReady() && !isDevAuthBypassEnabled()) {
+    if (!localReady && !skipSync && syncBackendReady() && !isDevAuthBypassEnabled()) {
       await runSync({
         userId: uid,
         getToken: (opts) => getTokenRef.current(opts),

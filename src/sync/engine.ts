@@ -22,7 +22,7 @@ import {
 import { PULL_TABLES } from './tables';
 import type { ApplyStatus } from './cursor';
 import { MAX_PUSH_ATTEMPTS, pushOutbox, supabasePushRpc } from './push';
-import { pullTable, supabasePullSource } from './pull';
+import { prefetchFirstPages, pullTable, supabasePullSource } from './pull';
 import { resolveTemplateRef } from './template-ref';
 import { drainPhotoBlobs, enqueuePhotoBlob, localPhotoPath } from './photo-blobs';
 import { File } from 'expo-file-system';
@@ -750,10 +750,13 @@ async function pullAll(client: SupabaseClient, userId: string): Promise<void> {
     if (res.data) await applyRemoteRow('profiles', res.data as Record<string, unknown>, userId);
   }
 
-  const source = supabasePullSource(client, userId);
   const cursors = await getTableCursors(PULL_TABLES.map((t) => t.table));
-  for (const spec of PULL_TABLES) {
-    if (spec.table === 'profiles' && needsProfileHydrate) continue;
+  const specs = PULL_TABLES.filter((spec) => !(spec.table === 'profiles' && needsProfileHydrate));
+  const source = prefetchFirstPages(
+    supabasePullSource(client, userId),
+    specs.map((spec) => ({ spec, cursor: cursors[spec.table] })),
+  );
+  for (const spec of specs) {
     await pullTable(
       spec,
       cursors[spec.table],
@@ -830,6 +833,19 @@ export async function runSync(opts: {
   } finally {
     _running = false;
   }
+}
+
+/**
+ * Local profile is filled in (named or onboarded), so the app can open on
+ * local data while sync runs behind it. Same test pullAll uses to decide a
+ * profile needs hydrating from the cloud.
+ */
+export async function isLocalProfileReady(): Promise<boolean> {
+  const db = await openDatabase();
+  const row = await db.getFirstAsync<{ name: string | null; onboarding_completed: number }>(
+    'SELECT name, onboarding_completed FROM user_profile WHERE id = 1 AND deleted_at IS NULL',
+  );
+  return !!row && (!!(row.name ?? '').trim() || !!row.onboarding_completed);
 }
 
 /** True when local has no completed workouts and no custom data (candidate for full hydrate). */
