@@ -48,7 +48,7 @@ jobs:
       # syntax rules (docs/decisions/LINT.md).
       - run: pnpm exec oxlint
 
-      - run: pnpm exec expo lint --cache --cache-strategy content --cache-location node_modules/.cache/ci/eslint/
+      - run: pnpm exec expo lint -- --cache --cache-strategy content --cache-location node_modules/.cache/ci/eslint/
 
       # src/contracts is copied to supabase/functions/_shared for Deno; a stale
       # copy means the edge runs different gates than the app (#189).
