@@ -42,7 +42,7 @@ jobs:
 
       # TypeScript 7 (native). TS 6 stays installed for typescript-eslint and
       # Expo tooling, which use its JS API.
-      - run: pnpm run typecheck --incremental --tsBuildInfoFile node_modules/.cache/ci/tsbuildinfo
+      - run: node node_modules/typescript-7/bin/tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/ci/tsbuildinfo
 
       # oxlint (<1 s) runs the bulk of the rules; ESLint keeps the design-token
       # syntax rules (docs/decisions/LINT.md).
