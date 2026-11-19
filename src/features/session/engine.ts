@@ -14,6 +14,14 @@ import { shouldStartRestAfterComplete } from '@/lib/superset-rest';
 import type { ExercisePRSummary, SessionGhost, SessionSet, SessionWorkout, SetPatch } from '@/db/queries';
 import type { TrainingSuggestion } from '@/coaching/types';
 import type { RepQuality } from '@/contracts/coaching/rep-quality';
+import {
+  countsAsRoutineSet,
+  diffSessionAgainstRoutine,
+  nextRoutineRows,
+  type SessionRoutineDiff,
+  type SessionSlot,
+} from '@/contracts/templates/session-changes';
+import type { AppliedRoutine, RoutineForSession } from '@/db/queries/routine-versions';
 import type { SetEntry, SetType, Unit } from '@/db/types';
 import { resolveWeightUnit } from '@/lib/units';
 
@@ -53,6 +61,8 @@ export interface SessionEngineState {
   /** Paused time already banked (excludes the current pause). */
   totalPausedMs: number;
   notesDraft: string;
+  /** Exercises set aside for today: collapsed, never a routine change. */
+  skipped: number[];
   /** Newest last. Capped; each entry is undone independently. */
   undo: UndoEntry[];
   finishing: boolean;
@@ -72,6 +82,17 @@ export interface VolatileSessionState {
   totalPausedMs: number;
   restSeconds: Record<number, number>;
   notesDraft: string;
+  skipped: number[];
+}
+
+/** What finishing does to the routine when the workout changed its shape. */
+export type RoutineChoice = 'update' | 'copy' | 'keep';
+
+/** The finish prompt's input: the routine and how this workout differs from it. */
+export interface RoutinePlan {
+  routine: RoutineForSession;
+  slots: SessionSlot[];
+  diff: SessionRoutineDiff;
 }
 
 export interface SessionEngineDeps {
@@ -107,6 +128,22 @@ export interface SessionEngineDeps {
   discardWorkout: (logId: number) => Promise<void>;
   kvGet: (key: string) => Promise<string | null>;
   kvSet: (key: string, value: string) => Promise<void>;
+  /** docs/decisions/ROUTINE-CHANGES.md: compare at finish, write back, undo. */
+  routines: {
+    get: (templateId: number) => Promise<RoutineForSession | null>;
+    update: (
+      templateId: number,
+      next: ReturnType<typeof nextRoutineRows>,
+      reason: 'workout-update' | 'workout-rest',
+    ) => Promise<AppliedRoutine | null>;
+    saveCopy: (
+      logId: number,
+      sourceId: number,
+      next: ReturnType<typeof nextRoutineRows>,
+      estimatedMinutes: number,
+    ) => Promise<AppliedRoutine | null>;
+    restore: (versionId: number) => Promise<boolean>;
+  };
   settings: () => {
     unit: Unit;
     /** Per-exercise display units keyed by exerciseRefKey (§15). */
@@ -149,6 +186,7 @@ const IDLE: SessionEngineState = {
   pausedAt: null,
   totalPausedMs: 0,
   notesDraft: '',
+  skipped: [],
   undo: [],
   finishing: false,
   discarding: false,
@@ -188,10 +226,43 @@ function parseVolatile(raw: string | null, startedAt: number | undefined): Volat
       totalPausedMs: typeof v.totalPausedMs === 'number' ? v.totalPausedMs : 0,
       restSeconds: v.restSeconds && typeof v.restSeconds === 'object' ? v.restSeconds : {},
       notesDraft: typeof v.notesDraft === 'string' ? v.notesDraft : '',
+      skipped: Array.isArray(v.skipped) ? v.skipped.filter((x): x is number => typeof x === 'number') : [],
     };
   } catch {
     return null;
   }
+}
+
+/** The workout's exercises in screen order, shaped for the routine diff. */
+export function sessionSlots(
+  session: SessionWorkout,
+  restSeconds: Readonly<Record<number, number>>,
+  skipped: readonly number[],
+): SessionSlot[] {
+  const slots = new Map<number, SessionSlot & { repTotal: number }>();
+  for (const set of session.sets) {
+    let slot = slots.get(set.exerciseId);
+    if (!slot) {
+      slot = {
+        exerciseId: set.exerciseId,
+        name: set.exerciseName,
+        workingSets: 0,
+        avgReps: 0,
+        repTotal: 0,
+        restSeconds: restSeconds[set.exerciseId] ?? null,
+        skipped: skipped.includes(set.exerciseId),
+      };
+      slots.set(set.exerciseId, slot);
+    }
+    if (countsAsRoutineSet(set.setType)) {
+      slot.workingSets += 1;
+      slot.repTotal += set.reps;
+    }
+  }
+  return [...slots.values()].map(({ repTotal, ...slot }) => ({
+    ...slot,
+    avgReps: slot.workingSets > 0 ? repTotal / slot.workingSets : 0,
+  }));
 }
 
 function mapSets(
@@ -233,6 +304,7 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       totalPausedMs: s.totalPausedMs,
       restSeconds: s.restSeconds,
       notesDraft: s.notesDraft,
+      skipped: s.skipped,
     };
   }
 
@@ -344,6 +416,49 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     void writesSettled().then(() => loadRows(gen, logId));
   }
 
+  /**
+   * After the log closed: carry the workout's changes to its routine per
+   * the user's choice (rest-only tweaks apply without asking) and say what
+   * happened in the one "Workout saved" toast. A routine write failing never
+   * un-saves the workout.
+   */
+  async function settleRoutine(logId: number, plan: RoutinePlan | null, choice: RoutineChoice): Promise<void> {
+    const toast = ui.toast;
+    const saved = (description?: string, action?: { label: string; onPress: () => void }) =>
+      toast({ title: 'Workout saved', description, variant: 'success', durationMs: action ? 6000 : undefined, action });
+    if (!plan || plan.diff.changes.length === 0) return saved();
+    const { routine, slots, diff } = plan;
+    const restOnly = !diff.structural;
+    if (!restOnly && choice === 'keep') return saved(`${routine.name} is unchanged.`);
+    const next = nextRoutineRows(routine.slots, slots, diff, deps.settings().defaultRestSeconds);
+    try {
+      if (!restOnly && choice === 'copy') {
+        const copy = await deps.routines.saveCopy(logId, routine.templateId, next, routine.estimatedMinutes);
+        return saved(copy ? `Saved as a new routine: ${copy.name}` : undefined);
+      }
+      const applied = await deps.routines.update(routine.templateId, next, restOnly ? 'workout-rest' : 'workout-update');
+      if (!applied) return saved();
+      const undo = applied.versionId == null
+        ? undefined
+        : {
+            label: 'Undo',
+            onPress: () => {
+              void deps.routines.restore(applied.versionId as number).then(
+                (ok) => toast({ title: ok ? `${applied.name} restored` : 'Could not undo', variant: ok ? 'info' : 'destructive' }),
+                () => toast({ title: 'Could not undo', variant: 'destructive' }),
+              );
+            },
+          };
+      return saved(restOnly ? `Rest times saved to ${applied.name}.` : `${applied.name} updated for next time.`, undo);
+    } catch {
+      toast({
+        title: 'Workout saved',
+        description: `Couldn't update ${routine.name}. Your workout is safe.`,
+        variant: 'warning',
+      });
+    }
+  }
+
   const engine = {
     store,
 
@@ -390,6 +505,7 @@ export function createSessionEngine(deps: SessionEngineDeps) {
         restSeconds: saved?.restSeconds ?? {},
         // A saved draft beats the committed notes: it is newer by definition.
         notesDraft: saved?.notesDraft ?? s?.notes ?? '',
+        skipped: saved?.skipped ?? [],
       });
       mergeRestDefaults(defaults);
       if (s) await loadAssistFull(gen, s);
@@ -690,6 +806,32 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       );
     },
 
+    /** Set an exercise aside for today: its card collapses, the routine keeps it. */
+    skipExercise(exerciseId: number) {
+      if (get().skipped.includes(exerciseId)) return;
+      set((s) => ({ skipped: [...s.skipped, exerciseId] }));
+      void persistVolatile();
+    },
+
+    unskipExercise(exerciseId: number) {
+      if (!get().skipped.includes(exerciseId)) return;
+      set((s) => ({ skipped: s.skipped.filter((id) => id !== exerciseId) }));
+      void persistVolatile();
+    },
+
+    /**
+     * How this workout differs from its routine, for the finish prompt.
+     * Null for a workout without a routine or when the routine is gone.
+     */
+    async routinePlan(): Promise<RoutinePlan | null> {
+      const { session, restSeconds, skipped } = get();
+      if (!session || session.templateId == null) return null;
+      const routine = await deps.routines.get(session.templateId).catch(() => null);
+      if (!routine) return null;
+      const slots = sessionSlots(session, restSeconds, skipped);
+      return { routine, slots, diff: diffSessionAgainstRoutine(routine.slots, slots) };
+    },
+
     pause() {
       if (get().pausedAt != null) return;
       set({ pausedAt: now() });
@@ -731,7 +873,7 @@ export function createSessionEngine(deps: SessionEngineDeps) {
      * Finish. Returns true when the log closed. Guarded (#142) and refuses an
      * empty workout (#172). Idempotent while in flight: a second call joins.
      */
-    finish(): Promise<boolean> {
+    finish(choice: RoutineChoice = 'keep'): Promise<boolean> {
       if (terminal) return terminal;
       const state = get();
       const { logId } = state;
@@ -749,13 +891,18 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       // Notes ride in finish's transaction (#141): a kill can no longer save
       // the notes and leave the log open, and the volatile kv entry is
       // deleted in the same commit.
+      // The plan reads the workout before finish drops its open sets.
+      let plan: RoutinePlan | null = null;
       const run = engine
         .flushWrites()
+        .then(async () => {
+          plan = await engine.routinePlan().catch(() => null);
+        })
         .then(() => deps.finishWorkout(logId, notes ? { pausedMs, notes } : { pausedMs }))
         .then(
-          () => {
+          async () => {
             set({ undo: [] });
-            ui.toast({ title: 'Workout saved', variant: 'success' });
+            await settleRoutine(logId, plan, choice);
             return true;
           },
           () => {

@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSessionEngine, UNDO_LIMIT, volatileKey, type SessionEngineDeps } from '../engine';
 
 import type { SessionSet, SessionWorkout, SetPatch } from '@/db/queries';
+import type { RoutineForSession } from '@/db/queries/routine-versions';
 
 function set(id: number, exerciseId: number, extra: Partial<SessionSet> = {}): SessionSet {
   return {
@@ -47,7 +48,10 @@ function workout(id: number, sets: SessionSet[], extra: Partial<SessionWorkout> 
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-function harness(logs: Record<number, SessionWorkout>, opts: { rest?: Record<number, Record<number, number>> } = {}) {
+function harness(
+  logs: Record<number, SessionWorkout>,
+  opts: { rest?: Record<number, Record<number, number>>; routine?: RoutineForSession } = {},
+) {
   const kv = new Map<string, string>();
   const calls: string[] = [];
   let clock = 10_000;
@@ -86,6 +90,12 @@ function harness(logs: Record<number, SessionWorkout>, opts: { rest?: Record<num
     kvGet: async (k) => kv.get(k) ?? null,
     kvSet: async (k, v) => {
       kv.set(k, v);
+    },
+    routines: {
+      get: vi.fn(async () => (opts.routine ? structuredClone(opts.routine) : null)),
+      update: vi.fn(async (templateId: number) => ({ templateId, name: opts.routine?.name ?? 'Routine', versionId: 7 })),
+      saveCopy: vi.fn(async () => ({ templateId: 99, name: 'Routine · 19 Nov', versionId: null })),
+      restore: vi.fn(async () => true),
     },
     settings: () => ({ unit: 'metric', showSessionGhost: false, autoStartRest: true, defaultRestSeconds: 90 }),
     now: () => clock,
@@ -450,5 +460,74 @@ describe('session engine: apply suggestion to remaining sets', () => {
     await h.engine.open(1);
     expect(await h.engine.applyLoadToRemaining(10, 105, 5)).toBe(0);
     expect(h.ui.toast).not.toHaveBeenCalled();
+  });
+});
+
+describe('session engine: skip for today + routine changes at finish', () => {
+  const routine: RoutineForSession = {
+    templateId: 5,
+    name: 'Push',
+    estimatedMinutes: 45,
+    slots: [
+      { exerciseId: 10, name: 'Ex 10', sets: 2, restSeconds: 120 },
+      { exerciseId: 20, name: 'Ex 20', sets: 1, restSeconds: 90 },
+    ],
+  };
+  const fromRoutine = () =>
+    workout(1, [set(1, 10, { completed: true }), set(2, 10), set(3, 20)], { templateId: 5 });
+
+  it('keeps skipped exercises across a relaunch', async () => {
+    const logs = { 1: fromRoutine() };
+    const a = harness(logs, { routine });
+    await a.engine.open(1);
+    a.engine.skipExercise(20);
+    await tick();
+    const b = harness(logs, { routine });
+    for (const [k, v] of a.kv) b.kv.set(k, v);
+    await b.engine.open(1);
+    expect(b.engine.store.getState().skipped).toEqual([20]);
+    b.engine.unskipExercise(20);
+    expect(b.engine.store.getState().skipped).toEqual([]);
+  });
+
+  it('saves a rest-only change to the routine without asking, with Undo', async () => {
+    const h = harness({ 1: fromRoutine() }, { routine, rest: { 1: { 10: 120, 20: 90 } } });
+    await h.engine.open(1);
+    h.engine.setRest(10, 150);
+    expect(await h.engine.finish()).toBe(true);
+    expect(h.deps.routines.update).toHaveBeenCalledWith(
+      5,
+      [
+        { exerciseId: 10, sets: 2, restSeconds: 150 },
+        { exerciseId: 20, sets: 1, restSeconds: 90 },
+      ],
+      'workout-rest',
+    );
+    const toast = h.ui.toast.mock.calls.at(-1)?.[0];
+    expect(toast.description).toBe('Rest times saved to Push.');
+    toast.action.onPress();
+    expect(h.deps.routines.restore).toHaveBeenCalledWith(7);
+  });
+
+  it('leaves the routine alone on keep, and a skipped exercise is never a change', async () => {
+    const h = harness({ 1: fromRoutine() }, { routine, rest: { 1: { 10: 120, 20: 90 } } });
+    await h.engine.open(1);
+    h.engine.skipExercise(20);
+    expect((await h.engine.routinePlan())?.diff.changes).toEqual([]);
+    await h.engine.addSet(10);
+    // addSet reloads rows from the fake; add the row to what the fake returns.
+    h.engine.store.setState((s) => ({ session: s.session && { ...s.session, sets: [...s.session.sets, set(4, 10)] } }));
+    expect((await h.engine.routinePlan())?.diff.structural).toBe(true);
+    await h.engine.finish('keep');
+    expect(h.deps.routines.update).not.toHaveBeenCalled();
+    expect(h.deps.routines.saveCopy).not.toHaveBeenCalled();
+  });
+
+  it('saves a structural change as a copy when asked', async () => {
+    const h = harness({ 1: fromRoutine() }, { routine, rest: { 1: { 10: 120, 20: 90 } } });
+    await h.engine.open(1);
+    h.engine.store.setState((s) => ({ session: s.session && { ...s.session, sets: s.session.sets.filter((x) => x.exerciseId !== 20) } }));
+    await h.engine.finish('copy');
+    expect(h.deps.routines.saveCopy).toHaveBeenCalledWith(1, 5, [{ exerciseId: 10, sets: 2, restSeconds: 120 }], 45);
   });
 });

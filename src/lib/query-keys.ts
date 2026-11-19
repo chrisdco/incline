@@ -7,6 +7,7 @@ import { listExercises } from '@/db/queries/exercises';
 import { listMemoryFacts } from '@/db/queries/memory';
 import { getSessionExerciseNotes } from '@/db/queries/session-notes';
 import { getWorkoutGym } from '@/db/queries/gyms';
+import { listTemplateVersions } from '@/db/queries/routine-versions';
 import type { SessionWorkout } from '@/db/queries/helpers';
 import type { DbTable } from '@/db/write';
 
@@ -115,6 +116,15 @@ export function workoutGymQuery(logId: number) {
   return queryOptions({
     queryKey: dbKey(['workout_logs', 'gyms'], 'workoutGym', logId),
     queryFn: () => getWorkoutGym(logId),
+  });
+}
+
+/* ---- routine version history (ROUTINE-CHANGES.md) ---- */
+
+export function templateVersionsQuery(templateId: number) {
+  return queryOptions({
+    queryKey: dbKey(['template_versions', 'exercises'], 'templateVersions', templateId),
+    queryFn: () => listTemplateVersions(templateId),
   });
 }
 

@@ -41,7 +41,8 @@ import { formatClock, formatDuration, formatVolume } from '@/db/calc';
 import { workingSetVolume } from '@/lib/session-ghost';
 import { catalogQuery, dropCachedSession, getCachedSession, setCachedSession } from '@/lib/query-keys';
 import { useQuery } from '@tanstack/react-query';
-import { finishBlock, pausedMsAt, sessionEngine, useSessionEngine } from '@/features/session';
+import { finishBlock, pausedMsAt, sessionEngine, useSessionEngine, type RoutineChoice, type RoutinePlan } from '@/features/session';
+import { describeRoutineChange } from '@/contracts/templates/session-changes';
 import { SCREEN_CONTENT_CTA } from '@/lib/layout';
 import { motionDuration } from '@/styles/motion';
 import { PLACEHOLDER_COLOR } from '@/constants/config';
@@ -99,6 +100,9 @@ const SessionMuscleMap = memo(function SessionMuscleMap({ muscleKey }: { muscleK
 
 const engine = sessionEngine;
 const EMPTY: Record<number, never> = {};
+const NO_IDS: number[] = [];
+/** Change lines shown in the finish dialog before "and N more". */
+const MAX_CHANGE_LINES = 4;
 
 export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -123,13 +127,19 @@ export default function SessionScreen() {
   const suggestionMap = useSessionEngine((s) => (s.logId === logId ? s.suggestions : EMPTY));
   const ghost = useSessionEngine((s) => (s.logId === logId ? s.ghost : null));
   const restSecondsMap = useSessionEngine((s) => (s.logId === logId ? s.restSeconds : EMPTY));
+  const skipped = useSessionEngine((s) => (s.logId === logId ? s.skipped : NO_IDS));
   const restKind = useSessionEngine((s) => s.restKind);
   const pausedAt = useSessionEngine((s) => s.pausedAt);
   const notes = useSessionEngine((s) => s.notesDraft);
   const finishing = useSessionEngine((s) => s.finishing);
   const discarding = useSessionEngine((s) => s.discarding);
   // What the lock-screen rest notification shows as "Next" (Android).
-  const sessionSets = session?.sets;
+  // Skipped exercises are out of the way: never "next", never counted open.
+  const allSets = session?.sets;
+  const sessionSets = useMemo(
+    () => (skipped.length === 0 ? allSets : allSets?.filter((x) => !skipped.includes(x.exerciseId))),
+    [allSets, skipped],
+  );
   const restTarget = useMemo(
     () =>
       pickRestTarget(sessionSets ?? [], (exerciseId) => {
@@ -149,6 +159,10 @@ export default function SessionScreen() {
   const prevActiveGroupRef = useRef<number | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ exerciseId: number; name: string } | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
+  // How the workout differs from its routine; read when the dialog opens.
+  const [routinePlan, setRoutinePlan] = useState<RoutinePlan | null>(null);
+  // Finish waits for the comparison so a fast tap can't skip the question.
+  const [planReady, setPlanReady] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [gymSheetOpen, setGymSheetOpen] = useState(false);
@@ -261,7 +275,7 @@ export default function SessionScreen() {
   // unfinished set, else the last group.
   const activeGroupIndex = (() => {
     if (groups.length === 0) return -1;
-    const idx = groups.findIndex((g) => g.sets.some((s) => !s.completed));
+    const idx = groups.findIndex((g) => !skipped.includes(g.exerciseId) && g.sets.some((s) => !s.completed));
     return idx === -1 ? groups.length - 1 : idx;
   })();
 
@@ -334,9 +348,21 @@ export default function SessionScreen() {
     void engine.removeExercise(target.exerciseId, target.name);
   };
 
-  const finish = async () => {
+  const openFinish = () => {
+    setRoutinePlan(null);
+    setPlanReady(false);
+    setFinishOpen(true);
+    void engine
+      .routinePlan()
+      .catch(() => null)
+      .then((plan) => {
+        setRoutinePlan(plan);
+        setPlanReady(true);
+      });
+  };
+  const finish = async (choice: RoutineChoice = 'keep') => {
     setFinishOpen(false);
-    const ok = await engine.finish();
+    const ok = await engine.finish(choice);
     if (!ok) return;
     stopRest();
     clear();
@@ -377,8 +403,10 @@ export default function SessionScreen() {
     );
   }
 
-  const completedSets = session.sets.filter((s) => s.completed).length;
-  const totalSets = session.sets.length;
+  const countedSets = sessionSets ?? [];
+  const completedSets = countedSets.filter((s) => s.completed).length;
+  const totalSets = countedSets.length;
+  const routineChanges = routinePlan?.diff.structural ? routinePlan.diff.changes : null;
   const block = finishBlock(session);
   // Working-only live total: matches the ghost + progress definition so a
   // warm-up can never inflate the number mid-session.
@@ -407,7 +435,7 @@ export default function SessionScreen() {
           {pausedAt ? <Caption className="text-amber-500">Paused</Caption> : null}
           <SessionGymChip logId={logId} onPress={() => setGymSheetOpen(true)} />
         </View>
-        <Button size="sm" variant="success" leftIcon={<Icon icon={Check} size={16} color="success-foreground" />} onPress={() => setFinishOpen(true)} disabled={finishing || discarding} loading={finishing}>
+        <Button size="sm" variant="success" leftIcon={<Icon icon={Check} size={16} color="success-foreground" />} onPress={openFinish} disabled={finishing || discarding} loading={finishing}>
           Finish
         </Button>
       </View>
@@ -517,6 +545,9 @@ export default function SessionScreen() {
                   onReplaceExercise={openReplaceExercise}
                   onRemoveExercise={askRemoveExercise}
                   onReorderExercises={openReorder}
+                  skipped={skipped.includes(g.exerciseId)}
+                  onSkipExercise={engine.skipExercise}
+                  onRestoreExercise={engine.unskipExercise}
                   showWarmUpSets={showWarmUpSets}
                   showRpe={showRpe}
                   loadSuggestion={suggestionMap[g.exerciseId] ?? null}
@@ -623,12 +654,43 @@ export default function SessionScreen() {
               : `You completed ${completedSets} of ${totalSets} sets. Save this session to your history.`
         }
         footer={
-          <>
-            <Button variant="outline" onPress={() => setFinishOpen(false)} disabled={finishing}>Keep logging</Button>
-            <Button variant="success" onPress={() => { void finish(); }} disabled={finishing || block != null} loading={finishing}>Finish &amp; save</Button>
-          </>
-        }
-      />
+          routineChanges && !block ? undefined : (
+            <>
+              <Button variant="outline" onPress={() => setFinishOpen(false)} disabled={finishing}>Keep logging</Button>
+              <Button variant="success" onPress={() => { void finish(); }} disabled={finishing || block != null || !planReady} loading={finishing}>Finish &amp; save</Button>
+            </>
+          )
+        }>
+        {routineChanges && routinePlan && !block ? (
+          // The workout changed its routine's shape: one question, three
+          // honest answers. Past workouts never change (ROUTINE-CHANGES.md).
+          <View className="gap-4">
+            <View className="gap-1 rounded-2xl bg-surface2 p-3">
+              <Caption className="font-semibold text-foreground">You changed {routinePlan.routine.name}</Caption>
+              {routineChanges.slice(0, MAX_CHANGE_LINES).map((c, i) => (
+                <Caption key={i}>• {describeRoutineChange(c)}</Caption>
+              ))}
+              {routineChanges.length > MAX_CHANGE_LINES ? (
+                <Caption>and {routineChanges.length - MAX_CHANGE_LINES} more</Caption>
+              ) : null}
+            </View>
+            <View className="gap-2">
+              <Button variant="success" onPress={() => { void finish('update'); }} disabled={finishing}>
+                Finish &amp; update routine
+              </Button>
+              <Button variant="tonal" onPress={() => { void finish('copy'); }} disabled={finishing}>
+                Finish &amp; save as new routine
+              </Button>
+              <Button variant="outline" onPress={() => { void finish('keep'); }} disabled={finishing}>
+                Finish, keep routine as is
+              </Button>
+              <Button variant="ghost" onPress={() => setFinishOpen(false)} disabled={finishing}>
+                Keep logging
+              </Button>
+            </View>
+          </View>
+        ) : null}
+      </Dialog>
       <DiscardSessionDialog open={discardOpen} onOpenChange={(open) => { if (!discarding) setDiscardOpen(open); }} onConfirm={() => { void discard(); }} pending={discarding} />
 
       <SessionGymSheet logId={logId} open={gymSheetOpen} onOpenChange={setGymSheetOpen} />

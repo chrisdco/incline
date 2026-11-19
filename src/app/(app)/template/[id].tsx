@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { History, Plus, Trash2 } from 'lucide-react-native';
 import { SortableList } from '@/components/common/sortable-list';
 import { Icon } from '@/components/common/icon';
 
@@ -19,6 +19,8 @@ import { Chip } from '@/components/common/chip';
 import { TemplateAsk } from '@/components/ai/template-ask';
 import type { TemplateProposal } from '@/ai/template-edit-client';
 import { ExercisePickerSheet } from '@/components/workout/exercise-picker-sheet';
+import { RoutineHistorySheet } from '@/components/workout/routine-history-sheet';
+import { ListRow } from '@/components/layout';
 import { NumberStepper } from '@/components/workout/number-stepper';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -117,6 +119,7 @@ export default function TemplateEditorScreen() {
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [template, setTemplate] = useState<WorkoutTemplate | null>(null);
 
   useEffect(() => {
@@ -352,6 +355,15 @@ export default function TemplateEditorScreen() {
           )}
         </View>
 
+        {template && templateId ? (
+          <ListRow
+            icon={<Icon icon={History} size={18} color="foreground" />}
+            title="Version history"
+            subtitle="Earlier versions of this routine · restore any"
+            onPress={() => setHistoryOpen(true)}
+          />
+        ) : null}
+
         {template && !suggested ? (
           <>
             <Separator className="my-5" />
@@ -382,6 +394,14 @@ export default function TemplateEditorScreen() {
       )}
 
       <ExercisePickerSheet open={pickerOpen} onOpenChange={setPickerOpen} onPick={addExercise} />
+      {templateId ? (
+        <RoutineHistorySheet
+          templateId={templateId}
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          onRestored={() => void reloadFromDb()}
+        />
+      ) : null}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen} title={editingExercise?.exercise?.name ?? 'Edit exercise'}
         footer={<Button onPress={() => setEditOpen(false)}>Done</Button>}>

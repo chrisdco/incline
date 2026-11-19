@@ -84,11 +84,28 @@ exercise history (`src/contracts/coaching/dumbbell-load.ts`).
 - `dumbbell-workout-tool`: add `weight_is` to MCP / Ask `get_workout` sets for
   dumbbell exercises (history already has it).
 
+## Routine changes + skip today — remaining
+
+Shipped:
+- Finishing asks Update / Save as new / Keep when a workout changed its routine's shape.
+- Rest-only tweaks apply silently, with Undo.
+- Version history with restore on the routine screen.
+- **Skip today** on the exercise ⋯ menu.
+
+See [decisions/ROUTINE-CHANGES.md](decisions/ROUTINE-CHANGES.md).
+
+Remaining:
+- `routine-versions-sync`: sync `template_versions` (Supabase table plus a pull/push spec) so web, MCP and a second device see earlier versions. Today they're device-local. Web and MCP already see the updated routine.
+- `skip-in-history`: record skipped exercises on the log (a synced field) so Ask, MCP and web can say "skipped Bench, did Dips instead". Today a skip leaves no trace once finished.
+- `routine-versions-ai`: AI template edits (`template-actions.ts`) save a version too, so every routine change lands in one history.
+
 ## With the next APK (native rebuild)
 
 Things that need a new binary anyway; fold them into the next build, never
 into an OTA (they change the runtime fingerprint, so OTAs stop reaching
 installed builds).
+
+- **Fingerprint ignores `package.json` scripts.** Add `fingerprint.config.js` with `sourceSkips: SourceSkips.PackageJsonScriptsAll`. Then point `lint` / `typecheck` at oxlint and TS 7 (docs/decisions/LINT.md). Until then the scripts stay byte-identical.
 
 - **Clerk Google client ID in app config.** Add an `app.config.ts` that sets
   `extra.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` from env, then delete the
