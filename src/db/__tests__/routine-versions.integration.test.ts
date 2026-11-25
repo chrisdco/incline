@@ -94,8 +94,8 @@ describe('routine updates from a workout', () => {
       name: 'Push',
       estimatedMinutes: 50,
       slots: [
-        { exerciseId: 1, name: 'Bench Press', sets: 3, restSeconds: 180 },
-        { exerciseId: 2, name: 'Row', sets: 3, restSeconds: 90 },
+        { exerciseId: 1, name: 'Bench Press', sets: 3, restSeconds: 180, warmups: 0 },
+        { exerciseId: 2, name: 'Row', sets: 3, restSeconds: 90, warmups: 0 },
       ],
     });
   });

@@ -678,3 +678,54 @@ describe('table-change event', () => {
     }
   });
 });
+
+describe('routine warm-ups (WORK-QUEUE 7)', () => {
+  async function seedRoutine(warmups: number) {
+    await seedExercise(1, 'Bench Press');
+    await db().runAsync(
+      `INSERT INTO workout_templates (id, name, is_custom, uuid, estimated_minutes, created_at, updated_at) VALUES (1, 'Push', 1, 'tpl-1', 50, 1, 1)`,
+    );
+    await db().runAsync(
+      `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, warmup_sets, uuid, updated_at)
+       VALUES (1, 1, 0, 3, 5, 8, 120, ?, 'te-1', 1)`,
+      warmups,
+    );
+  }
+
+  async function rows(logId: number) {
+    return db().getAllAsync<{ set_index: number; set_type: string | null; weight: number; reps: number }>(
+      'SELECT set_index, set_type, weight, reps FROM set_entries WHERE workout_log_id = ? AND deleted_at IS NULL ORDER BY set_index',
+      logId,
+    );
+  }
+
+  it('creates the warm-ups ahead of the working sets, ramped from last time', async () => {
+    await seedRoutine(2);
+    const first = await startWorkout(1, 'Push');
+    expect((await rows(first)).map((r) => r.set_type ?? 'working')).toEqual(['warmup', 'warmup', 'working', 'working', 'working']);
+    // Last time: 100 kg working sets, no warm-ups logged → ramp 40% / 75%.
+    await db().runAsync("UPDATE set_entries SET weight = 100, reps = 5, completed = 1 WHERE workout_log_id = ? AND set_type IS NOT 'warmup'", first);
+    await db().runAsync("UPDATE set_entries SET deleted_at = 1 WHERE workout_log_id = ? AND set_type = 'warmup'", first);
+    await finishWorkout(first);
+    const second = await startWorkout(1, 'Push');
+    const r = await rows(second);
+    expect(r.map((x) => [x.set_type ?? 'working', x.weight])).toEqual([
+      ['warmup', 40],
+      ['warmup', 75],
+      ['working', 100],
+      ['working', 100],
+      ['working', 100],
+    ]);
+  });
+
+  it('copies last time\'s warm-ups when there are some', async () => {
+    await seedRoutine(1);
+    const first = await startWorkout(1, 'Push');
+    await db().runAsync("UPDATE set_entries SET weight = 60, reps = 8, completed = 1 WHERE workout_log_id = ? AND set_type = 'warmup'", first);
+    await db().runAsync("UPDATE set_entries SET weight = 100, reps = 5, completed = 1 WHERE workout_log_id = ? AND set_type IS NOT 'warmup'", first);
+    await finishWorkout(first);
+    const r = await rows(await startWorkout(1, 'Push'));
+    expect(r[0]).toMatchObject({ set_type: 'warmup', weight: 60, reps: 8 });
+    expect(r[1]).toMatchObject({ weight: 100, reps: 5 });
+  });
+});
