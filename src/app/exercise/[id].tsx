@@ -14,7 +14,9 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SegmentedControl } from '@/components/common/segmented-control';
-import { EmptyState, ErrorState } from '@/components/common/states';
+import { EmptyState } from '@/components/common/states';
+import { RecordUnavailable } from '@/components/common/record-unavailable';
+import { TABLES } from '@/lib/query-keys';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { SeriesAreaChart } from '@/components/progress/series-area-chart';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
@@ -155,7 +157,7 @@ export default function ExerciseDetailScreen() {
 
   if (loading && exercise == null) return <ListSkeleton count={2} />;
   if (error || !exercise)
-    return <ErrorState onRetry={refetch} title="Exercise not found" description="It may have been removed." />;
+    return <RecordUnavailable noun="Exercise" error={error} tables={TABLES.catalog} onRetry={refetch} />;
 
   return (
     <View className="flex-1 bg-background">

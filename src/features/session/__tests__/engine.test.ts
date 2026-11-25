@@ -523,6 +523,24 @@ describe('session engine: skip for today + routine changes at finish', () => {
     expect(h.deps.routines.saveCopy).not.toHaveBeenCalled();
   });
 
+  it('still saves rest changes on keep, leaving sets and exercises as they were', async () => {
+    const h = harness({ 1: fromRoutine() }, { routine, rest: { 1: { 10: 120, 20: 90 } } });
+    await h.engine.open(1);
+    h.engine.setRest(10, 180);
+    h.engine.store.setState((s) => ({ session: s.session && { ...s.session, sets: [...s.session.sets, set(4, 10)] } }));
+    expect((await h.engine.routinePlan())?.diff.structural).toBe(true);
+    await h.engine.finish('keep');
+    expect(h.deps.routines.update).toHaveBeenCalledWith(
+      5,
+      [
+        { exerciseId: 10, sets: 2, restSeconds: 180 },
+        { exerciseId: 20, sets: 1, restSeconds: 90 },
+      ],
+      'workout-rest',
+    );
+    expect(h.ui.toast.mock.calls.at(-1)?.[0].description).toBe('Push kept; rest times saved.');
+  });
+
   it('saves a structural change as a copy when asked', async () => {
     const h = harness({ 1: fromRoutine() }, { routine, rest: { 1: { 10: 120, 20: 90 } } });
     await h.engine.open(1);

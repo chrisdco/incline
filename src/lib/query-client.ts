@@ -2,6 +2,7 @@ import { QueryClient, type QueryKey } from '@tanstack/react-query';
 
 import { onTablesChanged } from '@/db/changes';
 import type { DbTable } from '@/db/write';
+import { isTransientReadError } from '@/lib/load-error';
 
 /**
  * One QueryClient for local SQLite reads. SQLite is the source of truth and
@@ -10,14 +11,16 @@ import type { DbTable } from '@/db/write';
  * - `staleTime: Infinity` — data never goes stale on a timer; it goes stale
  *   when a table it reads changes (the table-change event below).
  * - `networkMode: 'always'` — these are local reads; never pause them offline.
- * - `retry: false` — a failing local query will fail the same way again.
+ * - retry only a busy database (a sync write finishing); any other failing
+ *   local query will fail the same way again.
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: Infinity,
       networkMode: 'always',
-      retry: false,
+      retry: (failures, error) => failures < 2 && isTransientReadError(error),
+      retryDelay: 300,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
     },

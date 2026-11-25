@@ -2,7 +2,7 @@ import { useEffect, useState, type ComponentProps } from 'react';
 import { View } from 'react-native';
 import type { Tabs } from 'expo-router';
 import { BarChart3, Dumbbell, Home, User, type LucideIcon } from 'lucide-react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AiMark } from '@/components/ai/ai-mark';
@@ -12,6 +12,7 @@ import { Tappable } from '@/components/ui/tappable';
 import { useHaptics } from '@/hooks/use-haptics';
 import { showTabBar, tabBarHidden } from '@/hooks/use-tab-bar-scroll';
 import { cn } from '@/lib/cn';
+import { motionDuration } from '@/styles/motion';
 
 /**
  * Android tab bar in the iOS 26 shape (iOS itself keeps the real UITabBar):
@@ -40,7 +41,7 @@ const TABS: Record<string, { label: string; icon: LucideIcon }> = {
 };
 /** Capsule inner padding; the highlight sits inside it. */
 const PAD = 6;
-const SPRING = { damping: 22, stiffness: 260, mass: 0.8 } as const;
+const SLIDE = { duration: motionDuration.state, easing: Easing.out(Easing.cubic) } as const;
 
 /** Space a tab screen leaves at the bottom so its last row clears the bar. */
 export function glassBarInset(bottomInset: number): number {
@@ -58,7 +59,7 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab, onAi }
   const slot = width > 0 ? (width - PAD * 2) / routes.length : 0;
   const x = useSharedValue(0);
   useEffect(() => {
-    x.value = withSpring(index * slot, SPRING);
+    x.value = withTiming(index * slot, SLIDE);
   }, [index, slot, x]);
   const highlight = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 

@@ -429,14 +429,25 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     if (!plan || plan.diff.changes.length === 0) return saved();
     const { routine, slots, diff } = plan;
     const restOnly = !diff.structural;
-    if (!restOnly && choice === 'keep') return saved(`${routine.name} is unchanged.`);
-    const next = nextRoutineRows(routine.slots, slots, diff, deps.settings().defaultRestSeconds);
+    const restChanges = diff.changes.filter((c) => c.kind === 'rest');
+    // "Keep" declines the structural changes only. Rest is a tweak that saves
+    // without asking (ROUTINE-CHANGES.md), so it still lands on the routine
+    // as it was; dropping it here lost the user's rest timers silently.
+    const keepWithRest = !restOnly && choice === 'keep' && restChanges.length > 0;
+    if (!restOnly && choice === 'keep' && !keepWithRest) return saved(`${routine.name} is unchanged.`);
+    const next = keepWithRest
+      ? routine.slots.map((r) => {
+          const rest = restChanges.find((c) => c.exerciseId === r.exerciseId);
+          return { exerciseId: r.exerciseId, sets: r.sets, restSeconds: rest && rest.kind === 'rest' ? rest.to : r.restSeconds };
+        })
+      : nextRoutineRows(routine.slots, slots, diff, deps.settings().defaultRestSeconds);
     try {
       if (!restOnly && choice === 'copy') {
         const copy = await deps.routines.saveCopy(logId, routine.templateId, next, routine.estimatedMinutes);
         return saved(copy ? `Saved as a new routine: ${copy.name}` : undefined);
       }
-      const applied = await deps.routines.update(routine.templateId, next, restOnly ? 'workout-rest' : 'workout-update');
+      const restWrite = restOnly || keepWithRest;
+      const applied = await deps.routines.update(routine.templateId, next, restWrite ? 'workout-rest' : 'workout-update');
       if (!applied) return saved();
       const undo = applied.versionId == null
         ? undefined
@@ -449,7 +460,14 @@ export function createSessionEngine(deps: SessionEngineDeps) {
               );
             },
           };
-      return saved(restOnly ? `Rest times saved to ${applied.name}.` : `${applied.name} updated for next time.`, undo);
+      return saved(
+        keepWithRest
+          ? `${applied.name} kept; rest times saved.`
+          : restOnly
+            ? `Rest times saved to ${applied.name}.`
+            : `${applied.name} updated for next time.`,
+        undo,
+      );
     } catch {
       toast({
         title: 'Workout saved',

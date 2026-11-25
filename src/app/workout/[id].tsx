@@ -8,7 +8,7 @@ import { Heading, Body, Caption } from '@/components/common/text';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ErrorState } from '@/components/common/states';
+import { RecordUnavailable } from '@/components/common/record-unavailable';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { MuscleBadge } from '@/components/exercise/muscle-badge';
 import { MuscleBodyMap } from '@/components/progress/muscle-body-map';
@@ -98,7 +98,8 @@ export default function WorkoutPreviewScreen() {
   };
 
   if (loading) return <ListSkeleton count={2} />;
-  if (error || !template) return <ErrorState onRetry={refetch} title="Workout not found" />;
+  if (error || !template)
+    return <RecordUnavailable noun="Routine" error={error} tables={TABLES.templates} onRetry={refetch} />;
 
   const muscles = (template.exercises ?? [])
     .map((e) => e.exercise?.primaryMuscle)
@@ -123,7 +124,7 @@ export default function WorkoutPreviewScreen() {
       {muscles.length > 0 ? (
         <Card className="mt-4">
           <Caption className="mb-2">Targets</Caption>
-          <MuscleBodyMap muscles={muscles} scale={0.95} />
+          <MuscleBodyMap muscles={muscles} pair scale={0.6} />
           <View className="mt-3 flex-row flex-wrap gap-2">
             {muscles.map((m) => (
               <MuscleBadge key={m} muscle={m} />

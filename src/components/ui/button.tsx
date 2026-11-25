@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, type PressableProps } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 
@@ -86,11 +86,11 @@ export function Button({
   }));
 
   const onPressIn = useCallback(() => {
-    scale.set(withSpring(motionPress.scale, motionPress.spring));
+    scale.set(withTiming(motionPress.scale, { duration: motionPress.duration, easing: Easing.out(Easing.cubic) }));
   }, [scale]);
 
   const onPressOut = useCallback(() => {
-    scale.set(withSpring(1, motionPress.spring));
+    scale.set(withTiming(1, { duration: motionPress.duration, easing: Easing.out(Easing.cubic) }));
   }, [scale]);
 
   const label = asButtonLabel(children);

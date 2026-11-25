@@ -219,10 +219,33 @@ work lands first; native pieces ship together in one build.
    quota ramp, anomaly alert, cost ledger.
 5c. [ ] **Later (user call):** the teal/blue gradient background theme as an
    Appearance preset (presets list in `appearance.tsx`).
-6. [ ] **Build + install:** EAS preview build on the user's phone, full gym
-   smoke (installed directly, not through Play). User-owned before it: Google
+6. [x] **Build + install:** EAS preview build on the user's phone (Build 2,
+   alpha, Nov 18; runtime f2a3b84), full gym smoke ongoing
+   (installed directly, not through Play). User-owned before it: Google
    OAuth clients (2). The Play Console Health Connect declaration is only
    needed before the first upload to a Play track.
+
+7. [ ] **Warm-ups saved to the routine** (user, Nov 25): a routine row gets a
+   warm-up count (`template_exercises.warmup_sets`, local + Supabase + sync
+   mapper), starting a workout creates those warm-up rows first (seeded from
+   last time's warm-ups), the routine editor edits it, and the finish diff
+   treats a warm-up count change like a set-count change (contract:
+   `src/contracts/templates/session-changes.ts`; drop sets stay per-day).
+   Today warm-ups vanish next time and the working sets sit in their place.
+   Parity: MCP `get_routine` + web routine view show warm-ups.
+8. [ ] **Fatigue-aware load suggestions** (later): a suggestion from last
+   time ignores order and fatigue. Adjust for position in the workout,
+   earlier exercises hitting the same muscles, and a lift done after its
+   usual slot. One small, explainable factor per cause, tunable in
+   `src/contracts/coaching/`, never a black box.
+9. [ ] **Home suggestion card repeats** (bug): it can suggest an exercise or
+   routine already done that day or last session. Exclude same-day and the
+   last session's routine before ranking; month-long arcs come with plans.
+10. [ ] **Try agent-driven E2E** (`e2e` by e2e-inc, Apache-2.0): its MCP
+   server gives the coding agent an accessibility-tree view of the emulator
+   (cheaper than screenshots), and recorded steps replay in CI with no model
+   call. Candidate to replace the deferred Maestro plan above; try it on one
+   flow (start routine → finish → routine updated) before adopting.
 
 ## P0 — Complete & trustworthy (work top-down)
 

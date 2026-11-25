@@ -67,7 +67,7 @@ export function TodayCard({
         heading
       )}
       {meta ? <Caption numberOfLines={2} className="mt-1">{meta}</Caption> : null}
-      {muscles && muscles.length > 0 ? <MuscleBodyMap muscles={muscles} compact className="mt-4" /> : null}
+      {muscles && muscles.length > 0 ? <MuscleBodyMap muscles={muscles} pair className="mt-4" /> : null}
       <Button
         className="mt-4"
         variant={actionVariant}
