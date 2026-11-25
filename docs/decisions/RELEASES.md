@@ -68,8 +68,16 @@ the app (`src/`, `assets/`, `plugins/`, `patches/`, `app.json`, `eas.json`,
    update-available row then tells installs to fetch it.
 
 Runs queue and never overlap; merges in between collapse into the newest.
+
+**Build from git, not from this Windows checkout.** Windows working files are
+CRLF (`core.autocrlf`) while git and EAS checkouts are LF, so a build or
+update uploaded from a Windows tree has a different fingerprint than the
+same commit on EAS. Run by hand with `--ref main`, never a local upload,
+or the next merge won't find a matching build. (Build 2, runtime
+`f2a3b842`, was a Windows upload; the first git run on 2026-11-25 rebuilt
+as `18fc7f1e`.)
 Run it by hand from the Workflows tab on expo.dev, or with
-`eas workflow:run deploy-alpha.yml` (its `workflow_dispatch` trigger).
+`eas workflow:run deploy-alpha.yml --ref main` (its `workflow_dispatch` trigger).
 Manual `eas update` still works for emulator OTAs (they need the dev env
 prefix) or when EAS is down. Moving builds from alpha to beta and production
 stays manual until it's needed: issue #407 (tag-based promotion).
