@@ -1,0 +1,73 @@
+# Every merge to main reaches alpha on its own (docs/decisions/RELEASES.md).
+#
+# The fingerprint decides how:
+# - an alpha Android build with the same fingerprint exists → OTA update to
+#   the alpha channel (JS/assets only, installs on next launch);
+# - none exists (native deps, plugins, app.json native config changed) → a
+#   new alpha build; the EAS webhook records it and the mirror publishes it.
+#
+# Promoting to beta/production is manual for now (issue #407).
+name: Deploy to alpha
+
+on:
+  push:
+    branches: ['main']
+    # Only what ends up in the app bundle or the native project.
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'plugins/**'
+      - 'patches/**'
+      - 'app.json'
+      - 'eas.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'babel.config.js'
+      - 'metro.config.js'
+      - 'tailwind.config.js'
+  workflow_dispatch: {}
+
+# One deploy at a time; a newer merge waits, the ones in between are skipped.
+concurrency:
+  group: deploy-alpha
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    # Same environment as the alpha build profile, so the hashes match.
+    environment: preview
+
+  get_build:
+    name: Find alpha build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: android
+      profile: alpha
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      # A build for this fingerprint already running counts as found.
+      wait_for_in_progress: true
+
+  update:
+    name: OTA to alpha
+    needs: [get_build]
+    if: ${{ needs.get_build.outputs.build_id }}
+    type: update
+    environment: preview
+    # eas.json build env doesn't apply to updates; mirror the alpha profile.
+    env:
+      EXPO_PUBLIC_RELEASE_STAGE: alpha
+      SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+    params:
+      channel: alpha
+      platform: android
+
+  build:
+    name: New alpha build
+    needs: [get_build]
+    if: ${{ !needs.get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: alpha
