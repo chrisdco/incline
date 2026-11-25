@@ -52,6 +52,28 @@ only (alpha, beta, preview); Play handles production. One feed read per
 app open, tap opens the always-latest link, ✕ hides it until the next
 build. Web already links the newest APK; MCP and Ask don't install apps.
 
+## Shipping to alpha (automatic)
+
+`.eas/workflows/deploy-alpha.yml` runs on every push to `main` that touches
+the app (`src/`, `assets/`, `plugins/`, `patches/`, `app.json`, `eas.json`,
+`package.json`, the lockfile and bundler config). The rest (docs, `web/`,
+`supabase/`) doesn't touch the app, so it doesn't trigger a run.
+
+1. **Fingerprint** on EAS, with the `preview` environment (the alpha profile's).
+   A local Windows fingerprint differs from EAS's, so trust this one.
+2. **Find alpha build** for that Android fingerprint, waiting on one already
+   in progress.
+3. Found → **OTA** to channel `alpha` (android). Not found → **new alpha
+   build**, which the webhook and mirror pick up like any other build. The
+   update-available row then tells installs to fetch it.
+
+Runs queue and never overlap; merges in between collapse into the newest.
+Run it by hand from the Workflows tab on expo.dev, or with
+`eas workflow:run deploy-alpha.yml` (its `workflow_dispatch` trigger).
+Manual `eas update` still works for emulator OTAs (they need the dev env
+prefix) or when EAS is down. Moving builds from alpha to beta and production
+stays manual until it's needed: issue #407 (tag-based promotion).
+
 ## Rules
 
 - Only shareable profiles count; emulator/development builds never reach users.
