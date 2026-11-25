@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
@@ -65,29 +65,19 @@ export default function WorkoutsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [routineQuery, setRoutineQuery] = useState('');
   const [routineSort, setRoutineSort] = useState<RoutineSort>('recent');
-  const sawLoadingRef = useRef(false);
   // Routines/programs are edited on pushed screens; those writes invalidate
   // the template/program queries, which refetch when this tab regains focus.
 
-  const activeLoading = tab === 'routines' ? templates.loading : programs.loading;
-
-  const onRefresh = useCallback(() => {
-    sawLoadingRef.current = false;
+  // Await the refetch itself: `loading` only means "no data yet", so it never
+  // flips on a pull with cached rows and the spinner used to spin forever.
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    if (tab === 'routines') refetchTemplates();
-    else refetchPrograms();
-  }, [tab, refetchTemplates, refetchPrograms]);
-
-  // Refetch is fire-and-forget, so end the spinner once we have actually
-  // observed the pulled refresh go in flight and come back.
-  useEffect(() => {
-    if (!refreshing) return;
-    if (activeLoading) {
-      sawLoadingRef.current = true;
-      return;
+    try {
+      await (tab === 'routines' ? refetchTemplates() : refetchPrograms());
+    } finally {
+      setRefreshing(false);
     }
-    if (sawLoadingRef.current) setRefreshing(false);
-  }, [refreshing, activeLoading]);
+  }, [tab, refetchTemplates, refetchPrograms]);
 
   const doStart = async (templateId: number | null, name: string) => {
     setStarting(true);

@@ -252,8 +252,7 @@ export default function HomeScreen() {
         {hasData && !todaySlot?.isRestDay ? (
           <Button
             variant="outline"
-            size="lg"
-            leftIcon={<Icon icon={Plus} size={18} color="foreground" />}
+            leftIcon={<Icon icon={Plus} size={16} color="foreground" />}
             onPress={quickStart}
             disabled={starting}>
             Quick start

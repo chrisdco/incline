@@ -1,9 +1,10 @@
 import { Pressable, View, LayoutChangeEvent } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/cn';
 import { useIsDark } from '@/lib/use-color-scheme';
+import { motionDuration } from '@/styles/motion';
 import { Text } from '@/components/common/text';
 
 /**
@@ -45,7 +46,7 @@ export function SegmentedControl<T extends string>({
   useEffect(() => {
     const x = offsets[selectedIndex] ?? 0;
     if (selectedWidth <= 0) return;
-    indicatorX.set(withSpring(x, { damping: 40, stiffness: 150 }));
+    indicatorX.set(withTiming(x, { duration: motionDuration.state, easing: Easing.out(Easing.cubic) }));
   }, [selectedIndex, selectedWidth, offsets, indicatorX]);
 
   // translateX glides on the GPU; width applies instantly (one layout per tap)

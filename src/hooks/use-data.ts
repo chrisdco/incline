@@ -72,8 +72,9 @@ export function useDbQuery<T>(tables: readonly DbTable[], key: unknown[], fn: ()
     loading: q.isPending,
     fetching: q.isFetching,
     error: q.error,
-    refetch: useCallback(() => {
-      void refetch();
+    /** Resolves when the refetch settles (pull-to-refresh awaits it). */
+    refetch: useCallback(async () => {
+      await refetch();
     }, [refetch]),
   };
 }

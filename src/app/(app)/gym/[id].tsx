@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Caption } from '@/components/common/text';
 import { Chip } from '@/components/common/chip';
 import { ListSkeleton } from '@/components/common/skeleton';
-import { ErrorState } from '@/components/common/states';
+import { RecordUnavailable } from '@/components/common/record-unavailable';
+import { TABLES } from '@/lib/query-keys';
 import { ListGroup, ListRow, Section } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +74,7 @@ export default function GymEditScreen() {
   }
   const gym = data?.gyms.find((g) => g.uuid === id) ?? null;
   if (error || !gym) {
-    return <ErrorState title="Gym not found" description="It may have been deleted." onRetry={refetch} />;
+    return <RecordUnavailable noun="Gym" error={error} tables={TABLES.gyms} onRetry={refetch} />;
   }
   return <GymForm key={gym.uuid} gym={gym} defaultUnit={gym.unit} startCurrent={data?.current?.uuid === gym.uuid} />;
 }

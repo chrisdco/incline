@@ -28,6 +28,7 @@ import { detectSetFatigue } from '@/coaching/fatigue';
 import { Plus, Check, Clock, Flame, CircleHelp, ChevronRight, ArrowLeftRight, ArrowUpDown, Trash2, MoreVertical, Scale, Dumbbell, SkipForward } from 'lucide-react-native';
 import { SegmentedControl } from '@/components/common/segmented-control';
 import { SET_CELL, SET_COL } from './set-layout';
+import { SET_TYPE_BADGE, setNumbers } from '@/lib/set-marker';
 
 const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
   { id: 'working', label: 'Working set', hint: 'Counts toward PRs and progression' },
@@ -36,14 +37,6 @@ const SET_TYPE_OPTIONS: { id: SetType; label: string; hint: string }[] = [
   { id: 'failure', label: 'To failure', hint: 'Max effort · not eligible for PRs' },
 ];
 
-/** Letter badge matching the row marker (Hevy/Strong pattern: W · 1 · D · F). */
-const SET_TYPE_BADGE: Record<SetType, { letter: string; className: string }> = {
-  working: { letter: '1', className: 'text-foreground' },
-  warmup: { letter: 'W', className: 'text-warning' },
-  drop: { letter: 'D', className: 'text-info' },
-  failure: { letter: 'F', className: 'text-destructive' },
-};
-
 /**
  * One exercise within an active session: header (name + rest timer config) and
  * its set rows, plus an "Add set" action.
@@ -51,17 +44,6 @@ const SET_TYPE_BADGE: Record<SetType, { letter: string; className: string }> = {
  * PR / load assist details live behind a compact info affordance so the set
  * list stays the primary focus during logging.
  */
-/** Shown set numbers: a drop set keeps the number of the set above it. */
-function setNumbers(sets: readonly { setType?: string | null }[]): number[] {
-  const out: number[] = [];
-  let n = 0;
-  for (const s of sets) {
-    if (s.setType !== 'drop') n += 1;
-    out.push(n);
-  }
-  return out;
-}
-
 const UNIT_OPTIONS: { value: Unit; label: string }[] = [
   { value: 'metric', label: 'kg' },
   { value: 'imperial', label: 'lb' },

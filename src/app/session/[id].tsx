@@ -22,6 +22,7 @@ import { Body, Caption } from '@/components/common/text';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { Num, splitUnit } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/sheet';
 import { ExerciseBlock } from '@/components/workout/exercise-block';
@@ -92,9 +93,9 @@ const SessionMuscleMap = memo(function SessionMuscleMap({ muscleKey }: { muscleK
     return { muscle: muscle as MuscleGroup, sets: Number(sets), volume: 0 };
   });
   return (
-    <View className="mb-3 items-center rounded-3xl bg-card py-2">
-      <MuscleBodyMap distribution={distribution} compact scale={0.72} />
-    </View>
+    <Card className="mb-3 items-center py-3">
+      <MuscleBodyMap distribution={distribution} pair />
+    </Card>
   );
 });
 

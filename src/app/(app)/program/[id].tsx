@@ -10,7 +10,6 @@ import { SectionLabel } from '@/components/layout';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ErrorState } from '@/components/common/states';
 import { ListSkeleton } from '@/components/common/skeleton';
 import { ActiveSessionConflictDialog } from '@/components/workout/active-session-conflict-dialog';
 import { PlanProgressCard } from '@/components/program/plan-progress-card';
@@ -29,7 +28,8 @@ import {
   discardWorkout,
   weekdayMon1,
 } from '@/db/queries';
-import { setCachedSession } from '@/lib/query-keys';
+import { setCachedSession, TABLES } from '@/lib/query-keys';
+import { RecordUnavailable } from '@/components/common/record-unavailable';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import type { Program, ProgramWorkout } from '@/db/types';
 
@@ -53,7 +53,7 @@ export default function ProgramDetailScreen() {
 
   const [program, setProgram] = useState<Program | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<unknown>(null);
   const [isActive, setIsActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
@@ -64,17 +64,17 @@ export default function ProgramDetailScreen() {
   const load = useCallback(async () => {
     try {
       const p = await getProgram(programId);
+      setError(null);
       if (!p) {
-        setError(true);
+        setProgram(null);
       } else {
         setProgram(p);
-        setError(false);
         const active = await getActiveProgramState();
         setIsActive(isActiveProgram(active, programId));
         navigation.setOptions({ title: p.name });
       }
-    } catch {
-      setError(true);
+    } catch (e) {
+      setError(e);
     }
     setLoading(false);
   }, [programId, navigation]);
@@ -159,7 +159,8 @@ export default function ProgramDetailScreen() {
   };
 
   if (loading) return <ListSkeleton count={3} />;
-  if (error || !program) return <ErrorState title="Program not found" />;
+  if (error || !program)
+    return <RecordUnavailable noun="Program" error={error} tables={TABLES.programs} onRetry={() => void load()} />;
 
   const workouts = program.workouts ?? [];
   const weeks = program.weeks ?? 1;

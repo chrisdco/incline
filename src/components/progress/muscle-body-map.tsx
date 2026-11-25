@@ -31,6 +31,7 @@ export function MuscleBodyMap({
   muscles,
   scale = 1,
   compact = false,
+  pair = false,
   showToggle = true,
   className,
 }: {
@@ -39,6 +40,12 @@ export function MuscleBodyMap({
   scale?: number;
   /** Smaller chrome for cards / share / session. */
   compact?: boolean;
+  /**
+   * Front and back side by side, no toggle. For cards and the session screen,
+   * where one full-height figure would push the content you came for off
+   * screen. Scale defaults to 0.36 (each side 72×144).
+   */
+  pair?: boolean;
   showToggle?: boolean;
   className?: string;
 }) {
@@ -63,8 +70,8 @@ export function MuscleBodyMap({
     }));
   }, [distribution, muscles, theme.primary]);
 
-  const resolvedScale = compact ? Math.min(scale, 0.72) : scale;
-  const toggle = showToggle && !compact;
+  const resolvedScale = pair ? (scale === 1 ? 0.36 : scale) : compact ? Math.min(scale, 0.72) : scale;
+  const toggle = showToggle && !compact && !pair;
 
   // Must be length ≥ max intensity (3). Duplicate primary is fine as a safety net.
   const intensityColors = [
@@ -94,15 +101,32 @@ export function MuscleBodyMap({
           ))}
         </View>
       ) : null}
-      <Body
-        data={data}
-        side={side}
-        gender="male"
-        scale={resolvedScale}
-        border={theme.border}
-        defaultFill={theme.muted}
-        colors={intensityColors}
-      />
+      {pair ? (
+        <View className="flex-row gap-4" accessibilityLabel="Muscles worked, front and back">
+          {(['front', 'back'] as const).map((s) => (
+            <Body
+              key={s}
+              data={data}
+              side={s}
+              gender="male"
+              scale={resolvedScale}
+              border={theme.border}
+              defaultFill={theme.muted}
+              colors={intensityColors}
+            />
+          ))}
+        </View>
+      ) : (
+        <Body
+          data={data}
+          side={side}
+          gender="male"
+          scale={resolvedScale}
+          border={theme.border}
+          defaultFill={theme.muted}
+          colors={intensityColors}
+        />
+      )}
       {data.length === 0 ? (
         <Caption className="mt-2">No muscle data yet</Caption>
       ) : null}

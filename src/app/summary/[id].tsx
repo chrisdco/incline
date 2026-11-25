@@ -1,4 +1,5 @@
 import { AskAboutButton } from '@/components/ai/ask-about-button';
+import { SET_TYPE_BADGE, SET_TYPE_LABEL, setNumbers } from '@/lib/set-marker';
 import { useAppAuth } from '@/auth/use-app-auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -11,6 +12,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { Tappable } from '@/components/ui/tappable';
 
 import { Body, Caption, Text } from '@/components/common/text';
+import { cn } from '@/lib/cn';
 import { Section, StatBlock } from '@/components/layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -141,7 +143,7 @@ export default function SummaryScreen() {
       }
       b.sets.push(s);
     }
-    return [...map.values()];
+    return [...map.values()].map((b) => ({ ...b, numbers: setNumbers(b.sets) }));
   }, [log]);
 
   const distribution: MuscleDistribution[] = useMemo(
@@ -457,15 +459,30 @@ export default function SummaryScreen() {
                   <Text className="w-10 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Set</Text>
                   <Text className="flex-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Weight × reps</Text>
                 </View>
-                {b.sets.map((s) => (
-                  <View key={s.id} className="flex-row items-center gap-3 px-1 py-1.5">
-                    <Body className="w-10 font-semibold tabular-nums text-muted-foreground">{s.setIndex + 1}</Body>
+                {b.sets.map((s, si) => {
+                  // Same markers as the live session row: drop shows "D" in
+                  // place of the number; warm-up / failure add their letter.
+                  const type = s.setType ?? 'working';
+                  return (
+                  <View
+                    key={s.id}
+                    className="flex-row items-center gap-3 px-1 py-1.5"
+                    accessibilityLabel={type === 'working' ? undefined : SET_TYPE_LABEL[type]}>
+                    <View className="w-10 flex-row items-baseline gap-0.5">
+                      <Body className={cn('font-semibold tabular-nums', type === 'drop' ? SET_TYPE_BADGE.drop.className : 'text-muted-foreground')}>
+                        {type === 'drop' ? 'D' : b.numbers[si]}
+                      </Body>
+                      {type === 'warmup' || type === 'failure' ? (
+                        <Caption className={cn('font-bold', SET_TYPE_BADGE[type].className)}>{SET_TYPE_BADGE[type].letter}</Caption>
+                      ) : null}
+                    </View>
                     <Body className="flex-1 text-base font-medium tabular-nums text-foreground">
                       {s.weight > 0 ? `${formatWeight(s.weight, resolveWeightUnit(exerciseWeightUnits, s.exerciseRefKey, unit))} × ${s.reps}` : `${s.reps} reps`}
                       {showRpe && s.rpe != null ? ` · RPE ${s.rpe}` : ''}
                     </Body>
                   </View>
-                ))}
+                  );
+                })}
               </View>
             ))
           )}

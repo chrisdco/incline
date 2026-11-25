@@ -1,13 +1,13 @@
 import { Modal, Pressable, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
-import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { motionDuration } from '@/styles/motion';
 
 /**
  * Instagram-style profile photo peek: long-press an avatar and the photo pops
- * up large and round over a blurred screen. Any tap closes it.
+ * fades in large and round over a blurred screen (no zoom or bounce). Any tap closes it.
  */
 export function PhotoPeek({ uri, open, onClose }: { uri: string | null | undefined; open: boolean; onClose: () => void }) {
   const { width } = useWindowDimensions();
@@ -22,8 +22,8 @@ export function PhotoPeek({ uri, open, onClose }: { uri: string | null | undefin
           style={{ flex: 1 }}>
           <BlurView intensity={40} tint="dark" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Animated.View
-              entering={ZoomIn.springify().damping(18).stiffness(220)}
-              exiting={ZoomOut.duration(motionDuration.exit)}>
+              entering={FadeIn.duration(motionDuration.enter)}
+              exiting={FadeOut.duration(motionDuration.exit)}>
               <Image
                 source={{ uri }}
                 contentFit="cover"

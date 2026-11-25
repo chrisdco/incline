@@ -4,7 +4,7 @@
  * and out of render bodies; worklet callers must import the plain values,
  * never class instances, so gestures can serialize them.)
  *
- * Route through these instead of hardcoding `withSpring`/`duration` values.
+ * Route through these instead of hardcoding durations. No springs: timing only.
  * Pure opacity fades intentionally skip reduce-motion gating upstream —
  * callers decide via `useReducedMotion` where entrances must be disabled
  * (never attach entrances to recycled list rows).
@@ -28,10 +28,13 @@ export const motionCurve = {
   sheet: [0.32, 0.72, 0, 1],
 } as const;
 
-/** Press physics for the shared Button/pressable scale. */
+/**
+ * Press feedback for the shared Button/Card scale. Timing, never springs:
+ * no bounce anywhere in the app (user decision 2026-11-25).
+ */
 export const motionPress = {
   scale: 0.97,
-  spring: { damping: 15, stiffness: 400 },
+  duration: 120,
 } as const;
 
 /** Minimum touch target + retention, mirroring Amber `control` tokens. */

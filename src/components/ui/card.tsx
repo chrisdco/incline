@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { Pressable, View, type PressableProps, type ViewProps } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useCallback } from 'react';
 
 import { cn } from '@/lib/cn';
 import { useAuroraSkin, useIsDark } from '@/lib/use-color-scheme';
+import { motionPress } from '@/styles/motion';
 import { Text } from '@/components/common/text';
 
 type CardProps = ViewProps & {
@@ -67,11 +68,11 @@ export function PressableCard({
   }));
 
   const onPressIn = useCallback(() => {
-    scale.set(withSpring(0.98, { damping: 18, stiffness: 420 }));
+    scale.set(withTiming(0.98, { duration: motionPress.duration, easing: Easing.out(Easing.cubic) }));
   }, [scale]);
 
   const onPressOut = useCallback(() => {
-    scale.set(withSpring(1, { damping: 18, stiffness: 420 }));
+    scale.set(withTiming(1, { duration: motionPress.duration, easing: Easing.out(Easing.cubic) }));
   }, [scale]);
 
   return (
