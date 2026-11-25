@@ -70,13 +70,11 @@ export default function WorkoutsScreen() {
 
   // Await the refetch itself: `loading` only means "no data yet", so it never
   // flips on a pull with cached rows and the spinner used to spin forever.
-  const onRefresh = useCallback(async () => {
+  // (.finally, not try/finally: the React Compiler can't lower a try
+  // without a catch.)
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    try {
-      await (tab === 'routines' ? refetchTemplates() : refetchPrograms());
-    } finally {
-      setRefreshing(false);
-    }
+    void (tab === 'routines' ? refetchTemplates() : refetchPrograms()).finally(() => setRefreshing(false));
   }, [tab, refetchTemplates, refetchPrograms]);
 
   const doStart = async (templateId: number | null, name: string) => {
