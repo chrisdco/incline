@@ -97,6 +97,8 @@ export interface RoutineExerciseRow {
   rest_seconds: number;
   notes: string;
   superset_group: number | null;
+  /** Warm-up sets before the working sets; absent on rows synced before it existed. */
+  warmup_sets?: number | null;
 }
 
 export interface ProgramRow {

@@ -31,6 +31,7 @@ export default async function RoutineDetailPage({ params }: { params: Promise<{ 
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{resolved?.name ?? "Exercise"}</p>
                     <p className="text-sm text-zinc-500">
+                      {ex.warmup_sets ? `${ex.warmup_sets}W + ` : ""}
                       {ex.target_sets} × {ex.target_reps_min}–{ex.target_reps_max} · {ex.rest_seconds}s rest
                       {ex.superset_group != null ? " · Superset" : ""}
                     </p>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MAX_ROUTINE_WARMUPS } from '@/contracts/templates/warmups';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,7 +42,7 @@ import { SCREEN_CONTENT_CTA } from '@/lib/layout';
 import type { Difficulty, TemplateExercise, WorkoutTemplate } from '@/db/types';
 
 type Exercise = TemplateExercise & { exercise?: { id: number; name: string; primaryMuscle: string; equipment: string } };
-type ExercisePatch = Partial<Pick<TemplateExercise, 'targetSets' | 'targetRepsMin' | 'targetRepsMax' | 'restSeconds' | 'notes' | 'supersetGroup'>>;
+type ExercisePatch = Partial<Pick<TemplateExercise, 'targetSets' | 'targetRepsMin' | 'targetRepsMax' | 'restSeconds' | 'notes' | 'supersetGroup' | 'warmupSets'>>;
 
 const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'advanced'];
 
@@ -53,10 +54,11 @@ function templateExercises(t: NonNullable<Awaited<ReturnType<typeof getTemplate>
 async function addTemplateExercises(templateId: number, exercises: Exercise[]) {
   for (const ex of exercises) {
     const teId = await addExerciseToTemplate(templateId, ex.exerciseId, ex.targetSets, ex.targetRepsMin, ex.targetRepsMax, ex.restSeconds);
-    if (ex.notes?.trim() || ex.supersetGroup != null) {
+    if (ex.notes?.trim() || ex.supersetGroup != null || ex.warmupSets > 0) {
       await updateTemplateExercise(teId, {
         ...(ex.notes?.trim() ? { notes: ex.notes } : null),
         ...(ex.supersetGroup != null ? { supersetGroup: ex.supersetGroup } : null),
+        ...(ex.warmupSets > 0 ? { warmupSets: ex.warmupSets } : null),
       });
     }
   }
@@ -77,6 +79,7 @@ function localExercise(exerciseId: number, exerciseName: string, id: number): Ex
     restSeconds: 90,
     notes: '',
     supersetGroup: null,
+    warmupSets: 0,
     exercise: { id: exerciseId, name: exerciseName, primaryMuscle: '', equipment: '', aliases: [], secondaryMuscles: [], movementPattern: '', category: '', instructions: '', tips: '', createdAt: '' },
   } as unknown as Exercise;
 }
@@ -329,6 +332,7 @@ export default function TemplateEditorScreen() {
                     <View className="flex-1">
                       <Body className="font-medium text-foreground">{te.exercise?.name ?? 'Exercise'}</Body>
                       <Caption>
+                        {te.warmupSets > 0 ? `${te.warmupSets}W + ` : ''}
                         {te.targetSets} × {te.targetRepsMin}–{te.targetRepsMax} reps · {te.restSeconds}s rest
                         {te.supersetGroup != null ? ' · Superset' : ''}
                       </Caption>
@@ -407,6 +411,19 @@ export default function TemplateEditorScreen() {
         footer={<Button onPress={() => setEditOpen(false)}>Done</Button>}>
         {editingExercise && (
           <View className="gap-4 py-2">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-3">
+                <Body>Warm-up sets</Body>
+                <Caption>Added before the working sets each time</Caption>
+              </View>
+              <NumberStepper
+                value={editingExercise.warmupSets ?? 0}
+                onChange={(v) => applyEdit({ warmupSets: v })}
+                step={1}
+                min={0}
+                max={MAX_ROUTINE_WARMUPS}
+              />
+            </View>
             <View className="flex-row items-center justify-between">
               <Body>Sets</Body>
               <NumberStepper value={editingExercise.targetSets} onChange={(v) => applyEdit({ targetSets: v })} step={1} min={1} max={20} />

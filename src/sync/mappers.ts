@@ -159,6 +159,8 @@ export function buildCloudUpsertRow(
       rest_seconds: payload.rest_seconds ?? 90,
       notes: payload.notes ?? '',
       superset_group: payload.superset_group ?? null,
+      // Payloads queued before 028 carry no key: leave the cloud value alone.
+      ...('warmup_sets' in payload ? { warmup_sets: payload.warmup_sets ?? 0 } : {}),
     };
   }
 

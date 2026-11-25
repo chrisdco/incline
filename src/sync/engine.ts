@@ -243,7 +243,7 @@ export async function applyRemoteRow(
     if (exId == null && !deletedAt) return 'blocked';
     if (local) {
       await db.runAsync(
-        `UPDATE template_exercises SET exercise_id = COALESCE(?, exercise_id), sort_order = ?, target_sets = ?, target_reps_min = ?, target_reps_max = ?, rest_seconds = ?, notes = ?, superset_group = ?, updated_at = ?, deleted_at = ? WHERE id = ?`,
+        `UPDATE template_exercises SET exercise_id = COALESCE(?, exercise_id), sort_order = ?, target_sets = ?, target_reps_min = ?, target_reps_max = ?, rest_seconds = ?, notes = ?, superset_group = ?, warmup_sets = COALESCE(?, warmup_sets), updated_at = ?, deleted_at = ? WHERE id = ?`,
         exId,
         asNum(remote.sort_order),
         asNum(remote.target_sets, 3),
@@ -252,14 +252,16 @@ export async function applyRemoteRow(
         asNum(remote.rest_seconds, 90),
         asStr(remote.notes),
         asNumOrNull(remote.superset_group),
+        // A cloud without the 028 column sends no key: keep the local count.
+        'warmup_sets' in remote ? asNum(remote.warmup_sets) : null,
         updatedAt,
         deletedAt,
         local.id,
       );
     } else if (!deletedAt && exId != null) {
       await db.runAsync(
-        `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, superset_group, uuid, updated_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, superset_group, warmup_sets, uuid, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         template.id,
         exId,
         asNum(remote.sort_order),
@@ -269,6 +271,7 @@ export async function applyRemoteRow(
         asNum(remote.rest_seconds, 90),
         asStr(remote.notes),
         asNumOrNull(remote.superset_group),
+        asNum(remote.warmup_sets),
         id,
         updatedAt,
         deletedAt,

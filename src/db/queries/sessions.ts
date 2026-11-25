@@ -1,4 +1,5 @@
 import { asRepQuality, type RepQuality } from '@/contracts/coaching/rep-quality';
+import { clampWarmups, warmupSeedWeight } from '@/contracts/templates/warmups';
 import { openDatabase } from '../client';
 import { PAGINATION } from '@/constants/config';
 import { newUuid } from '@/lib/uuid';
@@ -252,13 +253,19 @@ async function startWorkoutInner(templateId: number | null, name: string): Promi
   const logUuid = newUuid();
 
   let teRows: TemplateExerciseRow[] = [];
-  let lastByExercise: Record<number, Awaited<ReturnType<typeof getLastSetsForExercise>>> = {};
+  let lastByExercise: Awaited<ReturnType<typeof getLastSetsForExercises>> = {};
+  let lastWarmups: Awaited<ReturnType<typeof getLastSetsForExercises>> = {};
   if (templateId != null) {
     teRows = await db.getAllAsync<TemplateExerciseRow>(
       'SELECT * FROM template_exercises WHERE template_id = ? AND deleted_at IS NULL ORDER BY sort_order',
       templateId,
     );
-    lastByExercise = await getLastSetsForExercises(teRows.map((te) => te.exercise_id));
+    const ids = teRows.map((te) => te.exercise_id);
+    const withWarmups = teRows.filter((te) => (te.warmup_sets ?? 0) > 0).map((te) => te.exercise_id);
+    [lastByExercise, lastWarmups] = await Promise.all([
+      getLastSetsForExercises(ids),
+      withWarmups.length ? getLastSetsForExercises(withWarmups, 'warmup') : Promise.resolve({}),
+    ]);
   }
 
   return mutate(['workout_logs', 'set_entries'], async (tx) => {
@@ -272,10 +279,24 @@ async function startWorkoutInner(templateId: number | null, name: string): Promi
     const setIds: number[] = [];
     for (const te of teRows) {
       const last = lastByExercise[te.exercise_id] ?? [];
+      // Routine warm-ups first (WORK-QUEUE 7): last time's warm-ups, else a
+      // ramp to the first working weight. Working sets follow, seeded as before.
+      const warmups = clampWarmups(te.warmup_sets);
+      const lastW = lastWarmups[te.exercise_id] ?? [];
+      for (let w = 0; w < warmups; w++) {
+        const setRes = await tx.runAsync(
+          `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, set_type, superset_group, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, 'warmup', ?, ?, ?, ?)`,
+          logId, te.exercise_id, w,
+          lastW[w]?.weight ?? warmupSeedWeight(last[0]?.weight ?? 0, w, warmups),
+          lastW[w]?.reps ?? 10,
+          te.superset_group ?? null, newUuid(), now, now,
+        );
+        setIds.push(setRes.lastInsertRowId);
+      }
       for (let s = 0; s < te.target_sets; s++) {
         const setRes = await tx.runAsync(
           `INSERT INTO set_entries (workout_log_id, exercise_id, set_index, weight, reps, completed, rest_seconds, superset_group, uuid, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
-          logId, te.exercise_id, s, last[s]?.weight ?? 0, last[s]?.reps ?? te.target_reps_min, te.superset_group ?? null, newUuid(), now, now,
+          logId, te.exercise_id, warmups + s, last[s]?.weight ?? 0, last[s]?.reps ?? te.target_reps_min, te.superset_group ?? null, newUuid(), now, now,
         );
         setIds.push(setRes.lastInsertRowId);
       }

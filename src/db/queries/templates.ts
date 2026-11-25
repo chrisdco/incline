@@ -1,4 +1,5 @@
 import { openDatabase } from '../client';
+import { clampWarmups } from '@/contracts/templates/warmups';
 import { newUuid } from '@/lib/uuid';
 import { enqueueSync } from '@/sync/outbox';
 import { exerciseRefForId } from '@/sync/exercise-ref';
@@ -52,6 +53,7 @@ export async function getTemplate(id: number): Promise<WorkoutTemplate | null> {
     restSeconds: te.rest_seconds,
     notes: te.notes,
     supersetGroup: te.superset_group ?? null,
+    warmupSets: te.warmup_sets ?? 0,
     exercise: exerciseById.get(te.exercise_id),
   }));
   return mapTemplate(t, exercises);
@@ -167,6 +169,7 @@ export async function enqueueTemplateExerciseUpsert(tx: Tx, teId: number): Promi
     rest_seconds: te.rest_seconds,
     notes: te.notes,
     superset_group: te.superset_group ?? null,
+    warmup_sets: te.warmup_sets ?? 0,
     updated_at: te.updated_at,
     deleted_at: te.deleted_at,
   }, tx);
@@ -183,6 +186,8 @@ export interface TemplateStateRow {
   repsMax: number;
   /** Omitted: an existing row keeps its rest; a new row gets 90 s. */
   restSeconds?: number;
+  /** Omitted: an existing row keeps its warm-ups; a new row gets none. */
+  warmups?: number;
 }
 
 export interface TemplateSnapshot {
@@ -228,14 +233,15 @@ export async function writeTemplateState(
     if (row.id && live.has(row.id)) {
       await tx.runAsync(
         `UPDATE template_exercises SET exercise_id = ?, sort_order = ?, target_sets = ?, target_reps_min = ?,
-         target_reps_max = ?, rest_seconds = COALESCE(?, rest_seconds), updated_at = ? WHERE id = ?`,
-        row.exerciseId, i, row.sets, row.repsMin, row.repsMax, row.restSeconds ?? null, now, row.id,
+         target_reps_max = ?, rest_seconds = COALESCE(?, rest_seconds), warmup_sets = COALESCE(?, warmup_sets),
+         updated_at = ? WHERE id = ?`,
+        row.exerciseId, i, row.sets, row.repsMin, row.repsMax, row.restSeconds ?? null, row.warmups ?? null, now, row.id,
       );
       await enqueueTemplateExerciseUpsert(tx, row.id);
     } else {
       const res = await tx.runAsync(
-        `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?)`,
-        templateId, row.exerciseId, i, row.sets, row.repsMin, row.repsMax, row.restSeconds ?? 90, newUuid(), now,
+        `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, warmup_sets, notes, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?)`,
+        templateId, row.exerciseId, i, row.sets, row.repsMin, row.repsMax, row.restSeconds ?? 90, row.warmups ?? 0, newUuid(), now,
       );
       inserted.push(res.lastInsertRowId);
       await enqueueTemplateExerciseUpsert(tx, res.lastInsertRowId);
@@ -264,10 +270,10 @@ export async function restoreTemplateSnapshot(
   for (const row of before.rows) {
     await tx.runAsync(
       `UPDATE template_exercises SET exercise_id = ?, sort_order = ?, target_sets = ?, target_reps_min = ?,
-       target_reps_max = ?, rest_seconds = ?, notes = ?, superset_group = ?, deleted_at = NULL, updated_at = ?
+       target_reps_max = ?, rest_seconds = ?, notes = ?, superset_group = ?, warmup_sets = ?, deleted_at = NULL, updated_at = ?
        WHERE id = ? AND template_id = ?`,
       row.exercise_id, row.sort_order, row.target_sets, row.target_reps_min, row.target_reps_max,
-      row.rest_seconds, row.notes, row.superset_group ?? null, now, row.id, templateId,
+      row.rest_seconds, row.notes, row.superset_group ?? null, row.warmup_sets ?? 0, now, row.id, templateId,
     );
     await enqueueTemplateExerciseUpsert(tx, row.id);
   }
@@ -308,10 +314,11 @@ export async function insertTemplateCopy(
   for (const [i, row] of rows.entries()) {
     const from = row.id ? byId.get(row.id) : undefined;
     const child = await tx.runAsync(
-      `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, superset_group, uuid, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, superset_group, warmup_sets, uuid, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       templateId, row.exerciseId, i, row.sets, row.repsMin, row.repsMax,
-      row.restSeconds ?? from?.rest_seconds ?? 90, from?.notes ?? '', from?.superset_group ?? null, newUuid(), now,
+      row.restSeconds ?? from?.rest_seconds ?? 90, from?.notes ?? '', from?.superset_group ?? null,
+      row.warmups ?? from?.warmup_sets ?? 0, newUuid(), now,
     );
     await enqueueTemplateExerciseUpsert(tx, child.lastInsertRowId);
   }
@@ -424,10 +431,11 @@ export async function addExerciseToTemplate(
 
 export async function updateTemplateExercise(
   id: number,
-  patch: Partial<Pick<TemplateExercise, 'targetSets' | 'targetRepsMin' | 'targetRepsMax' | 'restSeconds' | 'notes' | 'supersetGroup'>>,
+  patch: Partial<Pick<TemplateExercise, 'targetSets' | 'targetRepsMin' | 'targetRepsMax' | 'restSeconds' | 'notes' | 'supersetGroup' | 'warmupSets'>>,
 ): Promise<void> {
   const sets: string[] = [];
   const args: (string | number | null)[] = [];
+  if (patch.warmupSets !== undefined) { sets.push('warmup_sets = ?'); args.push(clampWarmups(patch.warmupSets)); }
   if (patch.targetSets !== undefined) { sets.push('target_sets = ?'); args.push(patch.targetSets); }
   if (patch.targetRepsMin !== undefined) { sets.push('target_reps_min = ?'); args.push(patch.targetRepsMin); }
   if (patch.targetRepsMax !== undefined) { sets.push('target_reps_max = ?'); args.push(patch.targetRepsMax); }
@@ -529,8 +537,11 @@ export async function duplicateTemplate(sourceId: number): Promise<number> {
       te.targetRepsMax,
       te.restSeconds,
     );
-    if (te.notes?.trim()) {
-      await updateTemplateExercise(teId, { notes: te.notes });
+    if (te.notes?.trim() || te.warmupSets > 0) {
+      await updateTemplateExercise(teId, {
+        ...(te.notes?.trim() ? { notes: te.notes } : null),
+        ...(te.warmupSets > 0 ? { warmupSets: te.warmupSets } : null),
+      });
     }
   }
   return newId;

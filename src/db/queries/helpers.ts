@@ -70,6 +70,8 @@ export interface TemplateExerciseRow {
   rest_seconds: number;
   notes: string;
   superset_group: number | null;
+  /** Warm-up rows created ahead of the working sets (028); 0 = none. */
+  warmup_sets?: number | null;
   uuid: string | null;
   updated_at: number | null;
   deleted_at: number | null;

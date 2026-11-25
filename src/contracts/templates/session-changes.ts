@@ -6,11 +6,16 @@
  * Rules:
  * - An exercise skipped for today is never a change; it is still in the
  *   routine. Neither is a set left open: only sets added or deleted count.
- * - Warm-up and drop sets are per-day extras and never change set counts.
+ * - Drop sets are per-day extras and never change set counts.
+ * - Warm-ups are their own count on the routine row (warmups.ts): a changed
+ *   warm-up count is structural, like a set count, and never touches the
+ *   working-set count.
  * - Rest is a tweak: it updates the routine without asking. Exercises
  *   added, removed or reordered and set counts are structural: the user
  *   picks update, keep or save as new.
  */
+
+import { describeRoutineSets } from './warmups';
 
 /** One routine row as the routine has it now. */
 export interface RoutineSlot {
@@ -18,6 +23,8 @@ export interface RoutineSlot {
   name: string;
   sets: number;
   restSeconds: number;
+  /** Warm-up rows the routine starts with; missing = 0. */
+  warmups?: number;
 }
 
 /** One exercise as the workout has it at finish, in screen order. */
@@ -26,6 +33,8 @@ export interface SessionSlot {
   name: string;
   /** Live working + failure set rows (done or still open). */
   workingSets: number;
+  /** Live warm-up rows (done or still open); missing = 0. */
+  warmupSets?: number;
   /** Mean reps over those rows; seeds the rep range of an added exercise. */
   avgReps: number;
   /** The exercise's rest in this workout; null when the session never set one. */
@@ -34,9 +43,10 @@ export interface SessionSlot {
 }
 
 export type RoutineChange =
-  | { kind: 'added'; exerciseId: number; name: string; sets: number }
+  | { kind: 'added'; exerciseId: number; name: string; sets: number; warmups?: number }
   | { kind: 'removed'; exerciseId: number; name: string }
   | { kind: 'sets'; exerciseId: number; name: string; from: number; to: number }
+  | { kind: 'warmups'; exerciseId: number; name: string; from: number; to: number }
   | { kind: 'rest'; exerciseId: number; name: string; from: number; to: number }
   | { kind: 'order' };
 
@@ -65,7 +75,8 @@ export function diffSessionAgainstRoutine(
 
   for (const s of session) {
     if (inRoutine.has(s.exerciseId) || s.skipped || s.workingSets === 0) continue;
-    changes.push({ kind: 'added', exerciseId: s.exerciseId, name: s.name, sets: s.workingSets });
+    const warmups = s.warmupSets ?? 0;
+    changes.push({ kind: 'added', exerciseId: s.exerciseId, name: s.name, sets: s.workingSets, ...(warmups > 0 ? { warmups } : {}) });
   }
   for (const r of routine) {
     if (!inSession.has(r.exerciseId)) {
@@ -77,6 +88,12 @@ export function diffSessionAgainstRoutine(
     if (!s || s.skipped) continue;
     if (s.workingSets > 0 && s.workingSets !== r.sets) {
       changes.push({ kind: 'sets', exerciseId: r.exerciseId, name: r.name, from: r.sets, to: s.workingSets });
+    }
+    // Only an exercise actually done today says anything about its warm-ups.
+    const fromW = r.warmups ?? 0;
+    const toW = s.warmupSets ?? 0;
+    if (s.workingSets > 0 && toW !== fromW) {
+      changes.push({ kind: 'warmups', exerciseId: r.exerciseId, name: r.name, from: fromW, to: toW });
     }
   }
   const sharedSession = session.filter((s) => inRoutine.has(s.exerciseId)).map((s) => s.exerciseId);
@@ -100,6 +117,8 @@ export interface NextRoutineRow {
   repsMin?: number;
   repsMax?: number;
   restSeconds: number;
+  /** Warm-up count; missing = keep the routine's. */
+  warmups?: number;
 }
 
 export function nextRoutineRows(
@@ -120,6 +139,7 @@ export function nextRoutineRows(
         exerciseId: r.exerciseId,
         sets: counted ? s.workingSets : r.sets,
         restSeconds: !s.skipped && s.restSeconds != null ? s.restSeconds : r.restSeconds,
+        warmups: counted ? (s.warmupSets ?? 0) : (r.warmups ?? 0),
       });
     } else if (added.has(s.exerciseId)) {
       const reps = Math.max(1, Math.round(s.avgReps) || 8);
@@ -129,6 +149,7 @@ export function nextRoutineRows(
         repsMin: Math.max(1, reps - 2),
         repsMax: reps + 2,
         restSeconds: s.restSeconds ?? defaultRestSeconds,
+        warmups: s.warmupSets ?? 0,
       });
     }
   }
@@ -136,7 +157,7 @@ export function nextRoutineRows(
   // happen today, but if it does it keeps its place at the end, never lost.
   for (const r of routine) {
     if (!removed.has(r.exerciseId) && !rows.some((x) => x.exerciseId === r.exerciseId)) {
-      rows.push({ exerciseId: r.exerciseId, sets: r.sets, restSeconds: r.restSeconds });
+      rows.push({ exerciseId: r.exerciseId, sets: r.sets, restSeconds: r.restSeconds, warmups: r.warmups ?? 0 });
     }
   }
   return rows;
@@ -158,11 +179,15 @@ function plural(n: number, word: string): string {
 export function describeRoutineChange(change: RoutineChange): string {
   switch (change.kind) {
     case 'added':
-      return `Added ${change.name} (${plural(change.sets, 'set')})`;
+      return `Added ${change.name} (${describeRoutineSets(change.sets, change.warmups ?? 0)})`;
     case 'removed':
       return `Removed ${change.name}`;
     case 'sets':
       return `${change.name}: ${plural(change.to, 'set')} (was ${change.from})`;
+    case 'warmups':
+      return change.to === 0
+        ? `${change.name}: no warm-ups (was ${change.from})`
+        : `${change.name}: ${plural(change.to, 'warm-up')} (was ${change.from})`;
     case 'rest':
       return `${change.name}: rest ${formatRest(change.to)} (was ${formatRest(change.from)})`;
     case 'order':

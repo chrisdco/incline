@@ -73,10 +73,52 @@ describe('nextRoutineRows', () => {
     ];
     const diff = diffSessionAgainstRoutine(routine, session);
     expect(nextRoutineRows(routine, session, diff, 90)).toEqual([
-      { exerciseId: 2, sets: 3, restSeconds: 75 },
-      { exerciseId: 1, sets: 3, restSeconds: 120 },
-      { exerciseId: 9, sets: 2, repsMin: 10, repsMax: 14, restSeconds: 90 },
+      { exerciseId: 2, sets: 3, restSeconds: 75, warmups: 0 },
+      { exerciseId: 1, sets: 3, restSeconds: 120, warmups: 0 },
+      { exerciseId: 9, sets: 2, repsMin: 10, repsMax: 14, restSeconds: 90, warmups: 0 },
     ]);
+  });
+
+  it('carries warm-ups: done exercises take today\'s count, skipped keep the routine\'s', () => {
+    const withW: RoutineSlot[] = [
+      { ...routine[0], warmups: 2 },
+      { ...routine[1], warmups: 1 },
+    ];
+    const session = [slot(1, { warmupSets: 1 }), slot(2, { skipped: true })];
+    const diff = diffSessionAgainstRoutine(withW, session);
+    expect(nextRoutineRows(withW, session, diff, 90)).toEqual([
+      { exerciseId: 1, sets: 3, restSeconds: 120, warmups: 1 },
+      { exerciseId: 2, sets: 3, restSeconds: 90, warmups: 1 },
+    ]);
+  });
+});
+
+describe('warm-ups on the routine', () => {
+  it('a changed warm-up count is structural and leaves the set count alone', () => {
+    const diff = diffSessionAgainstRoutine(routine, [slot(1, { warmupSets: 2 }), slot(2), slot(3)]);
+    expect(diff.structural).toBe(true);
+    expect(diff.changes).toEqual([{ kind: 'warmups', exerciseId: 1, name: 'Bench Press', from: 0, to: 2 }]);
+  });
+
+  it('removing all warm-ups is a change; an exercise not done says nothing', () => {
+    const withW: RoutineSlot[] = routine.map((r) => ({ ...r, warmups: 1 }));
+    const diff = diffSessionAgainstRoutine(withW, [
+      slot(1, { warmupSets: 0 }),
+      slot(2, { warmupSets: 1 }),
+      slot(3, { workingSets: 0, warmupSets: 0 }),
+    ]);
+    expect(diff.changes).toEqual([{ kind: 'warmups', exerciseId: 1, name: 'Bench Press', from: 1, to: 0 }]);
+  });
+
+  it('an added exercise brings its warm-ups', () => {
+    const diff = diffSessionAgainstRoutine(routine, [slot(1), slot(2), slot(3), slot(9, { name: 'Dip', workingSets: 3, warmupSets: 1 })]);
+    expect(diff.changes).toEqual([{ kind: 'added', exerciseId: 9, name: 'Dip', sets: 3, warmups: 1 }]);
+    expect(describeRoutineChange(diff.changes[0])).toBe('Added Dip (1 warm-up + 3 sets)');
+  });
+
+  it('describes warm-up changes', () => {
+    expect(describeRoutineChange({ kind: 'warmups', exerciseId: 1, name: 'Bench', from: 0, to: 2 })).toBe('Bench: 2 warm-ups (was 0)');
+    expect(describeRoutineChange({ kind: 'warmups', exerciseId: 1, name: 'Bench', from: 2, to: 0 })).toBe('Bench: no warm-ups (was 2)');
   });
 });
 
