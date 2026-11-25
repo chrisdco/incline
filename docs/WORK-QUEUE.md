@@ -105,6 +105,15 @@ Things that need a new binary anyway; fold them into the next build, never
 into an OTA (they change the runtime fingerprint, so OTAs stop reaching
 installed builds).
 
+- **Smaller APK** (user, 2026-11-25: alpha APK is 134 MB). It's universal
+  (arm64, arm32, x86, x86_64) with minify and shrink off. In `expo-build-properties`:
+  `buildArchs: ['arm64-v8a']` for the sideloaded APK profiles (emulator keeps
+  x86_64; production's AAB is already split by Play), plus
+  `enableMinifyInReleaseBuilds` and `enableShrinkResourcesInReleaseBuilds`.
+  Arch per profile needs an `app.config.ts` reading the profile (pairs with the
+  Clerk item below). Check widgets, Health Connect and Clerk still work after
+  R8 (keep rules), and note the size before and after.
+
 - **Fingerprint ignores `package.json` scripts.** Add `fingerprint.config.js` with `sourceSkips: SourceSkips.PackageJsonScriptsAll`. Then point `lint` / `typecheck` at oxlint and TS 7 (docs/decisions/LINT.md). Until then the scripts stay byte-identical.
 
 - **Clerk Google client ID in app config.** Add an `app.config.ts` that sets
