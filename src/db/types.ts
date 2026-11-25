@@ -88,6 +88,8 @@ export interface TemplateExercise {
   notes: string;
   /** Shared non-null id links adjacent exercises into a superset/circuit. */
   supersetGroup: number | null;
+  /** Warm-up sets created ahead of the working sets when the routine starts. */
+  warmupSets: number;
   /** Joined exercise (populated by queries). */
   exercise?: Exercise;
 }

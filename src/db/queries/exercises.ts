@@ -334,8 +334,15 @@ export async function getLastSetsForExercise(exerciseId: number): Promise<SetEnt
   return map[exerciseId] ?? [];
 }
 
-/** Batch last-session sets for many exercises (avoids N+1 on workout start). */
-export async function getLastSetsForExercises(exerciseIds: number[]): Promise<Record<number, SetEntry[]>> {
+/**
+ * Batch last-session sets for many exercises (avoids N+1 on workout start).
+ * `working` (default): working sets of the last session with the exercise.
+ * `warmup`: warm-ups of the last session that logged warm-ups for it.
+ */
+export async function getLastSetsForExercises(
+  exerciseIds: number[],
+  kind: 'working' | 'warmup' = 'working',
+): Promise<Record<number, SetEntry[]>> {
   const out: Record<number, SetEntry[]> = {};
   const ids = [...new Set(exerciseIds.filter((id) => id > 0))];
   for (const id of ids) out[id] = [];
@@ -349,7 +356,7 @@ export async function getLastSetsForExercises(exerciseIds: number[]): Promise<Re
      JOIN workout_logs w ON w.id = s.workout_log_id
      WHERE s.exercise_id IN (${placeholders})
        AND s.completed = 1 AND s.deleted_at IS NULL
-       AND (s.set_type IS NULL OR s.set_type = 'working')
+       AND ${kind === 'warmup' ? "s.set_type = 'warmup'" : "(s.set_type IS NULL OR s.set_type = 'working')"}
        AND w.ended_at IS NOT NULL AND w.deleted_at IS NULL
        AND w.started_at = (
          SELECT MAX(w2.started_at)
@@ -357,6 +364,7 @@ export async function getLastSetsForExercises(exerciseIds: number[]): Promise<Re
          JOIN workout_logs w2 ON w2.id = s2.workout_log_id
          WHERE s2.exercise_id = s.exercise_id
            AND s2.completed = 1 AND s2.deleted_at IS NULL
+           ${kind === 'warmup' ? "AND s2.set_type = 'warmup'" : ''}
            AND w2.ended_at IS NOT NULL AND w2.deleted_at IS NULL
        )
      ORDER BY s.exercise_id, s.set_index`,

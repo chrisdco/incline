@@ -247,6 +247,7 @@ export function sessionSlots(
         exerciseId: set.exerciseId,
         name: set.exerciseName,
         workingSets: 0,
+        warmupSets: 0,
         avgReps: 0,
         repTotal: 0,
         restSeconds: restSeconds[set.exerciseId] ?? null,
@@ -257,6 +258,8 @@ export function sessionSlots(
     if (countsAsRoutineSet(set.setType)) {
       slot.workingSets += 1;
       slot.repTotal += set.reps;
+    } else if (set.setType === 'warmup') {
+      slot.warmupSets = (slot.warmupSets ?? 0) + 1;
     }
   }
   return [...slots.values()].map(({ repTotal, ...slot }) => ({
@@ -438,7 +441,12 @@ export function createSessionEngine(deps: SessionEngineDeps) {
     const next = keepWithRest
       ? routine.slots.map((r) => {
           const rest = restChanges.find((c) => c.exerciseId === r.exerciseId);
-          return { exerciseId: r.exerciseId, sets: r.sets, restSeconds: rest && rest.kind === 'rest' ? rest.to : r.restSeconds };
+          return {
+            exerciseId: r.exerciseId,
+            sets: r.sets,
+            restSeconds: rest && rest.kind === 'rest' ? rest.to : r.restSeconds,
+            warmups: r.warmups ?? 0,
+          };
         })
       : nextRoutineRows(routine.slots, slots, diff, deps.settings().defaultRestSeconds);
     try {

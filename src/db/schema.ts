@@ -15,7 +15,7 @@ import { COACH_MEMORY_DDL } from './migrations/026_coach_memory';
 import { TEMPLATE_VERSIONS_DDL } from './migrations/027_template_versions';
 import { CHAT_DDL } from './migrations/023_chat';
 
-export const SCHEMA_VERSION = 27;
+export const SCHEMA_VERSION = 28;
 
 export const SCHEMA_STATEMENTS: string[] = [
   // ---- exercises (catalog + custom) ----
@@ -98,6 +98,7 @@ export const SCHEMA_STATEMENTS: string[] = [
     rest_seconds INTEGER NOT NULL DEFAULT 90,
     notes TEXT NOT NULL DEFAULT '',
     superset_group INTEGER,
+    warmup_sets INTEGER NOT NULL DEFAULT 0,
     uuid TEXT,
     updated_at INTEGER,
     deleted_at INTEGER,

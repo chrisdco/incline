@@ -258,7 +258,7 @@ async function getRoutine(ctx: Ctx, args: Args): Promise<ToolResult> {
   if (!tpl) return { ok: false, error: 'routine not found' };
   const { data: rows } = await ctx.db
     .from('user_template_exercises')
-    .select('ref_type, catalog_external_id, user_exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes')
+    .select('ref_type, catalog_external_id, user_exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, warmup_sets')
     .eq('user_id', ctx.userId)
     .eq('template_id', id)
     .is('deleted_at', null)
@@ -270,6 +270,8 @@ async function getRoutine(ctx: Ctx, args: Args): Promise<ToolResult> {
       ...tpl,
       exercises: (rows ?? []).map((r) => ({
         exercise: nameOf(meta, r),
+        // Warm-ups come before the working sets each time; omitted when none.
+        warmup_sets: r.warmup_sets || undefined,
         sets: r.target_sets,
         reps: r.target_reps_min === r.target_reps_max ? `${r.target_reps_min}` : `${r.target_reps_min}-${r.target_reps_max}`,
         rest_seconds: r.rest_seconds,

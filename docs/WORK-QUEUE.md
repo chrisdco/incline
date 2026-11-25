@@ -225,7 +225,7 @@ work lands first; native pieces ship together in one build.
    OAuth clients (2). The Play Console Health Connect declaration is only
    needed before the first upload to a Play track.
 
-7. [ ] **Warm-ups saved to the routine** (user, Nov 25): a routine row gets a
+7. [x] **Warm-ups saved to the routine** (user, Nov 25; MCP `create_routine` can't set warm-ups yet): a routine row gets a
    warm-up count (`template_exercises.warmup_sets`, local + Supabase + sync
    mapper), starting a workout creates those warm-up rows first (seeded from
    last time's warm-ups), the routine editor edits it, and the finish diff

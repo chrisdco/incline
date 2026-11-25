@@ -208,8 +208,8 @@ const HANDLERS: Record<string, (db: Db, args: Args) => Promise<unknown>> = {
       id,
     );
     if (!tpl) throw new ToolInputError('routine not found');
-    const rows = await db.getAllAsync<{ name: string; target_sets: number; target_reps_min: number; target_reps_max: number; rest_seconds: number; notes: string }>(
-      `SELECT e.name, t.target_sets, t.target_reps_min, t.target_reps_max, t.rest_seconds, t.notes
+    const rows = await db.getAllAsync<{ name: string; target_sets: number; target_reps_min: number; target_reps_max: number; rest_seconds: number; notes: string; warmup_sets: number | null }>(
+      `SELECT e.name, t.target_sets, t.target_reps_min, t.target_reps_max, t.rest_seconds, t.notes, t.warmup_sets
        FROM template_exercises t JOIN exercises e ON e.id = t.exercise_id
        WHERE t.template_id = ? AND t.deleted_at IS NULL ORDER BY t.sort_order`,
       id,
@@ -221,6 +221,8 @@ const HANDLERS: Record<string, (db: Db, args: Args) => Promise<unknown>> = {
       estimated_minutes: tpl.estimated_minutes,
       exercises: rows.map((r) => ({
         exercise: r.name,
+        // Same shape as MCP get_routine: warm-ups omitted when none.
+        warmup_sets: r.warmup_sets || undefined,
         sets: r.target_sets,
         reps: r.target_reps_min === r.target_reps_max ? `${r.target_reps_min}` : `${r.target_reps_min}-${r.target_reps_max}`,
         rest_seconds: r.rest_seconds,

@@ -171,6 +171,7 @@ export default function WorkoutPreviewScreen() {
             <View className="flex-row items-center justify-between">
               <Body className="flex-1 font-semibold text-foreground">{te.exercise?.name ?? 'Exercise'}</Body>
               <Badge variant="secondary">
+                {te.warmupSets > 0 ? `${te.warmupSets}W + ` : ''}
                 {te.targetSets} × {te.targetRepsMin}
                 {te.targetRepsMax !== te.targetRepsMin ? `–${te.targetRepsMax}` : ''}
               </Badge>

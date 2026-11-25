@@ -498,8 +498,8 @@ describe('session engine: skip for today + routine changes at finish', () => {
     expect(h.deps.routines.update).toHaveBeenCalledWith(
       5,
       [
-        { exerciseId: 10, sets: 2, restSeconds: 150 },
-        { exerciseId: 20, sets: 1, restSeconds: 90 },
+        { exerciseId: 10, sets: 2, restSeconds: 150, warmups: 0 },
+        { exerciseId: 20, sets: 1, restSeconds: 90, warmups: 0 },
       ],
       'workout-rest',
     );
@@ -533,8 +533,8 @@ describe('session engine: skip for today + routine changes at finish', () => {
     expect(h.deps.routines.update).toHaveBeenCalledWith(
       5,
       [
-        { exerciseId: 10, sets: 2, restSeconds: 180 },
-        { exerciseId: 20, sets: 1, restSeconds: 90 },
+        { exerciseId: 10, sets: 2, restSeconds: 180, warmups: 0 },
+        { exerciseId: 20, sets: 1, restSeconds: 90, warmups: 0 },
       ],
       'workout-rest',
     );
@@ -546,6 +546,6 @@ describe('session engine: skip for today + routine changes at finish', () => {
     await h.engine.open(1);
     h.engine.store.setState((s) => ({ session: s.session && { ...s.session, sets: s.session.sets.filter((x) => x.exerciseId !== 20) } }));
     await h.engine.finish('copy');
-    expect(h.deps.routines.saveCopy).toHaveBeenCalledWith(1, 5, [{ exerciseId: 10, sets: 2, restSeconds: 120 }], 45);
+    expect(h.deps.routines.saveCopy).toHaveBeenCalledWith(1, 5, [{ exerciseId: 10, sets: 2, restSeconds: 120, warmups: 0 }], 45);
   });
 });

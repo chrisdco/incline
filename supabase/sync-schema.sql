@@ -74,6 +74,7 @@ CREATE INDEX IF NOT EXISTS idx_user_template_exercises_user_updated
 CREATE INDEX IF NOT EXISTS idx_user_template_exercises_template
   ON user_template_exercises (template_id);
 ALTER TABLE user_template_exercises ADD COLUMN IF NOT EXISTS superset_group INTEGER;
+ALTER TABLE user_template_exercises ADD COLUMN IF NOT EXISTS warmup_sets INTEGER NOT NULL DEFAULT 0 CHECK (warmup_sets BETWEEN 0 AND 10);
 
 CREATE TABLE IF NOT EXISTS workout_logs (
   id UUID PRIMARY KEY,

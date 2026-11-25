@@ -5,6 +5,7 @@
  * module only reads and writes.
  */
 import type { NextRoutineRow, RoutineSlot } from '@/contracts/templates/session-changes';
+import { clampWarmups } from '@/contracts/templates/warmups';
 import { newUuid } from '@/lib/uuid';
 
 import { openDatabase } from '../client';
@@ -66,8 +67,8 @@ export async function getRoutineForSession(templateId: number): Promise<RoutineF
     templateId,
   );
   if (!t) return null;
-  const rows = await db.getAllAsync<{ exercise_id: number; name: string; target_sets: number; rest_seconds: number }>(
-    `SELECT te.exercise_id, e.name, te.target_sets, te.rest_seconds
+  const rows = await db.getAllAsync<{ exercise_id: number; name: string; target_sets: number; rest_seconds: number; warmup_sets: number | null }>(
+    `SELECT te.exercise_id, e.name, te.target_sets, te.rest_seconds, te.warmup_sets
      FROM template_exercises te JOIN exercises e ON e.id = te.exercise_id
      WHERE te.template_id = ? AND te.deleted_at IS NULL
      ORDER BY te.sort_order, te.id`,
@@ -77,7 +78,13 @@ export async function getRoutineForSession(templateId: number): Promise<RoutineF
     templateId,
     name: t.name,
     estimatedMinutes: t.estimated_minutes,
-    slots: rows.map((r) => ({ exerciseId: r.exercise_id, name: r.name, sets: r.target_sets, restSeconds: r.rest_seconds })),
+    slots: rows.map((r) => ({
+      exerciseId: r.exercise_id,
+      name: r.name,
+      sets: r.target_sets,
+      restSeconds: r.rest_seconds,
+      warmups: r.warmup_sets ?? 0,
+    })),
   };
 }
 
@@ -100,6 +107,7 @@ function toStateRows(next: readonly NextRoutineRow[], current: readonly Template
       repsMin: cur?.target_reps_min ?? r.repsMin ?? 8,
       repsMax: cur?.target_reps_max ?? r.repsMax ?? 12,
       restSeconds: r.restSeconds,
+      warmups: r.warmups == null ? undefined : clampWarmups(r.warmups),
     });
     for (const dup of queue) {
       out.push({ id: dup.id, exerciseId: dup.exercise_id, sets: dup.target_sets, repsMin: dup.target_reps_min, repsMax: dup.target_reps_max });
@@ -232,18 +240,19 @@ export async function restoreTemplateVersion(versionId: number): Promise<boolean
     for (const row of target) {
       const res = await tx.runAsync(
         `UPDATE template_exercises SET exercise_id = ?, sort_order = ?, target_sets = ?, target_reps_min = ?,
-         target_reps_max = ?, rest_seconds = ?, notes = ?, superset_group = ?, deleted_at = NULL, updated_at = ?
+         target_reps_max = ?, rest_seconds = ?, notes = ?, superset_group = ?, warmup_sets = ?, deleted_at = NULL, updated_at = ?
          WHERE id = ? AND template_id = ?`,
         row.exercise_id, row.sort_order, row.target_sets, row.target_reps_min, row.target_reps_max,
-        row.rest_seconds, row.notes ?? '', row.superset_group ?? null, now, row.id, templateId,
+        // Versions saved before 028 have no warm-up count: they had none.
+        row.rest_seconds, row.notes ?? '', row.superset_group ?? null, row.warmup_sets ?? 0, now, row.id, templateId,
       );
       let id = row.id;
       if (res.changes === 0) {
         const ins = await tx.runAsync(
-          `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, superset_group, uuid, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO template_exercises (template_id, exercise_id, sort_order, target_sets, target_reps_min, target_reps_max, rest_seconds, notes, superset_group, warmup_sets, uuid, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           templateId, row.exercise_id, row.sort_order, row.target_sets, row.target_reps_min, row.target_reps_max,
-          row.rest_seconds, row.notes ?? '', row.superset_group ?? null, newUuid(), now,
+          row.rest_seconds, row.notes ?? '', row.superset_group ?? null, row.warmup_sets ?? 0, newUuid(), now,
         );
         id = ins.lastInsertRowId;
       }
