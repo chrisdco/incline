@@ -1,7 +1,7 @@
 import '@/global.css';
 
 import { useEffect } from 'react';
-import { Text as RNText, View } from 'react-native';
+import { Platform, Text as RNText, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -91,15 +91,20 @@ function routeThroughGate(): void {
   }
 }
 
+const RUNTIME_FONTS = {
+  Geist: Geist_400Regular,
+  'Geist-Medium': Geist_500Medium,
+  'Geist-SemiBold': Geist_600SemiBold,
+  'Geist-Bold': Geist_700Bold,
+  // Geist Serif (Vercel, OFL; npm geist 1.9.2, woff2 converted to TTF). Display only: one weight, Ask's headlines.
+  GeistSerif: require('../../assets/fonts/GeistSerif-Regular.ttf'),
+};
+
 function AppShell() {
-  const [fontsLoaded] = useFonts({
-    Geist: Geist_400Regular,
-    'Geist-Medium': Geist_500Medium,
-    'Geist-SemiBold': Geist_600SemiBold,
-    'Geist-Bold': Geist_700Bold,
-    // Geist Serif (Vercel, OFL; npm geist 1.9.2, woff2 converted to TTF). Display only: one weight, Ask's headlines.
-    GeistSerif: require('../../assets/fonts/GeistSerif-Regular.ttf'),
-  });
+  // Android embeds these at build time (expo-font plugin in app.json, same
+  // family names), so the first frame needs no font load. iOS keeps runtime
+  // loading: it names faces by PostScript name, which doesn't match "Geist".
+  const [fontsLoaded] = useFonts(Platform.OS === 'android' ? {} : RUNTIME_FONTS);
   const db = useDatabaseState();
   const dbReady = db.status === 'ready';
   const scheme = useAppColorScheme();
