@@ -145,7 +145,7 @@ export default function HealthScreen() {
             ) : null}
           </ListGroup>
           <Caption className="mt-2 px-1">
-            Read only, and it stays on this phone. Samsung Health, Fitbit and others show up here once they sync to Health Connect (in Samsung Health:
+            What Incline reads stays on this phone; it only writes workouts, and only if you turn that on below. Samsung Health, Fitbit and others show up here once they sync to Health Connect (in Samsung Health:
             Settings → Health Connect).
           </Caption>
         </Section>

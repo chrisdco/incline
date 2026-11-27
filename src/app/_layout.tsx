@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
+import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -162,6 +163,9 @@ function AppShell() {
     <ThemeProvider value={navTheme}>
       <ErrorBoundary>
         <StatusBar style={isDark ? 'light' : 'dark'} />
+        {/* Button nav: no system scrim (enforceContrast off in app.json); the
+            buttons follow the app's theme, which can differ from the phone's. */}
+        <NavigationBar style={isDark ? 'light' : 'dark'} />
         <GestureHandlerRootView style={{ flex: 1 }}>
           <BottomSheetModalProvider>
             <View className={cn('flex-1', isDark && 'dark', `theme-${accentTheme}`)}>

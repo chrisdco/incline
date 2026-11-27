@@ -277,6 +277,12 @@
             ]
           }
         }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
       ]
     ],
     "experiments": {

@@ -15,6 +15,7 @@ import { useActiveWorkout } from '@/store/active-workout-store';
 import { useSettings } from '@/store/settings-store';
 import { motionDuration } from '@/styles/motion';
 
+import { needsNewerBuild } from './needs-build';
 import { WhatsNewArt } from './whats-new-art';
 
 const subscribeHydration = (cb: () => void) => useSettings.persist.onFinishHydration(cb);
@@ -112,7 +113,7 @@ function WhatsNewCard({ item, width }: { item: WhatsNewItem; width: number }) {
       <WhatsNewArt item={item} />
       <View className="flex-row items-center gap-2">
         <Badge variant={mustRead ? 'warning' : 'default'}>{mustRead ? 'Important' : 'New'}</Badge>
-        {item.native ? <Caption>Needs the latest app build</Caption> : null}
+        {needsNewerBuild(item) ? <Caption>Needs the latest app build</Caption> : null}
       </View>
       <Title>{item.title}</Title>
       <Body className="text-foreground">{item.body}</Body>

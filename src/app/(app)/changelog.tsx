@@ -9,6 +9,7 @@ import { Body, Caption } from '@/components/common/text';
 import { Badge } from '@/components/ui/badge';
 import { Tappable } from '@/components/ui/tappable';
 import { WHATS_NEW_ICONS } from '@/components/whats-new/icons';
+import { needsNewerBuild } from '@/components/whats-new/needs-build';
 import { changelog, levelOf, newDotIds, type WhatsNewItem } from '@/contracts/releases/whats-new';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { useSettings } from '@/store/settings-store';
@@ -77,7 +78,7 @@ function ChangelogRow({ item, isNew, onOpen }: { item: WhatsNewItem; isNew: bool
           {level === 'must-read' ? <Badge variant="warning">Important</Badge> : isNew ? <Badge>New</Badge> : null}
         </View>
         <Caption>{item.body}</Caption>
-        {item.native ? <Caption>Needs the latest app build</Caption> : null}
+        {needsNewerBuild(item) ? <Caption>Needs the latest app build</Caption> : null}
       </View>
     </View>
   );

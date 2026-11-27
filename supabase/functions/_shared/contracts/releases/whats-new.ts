@@ -36,6 +36,12 @@ export interface WhatsNewItem {
   cta?: string;
   /** Needs a native build newer than the runtime it shipped in (shown on web as "in the latest build"). */
   native?: boolean;
+  /**
+   * A native module that first ships in the build this item needs. The app
+   * says "Needs the latest app build" only when it is missing, so people on
+   * that build (or newer) never see the nag. Unset: no nag in the app.
+   */
+  nativeModule?: string;
   /** Default `announce`. */
   level?: WhatsNewLevel;
 }
@@ -58,6 +64,7 @@ export const WHATS_NEW: readonly WhatsNewItem[] = [
     href: '/(app)/changelog',
     cta: 'See everything',
     native: true,
+    nativeModule: 'ExpoClipboard',
   },
   {
     id: 'health-write-v1',
@@ -69,6 +76,7 @@ export const WHATS_NEW: readonly WhatsNewItem[] = [
     href: '/(app)/health',
     cta: 'Open Health',
     native: true,
+    nativeModule: 'ExpoClipboard',
   },
   {
     id: 'abandoned-ping-v2',
