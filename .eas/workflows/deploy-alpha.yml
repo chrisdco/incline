@@ -58,7 +58,9 @@ jobs:
     # eas.json build env doesn't apply to updates; mirror the alpha profile.
     env:
       EXPO_PUBLIC_RELEASE_STAGE: alpha
-      SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+    # upload_sentry_sourcemaps left unset: the job uploads when SENTRY_AUTH_TOKEN,
+    # SENTRY_ORG and SENTRY_PROJECT are in the preview env, and only logs (never
+    # fails the deploy) when the upload can't run.
     params:
       channel: alpha
       platform: android
