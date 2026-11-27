@@ -1,5 +1,4 @@
 import { useDeferredValue, useEffect, useState } from 'react';
-import * as Clipboard from 'expo-clipboard';
 import { Alert, Platform, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,6 +34,7 @@ import { useProfile } from '@/hooks/use-data';
 import { useCloudSync } from '@/hooks/use-cloud-sync';
 import { clearWorkoutHistory, saveProfile } from '@/db/queries';
 import { ACCENT_THEME_LIST, isAuroraAccent } from '@/lib/accent-themes';
+import { copyText } from '@/lib/copy';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { METRIC_ICONS } from '@/lib/metric-icons';
 import { getNotifications, getExactAlarmStatus, requestExactAlarmPermission } from '@/lib/notifications';
@@ -71,7 +71,7 @@ function AboutSection({ show }: { show: (id: string) => boolean }) {
             subtitle={`${info.updateCreatedAt ? `Updated ${info.updateCreatedAt.toLocaleDateString()}` : 'Built-in bundle'}${info.runtimeVersion ? ` · runtime ${info.runtimeVersion.slice(0, 8)}` : ''} · tap to copy`}
             accessibilityLabel="Version, copy details"
             onPress={() =>
-              void Clipboard.setStringAsync(releaseDetails(info)).then(() => toast({ title: 'Build details copied', variant: 'success' }))
+              void copyText(releaseDetails(info), () => toast({ title: 'Build details copied', variant: 'success' }))
             }>
             <Caption>{formatRelease(info)}</Caption>
           </ListRow>

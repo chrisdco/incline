@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,6 +14,7 @@ import { ListRow, SectionLabel } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
+import { copyText } from '@/lib/copy';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import {
   claudeCodeCommand,
@@ -73,7 +73,7 @@ export default function ConnectAiScreen() {
     void Share.share({ message: setupText(token) });
   };
   const onCopy = (token: string) => {
-    void Clipboard.setStringAsync(setupText(token)).then(() =>
+    void copyText(setupText(token), () =>
       toast({ title: 'Setup copied', description: 'Paste it in a terminal or your app’s MCP settings', variant: 'success' }),
     );
   };
