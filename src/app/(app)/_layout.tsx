@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CloudSyncProvider } from '@/components/common/cloud-sync-provider';
 import { themeHex } from '@/lib/theme';
@@ -9,18 +10,22 @@ import { useSettings } from '@/store/settings-store';
 export default function AppLayout() {
   const scheme = useAppColorScheme();
   const accentTheme = useSettings((s) => s.accentTheme);
+  const background = themeHex(scheme, accentTheme).background;
+  // Pushed screens stop above the Android nav bar (edge-to-edge, see root layout).
+  const navBarInset = useSafeAreaInsets().bottom;
   return (
     <CloudSyncProvider>
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: themeHex(scheme, accentTheme).background },
+          contentStyle: { backgroundColor: background, paddingBottom: navBarInset },
         }}>
-        <Stack.Screen name="(tabs)" />
+        {/* Tabs and Ask place their own bottom chrome by inset. */}
+        <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: background } }} />
         <Stack.Screen
           name="ai"
           // Full page; a quick fade lets AskScreen's own entrance (mark out of the button) carry the motion.
-          options={{ animation: 'fade', animationDuration: 180 }}
+          options={{ animation: 'fade', animationDuration: 180, contentStyle: { backgroundColor: background } }}
         />
         <Stack.Screen name="exercises" options={{ headerShown: true, title: 'Exercises' }} />
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />

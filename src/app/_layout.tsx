@@ -8,6 +8,7 @@ import * as SystemUI from 'expo-system-ui';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetModalProvider } from '@expo/ui/community/bottom-sheet';
 import { ClerkProvider } from '@clerk/expo';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -129,6 +130,11 @@ function AppShell() {
     if (dbReady) refreshAiFlagsLazily();
   }, [dbReady]);
 
+  // Edge-to-edge (SDK 58): pushed screens stop above the Android nav bar
+  // (3-button nav is 48 dp; fixed content padding only covered gesture nav).
+  // Screens that place their own bottom chrome by inset opt out below.
+  const navBarInset = useSafeAreaInsets().bottom;
+
   // A broken DB must show something actionable, never a frozen splash (#163).
   if (db.status === 'error') return <DatabaseErrorScreen error={db.error} onRetry={db.retry} />;
   if (!fontsLoaded || !dbReady) return null;
@@ -164,15 +170,16 @@ function AppShell() {
                   <Stack
                     screenOptions={{
                       headerShown: false,
-                      contentStyle: { backgroundColor: navBackground },
+                      contentStyle: { backgroundColor: navBackground, paddingBottom: navBarInset },
                     }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="(onboarding)" />
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="(app)" />
+                  <Stack.Screen name="index" options={{ contentStyle: { backgroundColor: navBackground } }} />
+                  <Stack.Screen name="(onboarding)" options={{ contentStyle: { backgroundColor: navBackground } }} />
+                  <Stack.Screen name="(auth)" options={{ contentStyle: { backgroundColor: navBackground } }} />
+                  {/* Its own stack adds the inset per screen (tabs and Ask place theirs). */}
+                  <Stack.Screen name="(app)" options={{ contentStyle: { backgroundColor: navBackground } }} />
                   <Stack.Screen name="exercise/[id]" options={{ headerShown: true, title: 'Exercise' }} />
                   <Stack.Screen name="workout/[id]" options={{ headerShown: true, title: 'Workout' }} />
-                  <Stack.Screen name="session/[id]" options={{ headerShown: false }} />
+                  <Stack.Screen name="session/[id]" options={{ headerShown: false, contentStyle: { backgroundColor: navBackground } }} />
                   <Stack.Screen name="session/reorder/[id]" options={{ headerShown: false }} />
                   <Stack.Screen name="pick-exercise" options={{ headerShown: false }} />
                   <Stack.Screen name="summary/[id]" options={{ headerShown: false }} />
