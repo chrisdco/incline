@@ -36,6 +36,7 @@ import { useNudgeSync } from '@/hooks/use-nudge-sync';
 import { useCatalogPrefetch } from '@/hooks/use-catalog-prefetch';
 import { useWeeklyDigestSync } from '@/hooks/use-weekly-digest-sync';
 import { useWidgetRefresh } from '@/hooks/use-widget-refresh';
+import { useHealthWrite } from '@/hooks/use-health-write';
 import { useWorkoutReminderSync } from '@/hooks/use-workout-reminder-sync';
 import { useAppColorScheme, useSyncNativeColorScheme } from '@/lib/use-color-scheme';
 import { useSettings } from '@/store/settings-store';
@@ -64,6 +65,11 @@ function NotificationBootstrap() {
 
 function WidgetBootstrap() {
   useWidgetRefresh();
+  return null;
+}
+
+function HealthBootstrap() {
+  useHealthWrite();
   return null;
 }
 
@@ -153,6 +159,7 @@ function AppShell() {
                 <ToastProvider>
                   <NotificationBootstrap />
                   <WidgetBootstrap />
+                  <HealthBootstrap />
                   <UpdateBootstrap />
                   <Stack
                     screenOptions={{

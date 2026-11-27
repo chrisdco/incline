@@ -71,10 +71,14 @@ describe('Health Connect mapping', () => {
       kindsFrom([
         { accessType: 'read', recordType: 'SleepSession' },
         { accessType: 'write', recordType: 'Weight' },
-        { accessType: 'read', recordType: 'Nutrition' },
+        { accessType: 'read', recordType: 'Distance' },
         { accessType: 'read', recordType: 'HeartRateVariabilityRmssd' },
       ]),
     ).toEqual(['sleep', 'hrv']);
+  });
+
+  it('reads Nutrition as calories and macros', () => {
+    expect(kindsFrom([{ accessType: 'read', recordType: 'Nutrition' }])).toEqual(['nutrition']);
   });
 });
 
@@ -126,5 +130,23 @@ describe('health status line (Home, Health screen, Ask)', () => {
   it('is quiet when nothing is shared or everything is arriving', () => {
     expect(healthStatusLine({ granted: [], coverage: {} })).toBe(null);
     expect(healthStatusLine({ granted: ['sleep', 'hrv'], coverage: { sleep: { days: 7, lastAt: NOW }, hrv: { days: 20, lastAt: NOW, baselineDays: 19 } } })).toBe(null);
+  });
+});
+
+describe('nutritionSummary', () => {
+  it('uses yesterday, averages logged days only, ignores today', async () => {
+    const { nutritionSummary } = await import('../readiness');
+    const now = new Date(2026, 10, 27, 15).getTime();
+    const s = nutritionSummary(
+      [
+        { day: '2026-11-27', kcal: 400, proteinG: 30, carbsG: 0, fatG: 0 },
+        { day: '2026-11-26', kcal: 2200, proteinG: 150, carbsG: 0, fatG: 0 },
+        { day: '2026-11-24', kcal: 1800, proteinG: 110, carbsG: 0, fatG: 0 },
+        { day: '2026-11-23', kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+      ],
+      now,
+    );
+    expect(s).toEqual({ yesterday: { kcal: 2200, proteinG: 150 }, avg7d: { kcal: 2000, proteinG: 130, days: 2 } });
+    expect(nutritionSummary([], now)).toBe(null);
   });
 });

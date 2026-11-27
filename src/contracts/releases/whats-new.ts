@@ -46,6 +46,17 @@ export function levelOf(item: WhatsNewItem): WhatsNewLevel {
 /** Newest first. Keep titles short (they head a card). */
 export const WHATS_NEW: readonly WhatsNewItem[] = [
   {
+    id: 'health-write-v1',
+    addedAt: '2026-11-27',
+    icon: 'heart',
+    title: 'Workouts in Health Connect',
+    body: 'Turn on Save workouts and each finished session lands in Health Connect as strength training, so Samsung Health and Fit see it too.',
+    bullets: ['Edits and deletes follow', 'Calories and protein you log elsewhere show on the Health screen', 'Ask can use them, if you allow'],
+    href: '/(app)/health',
+    cta: 'Open Health',
+    native: true,
+  },
+  {
     id: 'abandoned-ping-v2',
     addedAt: '2026-11-27',
     icon: 'wrench',
@@ -107,7 +118,7 @@ export const WHATS_NEW: readonly WhatsNewItem[] = [
     icon: 'heart',
     title: 'Sleep and recovery',
     body: 'Connect Health Connect (and Samsung Health through it) to see sleep, resting heart rate and HRV next to your training.',
-    bullets: ['Read only: Incline never writes to it', 'Readiness on Home', 'Ask can use it in answers'],
+    bullets: ['Each type is your choice, and you can stop sharing any time', 'Readiness on Home', 'Ask can use it in answers'],
     href: '/(app)/health',
     cta: 'Connect',
     native: true,

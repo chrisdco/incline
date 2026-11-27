@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { Check, HeartPulse, Settings2 } from 'lucide-react-native';
+import { Check, Dumbbell, HeartPulse, Settings2 } from 'lucide-react-native';
 
 import { Icon } from '@/components/common/icon';
 import { Body, Caption } from '@/components/common/text';
@@ -23,6 +23,8 @@ function todayLine(s: HealthSnapshot): string {
   if (s.hrv) parts.push(`HRV ${s.hrv.today} ms (usual ${s.hrv.baseline})`);
   if (s.restingHeartRate) parts.push(`Resting HR ${s.restingHeartRate.today} bpm (usual ${s.restingHeartRate.baseline})`);
   if (s.stepsToday !== null) parts.push(`${s.stepsToday.toLocaleString()} steps`);
+  if (s.nutrition?.yesterday) parts.push(`Ate ${s.nutrition.yesterday.kcal.toLocaleString()} kcal, ${s.nutrition.yesterday.proteinG} g protein yesterday`);
+  if (s.nutrition?.avg7d) parts.push(`7-day avg ${s.nutrition.avg7d.kcal.toLocaleString()} kcal, ${s.nutrition.avg7d.proteinG} g protein`);
   const status = healthStatusLine(s);
   if (status) parts.push(status);
   return parts.length ? parts.join(' · ') : `No readings yet today. HRV and resting HR need ${MIN_BASELINE_DAYS} days of history before we compare.`;
@@ -30,8 +32,9 @@ function todayLine(s: HealthSnapshot): string {
 
 /** Per type: is it arriving, and since when. */
 function arrivalLine(c: KindCoverage | undefined, k: HealthKind): string {
-  if (!c || c.days === 0) return k === 'steps' ? 'Shared · no steps yet today' : 'Shared · nothing received yet';
+  if (!c || c.days === 0) return k === 'steps' ? 'Shared · no steps yet today' : k === 'nutrition' ? 'Shared · no food logged this week' : 'Shared · nothing received yet';
   if (k === 'steps') return 'Shared · arriving';
+  if (k === 'nutrition') return `${c.days} ${c.days === 1 ? 'day' : 'days'} logged this week`;
   const last = c.lastAt ? new Date(c.lastAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : null;
   const learning = c.baselineDays !== undefined && c.baselineDays < MIN_BASELINE_DAYS ? ` · learning ${c.baselineDays}/${MIN_BASELINE_DAYS}` : '';
   return `${c.days} ${c.days === 1 ? 'day' : 'days'}${last ? ` · last ${last}` : ''}${learning}`;
@@ -40,7 +43,8 @@ function arrivalLine(c: KindCoverage | undefined, k: HealthKind): string {
 const HEALTH_CONNECT_STORE = 'market://details?id=com.google.android.apps.healthdata';
 
 /**
- * Health Connect (HEALTH.md): read-only, opt-in per type. Our toggle is
+ * Health Connect (HEALTH.md): opt-in reads per type, plus an optional
+ * second opt-in to save finished workouts there (write, ExerciseSession). Our toggle is
  * the source of "connected"; the platform owns the permissions, so revoking
  * happens in Health Connect and every read treats "not granted" as empty.
  */
@@ -52,6 +56,8 @@ export default function HealthScreen() {
   const aiOn = useSettings((s) => s.aiExplanationsEnabled);
   const setOn = useSettings((s) => s.setHealthConnectEnabled);
   const setInAsk = useSettings((s) => s.setHealthInAskEnabled);
+  const writeOn = useSettings((s) => s.healthWriteWorkouts);
+  const setWriteOn = useSettings((s) => s.setHealthWriteWorkouts);
   const [busy, setBusy] = useState(false);
 
   const { data: availability } = useQuery({ queryKey: ['health', 'availability'], queryFn: () => port.availability(), staleTime: 60_000 });
@@ -75,7 +81,25 @@ export default function HealthScreen() {
     else {
       setOn(false);
       setInAsk(false);
+      setWriteOn(false);
     }
+  };
+
+  // Its own permission, asked only when the user turns this on.
+  const toggleWrite = async (next: boolean) => {
+    if (!next) {
+      setWriteOn(false);
+      return;
+    }
+    setBusy(true);
+    const ok = (await port.canWriteWorkouts()) || (await port.requestWriteWorkouts());
+    setBusy(false);
+    if (!ok) {
+      toast({ title: 'Not allowed', description: 'Allow Incline to write exercise in Health Connect to save workouts there', variant: 'warning' });
+      return;
+    }
+    setWriteOn(true);
+    toast({ title: 'Saving workouts to Health Connect', description: 'The last 30 days now, then each one you finish', variant: 'success' });
   };
 
   if (availability && availability !== 'available') {
@@ -108,7 +132,7 @@ export default function HealthScreen() {
             <ListRow
               icon={<Icon icon={HeartPulse} size={18} color="muted-foreground" />}
               title="Read health data"
-              subtitle="Sleep, HRV and resting heart rate shape today's readiness">
+              subtitle="Sleep, HRV, resting heart rate and nutrition shape readiness and insights">
               <Switch value={on} disabled={busy || !availability} onValueChange={toggle} accessibilityLabel="Read health data" />
             </ListRow>
             {on ? (
@@ -138,6 +162,19 @@ export default function HealthScreen() {
           </Section>
         ) : null}
 
+        {on ? (
+          <Section title="Save to Health">
+            <ListGroup>
+              <ListRow
+                icon={<Icon icon={Dumbbell} size={18} color="muted-foreground" />}
+                title="Save workouts"
+                subtitle="Each finished workout as strength training: name, start and end. Edits and deletes follow. Sets stay in Incline.">
+                <Switch value={writeOn} disabled={busy} onValueChange={(v) => void toggleWrite(v)} accessibilityLabel="Save workouts to Health Connect" />
+              </ListRow>
+            </ListGroup>
+          </Section>
+        ) : null}
+
         {on && snapshot ? (
           <Section title="Today">
             <View className="gap-1.5 rounded-2xl bg-surface1 px-4 py-3">
@@ -152,7 +189,7 @@ export default function HealthScreen() {
               <ListRow
                 icon={<Icon icon={AiMark} size={18} color="muted-foreground" />}
                 title="Use in Ask"
-                subtitle="Daily totals only (sleep, HRV, resting HR, steps), sent with your question">
+                subtitle="Daily totals only (sleep, HRV, resting HR, steps, calories and macros), sent with your question">
                 <Switch value={inAsk} onValueChange={setInAsk} accessibilityLabel="Use health data in Ask" />
               </ListRow>
             </ListGroup>

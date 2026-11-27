@@ -1,6 +1,6 @@
 import type { ReadinessLevel } from '@/coaching/types';
 
-import type { HealthKind, HealthPort, PointSample, SleepNight } from './types';
+import type { HealthKind, HealthPort, NutritionDay, PointSample, SleepNight } from './types';
 
 /**
  * The readiness rule (AI-ARCHITECTURE "How health data is used", HEALTH.md):
@@ -49,9 +49,39 @@ export interface HealthSnapshot {
   restingHeartRate: Compared | null;
   stepsToday: number | null;
   latestWeightKg: number | null;
+  /** Logged food (Samsung Health, MyFitnessPal… via Health Connect). Null when not shared or nothing logged. */
+  nutrition: NutritionSummary | null;
   suggestion: { level: ReadinessLevel; signals: ReadinessSignal[] } | null;
   /** Per granted kind: what actually arrived (Health screen, the "learning" line). */
   coverage: Partial<Record<HealthKind, KindCoverage>>;
+}
+
+export interface NutritionSummary {
+  /** Yesterday's totals: today is usually half-logged, so it never stands in. */
+  yesterday: { kcal: number; proteinG: number } | null;
+  /** Mean over logged days in the last 7 (days with nothing logged don't count as zero). */
+  avg7d: { kcal: number; proteinG: number; days: number } | null;
+}
+
+/** Local YYYY-MM-DD, matching how the adapter buckets Nutrition records. */
+function localDayKey(t: number): string {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function nutritionSummary(days: readonly NutritionDay[], now: number): NutritionSummary | null {
+  const logged = days.filter((d) => d.kcal > 0 || d.proteinG > 0);
+  if (!logged.length) return null;
+  const today = localDayKey(now);
+  const yKey = localDayKey(now - DAY);
+  const y = logged.find((d) => d.day === yKey);
+  const weekStart = localDayKey(now - 7 * DAY);
+  const week = logged.filter((d) => d.day >= weekStart && d.day < today);
+  const mean = (f: (d: NutritionDay) => number) => Math.round(week.reduce((a, d) => a + f(d), 0) / week.length);
+  return {
+    yesterday: y ? { kcal: Math.round(y.kcal), proteinG: Math.round(y.proteinG) } : null,
+    avg7d: week.length ? { kcal: mean((d) => d.kcal), proteinG: mean((d) => d.proteinG), days: week.length } : null,
+  };
 }
 
 export interface KindCoverage {
@@ -166,12 +196,13 @@ export async function readHealthSnapshot(port: HealthPort, now = Date.now()): Pr
   };
   const midnight = new Date(now);
   midnight.setHours(0, 0, 0, 0);
-  const [nights, hrvs, rhrs, weights, steps] = await Promise.all([
+  const [nights, hrvs, rhrs, weights, steps, food] = await Promise.all([
     safe(has('sleep'), () => port.readSleep({ start: now - 8 * DAY, end: now }), [] as SleepNight[]),
     safe(has('hrv'), () => port.readPoints('hrv', range), [] as PointSample[]),
     safe(has('restingHeartRate'), () => port.readPoints('restingHeartRate', range), [] as PointSample[]),
     safe(has('weight'), () => port.readPoints('weight', { start: now - 30 * DAY, end: now }), [] as PointSample[]),
     safe(has('steps'), () => port.readSteps({ start: midnight.getTime(), end: now }), null as number | null),
+    safe(has('nutrition'), () => port.readNutrition({ start: midnight.getTime() - 7 * DAY, end: now }), [] as NutritionDay[]),
   ]);
   const lastNight = lastNightMinutes(nights, now);
   const week = nights.filter((n) => n.end > now - 7 * DAY);
@@ -183,6 +214,7 @@ export async function readHealthSnapshot(port: HealthPort, now = Date.now()): Pr
   if (has('restingHeartRate')) coverage.restingHeartRate = { ...pointCoverage(rhrs), baselineDays: baselineDayCount(rhrs, now) };
   if (has('weight')) coverage.weight = pointCoverage(weights);
   if (has('steps')) coverage.steps = { days: steps ? 1 : 0, lastAt: null };
+  if (has('nutrition')) coverage.nutrition = { days: food.filter((d) => d.kcal > 0 || d.proteinG > 0).length, lastAt: null };
   return {
     granted,
     coverage,
@@ -192,6 +224,7 @@ export async function readHealthSnapshot(port: HealthPort, now = Date.now()): Pr
     restingHeartRate,
     stepsToday: has('steps') ? steps : null,
     latestWeightKg: weights.length ? round1(weights.at(-1)!.value) : null,
+    nutrition: has('nutrition') ? nutritionSummary(food, now) : null,
     suggestion: readinessFrom({ sleepMinutes: lastNight, hrv, restingHeartRate }),
   };
 }

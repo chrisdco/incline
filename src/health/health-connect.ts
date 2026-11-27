@@ -1,6 +1,6 @@
 import type * as HC from 'react-native-health-connect';
 
-import type { HealthKind, HealthPort, PointKind, SleepNight, TimeRange } from './types';
+import type { HealthKind, HealthPort, HealthWorkout, NutritionDay, PointKind, SleepNight, TimeRange } from './types';
 
 /**
  * Health Connect adapter (react-native-health-connect 4.x). The library is
@@ -42,6 +42,7 @@ export const RECORD_TYPE = {
   hrv: 'HeartRateVariabilityRmssd',
   weight: 'Weight',
   steps: 'Steps',
+  nutrition: 'Nutrition',
 } as const satisfies Record<HealthKind, HC.RecordType>;
 
 const KIND_OF: Record<string, HealthKind> = Object.fromEntries(Object.entries(RECORD_TYPE).map(([k, v]) => [v, k as HealthKind]));
@@ -62,6 +63,47 @@ export function kindsFrom(perms: readonly { accessType: string; recordType?: str
     if (k) out.add(k);
   }
   return [...out];
+}
+
+/** Health Connect ExerciseType.STRENGTH_TRAINING. */
+const STRENGTH_TRAINING = 70;
+
+/** Local YYYY-MM-DD for a timestamp. */
+export function localDay(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+type NutritionRow = {
+  startTime: string;
+  energy?: { inKilocalories: number };
+  protein?: { inGrams: number };
+  totalCarbohydrate?: { inGrams: number };
+  totalFat?: { inGrams: number };
+};
+
+/** Sums Nutrition records into local days (a meal counts on the day it started). */
+export function nutritionDays(rows: readonly NutritionRow[]): NutritionDay[] {
+  const days = new Map<string, NutritionDay>();
+  for (const r of rows) {
+    const day = localDay(Date.parse(r.startTime));
+    const d = days.get(day) ?? { day, kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 };
+    d.kcal += r.energy?.inKilocalories ?? 0;
+    d.proteinG += r.protein?.inGrams ?? 0;
+    d.carbsG += r.totalCarbohydrate?.inGrams ?? 0;
+    d.fatG += r.totalFat?.inGrams ?? 0;
+    days.set(day, d);
+  }
+  const r1 = (n: number) => Math.round(n);
+  return [...days.values()]
+    .map((d) => ({ day: d.day, kcal: r1(d.kcal), proteinG: r1(d.proteinG), carbsG: r1(d.carbsG), fatG: r1(d.fatG) }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+const WRITE_EXERCISE = { accessType: 'write' as const, recordType: 'ExerciseSession' as const };
+
+function hasWrite(perms: readonly { accessType: string; recordType?: string }[]): boolean {
+  return perms.some((p) => p.accessType === 'write' && p.recordType === 'ExerciseSession');
 }
 
 /** Pages through readRecords; capped so a huge store can't stall a screen. */
@@ -140,6 +182,60 @@ export function createHealthConnectPort(): HealthPort {
       if (!hc) return 0;
       const res = await hc.aggregateRecord({ recordType: 'Steps', timeRangeFilter: filter(range) });
       return res.COUNT_TOTAL ?? 0;
+    },
+    async readNutrition(range) {
+      const hc = await ready();
+      if (!hc) return [];
+      return nutritionDays((await readAll(hc, 'Nutrition', range, 10)) as unknown as NutritionRow[]);
+    },
+    async canWriteWorkouts() {
+      const hc = await ready();
+      if (!hc) return false;
+      try {
+        return hasWrite(await hc.getGrantedPermissions());
+      } catch {
+        return false;
+      }
+    },
+    async requestWriteWorkouts() {
+      const hc = await ready();
+      if (!hc) return false;
+      try {
+        return hasWrite(await hc.requestPermission([WRITE_EXERCISE]));
+      } catch {
+        return false;
+      }
+    },
+    async writeWorkouts(workouts: readonly HealthWorkout[]) {
+      const hc = await ready();
+      if (!hc || workouts.length === 0) return hc != null;
+      try {
+        await hc.insertRecords(
+          workouts.map((w) => ({
+            recordType: 'ExerciseSession' as const,
+            exerciseType: STRENGTH_TRAINING,
+            title: w.title,
+            ...(w.notes ? { notes: w.notes } : {}),
+            startTime: new Date(w.start).toISOString(),
+            endTime: new Date(Math.max(w.end, w.start + 60_000)).toISOString(),
+            metadata: { clientRecordId: w.key, clientRecordVersion: w.version },
+          })),
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    async deleteWorkouts(keys) {
+      const hc = await ready();
+      if (!hc) return false;
+      if (keys.length === 0) return true;
+      try {
+        await hc.deleteRecordsByUuids('ExerciseSession', [], [...keys]);
+        return true;
+      } catch {
+        return false;
+      }
     },
     openSettings() {
       try {

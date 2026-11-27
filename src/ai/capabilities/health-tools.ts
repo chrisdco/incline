@@ -21,6 +21,12 @@ export function readinessResult(s: HealthSnapshot): Json {
     resting_hr_bpm: s.restingHeartRate ? { today: s.restingHeartRate.today, usual: s.restingHeartRate.baseline } : null,
     steps_today: s.stepsToday,
     latest_weight_kg: s.latestWeightKg,
+    nutrition: s.nutrition
+      ? {
+          yesterday: s.nutrition.yesterday ? { kcal: s.nutrition.yesterday.kcal, protein_g: s.nutrition.yesterday.proteinG } : null,
+          avg_7d: s.nutrition.avg7d ? { kcal: s.nutrition.avg7d.kcal, protein_g: s.nutrition.avg7d.proteinG, logged_days: s.nutrition.avg7d.days } : null,
+        }
+      : null,
     suggestion: s.suggestion ? { level: s.suggestion.level, signals: s.suggestion.signals.map((x) => x.text) } : null,
     // Same line Home shows: what's missing or still being learned.
     status: healthStatusLine(s),

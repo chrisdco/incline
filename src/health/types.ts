@@ -4,7 +4,7 @@
  * HealthKit later). Swapping a library touches one file.
  */
 
-export const HEALTH_KINDS = ['sleep', 'restingHeartRate', 'hrv', 'weight', 'steps'] as const;
+export const HEALTH_KINDS = ['sleep', 'restingHeartRate', 'hrv', 'weight', 'steps', 'nutrition'] as const;
 export type HealthKind = (typeof HEALTH_KINDS)[number];
 
 export const HEALTH_KIND_LABEL: Record<HealthKind, string> = {
@@ -13,6 +13,7 @@ export const HEALTH_KIND_LABEL: Record<HealthKind, string> = {
   hrv: 'Heart rate variability',
   weight: 'Weight',
   steps: 'Steps',
+  nutrition: 'Calories and macros',
 };
 
 /** `needs_update`: the Health Connect app is missing or too old (Android 13 and below). */
@@ -38,6 +39,28 @@ export interface PointSample {
 
 export type PointKind = 'restingHeartRate' | 'hrv' | 'weight';
 
+/** One local day of logged food: totals across every Nutrition record that day. */
+export interface NutritionDay {
+  /** Local date, YYYY-MM-DD. */
+  day: string;
+  kcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+/** A finished workout as Health Connect stores it (ExerciseSession, strength training). */
+export interface HealthWorkout {
+  /** Stable across edits: becomes clientRecordId, so a rewrite replaces, never duplicates. */
+  key: string;
+  title: string;
+  start: number;
+  end: number;
+  notes?: string;
+  /** Monotonic per edit (updated_at): Health Connect keeps the highest version. */
+  version: number;
+}
+
 export interface HealthPort {
   availability(): Promise<HealthAvailability>;
   /** Kinds the user has granted read access to. Never throws; [] when unknown. */
@@ -47,6 +70,15 @@ export interface HealthPort {
   readSleep(range: TimeRange): Promise<SleepNight[]>;
   readPoints(kind: PointKind, range: TimeRange): Promise<PointSample[]>;
   readSteps(range: TimeRange): Promise<number>;
+  readNutrition(range: TimeRange): Promise<NutritionDay[]>;
+  /** Whether Incline may write exercise sessions. */
+  canWriteWorkouts(): Promise<boolean>;
+  /** Asks for write access to exercise sessions; resolves to whether it was granted. */
+  requestWriteWorkouts(): Promise<boolean>;
+  /** Insert or replace (by key). Resolves false when not allowed or unavailable. */
+  writeWorkouts(workouts: readonly HealthWorkout[]): Promise<boolean>;
+  /** Removes previously written workouts by key. */
+  deleteWorkouts(keys: readonly string[]): Promise<boolean>;
   /** Opens the platform's own health permissions screen. */
   openSettings(): void;
 }
@@ -59,5 +91,10 @@ export const UNAVAILABLE_HEALTH: HealthPort = {
   readSleep: async () => [],
   readPoints: async () => [],
   readSteps: async () => 0,
+  readNutrition: async () => [],
+  canWriteWorkouts: async () => false,
+  requestWriteWorkouts: async () => false,
+  writeWorkouts: async () => false,
+  deleteWorkouts: async () => false,
   openSettings: () => {},
 };

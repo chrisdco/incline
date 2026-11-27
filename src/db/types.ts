@@ -252,6 +252,12 @@ export interface Settings {
   healthConnectEnabled: boolean;
   /** Ask may read daily health aggregates (sleep, HRV, resting HR, steps). Off by default (G9). */
   healthInAskEnabled: boolean;
+  /** Write finished workouts to Health Connect (opt-in, Android). */
+  healthWriteWorkouts: boolean;
+  /** workout_logs.updated_at already written to Health Connect. */
+  healthWriteCursor: number;
+  /** Oldest started_at to write: 30 days before opting in, so years of imports don't flood Health. */
+  healthWriteFloor: number;
   /** What the calendar month grid encodes in day cell color. */
   calendarHeatMetric: CalendarHeatMetric;
   /** First day of the week for calendar grids. */

@@ -52,6 +52,8 @@ interface SettingsState extends Settings {
   setAiExplanationsEnabled: (enabled: boolean) => void;
   setHealthConnectEnabled: (enabled: boolean) => void;
   setHealthInAskEnabled: (enabled: boolean) => void;
+  setHealthWriteWorkouts: (enabled: boolean, now?: number) => void;
+  setHealthWriteCursor: (updatedAt: number) => void;
   setCalendarHeatMetric: (metric: CalendarHeatMetric) => void;
   setWeekStartsOn: (day: WeekStartsOn) => void;
   setKeepScreenAwake: (enabled: boolean) => void;
@@ -167,6 +169,9 @@ export const useSettings = create<SettingsState>()(
       aiExplanationsEnabled: false,
       healthConnectEnabled: false,
       healthInAskEnabled: false,
+      healthWriteWorkouts: false,
+      healthWriteCursor: 0,
+      healthWriteFloor: 0,
       calendarHeatMetric: 'volume',
       weekStartsOn: 'monday',
       keepScreenAwake: true,
@@ -237,6 +242,10 @@ export const useSettings = create<SettingsState>()(
       setAiExplanationsEnabled: (enabled) => set({ aiExplanationsEnabled: enabled }),
       setHealthConnectEnabled: (enabled) => set({ healthConnectEnabled: enabled }),
       setHealthInAskEnabled: (enabled) => set({ healthInAskEnabled: enabled }),
+      // Opting in starts fresh: the last 30 days, then everything new.
+      setHealthWriteWorkouts: (enabled, now = Date.now()) =>
+        set(enabled ? { healthWriteWorkouts: true, healthWriteCursor: 0, healthWriteFloor: now - 30 * 86_400_000 } : { healthWriteWorkouts: false }),
+      setHealthWriteCursor: (healthWriteCursor) => set({ healthWriteCursor }),
       setCalendarHeatMetric: (calendarHeatMetric) => set({ calendarHeatMetric }),
       setWeekStartsOn: (weekStartsOn) => set({ weekStartsOn }),
       setKeepScreenAwake: (keepScreenAwake) => set({ keepScreenAwake }),
@@ -303,6 +312,9 @@ export const useSettings = create<SettingsState>()(
         aiExplanationsEnabled: s.aiExplanationsEnabled,
         healthConnectEnabled: s.healthConnectEnabled,
         healthInAskEnabled: s.healthInAskEnabled,
+        healthWriteWorkouts: s.healthWriteWorkouts,
+        healthWriteCursor: s.healthWriteCursor,
+        healthWriteFloor: s.healthWriteFloor,
         calendarHeatMetric: s.calendarHeatMetric,
         weekStartsOn: s.weekStartsOn,
         keepScreenAwake: s.keepScreenAwake,
@@ -360,6 +372,9 @@ export const useSettings = create<SettingsState>()(
             typeof p.aiExplanationsEnabled === 'boolean' ? p.aiExplanationsEnabled : false,
           healthConnectEnabled: p.healthConnectEnabled === true,
           healthInAskEnabled: p.healthInAskEnabled === true,
+          healthWriteWorkouts: p.healthWriteWorkouts === true,
+          healthWriteCursor: typeof p.healthWriteCursor === 'number' && Number.isFinite(p.healthWriteCursor) ? p.healthWriteCursor : 0,
+          healthWriteFloor: typeof p.healthWriteFloor === 'number' && Number.isFinite(p.healthWriteFloor) ? p.healthWriteFloor : 0,
           workoutRemindersEnabled:
             typeof p.workoutRemindersEnabled === 'boolean' ? p.workoutRemindersEnabled : false,
           workoutReminderDays: sanitizeReminderDays(p.workoutReminderDays),
