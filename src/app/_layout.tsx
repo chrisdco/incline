@@ -39,6 +39,7 @@ import { useWidgetRefresh } from '@/hooks/use-widget-refresh';
 import { useWorkoutReminderSync } from '@/hooks/use-workout-reminder-sync';
 import { useAppColorScheme, useSyncNativeColorScheme } from '@/lib/use-color-scheme';
 import { useSettings } from '@/store/settings-store';
+import { armSplashSafety, releaseSplash } from '@/lib/splash';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -110,8 +111,11 @@ function AppShell() {
   }, [navBackground]);
 
   const dbFailed = db.status === 'error';
+  // The first real screen releases the splash (src/lib/splash.ts); a DB
+  // error releases it now so the error screen is never hidden behind it.
   useEffect(() => {
-    if ((fontsLoaded && dbReady) || dbFailed) SplashScreen.hideAsync();
+    if (dbFailed) releaseSplash();
+    else if (fontsLoaded && dbReady) armSplashSafety();
   }, [fontsLoaded, dbReady, dbFailed]);
 
   // AI kill switches (AI-PLATFORM §5): once per app open, never on a timer.

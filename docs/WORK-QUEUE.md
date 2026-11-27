@@ -138,7 +138,8 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   baseline (n/5 days)" or "No sleep data from Samsung Health yet" in place of
   saying nothing; the Health screen lists which record types actually arrive.
 - **1e. Polish:** rest-on-lock notification and widget alignment (user
-  checked 2026-11-27; needs screenshots), the JS loading hand-off,
+  checked 2026-11-27; needs screenshots), the JS loading hand-off (done:
+  splash held until Home's first data or the gate's route, 2.5 s safety),
   abandoned-session ping (done: scheduled on leaving the app, settled on return;
   existing digests channel, no native change).
 
