@@ -34,6 +34,21 @@ export function shouldNudgeAbandoned(
   return now - lastActivityAt >= ABANDONED_IDLE_MS;
 }
 
+/**
+ * Seconds until the abandoned ping should fire when the app leaves the
+ * foreground with a session open: the rest of the idle window from the last
+ * activity, at least 1 s. Null when this session was already nudged.
+ */
+export function abandonedNudgeDelaySeconds(
+  now: number,
+  lastActivityAt: number,
+  lastNudgedLogId: number | null,
+  logId: number,
+): number | null {
+  if (lastNudgedLogId === logId) return null;
+  return Math.max(1, Math.ceil((lastActivityAt + ABANDONED_IDLE_MS - now) / 1000));
+}
+
 /** Streak at risk: a live streak, nothing logged this week, late in the week. */
 export function shouldNudgeStreak(
   now: number,

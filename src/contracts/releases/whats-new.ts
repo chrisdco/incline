@@ -46,6 +46,14 @@ export function levelOf(item: WhatsNewItem): WhatsNewLevel {
 /** Newest first. Keep titles short (they head a card). */
 export const WHATS_NEW: readonly WhatsNewItem[] = [
   {
+    id: 'abandoned-ping-v2',
+    addedAt: '2026-11-27',
+    icon: 'wrench',
+    level: 'note',
+    title: 'A nudge if you leave a workout open',
+    body: 'With the Abandoned session nudge on, Incline pings you 25 minutes after your last set even if you closed the app.',
+  },
+  {
     id: 'health-status-v1',
     addedAt: '2026-11-27',
     icon: 'heart',
