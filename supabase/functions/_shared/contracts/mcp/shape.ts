@@ -26,6 +26,7 @@ import {
   type RemedyPlan,
 } from '../coaching/progression.ts';
 import type { PlanExperience } from '../plans/rules.ts';
+import { changelog, levelOf, WHATS_NEW, type WhatsNewItem } from '../releases/whats-new.ts';
 
 /** One completed set, source-agnostic. Weights in kg. */
 export interface NormSet {
@@ -433,5 +434,29 @@ export function shapeProposalResult(lift: LiftHistory, plan: RemedyPlan, a: Asse
       a.verdict === 'matches'
         ? "Matches Incline's own fix. The user sees it on their phone and applies it there."
         : "Differs from Incline's fix; the user sees both side by side and picks. Nothing changes until they apply it.",
+  };
+}
+
+/**
+ * get_changelog (MCP and Ask): the same `changelog()` the app screen and web
+ * show, cut to the last `days`. No user data.
+ */
+export function shapeChangelog(days: number, now: number, pack: readonly WhatsNewItem[] = WHATS_NEW) {
+  const since = new Date(now - days * 86_400_000).toISOString().slice(0, 10);
+  const groups = changelog(pack).filter((d) => d.date >= since);
+  return {
+    days,
+    since,
+    updates: groups.map((d) => ({
+      date: d.date,
+      items: d.items.map((i) => ({
+        title: i.title,
+        summary: i.body,
+        level: levelOf(i),
+        ...(i.bullets?.length ? { details: i.bullets } : {}),
+        ...(i.native ? { needs_new_build: true } : {}),
+      })),
+    })),
+    ...(groups.length === 0 ? { note: `Nothing new in the last ${days} days.` } : {}),
   };
 }

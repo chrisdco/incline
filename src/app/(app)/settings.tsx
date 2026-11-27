@@ -48,7 +48,8 @@ function AboutSection({ show }: { show: (id: string) => boolean }) {
   const canUpdate = updatesEnabled();
   const router = useRouter();
   const seenIds = useSettings((s) => s.dismissedAnnouncementIds);
-  const hasNew = newDotIds(seenIds, Date.now()).length > 0;
+  const [now] = useState(() => Date.now());
+  const hasNew = newDotIds(seenIds, now).length > 0;
 
   const check = async () => {
     setChecking(true);

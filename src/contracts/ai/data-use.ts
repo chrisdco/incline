@@ -23,6 +23,8 @@ export const AI_DATA_CATEGORIES = [
   'message',
   /** Health platform data (sleep, heart rate, body weight). Never sent without its own consent. */
   'health',
+  /** Incline's own release notes (What's new). Not the user's data. */
+  'app_info',
 ] as const;
 
 export type AiDataCategory = (typeof AI_DATA_CATEGORIES)[number];
@@ -37,6 +39,7 @@ export const AI_DATA_CATEGORY_LABEL: Record<AiDataCategory, string> = {
   memory: 'Coach memory',
   message: 'Your message',
   health: 'Health data',
+  app_info: 'App release notes',
 };
 
 /**

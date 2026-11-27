@@ -123,9 +123,7 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   `must-read`) in the contract, per-card in-app art at 2:1, changelog screen
   (Settings → About → What's new) with the low-noise New dot, web cards +
   recent changes. Fallback: `WHATS_NEW_STYLE = 'classic'` in
-  `src/components/whats-new/whats-new-sheet.tsx`. **Left:** (a) MCP/Ask
-  `get_changelog` ("what changed this week?") from `changelog()` via
-  `mcp/shape.ts`; (b) the deploy workflow posts `first_update_group_id` to
+  `src/components/whats-new/whats-new-sheet.tsx`. MCP/Ask `get_changelog` shipped too. **Left:** (b) the deploy workflow posts `first_update_group_id` to
   `app-release` so each OTA links to its items; (c) build cover card + name.
   Original plan: levels (silent / line / card / must-read),
   changelog screen, update id recorded by the deploy workflow, web + Ask/MCP.

@@ -25,6 +25,7 @@ const CATEGORIES: Record<string, readonly AiDataCategory[]> = {
   propose_progression_change: ['workouts', 'exercises'],
   search_exercises: ['exercises'],
   get_memory: ['memory'],
+  get_changelog: ['app_info'],
 };
 
 function fromMcp(def: ToolDef): ToolSpec {
