@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Vibrate, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse, Moon, Sun, Smartphone,
+  Vibrate, Search, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse, Moon, Sun, Smartphone,
   TrendingUp,
   Dumbbell,
 } from 'lucide-react-native';
@@ -16,6 +16,9 @@ import { byokPreset, type ByokConfig } from '@/ai/byok-presets';
 import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
 import { formatRelease, releaseInfo } from '@/lib/release';
 import { Icon } from '@/components/common/icon';
+import { SearchBar } from '@/components/common/search-bar';
+import { AccountSection } from '@/components/account/account-section';
+import { searchSettings } from '@/features/settings-search';
 
 import { Caption } from '@/components/common/text';
 import { ListGroup, ListRow, Section } from '@/components/layout';
@@ -36,7 +39,7 @@ import { getNotifications, getExactAlarmStatus, requestExactAlarmPermission } fr
 import type { Unit } from '@/db/types';
 
 /** Version + stage, and a manual update check (OTA via expo-updates). */
-function AboutSection() {
+function AboutSection({ show }: { show: (id: string) => boolean }) {
   const { toast } = useToast();
   const [checking, setChecking] = useState(false);
   const [ready, setReady] = useState(false);
@@ -53,15 +56,18 @@ function AboutSection() {
   };
 
   return (
-    <Section title="About">
+        <Section title="About">
       <ListGroup>
-        <ListRow
+        {show('version') ? (
+<ListRow
           icon={<Icon icon={Info} size={18} color="muted-foreground" />}
           title="Version"
           subtitle={info.updateCreatedAt ? `Updated ${info.updateCreatedAt.toLocaleDateString()}` : undefined}>
           <Caption>{formatRelease(info)}</Caption>
         </ListRow>
-        <ListRow
+) : null}
+        {show('updates') ? (
+<ListRow
           icon={<Icon icon={RefreshCw} size={18} color="muted-foreground" />}
           title="App updates"
           subtitle={canUpdate ? (ready ? 'Downloaded — restart to apply' : 'Checks automatically on launch') : 'Not available in this build'}>
@@ -73,6 +79,7 @@ function AboutSection() {
             </Button>
           )}
         </ListRow>
+) : null}
       </ListGroup>
     </Section>
   );
@@ -121,6 +128,11 @@ export default function SettingsScreen() {
     setExerciseMediaStyle, setExerciseMediaAnimation, setDevExerciseMediaOverride,
   } = useSettings();
   const router = useRouter();
+  // Search filters the same registry the rows render from (settings-search).
+  const [query, setQuery] = useState('');
+  const found = searchSettings(useDeferredValue(query));
+  const show = (id: string) => found.visible.has(id);
+  const showAny = (ids: readonly string[]) => ids.some(show);
   const aiByok = useAiSettings((s) => s.byok);
   const { data: profile, refetch } = useProfile();
   const { toast } = useToast();
@@ -198,40 +210,71 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={SCREEN_CONTENT}>
+        <SearchBar value={query} onChangeText={setQuery} placeholder="Search settings" className="mt-2" />
+        {query.trim() && found.empty ? (
+          <Caption className="mt-6 text-center">No settings match “{query.trim()}”.</Caption>
+        ) : null}
+        {found.elsewhere.length > 0 ? (
+          <Section title="On other screens" className="mt-4">
+            <ListGroup>
+              {found.elsewhere.slice(0, 6).map((e) => (
+                <ListRow
+                  key={e.id}
+                  icon={<Icon icon={Search} size={18} color="muted-foreground" />}
+                  title={e.title}
+                  subtitle={`In ${e.section}`}
+                  onPress={() => router.push(e.route as Href)}
+                />
+              ))}
+            </ListGroup>
+          </Section>
+        ) : null}
+        {showAny(['mode', 'theme']) ? (
         <Section title="Appearance" className="mt-4">
           <ListGroup>
-            <ListRow stacked icon={<Icon icon={themeMode === 'dark' ? Moon : themeMode === 'light' ? Sun : Smartphone} size={18} color="muted-foreground" />} title="Light or dark" subtitle="System follows your phone">
+            {show('mode') ? (
+<ListRow stacked icon={<Icon icon={themeMode === 'dark' ? Moon : themeMode === 'light' ? Sun : Smartphone} size={18} color="muted-foreground" />} title="Light or dark" subtitle="System follows your phone">
               <View className="flex-row flex-wrap gap-2">
                 {MODES.map((m) => (
                   <Chip key={m} label={MODE_LABELS[m]} selected={themeMode === m} onPress={() => setThemeMode(m)} />
                 ))}
               </View>
             </ListRow>
-            <ListRow
+) : null}
+            {show('theme') ? (
+<ListRow
               icon={<Icon icon={Palette} size={18} color="muted-foreground" />}
               title="Theme and accent"
               subtitle={accentSummary}
               onPress={() => router.push('/(app)/appearance' as Href)}
             />
+) : null}
           </ListGroup>
         </Section>
+        ) : null}
 
+        {showAny(['units', 'weekly-goal', 'week-start', 'calendar-color', 'gyms']) ? (
         <Section title="Basics">
           <ListGroup>
-            <ListRow icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Units" subtitle="Displayed across workouts and stats">
+            {show('units') ? (
+<ListRow icon={<Icon icon={Ruler} size={18} color="muted-foreground" />} title="Units" subtitle="Displayed across workouts and stats">
               <View className="flex-row gap-2">
                 <Chip label="kg" selected={unit === 'metric'} onPress={() => changeUnit('metric')} />
                 <Chip label="lb" selected={unit === 'imperial'} onPress={() => changeUnit('imperial')} />
               </View>
             </ListRow>
-            <ListRow stacked icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />} title="Weekly workout goal" subtitle="Sessions per week for consistency tracking">
+) : null}
+            {show('weekly-goal') ? (
+<ListRow stacked icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />} title="Weekly workout goal" subtitle="Sessions per week for consistency tracking">
               <View className="flex-row flex-wrap gap-1.5">
                 {[0, 3, 4, 5, 6].map((g) => (
                   <Chip key={g} size="sm" label={g === 0 ? 'Off' : `${g}×`} selected={weeklyWorkoutGoal === g} onPress={() => setWeeklyWorkoutGoal(g)} />
                 ))}
               </View>
             </ListRow>
-            <ListRow
+) : null}
+            {show('week-start') ? (
+<ListRow
               icon={<Icon icon={CalendarDays} size={18} color="muted-foreground" />}
               title="Week starts on"
               subtitle="Calendar grids and day headers">
@@ -240,7 +283,9 @@ export default function SettingsScreen() {
                 <Chip label="Sun" selected={weekStartsOn === 'sunday'} onPress={() => setWeekStartsOn('sunday')} />
               </View>
             </ListRow>
-            <ListRow stacked
+) : null}
+            {show('calendar-color') ? (
+<ListRow stacked
               icon={<Icon icon={METRIC_ICONS.sessions} size={18} color="muted-foreground" />}
               title="Calendar day color"
               subtitle="What each tinted day represents">
@@ -257,27 +302,38 @@ export default function SettingsScreen() {
                 ))}
               </View>
             </ListRow>
-            <GymsSettingsRow />
+) : null}
+            {show('gyms') ? (
+<GymsSettingsRow />
+) : null}
           </ListGroup>
         </Section>
+        ) : null}
 
+        {showAny(['auto-rest', 'default-rest', 'rest-alerts', 'exact-alarms']) ? (
         <Section title="Rest timer">
           <ListGroup>
-            <ListRow icon={<Icon icon={Zap} size={18} color="muted-foreground" />} title="Auto-start rest timer" subtitle="Begin countdown when you finish a set">
+            {show('auto-rest') ? (
+<ListRow icon={<Icon icon={Zap} size={18} color="muted-foreground" />} title="Auto-start rest timer" subtitle="Begin countdown when you finish a set">
               <Switch value={autoStartRest} onValueChange={setAutoStartRest} accessibilityLabel="Auto-start rest timer" />
             </ListRow>
-            <ListRow stacked icon={<Icon icon={Timer} size={18} color="muted-foreground" />} title="Default rest" subtitle="Used for newly added exercises">
+) : null}
+            {show('default-rest') ? (
+<ListRow stacked icon={<Icon icon={Timer} size={18} color="muted-foreground" />} title="Default rest" subtitle="Used for newly added exercises">
               <View className="flex-row flex-wrap gap-1.5">
                 {DEFAULT_REST_OPTIONS.map((s) => (
                   <Chip key={s} size="sm" label={`${s}s`} selected={defaultRestSeconds === s} onPress={() => setDefaultRestSeconds(s)} />
                 ))}
               </View>
             </ListRow>
-            <ListRow icon={<Icon icon={restSoundEnabled ? Bell : BellOff} size={18} color="muted-foreground" />} title="Rest timer alerts" subtitle="Chime in-app and notify if you leave the session">
+) : null}
+            {show('rest-alerts') ? (
+<ListRow icon={<Icon icon={restSoundEnabled ? Bell : BellOff} size={18} color="muted-foreground" />} title="Rest timer alerts" subtitle="Chime in-app and notify if you leave the session">
               <Switch value={restSoundEnabled} onValueChange={setRestSound} accessibilityLabel="Rest timer alerts" />
             </ListRow>
-            {Platform.OS === 'android' && restSoundEnabled && exactAlarmDenied ? (
-              <ListRow
+) : null}
+            {Platform.OS === 'android' && restSoundEnabled && exactAlarmDenied && show('exact-alarms') ? (
+<ListRow
                 icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
                 title="Precise rest alerts"
                 subtitle="Allow exact alarms so rest alerts arrive on time">
@@ -286,22 +342,31 @@ export default function SettingsScreen() {
             ) : null}
           </ListGroup>
         </Section>
+        ) : null}
 
+        {showAny(['warmup-button', 'rpe', 'ghost', 'dumbbell', 'keep-awake', 'haptics']) ? (
         <Section title="During a workout">
           <ListGroup>
-            <ListRow icon={<Icon icon={METRIC_ICONS.warmUp} size={18} color="muted-foreground" />} title="Warm-up set button" subtitle="Quick 50% set in the session">
+            {show('warmup-button') ? (
+<ListRow icon={<Icon icon={METRIC_ICONS.warmUp} size={18} color="muted-foreground" />} title="Warm-up set button" subtitle="Quick 50% set in the session">
               <Switch value={showWarmUpSets} onValueChange={setShowWarmUpSets} accessibilityLabel="Warm-up set button" />
             </ListRow>
-            <ListRow icon={<Icon icon={METRIC_ICONS.rpe} size={18} color="muted-foreground" />} title="RPE after working sets" subtitle="Optional 1–10. Never required to complete a set">
+) : null}
+            {show('rpe') ? (
+<ListRow icon={<Icon icon={METRIC_ICONS.rpe} size={18} color="muted-foreground" />} title="RPE after working sets" subtitle="Optional 1–10. Never required to complete a set">
               <Switch value={showRpe} onValueChange={setShowRpe} accessibilityLabel="RPE after working sets" />
             </ListRow>
-            <ListRow
+) : null}
+            {show('ghost') ? (
+<ListRow
               icon={<Icon icon={History} size={18} color="muted-foreground" />}
               title="Last-session comparison"
               subtitle="Show last time on the workout preview and live session">
               <Switch value={showSessionGhost} onValueChange={setShowSessionGhost} accessibilityLabel="Last-session comparison" />
             </ListRow>
-            <ListRow
+) : null}
+            {show('dumbbell') ? (
+<ListRow
               stacked
               icon={<Icon icon={Dumbbell} size={18} color="muted-foreground" />}
               title="Dumbbell weight"
@@ -318,18 +383,26 @@ export default function SettingsScreen() {
                 ))}
               </View>
             </ListRow>
-            <ListRow icon={<Icon icon={MonitorSmartphone} size={18} color="muted-foreground" />} title="Keep screen on" subtitle="While a workout session is open">
+) : null}
+            {show('keep-awake') ? (
+<ListRow icon={<Icon icon={MonitorSmartphone} size={18} color="muted-foreground" />} title="Keep screen on" subtitle="While a workout session is open">
               <Switch value={keepScreenAwake} onValueChange={setKeepScreenAwake} accessibilityLabel="Keep screen on during workout" />
             </ListRow>
-            <ListRow icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
+) : null}
+            {show('haptics') ? (
+<ListRow icon={<Icon icon={Vibrate} size={18} color="muted-foreground" />} title="Haptics" subtitle="Subtle vibration feedback">
               <Switch value={hapticsEnabled} onValueChange={setHaptics} accessibilityLabel="Haptics" />
             </ListRow>
+) : null}
           </ListGroup>
         </Section>
+        ) : null}
 
+        {showAny(['plateau']) ? (
         <Section title="Coaching">
           <ListGroup>
-            <ListRow stacked
+            {show('plateau') ? (
+<ListRow stacked
               icon={<Icon icon={TrendingUp} size={18} color="muted-foreground" />}
               title="Plateau fixes"
               subtitle={AUTONOMY_COPY[progressionAutonomy].detail}>
@@ -339,38 +412,48 @@ export default function SettingsScreen() {
                 ))}
               </View>
             </ListRow>
+) : null}
           </ListGroup>
         </Section>
+        ) : null}
 
+        {showAny(['notifications', 'health', 'ai']) ? (
         <Section title="Notifications, health and AI">
           <ListGroup>
-            <ListRow
+            {show('notifications') ? (
+<ListRow
               icon={<Icon icon={Bell} size={18} color="muted-foreground" />}
               title="Notifications"
               subtitle={notificationsOn ? `${notificationsOn} on` : 'Off'}
               onPress={() => router.push('/(app)/notifications' as Href)}
             />
-            {Platform.OS === 'android' ? (
-              <ListRow
+) : null}
+            {Platform.OS === 'android' && show('health') ? (
+<ListRow
                 icon={<Icon icon={HeartPulse} size={18} color="muted-foreground" />}
                 title="Health"
                 subtitle={healthOn ? 'Health Connect on' : 'Off'}
                 onPress={() => router.push('/(app)/health' as Href)}
               />
             ) : null}
-            <ListRow
+            {show('ai') ? (
+<ListRow
               icon={<Icon icon={AiMark} size={18} color="muted-foreground" />}
               title="AI coaching"
               subtitle={aiSummary(aiExplanationsEnabled, aiByok)}
               onPress={() => router.push('/(app)/ai-settings' as Href)}
               accessibilityLabel="AI settings"
             />
+) : null}
           </ListGroup>
         </Section>
+        ) : null}
 
+        {showAny(['demo-images', 'demo-motion']) ? (
         <Section title="Exercise demos">
           <ListGroup>
-            <ListRow stacked
+            {show('demo-images') ? (
+<ListRow stacked
               icon={<Icon icon={Film} size={18} color="muted-foreground" />}
               title="Demonstration images"
               subtitle="Auto uses GIFs first, illustrations fill the gaps">
@@ -380,7 +463,9 @@ export default function SettingsScreen() {
                 <Chip label="Illustrations" selected={exerciseMediaStyle === 'illustration'} onPress={() => setExerciseMediaStyle('illustration')} />
               </View>
             </ListRow>
-            <ListRow
+) : null}
+            {show('demo-motion') ? (
+<ListRow
               icon={<Icon icon={Timer} size={18} color="muted-foreground" />}
               title="Illustration motion"
               subtitle="Cycle frames, or hold one pose">
@@ -389,13 +474,17 @@ export default function SettingsScreen() {
                 <Chip label="Static" selected={exerciseMediaAnimation === 'static'} onPress={() => setExerciseMediaAnimation('static')} />
               </View>
             </ListRow>
+) : null}
           </ListGroup>
           <Caption className="mt-2 px-1 text-xs">Illustrations by Bryl Lim / Everkinetic · CC BY-SA 4.0</Caption>
         </Section>
+        ) : null}
 
+        {showAny(['backup']) ? (
         <Section title="Backup">
           <ListGroup>
-            <ListRow
+            {show('backup') ? (
+<ListRow
               icon={<Icon icon={Cloud} size={18} color={isSyncError ? 'destructive' : 'muted-foreground'} />}
               title={syncing ? 'Syncing…' : isSyncError ? 'Sync error' : 'Backup & restore'}
               subtitle={syncSubtitle}>
@@ -408,36 +497,50 @@ export default function SettingsScreen() {
                 <Icon icon={RefreshCw} size={16} color={isSyncError ? 'destructive' : 'primary'} />
               </Button>
             </ListRow>
+) : null}
           </ListGroup>
         </Section>
+        ) : null}
 
+        {showAny(['export', 'import', 'photo-storage', 'clear-history']) ? (
         <Section title="Your data">
           <ListGroup>
-            <ListRow
+            {show('export') ? (
+<ListRow
               icon={<Icon icon={Download} size={18} color="muted-foreground" />}
               title="Download your data"
               subtitle="Choose workouts, measurements, and format"
               onPress={() => router.push('/(app)/export' as Href)}
               accessibilityLabel="Export your data"
             />
-            <ListRow
+) : null}
+            {show('import') ? (
+<ListRow
               icon={<Icon icon={Upload} size={18} color="muted-foreground" />}
               title="Import from Strong / Hevy"
               subtitle="Bring your workout history from a CSV export"
               onPress={() => router.push('/(app)/import' as Href)}
             />
-            <PhotoStorageRow />
-            <ListRow
+) : null}
+            {show('photo-storage') ? (
+<PhotoStorageRow />
+) : null}
+            {show('clear-history') ? (
+<ListRow
               icon={<Icon icon={Trash2} size={18} color="destructive" />}
               title="Clear workout history"
               subtitle="Deletes every completed workout"
               tone="destructive"
               onPress={() => setClearOpen(true)}
             />
+) : null}
           </ListGroup>
         </Section>
+        ) : null}
 
-        <AboutSection />
+        <AccountSection show={show} />
+
+        {show('version') || show('updates') ? <AboutSection show={show} /> : null}
 
         {__DEV__ ? (
           <Section title="Dev tools">

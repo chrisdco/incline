@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
-import { useAppAuth } from '@/auth/use-app-auth';
-import { isDevAuthBypassEnabled } from '@/lib/env';
 import * as ImagePicker from 'expo-image-picker';
 import { documentDirectory, makeDirectoryAsync, copyAsync } from 'expo-file-system/legacy';
 import {
@@ -15,18 +13,14 @@ import {
   Camera,
   Calculator,
   Trophy,
-  UserX,
   FlaskConical,
   Medal,
   Images,
-  Palette,
 } from 'lucide-react-native';
-import { SignOutRow } from '@/components/account/sign-out-row';
 import { Icon } from '@/components/common/icon';
 
 import { Heading, Body, Caption } from '@/components/common/text';
 import { Button } from '@/components/ui/button';
-import { Dialog } from '@/components/ui/dialog';
 import { StatCard } from '@/components/common/stat-card';
 import { Card } from '@/components/ui/card';
 import { ListGroup, ListRow, Section } from '@/components/layout';
@@ -37,10 +31,6 @@ import { tabBarScrollProps } from '@/hooks/use-tab-bar-scroll';
 import { useSettings } from '@/store/settings-store';
 import { useToast } from '@/components/ui/toast';
 import { saveProfile, resetUserData } from '@/db/queries';
-import { requestDeletion } from '@/lib/account-deletion';
-import { ACCOUNT_DELETION_ENABLED } from '@/constants/config';
-import { useActiveWorkout } from '@/store/active-workout-store';
-import { resetAiSettings } from '@/ai/byok';
 import { GOAL_LABELS } from '@/lib/labels';
 import { formatVolume } from '@/db/calc';
 import { SCREEN_HEADER } from '@/lib/layout';
@@ -55,9 +45,6 @@ export default function ProfileScreen() {
   const unit = useSettings((s) => s.unit);
   const { data: profile, refetch } = useProfile();
   const { data: stats } = useProgressStats();
-  const { signOut, userId, getToken } = useAppAuth();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [peek, setPeek] = useState(false);
 
   const pickAvatar = async () => {
@@ -84,37 +71,6 @@ export default function ProfileScreen() {
     await saveProfile({ avatarUrl: localUri });
     refetch();
     toast({ title: 'Profile photo updated', variant: 'success' });
-  };
-
-  const deleteAccount = async () => {
-    if (!userId || deleting) return;
-    setDeleting(true);
-    // Schedule server-side first: if this throws, nothing local is touched.
-    try {
-      await requestDeletion(userId, getToken);
-    } catch {
-      toast({ title: 'Could not schedule deletion', variant: 'destructive' });
-      setDeleting(false);
-      return;
-    }
-    // Wipe-then-exit runs even if the wipe itself throws: the server already
-    // scheduled, so staying signed in with partial data is the worse outcome.
-    // Next login lands on the scheduled screen either way.
-    try {
-      await resetUserData();
-    } catch (err) {
-      console.warn('[profile] local wipe incomplete after scheduled deletion', err);
-    }
-    useActiveWorkout.getState().clear();
-    await resetAiSettings().catch(() => undefined);
-    setDeleteOpen(false);
-    setDeleting(false);
-    try {
-      await signOut();
-    } catch {
-      // Clerk sign-out is best-effort here; the gate re-routes regardless.
-    }
-    router.replace('/(auth)/sign-in' as Href);
   };
 
   const achievements = evaluateAchievements(stats, unit);
@@ -222,43 +178,6 @@ export default function ProfileScreen() {
           </ListGroup>
         </Section>
 
-        {/* Appearance is one tap from Profile too: it's the setting people look for first. */}
-        <Section title="App">
-          <ListGroup>
-            <ListRow
-              icon={<Icon icon={Palette} size={18} color="muted-foreground" />}
-              title="Appearance"
-              subtitle="Light or dark, theme and accent"
-              onPress={() => router.push('/(app)/appearance' as Href)}
-            />
-            <ListRow
-              icon={<Icon icon={SettingsIcon} size={18} color="muted-foreground" />}
-              title="Settings"
-              subtitle="Workout, rest timer, notifications, AI, backup"
-              onPress={() => router.push('/(app)/settings' as Href)}
-            />
-          </ListGroup>
-        </Section>
-
-        {/* Hidden under the dev auth bypass: stub sign-out is a noop and the
-            gate would bounce straight back into the app. */}
-        {!isDevAuthBypassEnabled() ? (
-          <Section title="Account">
-            <ListGroup>
-              {ACCOUNT_DELETION_ENABLED ? (
-                <ListRow
-                  icon={<Icon icon={UserX} size={18} color="destructive" />}
-                  title="Delete account"
-                  subtitle="30-day undo window"
-                  tone="destructive"
-                  onPress={() => setDeleteOpen(true)}
-                />
-              ) : null}
-              <SignOutRow />
-            </ListGroup>
-          </Section>
-        ) : null}
-
         {__DEV__ ? (
           <Section title="Dev tools">
             <ListGroup>
@@ -282,18 +201,6 @@ export default function ProfileScreen() {
         ) : null}
       </ScrollView>
 
-      <Dialog
-        open={deleteOpen}
-        onOpenChange={(open) => { if (!deleting) setDeleteOpen(open); }}
-        title="Delete your account?"
-        description="This schedules deletion of all workouts, measurements, routines and photos in 30 days. This device is wiped now; signing back in before the purge cancels it and restores everything. Export first — purged data cannot be recovered."
-        footer={
-          <>
-            <Button variant="outline" onPress={() => setDeleteOpen(false)} disabled={deleting}>Keep</Button>
-            <Button variant="destructive" onPress={() => { void deleteAccount(); }} disabled={deleting} loading={deleting}>Delete</Button>
-          </>
-        }
-      />
       <PhotoPeek uri={profile?.avatarUrl} open={peek} onClose={() => setPeek(false)} />
     </SafeAreaView>
   );
