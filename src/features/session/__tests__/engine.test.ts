@@ -100,6 +100,7 @@ function harness(
     settings: () => ({ unit: 'metric', showSessionGhost: false, autoStartRest: true, defaultRestSeconds: 90 }),
     now: () => clock,
     notesDebounceMs: 0,
+    openRetryMs: 0,
   };
   const ui = { toast: vi.fn(), startRest: vi.fn(), stopRest: vi.fn(), celebrate: vi.fn() };
   const engine = createSessionEngine(deps);
@@ -117,6 +118,26 @@ function harness(
 }
 
 describe('session engine: open + rest seeding', () => {
+  it('a session that appears a moment after open still loads (not "not found")', async () => {
+    const logs: Record<number, SessionWorkout> = {};
+    const h = harness(logs);
+    const read = vi.mocked(h.deps.getWorkoutLog);
+    read.mockImplementationOnce(async () => {
+      logs[5] = workout(5, [set(5, 10)]);
+      return null;
+    });
+    await h.engine.open(5);
+    expect(h.engine.store.getState().session?.id).toBe(5);
+    expect(h.engine.store.getState().loading).toBe(false);
+  });
+
+  it('a session that never appears ends as missing after the re-reads', async () => {
+    const h = harness({});
+    await h.engine.open(9);
+    expect(h.engine.store.getState().session).toBeNull();
+    expect(vi.mocked(h.deps.getWorkoutLog)).toHaveBeenCalledTimes(4);
+  });
+
   it('seeds rest defaults for every session it opens (#168)', async () => {
     const h = harness(
       { 1: workout(1, [set(1, 10)]), 2: workout(2, [set(2, 20)]) },
