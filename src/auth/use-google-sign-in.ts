@@ -23,19 +23,8 @@ import { reportError } from '@/lib/monitoring';
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID;
 const NATIVE_ENABLED = Platform.OS === 'android' && !!WEB_CLIENT_ID;
 
-// Clerk reads the client ID from Constants.expoConfig.extra or its own
-// process.env, but EXPO_PUBLIC_ values are only inlined into app code, never
-// node_modules, so it found nothing ("credentials not found"). Hand it over
-// at runtime: putting it in app config would change the native fingerprint
-// and need a new APK.
-if (WEB_CLIENT_ID) {
-  try {
-    const cfg = Constants.expoConfig as { extra?: Record<string, unknown> } | null;
-    if (cfg) cfg.extra = { ...cfg.extra, EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID: WEB_CLIENT_ID };
-  } catch {
-    // Read-only config: the browser fallback still works.
-  }
-}
+// Clerk reads the client ID from Constants.expoConfig.extra, which
+// app.config.ts fills at build time.
 
 const TEST_CHANNELS: ReadonlySet<string> = new Set(['alpha', 'beta', 'preview', 'emulator']);
 
