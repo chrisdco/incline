@@ -1,0 +1,16 @@
+name: CI (docs)
+
+# main requires a "quality" check, but CI skips docs-only changes
+# (paths-ignore). This stand-in reports "quality" for them so docs PRs can
+# merge. A PR touching code too also runs the real CI, which must pass.
+on:
+  pull_request:
+    branches: [main]
+    paths: ['docs/**', '**/*.md']
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "Docs-only change; code checks run in CI when code changes."
