@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 
 import { kindsFrom, sleepMinutes } from '../health-connect';
-import { compareToBaseline, lastNightMinutes, readHealthSnapshot, readinessFrom } from '../readiness';
+import { compareToBaseline, healthStatusLine, lastNightMinutes, readHealthSnapshot, readinessFrom } from '../readiness';
 import { UNAVAILABLE_HEALTH, type HealthPort, type PointSample } from '../types';
 import { readinessResult, deviceHealthTools } from '@/ai/capabilities/health-tools';
 
@@ -105,5 +105,26 @@ describe('health snapshot and Ask tool', () => {
     expect(deviceHealthTools({ healthConnectEnabled: false, healthInAskEnabled: true }, () => port)).toEqual([]);
     const [tool] = deviceHealthTools({ healthConnectEnabled: true, healthInAskEnabled: true }, () => port);
     expect(tool?.spec).toMatchObject({ name: 'get_readiness', kind: 'read', dataCategories: ['health'] });
+  });
+});
+
+describe('health status line (Home, Health screen, Ask)', () => {
+  it('says what is shared but not arriving, and how far the baseline is', async () => {
+    const port: HealthPort = {
+      ...UNAVAILABLE_HEALTH,
+      granted: async () => ['sleep', 'hrv', 'restingHeartRate'],
+      readSleep: async () => [],
+      // Two earlier days plus today: still learning.
+      readPoints: async (kind) => (kind === 'hrv' ? [{ at: NOW - 3 * DAY, value: 50 }, { at: NOW - 2 * DAY, value: 52 }, { at: NOW - HOUR, value: 49 }] : []),
+    };
+    const s = await readHealthSnapshot(port, NOW);
+    expect(s.coverage.hrv).toMatchObject({ days: 3, baselineDays: 2 });
+    expect(healthStatusLine(s)).toBe('No sleep or resting HR in Health Connect yet · Learning your usual (2/5 days)');
+    expect(readinessResult(s)).toMatchObject({ status: healthStatusLine(s) });
+  });
+
+  it('is quiet when nothing is shared or everything is arriving', () => {
+    expect(healthStatusLine({ granted: [], coverage: {} })).toBe(null);
+    expect(healthStatusLine({ granted: ['sleep', 'hrv'], coverage: { sleep: { days: 7, lastAt: NOW }, hrv: { days: 20, lastAt: NOW, baselineDays: 19 } } })).toBe(null);
   });
 });

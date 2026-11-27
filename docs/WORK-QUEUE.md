@@ -133,7 +133,8 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   the newest update, cleared on first open, gone after 7 days, at most 2 at
   once, never on the tab bar. Build cover card titled with the build name
   (decide naming with the first cover card).
-- **1d. Health visible:** Home says "Health connected, learning your
+- **1d. Health visible:** done: `healthStatusLine()` on Home, in Ask's
+  readiness result, and per-type arrival on the Health screen. Plan was: Home says "Health connected, learning your
   baseline (n/5 days)" or "No sleep data from Samsung Health yet" in place of
   saying nothing; the Health screen lists which record types actually arrive.
 - **1e. Polish:** rest-on-lock notification and widget alignment (user

@@ -38,6 +38,7 @@ import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
 import { ReadinessCheckIn } from '@/components/home/readiness-checkin';
 import { healthSnapshotQuery } from '@/health/query';
+import { healthStatusLine } from '@/health/readiness';
 import { WhatsNewSheet } from '@/components/whats-new/whats-new-sheet';
 import { BuildUpdateCard } from '@/components/home/build-update-card';
 import { AskAboutLink } from '@/components/ai/ask-about-button';
@@ -261,7 +262,7 @@ export default function HomeScreen() {
       </View>
 
       <View className="mt-4">
-        <ReadinessCheckIn value={readiness} suggestion={health?.suggestion} onChange={(level) => { void onReadiness(level); }} />
+        <ReadinessCheckIn value={readiness} suggestion={health?.suggestion} status={health ? healthStatusLine(health) : null} onChange={(level) => { void onReadiness(level); }} />
       </View>
 
       {/* Announcements sit under today's plan: the screen leads with the task (SYSTEM.md §3.1). */}

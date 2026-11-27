@@ -17,7 +17,7 @@ const TODAY_WINDOW = 20 * HOUR;
 const NIGHT_WINDOW = 18 * HOUR;
 const BASELINE_DAYS = 28;
 /** A baseline needs this many days with a reading before we compare to it. */
-const MIN_BASELINE_DAYS = 5;
+export const MIN_BASELINE_DAYS = 5;
 
 export const SLEEP_SHORT_MIN = 6 * 60;
 export const SLEEP_OK_MIN = 7 * 60;
@@ -50,6 +50,16 @@ export interface HealthSnapshot {
   stepsToday: number | null;
   latestWeightKg: number | null;
   suggestion: { level: ReadinessLevel; signals: ReadinessSignal[] } | null;
+  /** Per granted kind: what actually arrived (Health screen, the "learning" line). */
+  coverage: Partial<Record<HealthKind, KindCoverage>>;
+}
+
+export interface KindCoverage {
+  /** Distinct days with a reading in the read window (sleep 8 d, weight 30 d, HRV/RHR 29 d, steps today). */
+  days: number;
+  lastAt: number | null;
+  /** HRV / resting HR: days of history toward MIN_BASELINE_DAYS. */
+  baselineDays?: number;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -58,6 +68,38 @@ function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
   return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+}
+
+/** Days with a reading in the baseline window (before today's). */
+export function baselineDayCount(samples: readonly PointSample[], now: number): number {
+  const todayFrom = now - TODAY_WINDOW;
+  const days = new Set<number>();
+  for (const s of samples) if (s.at <= todayFrom && s.at >= todayFrom - BASELINE_DAYS * DAY) days.add(Math.floor(s.at / DAY));
+  return days.size;
+}
+
+function pointCoverage(samples: readonly PointSample[]): KindCoverage {
+  return { days: new Set(samples.map((s) => Math.floor(s.at / DAY))).size, lastAt: samples.length ? Math.max(...samples.map((s) => s.at)) : null };
+}
+
+/**
+ * One plain line for Home when there's no full read: what's missing or still
+ * being learned. Null when every granted kind is arriving and compared, or
+ * nothing is granted.
+ */
+export function healthStatusLine(s: Pick<HealthSnapshot, 'granted' | 'coverage'>): string | null {
+  const parts: string[] = [];
+  const empty = (['sleep', 'hrv', 'restingHeartRate'] as const).filter((k) => s.granted.includes(k) && (s.coverage[k]?.days ?? 0) === 0);
+  if (empty.length) {
+    const names = empty.map((k) => (k === 'sleep' ? 'sleep' : k === 'hrv' ? 'HRV' : 'resting HR'));
+    parts.push(`No ${names.join(' or ')} in Health Connect yet`);
+  }
+  const learning = (['hrv', 'restingHeartRate'] as const)
+    .filter((k) => (s.coverage[k]?.days ?? 0) > 0)
+    .map((k) => s.coverage[k]?.baselineDays ?? 0)
+    .filter((d) => d < MIN_BASELINE_DAYS);
+  if (learning.length) parts.push(`Learning your usual (${Math.min(...learning)}/${MIN_BASELINE_DAYS} days)`);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 /** Today's mean vs the median of earlier daily means; null without enough history. */
@@ -135,8 +177,15 @@ export async function readHealthSnapshot(port: HealthPort, now = Date.now()): Pr
   const week = nights.filter((n) => n.end > now - 7 * DAY);
   const hrv = compareToBaseline(hrvs, now);
   const restingHeartRate = compareToBaseline(rhrs, now);
+  const coverage: Partial<Record<HealthKind, KindCoverage>> = {};
+  if (has('sleep')) coverage.sleep = { days: new Set(nights.map((n) => Math.floor(n.end / DAY))).size, lastAt: nights.length ? Math.max(...nights.map((n) => n.end)) : null };
+  if (has('hrv')) coverage.hrv = { ...pointCoverage(hrvs), baselineDays: baselineDayCount(hrvs, now) };
+  if (has('restingHeartRate')) coverage.restingHeartRate = { ...pointCoverage(rhrs), baselineDays: baselineDayCount(rhrs, now) };
+  if (has('weight')) coverage.weight = pointCoverage(weights);
+  if (has('steps')) coverage.steps = { days: steps ? 1 : 0, lastAt: null };
   return {
     granted,
+    coverage,
     lastNightSleepMinutes: lastNight,
     avgSleepMinutes7d: week.length ? Math.round(week.reduce((a, n) => a + n.minutes, 0) / week.length) : null,
     hrv,
