@@ -1,0 +1,16 @@
+# Manual emulator build (test AVD). Runs on EAS so the fingerprint is
+# computed in one place: local Windows builds mismatch it (CRLF, pnpm store
+# hashes), which fails the expo-updates check.
+#   npx eas-cli workflow:run build-emulator.yml --ref <branch>
+name: Build for emulator
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Emulator APK
+    type: build
+    params:
+      platform: android
+      profile: emulator
