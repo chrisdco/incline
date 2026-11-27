@@ -4,6 +4,11 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v58.0.0/ before 
 
 **Project context:** See [docs/HANDOFF.md](docs/HANDOFF.md) (current state — refresh via `node scripts/refresh-handoff.mjs`) and [docs/WORK-QUEUE.md](docs/WORK-QUEUE.md) (the only pickup list). Standing decisions live in `docs/decisions/`; shipped history in `docs/archive/` (read-only).
 
+## Before you push
+
+- **`pnpm verify`** (or `node scripts/verify.mjs`, which also works in worktrees) runs CI's quality job locally and stops at the first failure. Every red CI run so far was a real error it would have caught (oxlint impure-render, compiler bailouts, contracts out of sync).
+- **Merge only on green.** `gh pr checks <n> --watch`, then merge. A red PR merged makes main red and every later PR inherits it.
+
 ## Data-loading rules (non-negotiable)
 
 - **Never query per row in a loop.** Batch with `WHERE id IN (...)` + assemble maps (see `mapExerciseRows`). One list screen once cost 1200+ queries; don't regress it.

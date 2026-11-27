@@ -16,6 +16,7 @@
     "lint": "expo lint",
     "lint:fix": "expo lint --fix",
     "compiler:check": "node scripts/compiler-check.mjs",
+    "verify": "node scripts/verify.mjs",
     "test": "vitest run --config vitest.config.mts --exclude \"**/*.integration.test.ts\"",
     "test:integration": "vitest run --config vitest.config.mts integration",
     "test:all": "vitest run --config vitest.config.mts",
