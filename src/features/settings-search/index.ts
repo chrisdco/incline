@@ -57,7 +57,8 @@ export const SETTINGS: readonly SettingEntry[] = [
   { id: 'clear-history', title: 'Clear workout history', section: 'Your data', keywords: ['delete workouts', 'reset', 'wipe'] },
   { id: 'delete-account', title: 'Delete account', section: 'Account', keywords: ['close account', 'remove account', 'erase'] },
   { id: 'sign-out', title: 'Sign out', section: 'Account', keywords: ['log out', 'logout', 'switch account'] },
-  { id: 'version', title: 'Version', section: 'About', keywords: ['build', 'release', 'about'] },
+  { id: 'version', title: 'Version', section: 'About', keywords: ['build', 'build number', 'release', 'about', 'runtime', 'channel', 'copy', 'share'] },
+  { id: 'changelog', title: "What's new", section: 'About', keywords: ['changelog', 'release notes', 'new features', 'history', 'updates'] },
   { id: 'updates', title: 'App updates', section: 'About', keywords: ['update', 'check for updates', 'ota', 'new version'] },
 
   // On other screens.

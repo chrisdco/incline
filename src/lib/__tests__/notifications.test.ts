@@ -8,6 +8,7 @@ import {
 import {
   mondayWeekKey,
   newlyUnlockedAchievementIds,
+  abandonedNudgeDelaySeconds,
   shouldNudgeAbandoned,
   shouldNudgeStreak,
 } from '@/lib/notifications/nudge-rules';
@@ -132,6 +133,16 @@ describe('nudge caps', () => {
     expect(shouldNudgeAbandoned(now, now - 5 * 60 * 1000, null, 5)).toBe(false);
     expect(shouldNudgeAbandoned(now, idle, 5, 5)).toBe(false);
     expect(shouldNudgeAbandoned(now, idle, 4, 5)).toBe(true);
+  });
+
+  it('abandoned ping on leaving fires at the end of the idle window', () => {
+    const now = 1_000_000_000;
+    // Last set 10 min ago: 15 min of the 25 left.
+    expect(abandonedNudgeDelaySeconds(now, now - 10 * 60 * 1000, null, 5)).toBe(15 * 60);
+    // Already idle past the window: right away.
+    expect(abandonedNudgeDelaySeconds(now, now - 40 * 60 * 1000, null, 5)).toBe(1);
+    // One ping per session.
+    expect(abandonedNudgeDelaySeconds(now, now, 5, 5)).toBe(null);
   });
 
   it('streak fires once per week, Thu–Sun only, with sessions blocking', () => {

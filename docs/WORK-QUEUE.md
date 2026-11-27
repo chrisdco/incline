@@ -117,9 +117,15 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   they never drift. In-memory filtering per keystroke, synonym and fuzzy
   matches ("kg" finds Units, "dark" finds Appearance), opens the row and
   flashes it.
-- **1b. About + version:** version, build number, update date, channel,
-  short runtime, Check for updates, tap to copy.
-- **1c. What's new v2** (#410): levels (silent / line / card / must-read),
+- **1b. About + version:** done (#416): tap Version shares the details
+  (copy is in the share sheet; a direct copy needs `expo-clipboard`, Phase 2 C).
+- **1c. What's new v2** (#410). **Shipped:** levels (`note` / `announce` /
+  `must-read`) in the contract, per-card in-app art at 2:1, changelog screen
+  (Settings → About → What's new) with the low-noise New dot, web cards +
+  recent changes. Fallback: `WHATS_NEW_STYLE = 'classic'` in
+  `src/components/whats-new/whats-new-sheet.tsx`. MCP/Ask `get_changelog` shipped too. **Left:** (b) the deploy workflow posts `first_update_group_id` to
+  `app-release` so each OTA links to its items; (c) build cover card + name.
+  Original plan: levels (silent / line / card / must-read),
   changelog screen, update id recorded by the deploy workflow, web + Ask/MCP.
   Cards: one illustration or feature crop per card with a fixed aspect, so
   the carousel never jumps; images stay remote (cached) or SVG so OTAs stay
@@ -127,12 +133,15 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   the newest update, cleared on first open, gone after 7 days, at most 2 at
   once, never on the tab bar. Build cover card titled with the build name
   (decide naming with the first cover card).
-- **1d. Health visible:** Home says "Health connected, learning your
+- **1d. Health visible:** done: `healthStatusLine()` on Home, in Ask's
+  readiness result, and per-type arrival on the Health screen. Plan was: Home says "Health connected, learning your
   baseline (n/5 days)" or "No sleep data from Samsung Health yet" in place of
   saying nothing; the Health screen lists which record types actually arrive.
 - **1e. Polish:** rest-on-lock notification and widget alignment (user
-  checked 2026-11-27; needs screenshots), the JS loading hand-off,
-  abandoned-session ping (to Phase 2 if it needs a new channel).
+  checked 2026-11-27; needs screenshots), the JS loading hand-off (done:
+  splash held until Home's first data or the gate's route, 2.5 s safety),
+  abandoned-session ping (done: scheduled on leaving the app, settled on return;
+  existing digests channel, no native change).
 
 **Phase 2: native, on `release/build-3`**
 - **A. Health, both ways:** write finished workouts (via the outbox) so they

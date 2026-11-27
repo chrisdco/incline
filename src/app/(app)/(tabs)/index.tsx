@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -38,6 +38,8 @@ import { METRIC_ICONS } from '@/lib/metric-icons';
 import { homeWeekCaption } from '@/lib/home-context';
 import { ReadinessCheckIn } from '@/components/home/readiness-checkin';
 import { healthSnapshotQuery } from '@/health/query';
+import { healthStatusLine } from '@/health/readiness';
+import { releaseSplash } from '@/lib/splash';
 import { WhatsNewSheet } from '@/components/whats-new/whats-new-sheet';
 import { BuildUpdateCard } from '@/components/home/build-update-card';
 import { AskAboutLink } from '@/components/ai/ask-about-button';
@@ -94,6 +96,12 @@ export default function HomeScreen() {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [today] = useState(() => formatFullDate(Date.now()));
   const [refreshing, setRefreshing] = useState(false);
+
+  // First paint with data, not skeletons: Home is where the splash hands off (src/lib/splash.ts).
+  const firstDataReady = !sugLoading && !todayLoading && !statsLoading;
+  useEffect(() => {
+    if (firstDataReady) releaseSplash();
+  }, [firstDataReady]);
 
   // Pull-to-refresh only: queries are invalidated by the tables they read,
   // so returning to the tab needs no manual refetch.
@@ -261,7 +269,7 @@ export default function HomeScreen() {
       </View>
 
       <View className="mt-4">
-        <ReadinessCheckIn value={readiness} suggestion={health?.suggestion} onChange={(level) => { void onReadiness(level); }} />
+        <ReadinessCheckIn value={readiness} suggestion={health?.suggestion} status={health ? healthStatusLine(health) : null} onChange={(level) => { void onReadiness(level); }} />
       </View>
 
       {/* Announcements sit under today's plan: the screen leads with the task (SYSTEM.md §3.1). */}

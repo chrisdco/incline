@@ -3,6 +3,7 @@ import type { Json, ToolSpec } from '@/contracts/ai/chat';
 import { CHAT_READ_TOOLS } from '@/contracts/ai/chat-tools';
 import {
   clampWeeks,
+  shapeChangelog,
   shapeExerciseHistory,
   shapePersonalRecords,
   shapeProgressionReview,
@@ -11,6 +12,7 @@ import {
   type NormSet,
 } from '@/contracts/mcp/shape';
 import {
+  argDays,
   argLimit,
   argText,
   matchExercise,
@@ -338,6 +340,10 @@ const HANDLERS: Record<string, (db: Db, args: Args) => Promise<unknown>> = {
     // Lazy: the memory module pulls in the write path, which read tools never need at load.
     const { listMemoryFacts } = await import('@/db/queries/memory');
     return shapeMemory(await listMemoryFacts(), Date.now());
+  },
+
+  async get_changelog(_db, args) {
+    return shapeChangelog(argDays(args), Date.now());
   },
 
   async search_exercises(db, args) {

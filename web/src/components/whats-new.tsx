@@ -1,6 +1,6 @@
-import { Activity, HeartPulse, LayoutGrid, LogIn, Mic, Share2, ShieldCheck, Sparkles, TrendingUp, type LucideIcon } from "lucide-react";
+import { Activity, HeartPulse, LayoutGrid, LogIn, Mic, Settings, Share2, ShieldCheck, Sparkles, TrendingUp, Wrench, type LucideIcon } from "lucide-react";
 
-import { WHATS_NEW, type WhatsNewIcon } from "../../../src/contracts/releases/whats-new";
+import { changelog, levelOf, WHATS_NEW, type WhatsNewIcon } from "../../../src/contracts/releases/whats-new";
 import { Badge, Card, SectionTitle } from "@/components/ui";
 
 const ICONS: Record<WhatsNewIcon, LucideIcon> = {
@@ -12,6 +12,8 @@ const ICONS: Record<WhatsNewIcon, LucideIcon> = {
   sparkles: Sparkles,
   sign_in: LogIn,
   shield: ShieldCheck,
+  settings: Settings,
+  wrench: Wrench,
 };
 
 /** Always the newest build (RELEASES.md); never names one, so it doesn't go stale. */
@@ -20,10 +22,12 @@ const APP_URL = "https://hgzihfjzfwdemjaeledc.supabase.co/functions/v1/app-relea
 /**
  * Dashboard "What's new": the same pack as the app's carousel
  * (src/contracts/releases). Swipeable row with snap on phones, a grid on
- * wide screens. Newest 6; older items fall off as new ones ship.
+ * wide screens. Newest 6 cards (notes stay in the list below); then the
+ * last few days of the changelog, the same `changelog()` as the app.
  */
 export function WhatsNew() {
-  const items = [...WHATS_NEW].sort((a, b) => b.addedAt.localeCompare(a.addedAt)).slice(0, 6);
+  const items = [...WHATS_NEW].filter((i) => levelOf(i) !== "note").sort((a, b) => b.addedAt.localeCompare(a.addedAt)).slice(0, 6);
+  const recent = changelog().slice(0, 3);
   if (!items.length) return null;
   return (
     <Card>
@@ -56,6 +60,25 @@ export function WhatsNew() {
           );
         })}
       </ul>
+      {recent.length ? (
+        <div className="mt-4 flex flex-col gap-3" aria-label="Recent changes">
+          {recent.map((d) => (
+            <div key={d.date}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {new Date(`${d.date}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+              </p>
+              <ul className="mt-1 flex flex-col gap-1">
+                {d.items.map((i) => (
+                  <li key={i.id} className="text-sm">
+                    <span className="font-medium">{i.title}</span>
+                    <span className="text-zinc-600 dark:text-zinc-400"> · {i.body}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </Card>
   );
 }

@@ -60,3 +60,19 @@ export function formatRelease(info: ReleaseInfo = releaseInfo()): string {
   if (info.updateId) parts.push(info.updateId);
   return parts.join(' · ');
 }
+
+/**
+ * Everything needed to pin down a report, one fact per line: what the user
+ * shares from Settings → About → Version.
+ */
+export function releaseDetails(info: ReleaseInfo = releaseInfo()): string {
+  const lines = [
+    `Incline ${info.build ? `${info.version} (build ${info.build})` : info.version}`,
+    `Stage: ${STAGE_LABELS[info.stage]}${info.channel ? ` · channel ${info.channel}` : ''}`,
+    info.updateId
+      ? `Update: ${info.updateId}${info.updateCreatedAt ? ` · ${info.updateCreatedAt.toISOString().slice(0, 10)}` : ''}`
+      : 'Update: built-in bundle',
+  ];
+  if (info.runtimeVersion) lines.push(`Runtime: ${info.runtimeVersion.slice(0, 8)}`);
+  return lines.join('\n');
+}

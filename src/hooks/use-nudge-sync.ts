@@ -4,6 +4,8 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { getActiveWorkout, getMonthlyRecap, getProgressStats, getWeeklyRecap } from '@/db/queries';
 import { evaluateAchievements } from '@/lib/achievements';
 import {
+  abandonedNudgeDelaySeconds,
+  cancelAbandonedNudge,
   mondayWeekKey,
   newlyUnlockedAchievementIds,
   scheduleAbandonedNudge,
@@ -16,6 +18,46 @@ import { runExclusive } from '@/lib/run-exclusive';
 import { useSettings } from '@/store/settings-store';
 
 type NudgeFamilies = { abandonedEnabled: boolean; streakEnabled: boolean; milestoneEnabled: boolean };
+
+/** The abandoned ping scheduled on leaving the app: which session, and when it fires. */
+type PendingAbandoned = { logId: number; at: number } | null;
+
+function lastActivityOf(active: NonNullable<Awaited<ReturnType<typeof getActiveWorkout>>>): number {
+  // Log updated_at moves on every set write (see recomputeVolume),
+  // so it doubles as last-activity for the idle check.
+  return Math.max(active.updatedAt, active.startedAt, ...active.sets.map((set) => set.createdAt));
+}
+
+/**
+ * Leaving the app with a session open: schedule the ping for the end of the
+ * idle window, so it reaches the user who walked out of the gym (the
+ * foreground check alone only ever fired once they came back).
+ */
+async function scheduleOnLeave(pending: { current: PendingAbandoned }) {
+  try {
+    const active = await getActiveWorkout();
+    if (!active) return;
+    const s = useSettings.getState();
+    const now = Date.now();
+    const delay = abandonedNudgeDelaySeconds(now, lastActivityOf(active), s.lastAbandonedNudgeLogId, active.id);
+    if (delay == null) return;
+    if (await scheduleAbandonedNudge(active.id, active.name, delay)) pending.current = { logId: active.id, at: now + delay * 1000 };
+  } catch {
+    // Best effort: the foreground check still covers the next open.
+  }
+}
+
+/**
+ * Back in the app: a ping whose time passed already fired, so count it
+ * (one per session); one still pending is cancelled, since the user is here.
+ */
+async function settleOnReturn(pending: { current: PendingAbandoned }) {
+  const p = pending.current;
+  if (!p) return;
+  pending.current = null;
+  if (Date.now() >= p.at) useSettings.getState().markAbandonedNudged(p.logId);
+  else await cancelAbandonedNudge();
+}
 
 /**
  * One pass over the enabled nudge families. Module-level because React
@@ -33,13 +75,7 @@ async function evaluateNudges(
     try {
       const active = await getActiveWorkout();
       if (active && !isCancelled()) {
-        // Log updated_at moves on every set write (see recomputeVolume),
-        // so it doubles as last-activity for the idle check.
-        const lastActivity = Math.max(
-          active.updatedAt,
-          active.startedAt,
-          ...active.sets.map((set) => set.createdAt),
-        );
+        const lastActivity = lastActivityOf(active);
         if (shouldNudgeAbandoned(now, lastActivity, s.lastAbandonedNudgeLogId, active.id)) {
           const ok = await scheduleAbandonedNudge(active.id, active.name);
           if (ok && !isCancelled()) s.markAbandonedNudged(active.id);
@@ -95,7 +131,8 @@ async function evaluateNudges(
 }
 
 /**
- * Evaluate capped nudges on foreground: abandoned session, streak at risk,
+ * Abandoned pings are scheduled on leaving the app and settled on return
+ * (see scheduleOnLeave). Evaluate capped nudges on foreground: abandoned session, streak at risk,
  * newly unlocked milestones. Each family is opt-in and self-capping (one
  * ping per session / week / achievement — see nudges.ts).
  */
@@ -105,6 +142,7 @@ export function useNudgeSync() {
   const milestoneEnabled = useSettings((s) => s.milestoneNudgeEnabled);
   const unit = useSettings((s) => s.unit);
   const syncing = useRef(false);
+  const pendingAbandoned = useRef<PendingAbandoned>(null);
 
   useEffect(() => {
     if (!abandonedEnabled && !streakEnabled && !milestoneEnabled) return;
@@ -118,7 +156,11 @@ export function useNudgeSync() {
     void run();
 
     const onAppState = (state: AppStateStatus) => {
-      if (state === 'active') void run();
+      if (state === 'active') {
+        void settleOnReturn(pendingAbandoned).then(run);
+      } else if (state === 'background' && abandonedEnabled) {
+        void scheduleOnLeave(pendingAbandoned);
+      }
     };
     const sub = AppState.addEventListener('change', onAppState);
     return () => {

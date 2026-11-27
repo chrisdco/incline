@@ -215,6 +215,9 @@ export function readLines(parts: readonly ChatPart[]): string[] {
       case 'get_memory':
         line = 'Checked what you asked me to remember';
         break;
+      case 'get_changelog':
+        line = "Checked what's new in Incline";
+        break;
       case 'get_progression_review':
         line = `Checked ${arr(r.stalled).length} stalled ${arr(r.stalled).length === 1 ? 'lift' : 'lifts'}`;
         break;

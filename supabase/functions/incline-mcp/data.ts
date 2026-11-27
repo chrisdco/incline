@@ -6,6 +6,7 @@ import { asMemoryKind, shapeMemory } from '../_shared/contracts/ai/memory.ts';
 
 import { SEED_EXERCISES } from '../_shared/contracts/catalog/seed-exercises.ts';
 import {
+  argDays,
   argLimit,
   argText,
   catalogEquipment,
@@ -30,6 +31,7 @@ import {
   normalizeRefKey,
   parseProgressionProposal,
   progressionFindings,
+  shapeChangelog,
   shapeProgressionReview,
   shapeProposalResult,
   shapeExerciseHistory,
@@ -716,7 +718,13 @@ async function getMemory(ctx: Ctx): Promise<ToolResult> {
   return { ok: true, data: shapeMemory(facts, Date.now()) };
 }
 
+/** App release notes, not user data: the same contract the app and web read. */
+async function getChangelog(_ctx: Ctx, args: Args): Promise<ToolResult> {
+  return { ok: true, data: shapeChangelog(argDays(args), Date.now()) };
+}
+
 export const HANDLERS: Record<string, (ctx: Ctx, args: Args) => Promise<ToolResult>> = {
+  get_changelog: getChangelog,
   get_memory: getMemory,
   get_profile: getProfile,
   list_routines: listRoutines,
