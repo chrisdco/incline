@@ -1,5 +1,6 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
+import { captureError } from '@/lib/error-sink';
 import {
   applySetToBests,
   bestsFromPrSummary,
@@ -36,6 +37,9 @@ import { resolveWeightUnit } from '@/lib/units';
  * per-exercise rest, notes draft — persist to the kv table so a kill or
  * relaunch resumes them.
  */
+
+/** Re-reads before a just-opened session counts as missing (~0.75 s). */
+const OPEN_RETRIES = 3;
 
 export interface UndoEntry {
   id: number;
@@ -155,6 +159,8 @@ export interface SessionEngineDeps {
   now?: () => number;
   /** Notes draft autosave delay; tests pass 0. */
   notesDebounceMs?: number;
+  /** Gap between re-reads when a just-opened session isn't there yet; tests pass 0. */
+  openRetryMs?: number;
 }
 
 /** UI side effects the screen binds while mounted (toast, rest, haptics). */
@@ -515,13 +521,25 @@ export function createSessionEngine(deps: SessionEngineDeps) {
       notesTimer = null;
       set({ ...IDLE, logId, session: cached ?? null, loading: cached == null });
 
-      const [s, rawVolatile, defaults] = await Promise.all([
+      const [first, rawVolatile, defaults] = await Promise.all([
         deps.getWorkoutLog(logId),
         deps.kvGet(volatileKey(logId)).catch(() => null),
         // Missing defaults are filled by the next refresh; never sink open().
         deps.getRestDefaultsForSession(logId).catch(() => ({})),
       ]);
       if (!isCurrent(gen, logId)) return;
+      // A session opened right after it was started (Home's suggested card)
+      // could read as missing for a moment and showed "Workout not found"
+      // while it was live. Re-read briefly before believing it; if it is
+      // still gone, report it so the cause can be traced.
+      let s = first;
+      for (let i = 0; s == null && i < OPEN_RETRIES; i += 1) {
+        await new Promise((r) => setTimeout(r, deps.openRetryMs ?? 250));
+        if (!isCurrent(gen, logId)) return;
+        s = await deps.getWorkoutLog(logId);
+      }
+      if (!isCurrent(gen, logId)) return;
+      if (s == null) captureError(new Error('session missing on open'), { where: 'session-open', logId });
       const saved = parseVolatile(rawVolatile, s?.startedAt);
       set({
         session: s,
