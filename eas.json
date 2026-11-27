@@ -44,7 +44,8 @@
         "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
         "SENTRY_ALLOW_FAILURE": "true"
       },
-      "environment": "preview"
+      "environment": "preview",
+      "autoIncrement": true
     },
     "beta": {
       "distribution": "internal",
@@ -59,7 +60,8 @@
         "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
         "SENTRY_ALLOW_FAILURE": "true"
       },
-      "environment": "preview"
+      "environment": "preview",
+      "autoIncrement": true
     },
     "preview": {
       "extends": "alpha",

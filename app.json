@@ -53,10 +53,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#111113",
-          "image": "./assets/images/icon-preview.png",
+          "backgroundColor": "#f5f5f7",
+          "image": "./assets/images/splash-mark-dark.png",
           "imageWidth": 160,
-          "resizeMode": "contain"
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#111113",
+            "image": "./assets/images/icon-preview.png"
+          }
         }
       ],
       "expo-audio",
