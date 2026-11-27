@@ -24,6 +24,7 @@ export default function AppLayout() {
         />
         <Stack.Screen name="exercises" options={{ headerShown: true, title: 'Exercises' }} />
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
+        <Stack.Screen name="changelog" options={{ headerShown: true, title: "What's new" }} />
         <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notifications' }} />
         <Stack.Screen name="health" options={{ headerShown: true, title: 'Health' }} />
         <Stack.Screen name="records" options={{ headerShown: true, title: 'Records' }} />

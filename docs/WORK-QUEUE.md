@@ -117,9 +117,17 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   they never drift. In-memory filtering per keystroke, synonym and fuzzy
   matches ("kg" finds Units, "dark" finds Appearance), opens the row and
   flashes it.
-- **1b. About + version:** version, build number, update date, channel,
-  short runtime, Check for updates, tap to copy.
-- **1c. What's new v2** (#410): levels (silent / line / card / must-read),
+- **1b. About + version:** done (#416): tap Version shares the details
+  (copy is in the share sheet; a direct copy needs `expo-clipboard`, Phase 2 C).
+- **1c. What's new v2** (#410). **Shipped:** levels (`note` / `announce` /
+  `must-read`) in the contract, per-card in-app art at 2:1, changelog screen
+  (Settings → About → What's new) with the low-noise New dot, web cards +
+  recent changes. Fallback: `WHATS_NEW_STYLE = 'classic'` in
+  `src/components/whats-new/whats-new-sheet.tsx`. **Left:** (a) MCP/Ask
+  `get_changelog` ("what changed this week?") from `changelog()` via
+  `mcp/shape.ts`; (b) the deploy workflow posts `first_update_group_id` to
+  `app-release` so each OTA links to its items; (c) build cover card + name.
+  Original plan: levels (silent / line / card / must-read),
   changelog screen, update id recorded by the deploy workflow, web + Ask/MCP.
   Cards: one illustration or feature crop per card with a fixed aspect, so
   the carousel never jumps; images stay remote (cached) or SVG so OTAs stay

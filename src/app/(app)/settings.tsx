@@ -3,7 +3,7 @@ import { Alert, Platform, ScrollView, Share, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Vibrate, Search, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse, Moon, Sun, Smartphone,
+  Vibrate, Search, Ruler, Bell, BellOff, Timer, Zap, Palette, Cloud, RefreshCw, CalendarDays, MonitorSmartphone, Download, History, Film, FlaskConical, Info, Upload, Trash2, HeartPulse, Moon, Sun, Smartphone, Megaphone, ChevronRight,
   TrendingUp,
   Dumbbell,
 } from 'lucide-react-native';
@@ -15,6 +15,7 @@ import { useAiSettings } from '@/ai/byok';
 import { byokPreset, type ByokConfig } from '@/ai/byok-presets';
 import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
 import { formatRelease, releaseDetails, releaseInfo } from '@/lib/release';
+import { newDotIds } from '@/contracts/releases/whats-new';
 import { Icon } from '@/components/common/icon';
 import { SearchBar } from '@/components/common/search-bar';
 import { AccountSection } from '@/components/account/account-section';
@@ -45,6 +46,9 @@ function AboutSection({ show }: { show: (id: string) => boolean }) {
   const [ready, setReady] = useState(false);
   const info = releaseInfo();
   const canUpdate = updatesEnabled();
+  const router = useRouter();
+  const seenIds = useSettings((s) => s.dismissedAnnouncementIds);
+  const hasNew = newDotIds(seenIds, Date.now()).length > 0;
 
   const check = async () => {
     setChecking(true);
@@ -66,6 +70,19 @@ function AboutSection({ show }: { show: (id: string) => boolean }) {
             accessibilityLabel="Version, share details"
             onPress={() => void Share.share({ message: releaseDetails(info) })}>
             <Caption>{formatRelease(info)}</Caption>
+          </ListRow>
+        ) : null}
+        {show('changelog') ? (
+          <ListRow
+            icon={<Icon icon={Megaphone} size={18} color="muted-foreground" />}
+            title="What's new"
+            subtitle="Every update, newest first"
+            accessibilityLabel={hasNew ? "What's new, new items" : "What's new"}
+            onPress={() => router.push('/(app)/changelog' as Href)}>
+            <View className="flex-row items-center gap-2">
+              {hasNew ? <View className="size-2 rounded-full bg-primary" /> : null}
+              <Icon icon={ChevronRight} size={18} color="muted-foreground" />
+            </View>
           </ListRow>
         ) : null}
         {show('updates') ? (
@@ -542,7 +559,7 @@ export default function SettingsScreen() {
 
         <AccountSection show={show} />
 
-        {show('version') || show('updates') ? <AboutSection show={show} /> : null}
+        {show('version') || show('changelog') || show('updates') ? <AboutSection show={show} /> : null}
 
         {__DEV__ ? (
           <Section title="Dev tools">

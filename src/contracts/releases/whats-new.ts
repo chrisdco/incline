@@ -8,7 +8,15 @@
  */
 
 /** Icon keys each surface maps to its own icon set (lucide on app and web). */
-export type WhatsNewIcon = 'trending' | 'heart' | 'mic' | 'share' | 'widget' | 'sparkles' | 'sign_in' | 'shield';
+export type WhatsNewIcon = 'trending' | 'heart' | 'mic' | 'share' | 'widget' | 'sparkles' | 'sign_in' | 'shield' | 'settings' | 'wrench';
+
+/**
+ * How loud an item is (issue #410). Fixes-only updates add nothing.
+ * - `note`: a line in the changelog only, never a card or a dot;
+ * - `announce` (default): a card in the What's new sheet plus a changelog line;
+ * - `must-read`: a behaviour change or data migration; its card comes first.
+ */
+export type WhatsNewLevel = 'note' | 'announce' | 'must-read';
 
 export interface WhatsNewItem {
   /** Stable; doubles as the seen flag. Never reuse an id. */
@@ -27,10 +35,42 @@ export interface WhatsNewItem {
   cta?: string;
   /** Needs a native build newer than the runtime it shipped in (shown on web as "in the latest build"). */
   native?: boolean;
+  /** Default `announce`. */
+  level?: WhatsNewLevel;
+}
+
+export function levelOf(item: WhatsNewItem): WhatsNewLevel {
+  return item.level ?? 'announce';
 }
 
 /** Newest first. Keep titles short (they head a card). */
 export const WHATS_NEW: readonly WhatsNewItem[] = [
+  {
+    id: 'settings-search-v1',
+    addedAt: '2026-11-27',
+    icon: 'settings',
+    title: 'Search your settings',
+    body: 'Type in Settings to find any option, even by another word: “kg” finds Units, “dark” finds Light or dark.',
+    bullets: ['Settings is now the gear on Profile', 'Sign out and Delete account live under Account'],
+    href: '/(app)/settings',
+    cta: 'Open Settings',
+  },
+  {
+    id: 'version-share-v1',
+    addedAt: '2026-11-27',
+    icon: 'wrench',
+    level: 'note',
+    title: 'Share your version details',
+    body: 'Tap Version in Settings → About to send exactly which build and update you run.',
+  },
+  {
+    id: 'fix-workout-not-found',
+    addedAt: '2026-11-27',
+    icon: 'wrench',
+    level: 'note',
+    title: 'Suggested workouts open first time',
+    body: 'Starting a workout from the Home suggestion no longer flashes “Workout not found”.',
+  },
   {
     id: 'plateau-v1',
     addedAt: '2026-11-18',
@@ -94,13 +134,62 @@ export const WHATS_NEW: readonly WhatsNewItem[] = [
   },
 ];
 
-/** Items the user has not seen, newest first, capped so the carousel stays short. */
+const newestFirst = (a: WhatsNewItem, b: WhatsNewItem) => b.addedAt.localeCompare(a.addedAt);
+
+/**
+ * Cards the user has not seen: must-read first, then newest. Notes never
+ * become cards. Capped so the carousel stays short.
+ */
 export function unseenWhatsNew(seenIds: readonly string[], pack: readonly WhatsNewItem[] = WHATS_NEW, max = 5): WhatsNewItem[] {
   const seen = new Set(seenIds);
+  const rank = (i: WhatsNewItem) => (levelOf(i) === 'must-read' ? 0 : 1);
   return [...pack]
-    .filter((i) => !seen.has(i.id))
-    .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
+    .filter((i) => !seen.has(i.id) && levelOf(i) !== 'note')
+    .sort((a, b) => rank(a) - rank(b) || newestFirst(a, b))
     .slice(0, max);
+}
+
+/** How long an unseen card keeps its New dot, and how many dots at once. */
+export const NEW_DOT_DAYS = 7;
+export const NEW_DOT_MAX = 2;
+
+/**
+ * Items that get a New dot (RELEASES.md, "without noise"): cards (not notes)
+ * from the newest day in the pack, unseen, added within NEW_DOT_DAYS, at most
+ * NEW_DOT_MAX. Opening the changelog marks them seen.
+ */
+export function newDotIds(seenIds: readonly string[], now: number, pack: readonly WhatsNewItem[] = WHATS_NEW): string[] {
+  const sorted = [...pack].sort(newestFirst);
+  const newest = sorted[0]?.addedAt;
+  if (!newest) return [];
+  const seen = new Set(seenIds);
+  const cutoff = now - NEW_DOT_DAYS * 86_400_000;
+  return sorted
+    .filter((i) => i.addedAt === newest && levelOf(i) !== 'note' && !seen.has(i.id) && Date.parse(`${i.addedAt}T00:00:00Z`) >= cutoff)
+    .slice(0, NEW_DOT_MAX)
+    .map((i) => i.id);
+}
+
+export interface ChangelogDay {
+  /** ISO date. */
+  date: string;
+  /** Cards (must-read first), then notes. */
+  items: WhatsNewItem[];
+}
+
+/** The browsable history: one group per day, newest first. Same on app and web. */
+export function changelog(pack: readonly WhatsNewItem[] = WHATS_NEW): ChangelogDay[] {
+  const order = { 'must-read': 0, announce: 1, note: 2 } as const;
+  const days = new Map<string, WhatsNewItem[]>();
+  for (const i of [...pack].sort(newestFirst)) {
+    const list = days.get(i.addedAt) ?? [];
+    list.push(i);
+    days.set(i.addedAt, list);
+  }
+  return [...days].map(([date, items]) => ({
+    date,
+    items: items.sort((a, b) => order[levelOf(a)] - order[levelOf(b)]),
+  }));
 }
 
 /** A build's notes: items added after the previous build, newest first. */
