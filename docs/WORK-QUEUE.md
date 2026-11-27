@@ -117,14 +117,15 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   they never drift. In-memory filtering per keystroke, synonym and fuzzy
   matches ("kg" finds Units, "dark" finds Appearance), opens the row and
   flashes it.
-- **1b. About + version:** done (#416): tap Version shares the details
-  (copy is in the share sheet; a direct copy needs `expo-clipboard`, Phase 2 C).
+- **1b. About + version:** done (#416); on `release/build-3` tap Version
+  copies the details (`expo-clipboard`), as does Connect AI's setup.
 - **1c. What's new v2** (#410). **Shipped:** levels (`note` / `announce` /
   `must-read`) in the contract, per-card in-app art at 2:1, changelog screen
   (Settings → About → What's new) with the low-noise New dot, web cards +
   recent changes. Fallback: `WHATS_NEW_STYLE = 'classic'` in
-  `src/components/whats-new/whats-new-sheet.tsx`. MCP/Ask `get_changelog` shipped too. **Left:** (b) the deploy workflow posts `first_update_group_id` to
-  `app-release` so each OTA links to its items; (c) build cover card + name.
+  `src/components/whats-new/whats-new-sheet.tsx`. MCP/Ask `get_changelog` shipped too. (c) build cover card done on `release/build-3` (`build-3`). (b) dropped:
+  the app already maps its update date to items, and signing the post would
+  need the webhook secret in EAS env for little gain.
   Original plan: levels (silent / line / card / must-read),
   changelog screen, update id recorded by the deploy workflow, web + Ask/MCP.
   Cards: one illustration or feature crop per card with a fixed aspect, so
@@ -189,8 +190,9 @@ installed builds).
   - Alpha build number auto-increments, so "Build 3" means something in About.
   - Sentry source maps on (Sentry is installed; uploads are off via
     `SENTRY_DISABLE_AUTO_UPLOAD`, needs an auth token from the user).
-  - Edge-to-edge audit: SDK 58 already draws behind the system bars; check
-    every screen's insets (no content under the status or nav bar).
+  - Edge-to-edge audit: done on `release/build-3`: pushed screens get the
+    bottom inset from the stacks (3-button nav hid ~16 dp + pinned CTAs);
+    tabs, Ask, session, auth keep their own. Check on device in Phase 3.
 
 **Phase 3: gate.** Merge `release/build-3` → workflow builds → fresh install
 and upgrade from Build 2 → offline / empty account / Health read+write /
