@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, View } from 'react-native';
+import { Alert, Platform, ScrollView, Share, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -14,7 +14,7 @@ import { GymsSettingsRow } from '@/components/gyms/gyms-settings-row';
 import { useAiSettings } from '@/ai/byok';
 import { byokPreset, type ByokConfig } from '@/ai/byok-presets';
 import { applyAppUpdate, checkForAppUpdate, updatesEnabled } from '@/features/updates';
-import { formatRelease, releaseInfo } from '@/lib/release';
+import { formatRelease, releaseDetails, releaseInfo } from '@/lib/release';
 import { Icon } from '@/components/common/icon';
 import { SearchBar } from '@/components/common/search-bar';
 import { AccountSection } from '@/components/account/account-section';
@@ -56,13 +56,15 @@ function AboutSection({ show }: { show: (id: string) => boolean }) {
   };
 
   return (
-        <Section title="About">
+    <Section title="About">
       <ListGroup>
         {show('version') ? (
           <ListRow
             icon={<Icon icon={Info} size={18} color="muted-foreground" />}
             title="Version"
-            subtitle={info.updateCreatedAt ? `Updated ${info.updateCreatedAt.toLocaleDateString()}` : undefined}>
+            subtitle={`${info.updateCreatedAt ? `Updated ${info.updateCreatedAt.toLocaleDateString()}` : 'Built-in bundle'}${info.runtimeVersion ? ` · runtime ${info.runtimeVersion.slice(0, 8)}` : ''} · tap to share`}
+            accessibilityLabel="Version, share details"
+            onPress={() => void Share.share({ message: releaseDetails(info) })}>
             <Caption>{formatRelease(info)}</Caption>
           </ListRow>
         ) : null}
