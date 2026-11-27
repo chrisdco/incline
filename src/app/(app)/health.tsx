@@ -11,9 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { AiMark } from '@/components/ai/ai-mark';
-import { getHealthPort, HEALTH_KIND_LABEL, HEALTH_KINDS } from '@/health';
+import { getHealthPort, HEALTH_KIND_LABEL, HEALTH_KINDS, type HealthKind } from '@/health';
 import { healthSnapshotQuery, refreshHealth } from '@/health/query';
-import { formatSleep, type HealthSnapshot } from '@/health/readiness';
+import { formatSleep, healthStatusLine, MIN_BASELINE_DAYS, type HealthSnapshot, type KindCoverage } from '@/health/readiness';
 import { SCREEN_CONTENT } from '@/lib/layout';
 import { useSettings } from '@/store/settings-store';
 
@@ -23,7 +23,18 @@ function todayLine(s: HealthSnapshot): string {
   if (s.hrv) parts.push(`HRV ${s.hrv.today} ms (usual ${s.hrv.baseline})`);
   if (s.restingHeartRate) parts.push(`Resting HR ${s.restingHeartRate.today} bpm (usual ${s.restingHeartRate.baseline})`);
   if (s.stepsToday !== null) parts.push(`${s.stepsToday.toLocaleString()} steps`);
-  return parts.length ? parts.join(' · ') : 'No readings yet today. HRV and resting HR need about a week of history before we compare.';
+  const status = healthStatusLine(s);
+  if (status) parts.push(status);
+  return parts.length ? parts.join(' · ') : `No readings yet today. HRV and resting HR need ${MIN_BASELINE_DAYS} days of history before we compare.`;
+}
+
+/** Per type: is it arriving, and since when. */
+function arrivalLine(c: KindCoverage | undefined, k: HealthKind): string {
+  if (!c || c.days === 0) return k === 'steps' ? 'Shared · no steps yet today' : 'Shared · nothing received yet';
+  if (k === 'steps') return 'Shared · arriving';
+  const last = c.lastAt ? new Date(c.lastAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : null;
+  const learning = c.baselineDays !== undefined && c.baselineDays < MIN_BASELINE_DAYS ? ` · learning ${c.baselineDays}/${MIN_BASELINE_DAYS}` : '';
+  return `${c.days} ${c.days === 1 ? 'day' : 'days'}${last ? ` · last ${last}` : ''}${learning}`;
 }
 
 const HEALTH_CONNECT_STORE = 'market://details?id=com.google.android.apps.healthdata';
@@ -119,7 +130,7 @@ export default function HealthScreen() {
           <Section title="Shared with Incline">
             <ListGroup>
               {HEALTH_KINDS.map((k) => (
-                <ListRow key={k} title={HEALTH_KIND_LABEL[k]} subtitle={granted.includes(k) ? undefined : 'Not shared'}>
+                <ListRow key={k} title={HEALTH_KIND_LABEL[k]} subtitle={granted.includes(k) ? arrivalLine(snapshot?.coverage[k], k) : 'Not shared'}>
                   {granted.includes(k) ? <Icon icon={Check} size={16} color="success" /> : null}
                 </ListRow>
               ))}

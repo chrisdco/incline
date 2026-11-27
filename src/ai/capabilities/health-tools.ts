@@ -1,7 +1,7 @@
 import { CHAT_HEALTH_TOOLS } from '@/contracts/ai/chat-tools';
 import type { Json } from '@/contracts/ai/chat';
 import { getHealthPort, type HealthPort } from '@/health';
-import { readHealthSnapshot, type HealthSnapshot } from '@/health/readiness';
+import { healthStatusLine, readHealthSnapshot, type HealthSnapshot } from '@/health/readiness';
 
 import type { DeviceTool } from './read-tools';
 
@@ -22,6 +22,8 @@ export function readinessResult(s: HealthSnapshot): Json {
     steps_today: s.stepsToday,
     latest_weight_kg: s.latestWeightKg,
     suggestion: s.suggestion ? { level: s.suggestion.level, signals: s.suggestion.signals.map((x) => x.text) } : null,
+    // Same line Home shows: what's missing or still being learned.
+    status: healthStatusLine(s),
     note: 'From the phone health store; usual = median of the last 4 weeks. Null means not shared or no reading.',
   };
 }

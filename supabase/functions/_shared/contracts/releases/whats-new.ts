@@ -47,6 +47,14 @@ export function levelOf(item: WhatsNewItem): WhatsNewLevel {
 /** Newest first. Keep titles short (they head a card). */
 export const WHATS_NEW: readonly WhatsNewItem[] = [
   {
+    id: 'health-status-v1',
+    addedAt: '2026-11-27',
+    icon: 'heart',
+    level: 'note',
+    title: 'Health says what it’s waiting for',
+    body: 'Home and the Health screen now show which types arrive from Health Connect and how many days until readiness compares to your usual.',
+  },
+  {
     id: 'settings-search-v1',
     addedAt: '2026-11-27',
     icon: 'settings',
