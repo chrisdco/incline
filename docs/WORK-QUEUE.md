@@ -144,11 +144,14 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   existing digests channel, no native change).
 
 **Phase 2: native, on `release/build-3`**
-- **A. Health, both ways:** write finished workouts (via the outbox) so they
-  show in Samsung Health; read nutrition (calories, macros) and use sleep +
-  nutrition in performance insights ("after <6 h sleep your top sets ran
-  ~4% lighter"). Shared rules in `src/contracts`, so Ask/MCP/web say the same.
-  A rationale screen before each permission.
+- **A. Health, both ways:** done on `release/build-3` (95bcb29): opt-in
+  Save workouts (ExerciseSession, keyed by workout uuid, cursor over
+  `updated_at`, last 30 days then each change, deletes follow) and nutrition
+  read (yesterday + 7-day logged-days average on the Health screen and Ask).
+  MCP/web n/a: health stays on the phone. **Left:** the sleep/nutrition vs
+  performance insight ("after <6 h sleep your top sets ran ~4% lighter") as a
+  contract in `src/contracts/coaching/`, needs ~4 weeks of paired nights and
+  sessions per lift before it says anything; app + Ask.
 - **B. Music mini-bar (optional, off by default, Android):** media-session
   module after a one-time notification-access grant; title, art,
   play/pause/skip in the session screen; hidden when nothing is playing.
