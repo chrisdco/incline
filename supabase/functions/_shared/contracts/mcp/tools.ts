@@ -109,6 +109,14 @@ export const TOOLS: ToolDef[] = [
     annotations: READ,
   },
   {
+    name: 'get_changelog',
+    title: "What's new in Incline",
+    description:
+      "What changed in the Incline app, newest first, one group per day: features (cards), important changes and smaller notes. Use for questions like \"what's new?\" or \"what changed this week?\". Items marked needs_new_build only work after installing the latest app build.",
+    inputSchema: obj({ days: { type: 'integer', minimum: 1, maximum: 90, description: 'look back this many days (default 14)' } }),
+    annotations: READ,
+  },
+  {
     name: 'search_exercises',
     title: 'Search exercises',
     description: 'Find exercises by name in the user\'s library (bundled, catalog and custom). Use the returned names in create_routine.',
@@ -193,6 +201,11 @@ function int(v: unknown, lo: number, hi: number): number | null {
 
 export function argLimit(args: Record<string, unknown>, dflt: number): number {
   return int(args.limit, 1, MAX_LIST_LIMIT) ?? dflt;
+}
+
+/** get_changelog look-back, 1–90 days. */
+export function argDays(args: Record<string, unknown>, dflt = 14): number {
+  return int(args.days, 1, 90) ?? dflt;
 }
 
 export function argText(args: Record<string, unknown>, key: string, max = 120): string | null {

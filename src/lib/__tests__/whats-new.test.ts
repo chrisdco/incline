@@ -57,3 +57,14 @@ describe('whats new', () => {
     ]);
   });
 });
+
+describe('get_changelog shape (MCP + Ask)', () => {
+  it('cuts to the look-back window and keeps levels', async () => {
+    const { shapeChangelog } = await import('@/contracts/mcp/shape');
+    const p = [item('a', '2026-11-27'), item('n', '2026-11-26', 'note'), item('old', '2026-10-01')];
+    const out = shapeChangelog(14, Date.parse('2026-11-27T12:00:00Z'), p);
+    expect(out.updates.map((u) => u.date)).toEqual(['2026-11-27', '2026-11-26']);
+    expect(out.updates[1].items[0].level).toBe('note');
+    expect(shapeChangelog(1, Date.parse('2027-01-01T00:00:00Z'), p).note).toMatch(/Nothing new/);
+  });
+});

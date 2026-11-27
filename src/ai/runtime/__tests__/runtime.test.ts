@@ -152,10 +152,10 @@ describe('chat contracts', () => {
   it('chat read tools are the MCP read tools, with data categories', () => {
     const mcpRead = TOOLS.filter((t) => t.annotations.readOnlyHint).map((t) => t.name);
     expect(CHAT_READ_TOOLS.map((t) => t.name)).toEqual(mcpRead);
-    expect(CHAT_READ_TOOLS).toHaveLength(11);
+    expect(CHAT_READ_TOOLS).toHaveLength(12);
     expect(findTool('create_routine')).toBeUndefined();
     for (const t of CHAT_READ_TOOLS) expect(t.dataCategories.length).toBeGreaterThan(0);
-    expect(chatToolsFor('session')).toHaveLength(11);
+    expect(chatToolsFor('session')).toHaveLength(12);
   });
 
   it('old readers drop unknown part types', () => {
