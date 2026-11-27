@@ -88,8 +88,8 @@ export const WHATS_NEW: readonly WhatsNewItem[] = [
     addedAt: '2026-11-27',
     icon: 'wrench',
     level: 'note',
-    title: 'Share your version details',
-    body: 'Tap Version in Settings → About to send exactly which build and update you run.',
+    title: 'Copy your version details',
+    body: 'Tap Version in Settings → About to copy exactly which build and update you run.',
   },
   {
     id: 'fix-workout-not-found',

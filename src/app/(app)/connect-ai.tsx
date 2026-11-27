@@ -1,9 +1,10 @@
+import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Bot, Eye, PencilOff, Plus, Share2, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Bot, Copy, Eye, PencilOff, Plus, Share2, Trash2 } from 'lucide-react-native';
 
 import { useAppAuth } from '@/auth/use-app-auth';
 import { Chip } from '@/components/common/chip';
@@ -67,8 +68,14 @@ export default function ConnectAiScreen() {
     void queryClient.invalidateQueries({ queryKey: TOKENS_KEY });
   };
 
+  const setupText = (token: string) => `${claudeCodeCommand(token)}\n\nServer: ${mcpServerUrl()}\nHeader: Authorization: Bearer ${token}`;
   const onShare = (token: string) => {
-    void Share.share({ message: `${claudeCodeCommand(token)}\n\nServer: ${mcpServerUrl()}\nHeader: Authorization: Bearer ${token}` });
+    void Share.share({ message: setupText(token) });
+  };
+  const onCopy = (token: string) => {
+    void Clipboard.setStringAsync(setupText(token)).then(() =>
+      toast({ title: 'Setup copied', description: 'Paste it in a terminal or your app’s MCP settings', variant: 'success' }),
+    );
   };
 
   const onRevoke = (t: McpToken) => {
@@ -123,12 +130,17 @@ export default function ConnectAiScreen() {
                 <Body selectable className="font-mono text-foreground">
                   {fresh.token}
                 </Body>
-                <Button size="sm" onPress={() => onShare(fresh.token)} leftIcon={<Icon icon={Share2} size={16} color="primary-foreground" />}>
-                  Share setup
-                </Button>
+                <View className="flex-row gap-2">
+                  <Button size="sm" className="flex-1" onPress={() => onCopy(fresh.token)} leftIcon={<Icon icon={Copy} size={16} color="primary-foreground" />}>
+                    Copy setup
+                  </Button>
+                  <Button size="sm" variant="tonal" className="flex-1" onPress={() => onShare(fresh.token)} leftIcon={<Icon icon={Share2} size={16} color="primary" />}>
+                    Share
+                  </Button>
+                </View>
                 <Caption>
-                  Claude Code: run the shared command in a terminal. Other apps: add a remote MCP server with the address and
-                  Authorization header from the shared text.
+                  Claude Code: run the copied command in a terminal. Other apps: add a remote MCP server with the address and
+                  Authorization header from the copied text.
                 </Caption>
                 <Chip label="Done" size="sm" onPress={() => setFresh(null)} />
               </View>
