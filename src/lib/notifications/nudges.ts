@@ -9,6 +9,7 @@ import {
 
 export {
   ABANDONED_IDLE_MS,
+  abandonedNudgeDelaySeconds,
   STREAK_NUDGE_DAYS,
   mondayWeekKey,
   shouldNudgeAbandoned,
@@ -27,6 +28,8 @@ async function scheduleOneShot(opts: {
   title: string;
   body: string;
   data: NotificationPayload;
+  /** Fire this many seconds from now; default 1 (right away). */
+  delaySeconds?: number;
 }): Promise<boolean> {
   const mod = await prepareNotifications(NOTIFICATION_CHANNELS.digests);
   if (!mod) return false;
@@ -36,7 +39,7 @@ async function scheduleOneShot(opts: {
       content: { title: opts.title, body: opts.body, sound: 'default', data: opts.data },
       trigger: {
         type: mod.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: 1,
+        seconds: Math.max(1, Math.round(opts.delaySeconds ?? 1)),
         repeats: false,
         ...(Platform.OS === 'android' ? { channelId: NOTIFICATION_CHANNELS.digests } : {}),
       },
@@ -55,8 +58,10 @@ export async function cancelStreakNudge(): Promise<void> {
   await cancelNotification(NOTIFICATION_IDS.streakNudge);
 }
 
-export async function scheduleAbandonedNudge(sessionId: number, sessionName: string): Promise<boolean> {
+/** Same id every time, so scheduling again replaces a pending ping. */
+export async function scheduleAbandonedNudge(sessionId: number, sessionName: string, delaySeconds = 1): Promise<boolean> {
   return scheduleOneShot({
+    delaySeconds,
     identifier: NOTIFICATION_IDS.abandonedSession,
     title: 'Still training?',
     body: `${sessionName} is still open — pick up where you left off.`,

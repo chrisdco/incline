@@ -139,7 +139,8 @@ per-profile `buildArchs`). Every native lane edits config, so this lands first.
   saying nothing; the Health screen lists which record types actually arrive.
 - **1e. Polish:** rest-on-lock notification and widget alignment (user
   checked 2026-11-27; needs screenshots), the JS loading hand-off,
-  abandoned-session ping (to Phase 2 if it needs a new channel).
+  abandoned-session ping (done: scheduled on leaving the app, settled on return;
+  existing digests channel, no native change).
 
 **Phase 2: native, on `release/build-3`**
 - **A. Health, both ways:** write finished workouts (via the outbox) so they
