@@ -5,6 +5,7 @@ import { useAppAuth } from '@/auth/use-app-auth';
 import { clearCoachNarrationCache } from '@/coaching/narrate-client';
 
 import { PrimaryActivityIndicator } from '@/components/common/primary-activity-indicator';
+import { releaseSplash } from '@/lib/splash';
 import { DeletionScheduledScreen } from '@/components/auth/deletion-scheduled-screen';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -156,7 +157,10 @@ export default function Gate() {
     // install spinning here forever instead of reaching sign-in (alpha 2).
     if (!ready || !authLoaded || !bound || (isSignedIn && (deletion === undefined || profileLoading))) return;
     // Account-switch guard open: hold routing until the user picks.
-    if (switchGuard) return;
+    if (switchGuard) {
+      releaseSplash();
+      return;
+    }
 
     const inAuth = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
@@ -165,15 +169,20 @@ export default function Gate() {
     // Not signed in → auth screen
     if (!isSignedIn) {
       if (!inAuth) router.replace('/(auth)/sign-in');
+      releaseSplash();
       return;
     }
 
     // Deletion scheduled → the screen renders instead of any route.
-    if (deletion) return;
+    if (deletion) {
+      releaseSplash();
+      return;
+    }
 
     // Signed in but no profile row yet (first login) → onboarding
     if (!profile) {
       if (!inOnboarding) router.replace('/(onboarding)');
+      releaseSplash();
       return;
     }
 
@@ -182,6 +191,7 @@ export default function Gate() {
     const needsOnboarding = !profile.onboardingCompleted && !profile.name;
     if (needsOnboarding && !inOnboarding) {
       router.replace('/(onboarding)');
+      releaseSplash();
     } else if ((profile.onboardingCompleted || profile.name) && !inApp) {
       router.replace('/(app)/(tabs)');
     }
