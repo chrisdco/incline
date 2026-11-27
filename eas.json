@@ -39,10 +39,10 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "alpha",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com",
         "EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT": "693170623852",
-        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
+        "SENTRY_ALLOW_FAILURE": "true"
       },
       "environment": "preview"
     },
@@ -54,19 +54,16 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "beta",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com",
         "EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT": "693170623852",
-        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
+        "SENTRY_ALLOW_FAILURE": "true"
       },
       "environment": "preview"
     },
     "preview": {
       "extends": "alpha",
-      "channel": "preview",
-      "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-      }
+      "channel": "preview"
     },
     "production": {
       "channel": "production",
@@ -76,9 +73,9 @@
       },
       "env": {
         "EXPO_PUBLIC_RELEASE_STAGE": "production",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "693170623852-h2nqm1tufpvljtqqs1kf9e5r73eghbeo.apps.googleusercontent.com",
-        "EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT": "693170623852"
+        "EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT": "693170623852",
+        "SENTRY_ALLOW_FAILURE": "true"
       },
       "environment": "production"
     }
