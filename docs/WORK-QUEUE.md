@@ -99,13 +99,58 @@ Remaining:
 - `skip-in-history`: record skipped exercises on the log (a synced field) so Ask, MCP and web can say "skipped Bench, did Dips instead". Today a skip leaves no trace once finished.
 - `routine-versions-ai`: AI template edits (`template-actions.ts`) save a version too, so every routine change lands in one history.
 
-## With the next APK (native rebuild)
+## Build 3 — next native build (planned 2026-11-27)
+
+Native work collects on branch `release/build-3` and merges to `main` once,
+so the deploy workflow builds one APK, not one per piece. OTA work lands on
+`main` as usual and is checked on the current build. Lanes in one phase
+touch different files and can run in parallel.
+
+**Phase 0 (first):** create `release/build-3`; `app.config.ts` (Clerk ID,
+per-profile `buildArchs`). Every native lane edits config, so this lands first.
+
+**Phase 1: OTA, now**
+- **1a. Settings:** the gear on Profile is the only way in; Profile keeps
+  only your things; Appearance moves into Settings; Delete account goes to
+  Settings → Account. **Search:** one static registry (title, keywords,
+  synonyms, section, path) that both renders Settings and feeds search, so
+  they never drift. In-memory filtering per keystroke, synonym and fuzzy
+  matches ("kg" finds Units, "dark" finds Appearance), opens the row and
+  flashes it.
+- **1b. About + version:** version, build number, update date, channel,
+  short runtime, Check for updates, tap to copy.
+- **1c. What's new v2** (#410): levels (silent / line / card / must-read),
+  changelog screen, update id recorded by the deploy workflow, web + Ask/MCP.
+  Cards: one illustration or feature crop per card with a fixed aspect, so
+  the carousel never jumps; images stay remote (cached) or SVG so OTAs stay
+  small; accent tint; plain fade. **New dot without noise:** only items from
+  the newest update, cleared on first open, gone after 7 days, at most 2 at
+  once, never on the tab bar. Build cover card titled with the build name
+  (decide naming with the first cover card).
+- **1d. Health visible:** Home says "Health connected, learning your
+  baseline (n/5 days)" or "No sleep data from Samsung Health yet" in place of
+  saying nothing; the Health screen lists which record types actually arrive.
+- **1e. Polish:** rest-on-lock notification and widget alignment (user
+  checked 2026-11-27; needs screenshots), the JS loading hand-off,
+  abandoned-session ping (to Phase 2 if it needs a new channel).
+
+**Phase 2: native, on `release/build-3`**
+- **A. Health, both ways:** write finished workouts (via the outbox) so they
+  show in Samsung Health; read nutrition (calories, macros) and use sleep +
+  nutrition in performance insights ("after <6 h sleep your top sets ran
+  ~4% lighter"). Shared rules in `src/contracts`, so Ask/MCP/web say the same.
+  A rationale screen before each permission.
+- **B. Music mini-bar (optional, off by default, Android):** media-session
+  module after a one-time notification-access grant; title, art,
+  play/pause/skip in the session screen; hidden when nothing is playing.
+  iOS later (Apple Music/Spotify only).
+- **C. Build polish:**
 
 Things that need a new binary anyway; fold them into the next build, never
 into an OTA (they change the runtime fingerprint, so OTAs stop reaching
 installed builds).
 
-- **Smaller APK** (user, 2026-11-25: alpha APK is 134 MB). It's universal
+    - **Smaller APK** (user, 2026-11-25: alpha APK is 134 MB). It's universal
   (arm64, arm32, x86, x86_64) with minify and shrink off. In `expo-build-properties`:
   `buildArchs: ['arm64-v8a']` for the sideloaded APK profiles (emulator keeps
   x86_64; production's AAB is already split by Play), plus
@@ -114,13 +159,13 @@ installed builds).
   Clerk item below). Check widgets, Health Connect and Clerk still work after
   R8 (keep rules), and note the size before and after.
 
-- **Fingerprint ignores `package.json` scripts.** Add `fingerprint.config.js` with `sourceSkips: SourceSkips.PackageJsonScriptsAll`. Then point `lint` / `typecheck` at oxlint and TS 7 (docs/decisions/LINT.md). Until then the scripts stay byte-identical.
+  - **Fingerprint ignores `package.json` scripts.** Add `fingerprint.config.js` with `sourceSkips: SourceSkips.PackageJsonScriptsAll`. Then point `lint` / `typecheck` at oxlint and TS 7 (docs/decisions/LINT.md). Until then the scripts stay byte-identical.
 
-- **Clerk Google client ID in app config.** Add an `app.config.ts` that sets
+  - **Clerk Google client ID in app config.** Add an `app.config.ts` that sets
   `extra.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` from env, then delete the
   runtime hand-over in `src/auth/use-google-sign-in.ts` (#393). The hand-over
   works; this is the documented way and drops a mutation of Constants.
-- **Better loading screen** (user ask, 2026-11-18). Two halves: the native
+  - **Better loading screen** (user ask, 2026-11-18). Two halves: the native
   splash (`expo-splash-screen` config: logo, background per theme, dark
   variant) needs this build; the JS hand-off after it (DB open, migrations,
   first query) can ship by OTA. Goal: splash → content with no blank frame or
@@ -128,6 +173,16 @@ installed builds).
   (`SplashScreen.preventAutoHideAsync` + hide on first render), then a short
   fade. Reference first: Apple/Material launch-screen guidance, Hevy/Strong
   cold starts. Measure cold start before and after.
+
+  - Alpha build number auto-increments, so "Build 3" means something in About.
+  - Sentry source maps on (Sentry is installed; uploads are off via
+    `SENTRY_DISABLE_AUTO_UPLOAD`, needs an auth token from the user).
+  - Edge-to-edge audit: SDK 58 already draws behind the system bars; check
+    every screen's insets (no content under the status or nav bar).
+
+**Phase 3: gate.** Merge `release/build-3` → workflow builds → fresh install
+and upgrade from Build 2 → offline / empty account / Health read+write /
+music / lock-screen rest / splash → size before/after → cover card ships.
 
 ## Verify-to-close (merged code, proof still owed)
 
