@@ -46,6 +46,19 @@ export function levelOf(item: WhatsNewItem): WhatsNewLevel {
 
 /** Newest first. Keep titles short (they head a card). */
 export const WHATS_NEW: readonly WhatsNewItem[] = [
+  // Build cover (#410 c): one card per native build, naming what needed the
+  // install. Feature cards for the same build follow it.
+  {
+    id: 'build-3',
+    addedAt: '2026-11-27',
+    icon: 'sparkles',
+    title: 'Build 3: lighter and connected',
+    body: 'A smaller install that opens straight to your data, with Health Connect working both ways.',
+    bullets: ['Smaller download: only the code your phone runs', 'Splash matches light and dark mode', 'Copy buttons for setup codes and build details'],
+    href: '/(app)/changelog',
+    cta: 'See everything',
+    native: true,
+  },
   {
     id: 'health-write-v1',
     addedAt: '2026-11-27',
